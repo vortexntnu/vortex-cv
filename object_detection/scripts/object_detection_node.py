@@ -4,7 +4,7 @@ import rospy
 
 # Import msg types
 from darknet_ros_msgs.msg import BoundingBoxes
-from vortex_msgs.msg import BBox, BBoxes
+from cv_msgs.msg import BBox, BBoxes
 from geometry_msgs.msg import PointStamped
 
 # Import classes
