@@ -7,6 +7,7 @@ from darknet_ros_msgs.msg import BoundingBoxes
 from cv_msgs.msg import BBox, BBoxes
 from geometry_msgs.msg import PointStamped
 from vortex_msgs.msg import ObjectPosition
+from vortex_msgs.msg import PointStampedArray
 
 # Import classes
 from size_estimator import SizeEstimator
@@ -20,7 +21,7 @@ class ObjectDetectionNode():
         rospy.init_node('object_detection_node')
         self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.bboxSub_callback)
         self.estimatorPub = rospy.Publisher('/object_detection/size_estimates', BBoxes, queue_size= 1)
-        self.landmarkPub = rospy.Publisher('/object_detection/landmark',ObjectPosition, queue_size= 1)
+        self.landmarkPub = rospy.Publisher('/object_positions_in',ObjectPosition, queue_size= 1)
         self.size_estimator = SizeEstimator()
         self.coord_positioner = CoordPosition()
 
@@ -87,22 +88,39 @@ class ObjectDetectionNode():
             # Append the new message to bounding boxes array
             ArrayBoundingBoxes.bounding_boxes.append(CurrentBoundingBox)
 
-        # self.estimatorPub.publish(ArrayBoundingBoxes)
+        self.estimatorPub.publish(ArrayBoundingBoxes)
 
     def rviz_point(self, data, dictionary, key_string):
         """Delete this when no longer needed"""
         # Create a publisher for each detected object. The name of the topic will be the name of the object from class in bounding box message.
         # # Build the message to place detected obejct in relation to camera 
-        pointPub = rospy.Publisher('/object_detection/object_point/' + key_string, PointStamped, queue_size= 1)
-        new_point = PointStamped()
-        new_point.header = data.header
-        new_point.header.stamp = rospy.get_rostime()
-        corrected_point = dictionary.get(key_string)
-        new_point.point.x = corrected_point[0]
-        new_point.point.y = corrected_point[1]
-        new_point.point.z = corrected_point[2]
-        # Publish message for each detected object --> rethink this, is it smart to have this in the loop, or should a list of point be sendt instead.
-        pointPub.publish(new_point)
+        pointPub = rospy.Publisher('/object_detection/object_points', PointStampedArray, queue_size= 1)
+        points = PointStampedArray()
+        points.header = data.header
+        points.image_header = data.image_header
+
+        for i in dictionary:
+            corrected_point = dictionary.get(key_string)
+            new_point = PointStamped()
+            new_point.header = data.header
+            new_point.header.stamp = rospy.get_rostime()
+            new_point.point.x = corrected_point[0]
+            new_point.point.y = corrected_point[1]
+            new_point.point.z = corrected_point[2]
+            points.positions.append(new_point)
+
+        pointPub.publish(points)
+
+        # pointPub = rospy.Publisher('/object_detection/object_point/' + key_string, PointStamped, queue_size= 1)
+        # new_point = PointStamped()
+        # new_point.header = data.header
+        # new_point.header.stamp = rospy.get_rostime()
+        # new_point.objectID = key_string
+        # corrected_point = dictionary.get(key_string)
+        # new_point.position.x = corrected_point[0]
+        # new_point.position.y = corrected_point[1]
+        # new_point.position.z = corrected_point[2]
+        # pointPub.publish(new_point)
 
     def landmarks(self, position, object_id):
         """
