@@ -2,7 +2,7 @@
 
 from math import sin, radians
 
-class SizeEstimator():
+class PositionEstimator():
     fov_horizontal = 110.0                          # Degrees
     fov_vertical = 70.0                             # Degrees
     focal_length = 2.12                             # mm
@@ -10,7 +10,7 @@ class SizeEstimator():
     max_height = 376                                # pxl
     angles_pr_pxl_hor = fov_horizontal/max_width
     angles_pr_pxl_ver = fov_vertical/max_height
-    use_single_lense = False
+    use_single_lense = True
 
     def main(self, bbox):
         """
@@ -20,7 +20,7 @@ class SizeEstimator():
             bbox                        the boundingbox message which includes data needed to calculate the size of an object
 
         Returns:
-            size_estimator_data: List of usefull data
+            position_estimator_data: List of usefull data
                 length_x_mtr: Width of object
                 length_y_mtr: Height of object
                 redefined_angle_x: The horizontal angle to centre of boundingbox in a new coordinate frame shown below
@@ -56,8 +56,8 @@ class SizeEstimator():
         if self.use_single_lense:
             redefined_angle_x = self.redefine_angles(angle_centre_object_x, self.fov_horizontal*0.5)  
 
-        size_estimator_data = [length_x_mtr, length_y_mtr, redefined_angle_x, redefined_angle_y]
-        return size_estimator_data
+        position_estimator_data = [length_x_mtr, length_y_mtr, redefined_angle_x, redefined_angle_y]
+        return position_estimator_data
     
     def redefine_angles(self, angle_centre_object, fov_type):
         """
