@@ -21,10 +21,13 @@ class GateDetectionNode():
     def __init__(self):
         rospy.init_node('gate_detection_node')
 
-        self.zedSub = rospy.Subscriber('/zed2/zed_node/rgb/image_rect_color', Image, self.zedSub_callback)
+        self.zedSub = rospy.Subscriber('/zed2/zed_node/rgb/image_rect_color', Image, self.zed_callback)
         
         self.linesPub = rospy.Publisher('/gate_detection/lines_image', Image, queue_size= 1)
         self.cannyPub = rospy.Publisher('/gate_detection/canny_image', Image, queue_size= 1)
+        self.hsvPub = rospy.Publisher('/gate_detection/hsv_image', Image, queue_size= 1)
+        self.hsvCheckPub = rospy.Publisher('/gate_detection/hsv_check_image', Image, queue_size= 1)
+        self.processingPub = rospy.Publisher('/gate_detection/processing_image', Image, queue_size= 1)
         
         self.timerPub = rospy.Publisher('/gate_detection/timer', Float32, queue_size= 1)
 
@@ -35,8 +38,20 @@ class GateDetectionNode():
         self.canny_threshold2 = 200
         self.canny_aperture = 3
 
+        # HSV params
+        self.hsv_hue_min = 179
+        self.hsv_hue_max = 0
+        self.hsv_sat_min = 255
+        self.hsv_sat_max = 0
+        self.hsv_val_min = 255
+        self.hsv_val_max = 0
 
-        self.dynam_client = dynamic_reconfigure.client.Client("gate_detection_cfg", config_callback=self.dynam_reconfigure_callback)
+        # Blur params
+        self.ksize1 = 7
+        self.ksize2 = 7
+        self.sigma = 0.8
+
+        self.dynam_client = dynamic_reconfigure.client.Client("gate_detection_cfg", timeout=5.0, config_callback=self.dynam_reconfigure_callback)
 
     
 
@@ -77,27 +92,71 @@ class GateDetectionNode():
         self.timerPub.publish(fps)
 
 
-    def zedSub_callback(self, img_msg):
+    def hsv_publisher(self, orig_img):
+        orig_img_cp = copy.deepcopy(orig_img)
+
+        hsv_img = cv2.cvtColor(orig_img_cp, cv2.COLOR_BGR2HSV)
+        hsv_lower = np.array([self.hsv_hue_min, self.hsv_sat_min, self.hsv_val_min])
+        hsv_upper = np.array([self.hsv_hue_max, self.hsv_sat_max, self.hsv_val_max])
+        
+        # hsv_lower = np.array([0, 0, 0])
+        # hsv_upper = np.array([10, 20, 20])
+        
+        hsv_mask = cv2.inRange(hsv_img, hsv_lower, hsv_upper)
+        hsv_mask_check_img = cv2.bitwise_and(orig_img_cp, orig_img_cp, mask=hsv_mask)
+
+        hsv_ros_image = self.bridge.cv2_to_imgmsg(hsv_img, encoding="bgr8")
+        hsv_check_ros_image = self.bridge.cv2_to_imgmsg(hsv_mask_check_img, encoding="bgra8")
+        
+        self.hsvPub.publish(hsv_ros_image)
+        self.hsvCheckPub.publish(hsv_check_ros_image)
+
+        return hsv_mask
+        # rospy.loginfo("\nHue: %d %d\nSat: %d %d\nVal: %d %d\n", self.hsv_hue_min, self.hsv_hue_max, self.hsv_sat_min, self.hsv_sat_max, self.hsv_val_min, self.hsv_val_max)
+
+    def gate_detection(self, hsv_mask):
+        hsv_mask_cp = copy.deepcopy(hsv_mask)
+
+        blur_hsv_img = cv2.GaussianBlur(hsv_mask_cp, (self.ksize1, self.ksize2), self.sigma)
+
+        processing_ros_image = self.bridge.cv2_to_imgmsg(blur_hsv_img, encoding="mono8")
+        self.processingPub.publish(processing_ros_image)
+
+
+    def zed_callback(self, img_msg):
         try:
             cv_image = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
         except CvBridgeError, e:
             rospy.logerr("CvBridge Error: {0}".format(e))
-    
-        gray_img = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-        edges_img = cv2.Canny(gray_img, self.canny_threshold1, self.canny_threshold2, apertureSize=self.canny_aperture)
 
-        edges_ros_image = self.bridge.cv2_to_imgmsg(edges_img, encoding="mono8")
+        gray_img = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+        canny_img = cv2.Canny(gray_img, self.canny_threshold1, self.canny_threshold2, apertureSize=self.canny_aperture)
+
+        edges_ros_image = self.bridge.cv2_to_imgmsg(canny_img, encoding="mono8")
         self.cannyPub.publish(edges_ros_image)
 
 
-        self.lines_publisher(cv_image, edges_img)
-    
+        self.lines_publisher(cv_image, canny_img)
+        hsv_mask = self.hsv_publisher(cv_image)
+
+        self.gate_detection(hsv_mask)
+
+
     def dynam_reconfigure_callback(self, config):
         self.canny_threshold1 = config.canny_threshold1
         self.canny_threshold2 = config.canny_threshold2
         self.canny_aperture = config.canny_aperture_size
 
+        self.hsv_hue_min = config.hsv_hue_min
+        self.hsv_hue_max = config.hsv_hue_max
+        self.hsv_sat_min = config.hsv_sat_min
+        self.hsv_sat_max = config.hsv_sat_max
+        self.hsv_val_min = config.hsv_val_min
+        self.hsv_val_max = config.hsv_val_max
 
+        self.ksize1 = config.ksize1
+        self.ksize2 = config.ksize2
+        self.sigma = config.sigma
 
 
 if __name__ == '__main__':
