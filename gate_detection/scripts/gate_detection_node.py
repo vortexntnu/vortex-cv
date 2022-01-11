@@ -28,7 +28,8 @@ class GateDetectionNode():
         self.hsvPub = rospy.Publisher('/gate_detection/hsv_image', Image, queue_size= 1)
         self.hsvCheckPub = rospy.Publisher('/gate_detection/hsv_check_image', Image, queue_size= 1)
         self.noiseRmPub = rospy.Publisher('/gate_detection/noise_removal_image', Image, queue_size= 1)
-        
+        self.contourPub = rospy.Publisher('/gate_detection/contour_image', Image, queue_size= 1)
+
         self.timerPub = rospy.Publisher('/gate_detection/timer', Float32, queue_size= 1)
 
         self.bridge = CvBridge()
@@ -139,6 +140,33 @@ class GateDetectionNode():
 
         return dilation_img
 
+
+    def contour_processing(self, orig_img, noise_removed_img):
+        orig_img_cp = copy.deepcopy(orig_img)
+
+        contours, hierarchy = cv2.findContours(noise_removed_img, 1, 2)
+        print(contours)
+
+        for cnt_idx in range(len(contours)):
+            print("Contour: ")
+            print(contours[cnt_idx])
+            print("\n\n")
+            cv2.drawContours(orig_img_cp, contours, cnt_idx, (0,0,255), 2)
+
+            # rect = cv2.minAreaRect(cnt)
+            # box = cv2.boxPoints(rect)
+            # box = np.int0(box)
+            # cv2.drawContours(orig_img_cp,[box],0,(0,0,255),2)
+
+        # cnt = contours[0]
+        # M = cv2.moments(cnt)
+        # print( M )
+
+        contour_image = self.bridge.cv2_to_imgmsg(orig_img_cp, encoding="bgra8")
+        self.contourPub.publish(contour_image)
+
+        return orig_img_cp
+
     def zed_callback(self, img_msg):
         try:
             cv_image = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
@@ -155,7 +183,9 @@ class GateDetectionNode():
         self.lines_publisher(cv_image, canny_img)
         hsv_mask = self.hsv_publisher(cv_image)
 
-        self.noise_removal(hsv_mask)
+        noise_removed_img = self.noise_removal(hsv_mask)
+
+        self.contour_processing(cv_image, noise_removed_img)
 
 
     def dynam_reconfigure_callback(self, config):
