@@ -27,7 +27,7 @@ class GateDetectionNode():
         self.cannyPub = rospy.Publisher('/gate_detection/canny_image', Image, queue_size= 1)
         self.hsvPub = rospy.Publisher('/gate_detection/hsv_image', Image, queue_size= 1)
         self.hsvCheckPub = rospy.Publisher('/gate_detection/hsv_check_image', Image, queue_size= 1)
-        self.processingPub = rospy.Publisher('/gate_detection/processing_image', Image, queue_size= 1)
+        self.noiseRmPub = rospy.Publisher('/gate_detection/noise_removal_image', Image, queue_size= 1)
         
         self.timerPub = rospy.Publisher('/gate_detection/timer', Float32, queue_size= 1)
 
@@ -50,6 +50,15 @@ class GateDetectionNode():
         self.ksize1 = 7
         self.ksize2 = 7
         self.sigma = 0.8
+
+        # Thresholding params
+        self.thresholding_blocksize = 11
+        self.thresholding_C = 2
+
+        # Erosion and dilation params
+        self.erosion_dilation_ksize = 5
+        self.erosion_iterations = 1
+        self.dilation_iterations = 1
 
         self.dynam_client = dynamic_reconfigure.client.Client("gate_detection_cfg", timeout=5.0, config_callback=self.dynam_reconfigure_callback)
 
@@ -114,14 +123,21 @@ class GateDetectionNode():
         return hsv_mask
         # rospy.loginfo("\nHue: %d %d\nSat: %d %d\nVal: %d %d\n", self.hsv_hue_min, self.hsv_hue_max, self.hsv_sat_min, self.hsv_sat_max, self.hsv_val_min, self.hsv_val_max)
 
-    def gate_detection(self, hsv_mask):
+    def noise_removal(self, hsv_mask):
         hsv_mask_cp = copy.deepcopy(hsv_mask)
 
         blur_hsv_img = cv2.GaussianBlur(hsv_mask_cp, (self.ksize1, self.ksize2), self.sigma)
+        
+        thr_img = cv2.adaptiveThreshold(blur_hsv_img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, self.thresholding_blocksize, self.thresholding_C)
 
-        processing_ros_image = self.bridge.cv2_to_imgmsg(blur_hsv_img, encoding="mono8")
-        self.processingPub.publish(processing_ros_image)
+        erosion_dilation_kernel = np.ones((self.erosion_dilation_ksize,self.erosion_dilation_ksize), np.uint8)
+        erosion_img = cv2.erode(thr_img, erosion_dilation_kernel, iterations=self.erosion_iterations)
+        dilation_img = cv2.dilate(erosion_img, erosion_dilation_kernel, iterations=self.dilation_iterations)
 
+        noise_rm_ros_image = self.bridge.cv2_to_imgmsg(dilation_img, encoding="mono8")
+        self.noiseRmPub.publish(noise_rm_ros_image)
+
+        return dilation_img
 
     def zed_callback(self, img_msg):
         try:
@@ -139,7 +155,7 @@ class GateDetectionNode():
         self.lines_publisher(cv_image, canny_img)
         hsv_mask = self.hsv_publisher(cv_image)
 
-        self.gate_detection(hsv_mask)
+        self.noise_removal(hsv_mask)
 
 
     def dynam_reconfigure_callback(self, config):
@@ -158,6 +174,12 @@ class GateDetectionNode():
         self.ksize2 = config.ksize2
         self.sigma = config.sigma
 
+        self.thresholding_blocksize = config.blocksize
+        self.thresholding_C = config.C
+
+        self.erosion_dilation_ksize = config.ed_ksize
+        self.erosion_iterations = config.erosion_iterations
+        self.dilation_iterations = config.dilation_iterations
 
 if __name__ == '__main__':
     node = GateDetectionNode()
