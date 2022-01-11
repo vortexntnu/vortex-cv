@@ -42,7 +42,7 @@ dictitems:
               state: true
               type: ''
             state: []
-          Erosion&Dilation: !!python/object/new:dynamic_reconfigure.encoding.Config
+          ErosionDilation: !!python/object/new:dynamic_reconfigure.encoding.Config
             dictitems:
               dilation_iterations: 5
               ed_ksize: 2
@@ -50,7 +50,7 @@ dictitems:
               groups: !!python/object/new:dynamic_reconfigure.encoding.Config
                 state: []
               id: 5
-              name: Erosion&Dilation
+              name: ErosionDilation
               parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
                 state: []
               parent: 0

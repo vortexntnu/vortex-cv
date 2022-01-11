@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from time import sleep
 import rospy
 
 from sensor_msgs.msg import Image
@@ -13,6 +14,7 @@ import cv2
 import copy
 from timeit import default_timer as timer
 
+np.set_printoptions(threshold=np.inf)
 
 class GateDetectionNode():
     """Handles tasks related to gate detection
@@ -29,6 +31,7 @@ class GateDetectionNode():
         self.hsvCheckPub = rospy.Publisher('/gate_detection/hsv_check_image', Image, queue_size= 1)
         self.noiseRmPub = rospy.Publisher('/gate_detection/noise_removal_image', Image, queue_size= 1)
         self.contourPub = rospy.Publisher('/gate_detection/contour_image', Image, queue_size= 1)
+        self.fillsPub = rospy.Publisher('/gate_detection/fills_image', Image, queue_size= 1)
 
         self.timerPub = rospy.Publisher('/gate_detection/timer', Float32, queue_size= 1)
 
@@ -141,52 +144,104 @@ class GateDetectionNode():
         return dilation_img
 
 
-    def contour_processing(self, orig_img, noise_removed_img):
+    def contour_processing(self, orig_img, noise_removed_img, enable_convex_hull=False):
         orig_img_cp = copy.deepcopy(orig_img)
 
-        contours, hierarchy = cv2.findContours(noise_removed_img, 1, 2)
-        print(contours)
-
+        # contours, hierarchy = cv2.findContours(noise_removed_img, 1, 2)
+        # contours, hierarchy = cv2.findContours(noise_removed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, hierarchy = cv2.findContours(noise_removed_img, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+        contours_filter = []
+        centroid_data = []
+        
         for cnt_idx in range(len(contours)):
-            print("Contour: ")
-            print(contours[cnt_idx])
-            print("\n\n")
-            cv2.drawContours(orig_img_cp, contours, cnt_idx, (0,0,255), 2)
+            if len([i for i, j in zip(hierarchy[0][cnt_idx], [-1, -1, -1, cnt_idx - 1]) if i == j]) != 4:
+                contours_filter.append(False)
+            else:
+                cnt = contours[cnt_idx]
+                cnt_moments = cv2.moments(cnt)
+
+                centroid_center_x = int(cnt_moments['m10']/cnt_moments['m00'])
+                centroid_center_y = int(cnt_moments['m01']/cnt_moments['m00'])
+
+                cnt_area = cnt_moments['m00']
+
+                if cnt_area < 300:
+                    contours_filter.append(False)
+                else:
+                    contours_filter.append(True)
+                    centroid_data.append((centroid_center_x, centroid_center_y, cnt_area))
+
+        contours_array = np.array(contours)
+        contours_filtered = contours_array[contours_filter]
+
+        if enable_convex_hull:
+            hull_array = []
+            for cnt_idx in range(len(contours_filtered)):
+                hull_array.append(cv2.convexHull(contours_filtered[cnt_idx], False))
+
+        for cnt_idx in range(len(contours_filtered)):
+            cnt_area_str = str(centroid_data[cnt_idx][2])
+
+            if enable_convex_hull:
+                cv2.drawContours(orig_img_cp, hull_array, cnt_idx, (255,0,0), 2)
+            else:
+                cv2.drawContours(orig_img_cp, contours_filtered, cnt_idx, (255,0,0), 2)
+
+            orig_img_cp = cv2.circle(orig_img_cp, (centroid_data[cnt_idx][0], centroid_data[cnt_idx][1]), 2, (0,255,0), 2)
+            orig_img_cp = cv2.putText(orig_img_cp, cnt_area_str, (centroid_data[cnt_idx][0], centroid_data[cnt_idx][1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (1,0,0), 2)
 
             # rect = cv2.minAreaRect(cnt)
             # box = cv2.boxPoints(rect)
             # box = np.int0(box)
             # cv2.drawContours(orig_img_cp,[box],0,(0,0,255),2)
 
-        # cnt = contours[0]
-        # M = cv2.moments(cnt)
-        # print( M )
-
         contour_image = self.bridge.cv2_to_imgmsg(orig_img_cp, encoding="bgra8")
         self.contourPub.publish(contour_image)
 
-        return orig_img_cp
+        if enable_convex_hull:
+            return orig_img_cp, hull_array
+        else:
+            return orig_img_cp, contours_filtered
+    
+    def fitlines(self, orig_img, contours):
+        orig_img_cp = copy.deepcopy(orig_img)
+
+        blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
+        # cv2.fillPoly(blank_image, pts =contours, color=(255,255,255))
+        
+        for cnt in contours:
+            rows, cols = blank_image.shape[:2]
+            [vx,vy,x,y] = cv2.fitLine(cnt, cv2.DIST_L2,0,0.01,0.01)
+            lefty = int((-x*vy/vx) + y)
+            righty = int(((cols-x)*vy/vx)+y)
+            cv2.line(blank_image,(cols-1,righty),(0,lefty),(0,255,0),2)
+            cv2.line(orig_img_cp,(cols-1,righty),(0,lefty),(0,255,0),2)
+
+
+        fills_ros_img = self.bridge.cv2_to_imgmsg(orig_img_cp, encoding="bgra8")
+        self.fillsPub.publish(fills_ros_img)
+
+        return blank_image
 
     def zed_callback(self, img_msg):
         try:
             cv_image = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
         except CvBridgeError, e:
             rospy.logerr("CvBridge Error: {0}".format(e))
+        self.img_height, self.img_width, self.img_channels = cv_image.shape
 
         gray_img = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-        canny_img = cv2.Canny(gray_img, self.canny_threshold1, self.canny_threshold2, apertureSize=self.canny_aperture)
 
+        canny_img = cv2.Canny(gray_img, self.canny_threshold1, self.canny_threshold2, apertureSize=self.canny_aperture)
         edges_ros_image = self.bridge.cv2_to_imgmsg(canny_img, encoding="mono8")
         self.cannyPub.publish(edges_ros_image)
-
-
         self.lines_publisher(cv_image, canny_img)
+        
         hsv_mask = self.hsv_publisher(cv_image)
-
         noise_removed_img = self.noise_removal(hsv_mask)
+        contours_img, contours = self.contour_processing(cv_image, noise_removed_img)
 
-        self.contour_processing(cv_image, noise_removed_img)
-
+        self.fitlines(contours_img, contours)
 
     def dynam_reconfigure_callback(self, config):
         self.canny_threshold1 = config.canny_threshold1
