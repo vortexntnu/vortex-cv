@@ -28,11 +28,38 @@ class ObjectDetectionNode():
         self.pcPub = rospy.Publisher('/object_detection/bbox_pointcloud', PointCloud2, queue_size= 1)
         self.estimatorPub = rospy.Publisher('/object_detection/size_estimates', BBoxes, queue_size= 1)
         self.landmarkPub = rospy.Publisher('/object_positions_in',ObjectPosition, queue_size= 1)
+        self.PointCloud = rospy.Publisher('/pointcloud_limited_to_bbox',PointCloud2) ################################## ???
         self.position_estimator = PositionEstimator()
         self.coord_positioner = CoordPosition()
     
-    def point_cloud():
-        pass
+    def point_cloud(self, data):
+        #pass
+        PointCloudMessage = PointCloud2()
+        PointCloudMessage.header = self.pc_data.header 
+        PointCloudMessage.height = self.pc_data.height
+        PointCloudMessage.width = self.pc_data.width
+
+        x_min_limit = data.xmin
+        x_max_limit = data.xmax
+        y_min_limit = data.ymin
+        y_max_limit = data.ymax
+
+        for i in range(x_min_limit, x_max_limit):
+            for j in range(y_min_limit,y_max_limit):
+                pc_values= point_cloud2.read_points(self.pc_data,uvs=[[i,j]])
+                for pt in pc_values:
+
+        self.PointCloud.publish(PointCloudMessage)            
+        
+        # for point in pc_values:
+        #    if point[0] > x_min_limit:
+        #        if point[0] < x_max_limit:
+        #            if point[1] > y_min_limit:
+        #                if point[1] < y_max_limit:
+        #                     PointCloudMessage.pointcloud.append(point)
+
+
+        
 
     def pointcloud_cb(self, data):
         self.pc_data = data
@@ -85,6 +112,7 @@ class ObjectDetectionNode():
         for bbox in data.bounding_boxes:
             # Sends bbox data to pointcloud func in order to respublish pointcloud data only within bbox
             self.send_pointcloud(bbox)
+            self.point_cloud(bbox)
 
             # Store depth measurement of boundingbox
             depth_mtr = bbox.z
