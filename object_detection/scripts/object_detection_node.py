@@ -21,6 +21,9 @@ class ObjectDetectionNode():
         self.estimatorPub = rospy.Publisher('/object_detection/size_estimates', BBoxes, queue_size= 1)
         self.size_estimator = SizeEstimator()
         self.coord_positioner = CoordPosition()
+    
+    def point_cloud():
+        pass
 
     def estimatorSub_callback(self, data):
         """
