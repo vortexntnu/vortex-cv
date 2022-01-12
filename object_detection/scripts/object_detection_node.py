@@ -33,46 +33,40 @@ class ObjectDetectionNode():
 
     def pointcloud_cb(self, data):
         self.pc_data = data
-        # assert isinstance(data, PointCloud2)
-        # pt_gen = point_cloud2.read_points(data, skip_nans=False, uvs=[1, 2])
-        # for pt in pt_gen:
-        #     rospy.loginfo(pt)
         return
 
     def send_pointcloud(self, bbox_data):
         """"""
         x_from = bbox_data.xmin
         x_to = bbox_data.xmax
-        y_from = bbox_data.xmin
-        y_to = bbox_data.ymax
-
-        # assert isinstance(self.pc_data, PointCloud2)
-        # pt_gen = point_cloud2.read_points(self.pc_data, False, [y_from, x_from])
-        # for pt in pt_gen:
-        #     rospy.loginfo(pt)
+        y_from = 376 - bbox_data.ymax
+        y_to = 376 - bbox_data.ymin
 
 
-        if self.pc_data != 0:
-            arrayPosition = x_from*self.pc_data.point_step + y_from*self.pc_data.row_step
+        x = 0.0
+        y = 0.0
+        z = 0.0
 
-            arrayPosX = arrayPosition + self.pc_data.fields[0].offset  # X has an offset of 0
-            arrayPosY = arrayPosition + self.pc_data.fields[1].offset  # Y has an offset of 4
-            arrayPosZ = arrayPosition + self.pc_data.fields[2].offset  # Z has an offset of 8
+        # Generates a readable version of the point cloud data
+        assert isinstance(self.pc_data, PointCloud2)
+        is_pointcloud = isinstance(self.pc_data, PointCloud2)
+        if is_pointcloud:
+            # Reads the point cloud data at given u = x
+            pt_gen = point_cloud2.read_points(self.pc_data, skip_nans=False, uvs=[[x_from, y_from]])
+            for pt in pt_gen:
+                x = pt[0]
+                y = pt[1]
+                z = pt[2]
+                rospy.loginfo('%f %f %f',x ,y, z)
 
-            x = self.pc_data.data[arrayPosX]
-            y = self.pc_data.data[arrayPosY]
-            z = self.pc_data.data[arrayPosZ]
-            #x = PointField.deserialize_numpy(x)
-            
-
-            self.rviz_point_single_lense(self.pc_data.header, [x,y,z], "pc_test")
-
+        self.rviz_point_single_lense(self.test_data.header, [x,y,z], "pc_test")
 
 
     def bboxSub_cb_single_lense(self, data):
         """
         
         """
+        self.test_data = data
         # Allocates msg data to local variables in order to process abs size
         ArrayBoundingBoxes = BBoxes()
         ArrayBoundingBoxes.header = data.header
