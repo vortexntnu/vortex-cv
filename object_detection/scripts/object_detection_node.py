@@ -55,7 +55,6 @@ class ObjectDetectionNode():
             Point cloud data for a point in the camera frame as list [x, y, z]
         """
         # Generates a readable version of the point cloud data
-        assert isinstance(self.pointcloud_data, PointCloud2)
         is_pointcloud = isinstance(self.pointcloud_data, PointCloud2)
         if is_pointcloud:
             # Reads the point cloud data at given uvs: u = x cord, v = y cord
@@ -80,7 +79,6 @@ class ObjectDetectionNode():
             Published topics:
                 estimatorPub: Array of detected objects as the estimated size of these. Topic also includes angles to the objects from the camera frame.
         """
-        self.test_data = data
         # Allocates msg data to local variables in order to process abs size
         ArrayBoundingBoxes = BBoxes()
         ArrayBoundingBoxes.header = data.header
@@ -88,8 +86,16 @@ class ObjectDetectionNode():
 
         # Iterate through all the detected objects and estimate sizes
         for bbox in data.bounding_boxes:
+            # Unintuitively position is logged as top to bottom. We fix it so it is from bot to top
+            temp_ymin = bbox.ymin
+            bbox.ymin = 376 - bbox.ymax
+            bbox.ymax = 376 - temp_ymin
+
             # Sends bbox data to pointcloud func in order to respublish pointcloud data only within bbox
-            self.send_pointcloud(bbox)
+            bot_left = self.send_pointcloud(bbox.xmin ,bbox.ymin)
+            top_left = self.send_pointcloud(bbox.xmin ,bbox.ymax)
+            bot_right = self.send_pointcloud(bbox.xmax ,bbox.ymin)
+            top_right = self.send_pointcloud(bbox.xmax ,bbox.ymax)
 
             # Store depth measurement of boundingbox
             depth_mtr = bbox.z
@@ -116,8 +122,10 @@ class ObjectDetectionNode():
             ArrayBoundingBoxes.bounding_boxes.append(CurrentBoundingBox)
 
             # Create rviz point
-            key_string = str(bbox.Class)
-            self.rviz_point(data.header, position, key_string)
+            self.rviz_point(data.header, bot_left, "botleft")
+            self.rviz_point(data.header, bot_right, "botright")
+            self.rviz_point(data.header, top_left, "topleft")
+            self.rviz_point(data.header, top_right, "topright")
 
             
         self.estimatorPub.publish(ArrayBoundingBoxes)
