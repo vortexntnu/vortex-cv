@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-
+    <node name="republish" type="republish" pkg="image_transport" output="screen" args="compressed in:=/zed2/zed_node/rgb/image_rect_color raw out:=/zed2/zed_node/rgb/image_rect_color" />
     <node name="gate_detection_node"    pkg="gate_detection"     type="gate_detection_node.py"    output="screen"/>
     <node name="gate_detection_cfg"    pkg="gate_detection"     type="dynam_reconfigure_server.py"    output="screen"/>
 
