@@ -14,6 +14,8 @@ import cv2
 import copy
 from timeit import default_timer as timer
 
+import icp
+
 np.set_printoptions(threshold=np.inf)
 
 class GateDetectionNode():
@@ -31,7 +33,11 @@ class GateDetectionNode():
         self.hsvCheckPub = rospy.Publisher('/gate_detection/hsv_check_image', Image, queue_size= 1)
         self.noiseRmPub = rospy.Publisher('/gate_detection/noise_removal_image', Image, queue_size= 1)
         self.contourPub = rospy.Publisher('/gate_detection/contour_image', Image, queue_size= 1)
+        self.hullPub = rospy.Publisher('/gate_detection/hull_image', Image, queue_size= 1)
         self.cornersPub = rospy.Publisher('/gate_detection/corners_image', Image, queue_size= 1)
+        self.shapePub = rospy.Publisher('/gate_detection/shapes_image', Image, queue_size= 1)
+        self.cvxFitPub = rospy.Publisher('/gate_detection/convex_fitting_image', Image, queue_size= 1)
+        self.fittedPointsPub = rospy.Publisher('/gate_detection/fitted_points_image', Image, queue_size= 1)
 
         self.timerPub = rospy.Publisher('/gate_detection/timer', Float32, queue_size= 1)
 
@@ -154,6 +160,7 @@ class GateDetectionNode():
 
     def contour_processing(self, orig_img, noise_removed_img, enable_convex_hull=False):
         orig_img_cp = copy.deepcopy(orig_img)
+        blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
 
         # contours, hierarchy = cv2.findContours(noise_removed_img, 1, 2)
         # contours, hierarchy = cv2.findContours(noise_removed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -183,7 +190,7 @@ class GateDetectionNode():
             centroid_center_y = int(cnt_moments['m01']/cnt_moments['m00'])
 
             cnt_area = cnt_moments['m00']
-            cv2.drawContours(orig_img_cp, using_contours, cnt_idx, (255,0,0), 2)
+            cv2.drawContours(blank_image, using_contours, cnt_idx, (255,0,0), 2)
 
             centroid_data.append((centroid_center_x, centroid_center_y, cnt_area))
             cnt_area_str = str(centroid_data[cnt_idx][2])
@@ -191,16 +198,111 @@ class GateDetectionNode():
             orig_img_cp = cv2.circle(orig_img_cp, (centroid_data[cnt_idx][0], centroid_data[cnt_idx][1]), 2, (0,255,0), 2)
             orig_img_cp = cv2.putText(orig_img_cp, cnt_area_str, (centroid_data[cnt_idx][0], centroid_data[cnt_idx][1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (1,0,0), 2)
 
-        contour_image = self.bridge.cv2_to_imgmsg(orig_img_cp, encoding="bgra8")
-        self.contourPub.publish(contour_image)
-
-        if enable_convex_hull:
-            return orig_img_cp, hull_array
+        contour_image = self.bridge.cv2_to_imgmsg(blank_image, encoding="bgra8")
+        if not enable_convex_hull:
+            self.contourPub.publish(contour_image)
         else:
-            return orig_img_cp, contours_filtered
+            self.hullPub.publish(contour_image)
+        return blank_image, using_contours
 
 
-    def fitlines(self, orig_img, contours):
+    def shape_fitting(self, orig_img, contours, fit_threshold):
+        orig_img_cp = copy.deepcopy(orig_img)
+
+        blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
+        fitted_boxes = []
+
+        for cnt in contours:
+            rect = cv2.minAreaRect(cnt)
+
+
+            rect_width = rect[1][0]
+            rect_height = rect[1][1]
+            
+            rect_long = rect_height
+            rect_short = rect_width
+
+            if rect_height < rect_width:
+                rect_long = rect_width
+                rect_short = rect_height
+            
+            if rect_long > rect_short * fit_threshold:
+                box = cv2.boxPoints(rect)
+                box = np.int0(box)
+                blank_image = cv2.drawContours(blank_image,[box],0,(0,0,255),2)
+                fitted_boxes.append(box)
+        
+            # rect_area = rect[1][0] * rect[1][1]
+            # cnt_area = cv2.contourArea(cnt)
+            # diff_area = rect_area - cnt_area
+            
+            # if diff_area < (cnt_area * fit_threshold):
+            #     box = cv2.boxPoints(rect)
+            #     box = np.int0(box)
+            #     orig_img_cp = cv2.drawContours(orig_img_cp,[box],0,(0,0,255),2)
+        
+        shapes_ros_image = self.bridge.cv2_to_imgmsg(blank_image, encoding="bgra8")
+        self.shapePub.publish(shapes_ros_image)
+
+        return fitted_boxes
+
+    
+    def icp_fitting(self, orig_img, fitted_boxes):
+        orig_img_cp = copy.deepcopy(orig_img)
+
+        blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
+        centroid_arr = np.empty([len(fitted_boxes), 2], dtype=int)
+
+        for cnt_idx in range(len(fitted_boxes)):
+            cnt = fitted_boxes[cnt_idx]
+            cnt_moments = cv2.moments(cnt)
+
+            centroid_center_x = int(cnt_moments['m10']/cnt_moments['m00'])
+            centroid_center_y = int(cnt_moments['m01']/cnt_moments['m00'])
+
+            cnt_area = cnt_moments['m00']
+
+            centroid_arr[cnt_idx] = [centroid_center_x, centroid_center_y]
+
+            # cv2.drawContours(blank_image, fitted_boxes, cnt_idx, (255,0,0), 2)
+            # blank_image = cv2.circle(blank_image, (centroid_center_x, centroid_center_y), 2, (0,0,255), 2)
+        
+        A2D = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
+        # print(centroid_arr)
+        # print(A2D)
+        
+        T_h, points = icp.icp(centroid_arr, A2D, verbose=True)
+        points_int = np.rint(points)
+        # print(points_int)
+        # print("\n")
+        for pnt in points:
+            orig_img_cp = cv2.circle(orig_img_cp, (int(pnt[0]), int(pnt[1])), 2, (0,255,0), 2)
+        
+        fitted_points_ros_image = self.bridge.cv2_to_imgmsg(orig_img_cp, encoding="bgra8")
+        self.fittedPointsPub.publish(fitted_points_ros_image)
+        
+
+    def convex_fitting(self, contours_image, contours, convex_image, convex_contours, fit_threshold):
+        contours_image = copy.deepcopy(contours_image)
+
+        blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
+
+        for cnt_idx in range(len(contours)):
+            cnt = contours[cnt_idx]
+            cvx = convex_contours[cnt_idx]
+
+            cvx_area = cv2.contourArea(cvx)
+            cnt_area = cv2.contourArea(cnt)
+            diff_area = cvx_area - cnt_area
+            
+            if diff_area < (cnt_area * fit_threshold):
+                cv2.drawContours(contours_image, convex_contours, cnt_idx, (0,255,0), 2)
+
+        cvx_ros_image = self.bridge.cv2_to_imgmsg(contours_image, encoding="bgra8")
+        self.cvxFitPub.publish(cvx_ros_image)
+
+
+    def line_fitting(self, orig_img, contours):
         orig_img_cp = copy.deepcopy(orig_img)
 
         blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
@@ -264,20 +366,26 @@ class GateDetectionNode():
             rospy.logerr("CvBridge Error: {0}".format(e))
         self.img_height, self.img_width, self.img_channels = cv_image.shape
 
-        gray_img = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+        # gray_img = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
-        canny_img = cv2.Canny(gray_img, self.canny_threshold1, self.canny_threshold2, apertureSize=self.canny_aperture)
-        edges_ros_image = self.bridge.cv2_to_imgmsg(canny_img, encoding="mono8")
-        self.cannyPub.publish(edges_ros_image)
-        self.lines_publisher(cv_image, canny_img)
+        # canny_img = cv2.Canny(gray_img, self.canny_threshold1, self.canny_threshold2, apertureSize=self.canny_aperture)
+        # edges_ros_image = self.bridge.cv2_to_imgmsg(canny_img, encoding="mono8")
+        # self.cannyPub.publish(edges_ros_image)
+        # self.lines_publisher(cv_image, canny_img)
         
         hsv_mask = self.hsv_publisher(cv_image)
         noise_removed_img = self.noise_removal(hsv_mask)
-        contours_img, contours = self.contour_processing(cv_image, noise_removed_img, True)
+        contours_img, contours = self.contour_processing(cv_image, noise_removed_img, False)
+        # hull_contours_img, hull_contours = self.contour_processing(cv_image, noise_removed_img, True)
 
-        line_img = self.fitlines(contours_img, contours)
+        fitted_boxes = self.shape_fitting(contours_img, contours, 4)
+        
+        self.icp_fitting(cv_image, fitted_boxes)
 
-        self.corner_detection(line_img)
+        # self.convex_fitting(contours_img, contours, hull_contours_img, hull_contours, 0.4)
+        # line_img = self.line_fitting(contours_img, fitted_boxes)
+
+        # self.corner_detection(line_img)
         #------------------------------------------>
         #------------------------------------------>
         #------------------------------------------>
