@@ -38,6 +38,7 @@ class GateDetectionNode():
         self.shapePub = rospy.Publisher('/gate_detection/shapes_image', Image, queue_size= 1)
         self.cvxFitPub = rospy.Publisher('/gate_detection/convex_fitting_image', Image, queue_size= 1)
         self.fittedPointsPub = rospy.Publisher('/gate_detection/fitted_points_image', Image, queue_size= 1)
+        self.filteredRectPub = rospy.Publisher('/gate_detection/filtered_rect_image', Image, queue_size= 1)
 
         self.timerPub = rospy.Publisher('/gate_detection/timer', Float32, queue_size= 1)
 
@@ -213,35 +214,36 @@ class GateDetectionNode():
         fitted_boxes = []
 
         for cnt in contours:
-            rect = cv2.minAreaRect(cnt)
+            if len(cnt) > 20:
+                rect = cv2.minAreaRect(cnt)
 
 
-            rect_width = rect[1][0]
-            rect_height = rect[1][1]
+                rect_width = rect[1][0]
+                rect_height = rect[1][1]
+                
+                rect_long = rect_height
+                rect_short = rect_width
+
+                if rect_height < rect_width:
+                    rect_long = rect_width
+                    rect_short = rect_height
+                
+                if rect_long > rect_short * fit_threshold:
+                    box = cv2.boxPoints(rect)
+                    box = np.int0(box)
+                    orig_img_cp = cv2.drawContours(orig_img_cp,[box],0,(0,0,255),2)
+                    fitted_boxes.append(box)
             
-            rect_long = rect_height
-            rect_short = rect_width
-
-            if rect_height < rect_width:
-                rect_long = rect_width
-                rect_short = rect_height
-            
-            if rect_long > rect_short * fit_threshold:
-                box = cv2.boxPoints(rect)
-                box = np.int0(box)
-                blank_image = cv2.drawContours(blank_image,[box],0,(0,0,255),2)
-                fitted_boxes.append(box)
+                # rect_area = rect[1][0] * rect[1][1]
+                # cnt_area = cv2.contourArea(cnt)
+                # diff_area = rect_area - cnt_area
+                
+                # if diff_area < (cnt_area * fit_threshold):
+                #     box = cv2.boxPoints(rect)
+                #     box = np.int0(box)
+                #     orig_img_cp = cv2.drawContours(orig_img_cp,[box],0,(0,0,255),2)
         
-            # rect_area = rect[1][0] * rect[1][1]
-            # cnt_area = cv2.contourArea(cnt)
-            # diff_area = rect_area - cnt_area
-            
-            # if diff_area < (cnt_area * fit_threshold):
-            #     box = cv2.boxPoints(rect)
-            #     box = np.int0(box)
-            #     orig_img_cp = cv2.drawContours(orig_img_cp,[box],0,(0,0,255),2)
-        
-        shapes_ros_image = self.bridge.cv2_to_imgmsg(blank_image, encoding="bgra8")
+        shapes_ros_image = self.bridge.cv2_to_imgmsg(orig_img_cp, encoding="bgra8")
         self.shapePub.publish(shapes_ros_image)
 
         return fitted_boxes
@@ -271,16 +273,37 @@ class GateDetectionNode():
         # print(centroid_arr)
         # print(A2D)
         
-        T_h, points = icp.icp(centroid_arr, A2D, verbose=True)
-        points_int = np.rint(points)
+        T_h, icp_points = icp.icp(centroid_arr, A2D, verbose=False)
+        points_int = np.rint(icp_points)
         # print(points_int)
         # print("\n")
-        for pnt in points:
+        for pnt in icp_points:
             orig_img_cp = cv2.circle(orig_img_cp, (int(pnt[0]), int(pnt[1])), 2, (0,255,0), 2)
         
         fitted_points_ros_image = self.bridge.cv2_to_imgmsg(orig_img_cp, encoding="bgra8")
         self.fittedPointsPub.publish(fitted_points_ros_image)
+
+        return icp_points, centroid_arr
+
+    def rect_filtering(self, img, fitted_boxes, fitted_box_centers, icp_fitted_points, radius):
+        img_cp = copy.deepcopy(img)
+        blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
         
+
+        for pnt in icp_fitted_points:
+            cv2.circle(blank_image, (int(pnt[0]), int(pnt[1])), radius, (0,255,0), 1)
+        
+        for pnt in fitted_box_centers:
+            cv2.circle(blank_image, (int(pnt[0]), int(pnt[1])), radius/50, (0,0,255), 2)
+        
+        """ for cx, cy, h, w, phi in fitted_boxes:
+            if blank_image[cx - w//2: cx + w//2][cy - h//2: cy + h//2]: """
+
+
+
+        icp_points_ros_image = self.bridge.cv2_to_imgmsg(blank_image, encoding="bgra8")
+        self.filteredRectPub.publish(icp_points_ros_image)
+
 
     def convex_fitting(self, contours_image, contours, convex_image, convex_contours, fit_threshold):
         contours_image = copy.deepcopy(contours_image)
@@ -378,9 +401,10 @@ class GateDetectionNode():
         contours_img, contours = self.contour_processing(cv_image, noise_removed_img, False)
         # hull_contours_img, hull_contours = self.contour_processing(cv_image, noise_removed_img, True)
 
-        fitted_boxes = self.shape_fitting(contours_img, contours, 4)
+        fitted_boxes = self.shape_fitting(contours_img, contours, 5)
         
-        self.icp_fitting(cv_image, fitted_boxes)
+        icp_points, centroid_arr = self.icp_fitting(cv_image, fitted_boxes)
+        self.rect_filtering(cv_image, fitted_boxes, centroid_arr, icp_points, 50)
 
         # self.convex_fitting(contours_img, contours, hull_contours_img, hull_contours, 0.4)
         # line_img = self.line_fitting(contours_img, fitted_boxes)
