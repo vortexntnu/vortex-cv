@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from matplotlib.pyplot import close
 import rospy
 
 # Import msg types
@@ -16,22 +17,38 @@ from coord_pos import CoordPosition
 from pointcloud_mapping import PointCloudMapping
 
 class ObjectDetectionNode():
-    """Handles tasks related to object detection
     """
-    pointcloud_x = 0.0
-    pointcloud_y = 0.0
-    pointcloud_z = 0.0
-
+    Handles tasks related to object detection
+    """
     def __init__(self):
         rospy.init_node('object_detection_node')
         self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.bboxSub_cb)
-        self.pcSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_cb)
-        self.pcPub = rospy.Publisher('/object_detection/bbox_pointcloud', PointCloud2, queue_size= 1)
+        # self.pcSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_cb)
+        self.pointcloudRedSub = rospy.Subscriber('/object_detection/output', PointCloud2, self.pointcloud_downsampled_cb)
+        # self.pcPub = rospy.Publisher('/object_detection/bbox_pointcloud', PointCloud2, queue_size= 1)
         self.estimatorPub = rospy.Publisher('/object_detection/size_estimates', BBoxes, queue_size= 1)
         self.landmarkPub = rospy.Publisher('/object_positions_in',ObjectPosition, queue_size= 1)
         self.position_estimator = PositionEstimator()
         self.coord_positioner = CoordPosition()
         self.pointcloud_mapper = PointCloudMapping()
+
+    def object_orientation_from_point_list(self, point_list, type):
+        """
+        Uses known points to find object and its orientation
+        
+        Args:
+            point_list: list of points as tuples [(x,y),(x,y)]
+            type: type of object as string
+        """
+        assert isinstance(self.pointcloud_data, PointCloud2)
+        generated_list = []
+        for point in point_list:
+            pt_gen = point_cloud2.read_points(self.pointcloud_data, skip_nans=True, uvs=[[point[0],point[1]]])
+            generated_list.append(pt_gen)
+        
+        fit, middle_point = self.pointcloud_mapper.points_to_plane(generated_list)
+        self.send_pose_message(self.pointcloud_data.header, middle_point, fit, type)
+
 
     def pointcloud_cb(self, msg_data):
         """
@@ -44,9 +61,13 @@ class ObjectDetectionNode():
             class variable: self.pointcloud_data
         """
         self.pointcloud_data = msg_data
-        self.pointcloud_get_object_with_orientation(msg_data, 0.3) # this is only for testing, the call to this function should be elsewhere. Ideally from a republished poitcloud2 data message callback
+        self.object_orientation_from_poincloud(msg_data, 0.3)
+    
+    def pointcloud_downsampled_cb(self, msg_data):
+        self.pointcloud_data = msg_data
+        self.object_orientation_from_poincloud(msg_data, 0.3)
 
-    def pointcloud_get_object_with_orientation(self, pointcloud_data, threshold):
+    def object_orientation_from_poincloud(self, pointcloud_data, threshold):
         """
         Uses pointcloud data to find object and its orientation in regards to pointcloud_data frame
         
@@ -55,19 +76,23 @@ class ObjectDetectionNode():
             threshold: maximum distance of expected object dimensions as float cm.mm. Ex: if height is bigger than width input height
         """
         assert isinstance(pointcloud_data, PointCloud2)
-        pt_gen = point_cloud2.read_points(pointcloud_data)
+        generated_pointcloud_list = []
         closest_point = 200.00
-        for pt in pt_gen:
-            if abs(pt[2] < closest_point):
-                closest_point = abs(pt[2])
+        pt_gen = point_cloud2.read_points(pointcloud_data, skip_nans=True)
         
-        object_point_list = []
-        pt_gen2 = point_cloud2.read_points(pointcloud_data, skip_nans=True)
-        for obj_point in pt_gen2:             
-            if abs(obj_point[2]) < (threshold + closest_point):
-                object_point_list.append(obj_point)
+        for pt in pt_gen:
+            tmp_list = list(pt)
+            tmp_list = tmp_list[:3]
+            if (abs(pt[2]) < closest_point) and (abs(pt[2]) > 0.2):
+                closest_point = abs(pt[2])
+            generated_pointcloud_list.append(tmp_list)
 
-        eq, fit, errors, residual, middle_point = self.pointcloud_mapper.points_to_plane(object_point_list)
+        object_point_list = []
+        for point in generated_pointcloud_list:
+            if abs(point[2]) <= (threshold + closest_point):
+                object_point_list.append(point)
+        
+        fit, middle_point = self.pointcloud_mapper.points_to_plane(object_point_list)
         quaternion_data = fit
 
         self.send_pose_message(pointcloud_data.header, middle_point, quaternion_data, "middle_pose")

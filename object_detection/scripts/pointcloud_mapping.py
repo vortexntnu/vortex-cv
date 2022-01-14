@@ -12,10 +12,7 @@ class PointCloudMapping():
             points_list: list of points on the form [[x1,y1,z1],[x2,y2,z2]] or [(x1,y1,z1),(x2,y2,z2)], contents must be floats.
 
         Returns:
-            planar_equation: ax + by +c = z || ("%f x + %f y + %f = z" % (fit[0], fit[1], fit[2]))
             fit: the equation as list of [a, b, c]
-            errors: any errors
-            residual: dont know
             middle_point: middle point cord as a list of points [x_center, y_center, z_center]
         """
         xs = []
@@ -42,7 +39,7 @@ class PointCloudMapping():
 
         middle_point = self.get_middle_point(points_list)
 
-        return planar_equation, fit, errors, residual, middle_point
+        return fit, middle_point
 
     def get_middle_point(self, points_list):
         """
