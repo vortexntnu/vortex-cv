@@ -35,9 +35,8 @@ class PositionEstimator():
         max_x_pxl = bbox.xmax
 
         # Get y-pos of boundingbox
-        # Unintuitively position is logged as top to bottom. We fix it so it is from bot to top
-        min_y_pxl = self.max_height - bbox.ymax
-        max_y_pxl = self.max_height - bbox.ymin
+        min_y_pxl = bbox.ymin
+        max_y_pxl = bbox.ymax
         
         # Get depth measurement of boundingbox
         depth_mtr = bbox.z
