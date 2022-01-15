@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from cmath import sqrt
 from time import sleep
 import rospy
 
@@ -284,6 +285,20 @@ class GateDetectionNode():
         self.fittedPointsPub.publish(fitted_points_ros_image)
 
         return icp_points, centroid_arr
+    
+    def point_distances(self, point_set1, point_set2):
+        number_reference_points = len(point_set1)
+        distance_table = []
+
+        for p_n_idx in range(len(point_set1)):
+            p_n = point_set1[p_n_idx]
+            distance_table.append([])
+            for p_k_idx in range(len(point_set2)):
+                p_k = point_set2[p_k_idx]
+
+                dst2point = sqrt((abs(p_n[0] - p_k[0]) ** 2) + (abs(p_n[1] - p_k[1]) ** 2)) 
+                distance_table[p_n_idx].append(dst2point)
+        return distance_table
 
     def rect_filtering(self, img, fitted_boxes, fitted_box_centers, icp_fitted_points, radius):
         img_cp = copy.deepcopy(img)
@@ -405,6 +420,8 @@ class GateDetectionNode():
         
         icp_points, centroid_arr = self.icp_fitting(cv_image, fitted_boxes)
         self.rect_filtering(cv_image, fitted_boxes, centroid_arr, icp_points, 50)
+
+        print(self.point_distances(icp_points, centroid_arr))
 
         # self.convex_fitting(contours_img, contours, hull_contours_img, hull_contours, 0.4)
         # line_img = self.line_fitting(contours_img, fitted_boxes)
