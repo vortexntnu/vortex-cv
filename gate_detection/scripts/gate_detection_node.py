@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
+from asyncore import close_all
 from cmath import sqrt
+from fileinput import close
 from time import sleep
 import rospy
 
@@ -11,6 +13,8 @@ from cv_bridge import CvBridge, CvBridgeError
 import dynamic_reconfigure.client
 
 import numpy as np
+import math
+from collections import defaultdict
 import cv2
 import copy
 from timeit import default_timer as timer
@@ -44,6 +48,9 @@ class GateDetectionNode():
         self.timerPub = rospy.Publisher('/gate_detection/timer', Float32, queue_size= 1)
 
         self.bridge = CvBridge()
+
+        self.prev_closest_points = []
+        self.ref_points_icp_fitting = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
 
         # Canny params
         self.canny_threshold1 = 100
@@ -250,7 +257,7 @@ class GateDetectionNode():
         return fitted_boxes
 
     
-    def icp_fitting(self, orig_img, fitted_boxes):
+    def icp_fitting(self, orig_img, fitted_boxes, ref_points):
         orig_img_cp = copy.deepcopy(orig_img)
 
         blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
@@ -270,11 +277,10 @@ class GateDetectionNode():
             # cv2.drawContours(blank_image, fitted_boxes, cnt_idx, (255,0,0), 2)
             # blank_image = cv2.circle(blank_image, (centroid_center_x, centroid_center_y), 2, (0,0,255), 2)
         
-        A2D = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
         # print(centroid_arr)
         # print(A2D)
         
-        T_h, icp_points = icp.icp(centroid_arr, A2D, verbose=False)
+        T_h, icp_points = icp.icp(centroid_arr, ref_points, verbose=False)
         points_int = np.rint(icp_points)
         # print(points_int)
         # print("\n")
@@ -286,37 +292,157 @@ class GateDetectionNode():
 
         return icp_points, centroid_arr
     
-    def point_distances(self, point_set1, point_set2):
-        number_reference_points = len(point_set1)
+    def point_distances(self, point_arr1, point_arr2):
+        # Find distance from every reference point (array 1) to every point in array 2
+        # Stores values in table formatted: array A of len(array_1), 
+        # where every elem in A is array B of len(array_2) of distances from point idxed in A according to array 1 to point idxed in B according to array 2
+        number_reference_points = len(point_arr1)
         distance_table = []
 
-        for p_n_idx in range(len(point_set1)):
-            p_n = point_set1[p_n_idx]
+        for p_n_idx in range(len(point_arr1)):
+            p_n = point_arr1[p_n_idx]
             distance_table.append([])
-            for p_k_idx in range(len(point_set2)):
-                p_k = point_set2[p_k_idx]
+            for p_k_idx in range(len(point_arr2)):
+                p_k = point_arr2[p_k_idx]
 
-                dst2point = sqrt((abs(p_n[0] - p_k[0]) ** 2) + (abs(p_n[1] - p_k[1]) ** 2)) 
+                dst2point = math.sqrt((abs(p_n[0] - p_k[0]) ** 2) + (abs(p_n[1] - p_k[1]) ** 2)) 
                 distance_table[p_n_idx].append(dst2point)
         return distance_table
 
-    def rect_filtering(self, img, fitted_boxes, fitted_box_centers, icp_fitted_points, radius):
+    def custom_closest_point(self, point_arr1, point_arr2):
+        # Gives the closest point and the distance to the point from point a in array 1 to point b in array 2
+        distance_table = self.point_distances(point_arr1, point_arr2)
+
+        closest_point_idxes = []
+        closest_points = []
+        closest_point_dsts = []
+
+        # for each reference point the closest point is written to the idx of the reference points list
+        for dsts_2_ref_point in distance_table:
+            closest_point_idx = min(range(len(dsts_2_ref_point)), key=dsts_2_ref_point.__getitem__)
+            closest_point_idxes.append(closest_point_idx)            
+            closest_point_dsts.append(round(dsts_2_ref_point[closest_point_idx], 4))
+
+        for point_idx in closest_point_idxes:
+            closest_points.append(point_arr2[point_idx])
+
+        return closest_points, closest_point_dsts
+    
+    # def get_duplicate_points(self, point_array):
+        # Gives duplicate points and their idxes in a point array
+        
+        # seen_x = []
+        # seen_y = [] 
+        # dupes = []
+        
+        # seen_points = np.empty([len(point_array), 2], dtype=int)
+
+
+        # for point_idx in range(len(point_array)):
+        #     point = point_array[point_idx]
+        #     if (point[0] in seen_x) and (point[1] in seen_y):
+        #         dupes.append(point)  
+        #     else:
+        #         seen_x.append(point[0])
+        #         seen_y.append(point[1])
+
+    def unique(self, a):
+        order = np.lexsort(a.T)
+        a = a[order]
+        diff = np.diff(a, axis=0)
+        ui = np.ones(len(a), 'bool')
+        ui[1:] = (diff == 0).any(axis=1)
+        print(ui[1:])
+        return a[ui]
+    
+    def unique2d(self, a):
+        x, y = a.T
+        b = x + y*1.0j 
+        # idx = np.unique(b,return_index=True)[1]
+        # return a[idx], idx
+        u, idx = np.unique(b,return_counts=True)
+        dup = u[idx > 1]
+        return dup
+    
+    def fitted_point_filtering(self, point_set1, point_set2):
+        closest_points, closest_point_dsts = self.custom_closest_point(point_set1, point_set2)
+
+        # closest_points = np.rint(np.array([[2, 2], [3, 3], [4, 4], [3, 3], [2, 2], [1, 1]]))
+        # closest_points = [[2, 4], [3, 3], [4, 4], [3, 3], [2, 4], [1, 2]]
+        lst1, lst2 = zip(*closest_points)
+
+        D_1 = defaultdict(list)
+        for i,item in enumerate(lst1):
+            D_1[item].append(i)
+        D_1 = {k:v for k,v in D_1.items() if len(v)>1}
+
+        D_2 = defaultdict(list)
+        for i,item in enumerate(lst2):
+            D_2[item].append(i)
+        D_2 = {k:v for k,v in D_2.items() if len(v)>1}
+
+        D_3 = defaultdict(list)
+        for k1, v1 in D_1.items():
+            for k2, v2 in D_2.items():
+                if (k1, k2) not in D_3:
+                    D_3[(k1, k2)] = []
+                if len(v1) > len(v2):
+                    for v in v1:
+                        if v in v2:
+                            D_3[(k1, k2)].append(v)
+                else:
+                    for v in v2:
+                        if v in v1:
+                            D_3[(k1, k2)].append(v)
+        
+        for key, value in D_3.items():
+            if not value:
+                del D_3[key]
+        
+        if D_3:
+            # print(D_3)
+            for point_key, value in D_3.items():
+                c_distances = [closest_point_dsts[idx] for idx in value]
+
+                closest_point_idx = min(range(len(c_distances)), key=c_distances.__getitem__)
+                #closest_idc_point_idx = value[closest_point_idx]
+                del value[closest_point_idx]
+
+                for not_closest_point_idx in value:
+                    closest_points[not_closest_point_idx] = self.prev_closest_points[not_closest_point_idx]
+                # print(value)
+                # print(c_distances)
+
+        self.prev_closest_points = closest_points
+        return closest_points
+
+    def rect_filtering(self, img, fitted_box_centers, icp_fitted_points):
         img_cp = copy.deepcopy(img)
         blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
-        
 
-        for pnt in icp_fitted_points:
-            cv2.circle(blank_image, (int(pnt[0]), int(pnt[1])), radius, (0,255,0), 1)
+        closest_points, closest_point_dsts = self.custom_closest_point(icp_fitted_points, fitted_box_centers)
+        closest_points = self.fitted_point_filtering(icp_fitted_points, fitted_box_centers)
+        # self.ref_points_icp_fitting = np.array(closest_points, dtype=int)
+
+        print(closest_points)
+
+
+        # T_h, new_icp_points = icp.icp(icp_fitted_points, fitted_box_centers, verbose=True)
+        # new_icp_points_int = np.rint(new_icp_points)
+
+
+        # for pnt in fitted_box_centers:
+        #     cv2.circle(img_cp, (int(pnt[0]), int(pnt[1])), radius, (0,255,0), 1)
         
-        for pnt in fitted_box_centers:
-            cv2.circle(blank_image, (int(pnt[0]), int(pnt[1])), radius/50, (0,0,255), 2)
+        for pnt in closest_points:
+            cv2.circle(img_cp, (int(pnt[0]), int(pnt[1])), 3, (0,0,255), 2)
         
         """ for cx, cy, h, w, phi in fitted_boxes:
             if blank_image[cx - w//2: cx + w//2][cy - h//2: cy + h//2]: """
 
 
 
-        icp_points_ros_image = self.bridge.cv2_to_imgmsg(blank_image, encoding="bgra8")
+        icp_points_ros_image = self.bridge.cv2_to_imgmsg(img_cp, encoding="bgra8")
         self.filteredRectPub.publish(icp_points_ros_image)
 
 
@@ -418,10 +544,8 @@ class GateDetectionNode():
 
         fitted_boxes = self.shape_fitting(contours_img, contours, 5)
         
-        icp_points, centroid_arr = self.icp_fitting(cv_image, fitted_boxes)
-        self.rect_filtering(cv_image, fitted_boxes, centroid_arr, icp_points, 50)
-
-        print(self.point_distances(icp_points, centroid_arr))
+        icp_points, centroid_arr = self.icp_fitting(cv_image, fitted_boxes, self.ref_points_icp_fitting)
+        self.rect_filtering(cv_image, centroid_arr, icp_points)
 
         # self.convex_fitting(contours_img, contours, hull_contours_img, hull_contours, 0.4)
         # line_img = self.line_fitting(contours_img, fitted_boxes)
