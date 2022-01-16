@@ -2,6 +2,7 @@
 
 from asyncore import close_all
 from cmath import sqrt
+from enum import unique
 from fileinput import close
 from time import sleep
 import rospy
@@ -49,7 +50,9 @@ class GateDetectionNode():
 
         self.bridge = CvBridge()
 
+        # point filtering
         self.prev_closest_points = []
+        self.prev_closest_point_dsts = []
         self.ref_points_icp_fitting = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
 
         # Canny params
@@ -328,32 +331,18 @@ class GateDetectionNode():
 
         return closest_points, closest_point_dsts
     
-    # def get_duplicate_points(self, point_array):
-        # Gives duplicate points and their idxes in a point array
+    def get_duplicate_points(self, a):
+        seen = set()
+        dupes = []
+
+        for x_idx in a:
+            x = a[x_idx]
+            if x in seen:
+                dupes.append(x_idx)
+            else:
+                seen.add(x)
         
-        # seen_x = []
-        # seen_y = [] 
-        # dupes = []
-        
-        # seen_points = np.empty([len(point_array), 2], dtype=int)
-
-
-        # for point_idx in range(len(point_array)):
-        #     point = point_array[point_idx]
-        #     if (point[0] in seen_x) and (point[1] in seen_y):
-        #         dupes.append(point)  
-        #     else:
-        #         seen_x.append(point[0])
-        #         seen_y.append(point[1])
-
-    def unique(self, a):
-        order = np.lexsort(a.T)
-        a = a[order]
-        diff = np.diff(a, axis=0)
-        ui = np.ones(len(a), 'bool')
-        ui[1:] = (diff == 0).any(axis=1)
-        print(ui[1:])
-        return a[ui]
+        return dupes
     
     def unique2d(self, a):
         x, y = a.T
@@ -364,57 +353,57 @@ class GateDetectionNode():
         dup = u[idx > 1]
         return dup
     
-    def fitted_point_filtering(self, point_set1, point_set2):
-        closest_points, closest_point_dsts = self.custom_closest_point(point_set1, point_set2)
+    def duplicate_point_filter(self, closest_points, closest_point_dsts):
+        # closest_points_np = np.rint(np.array([[2, 2], [3, 3], [4, 4], [3, 3], [2, 2], [1, 1]]))
+        closest_points_np = np.rint(np.array(closest_points))
 
-        # closest_points = np.rint(np.array([[2, 2], [3, 3], [4, 4], [3, 3], [2, 2], [1, 1]]))
-        # closest_points = [[2, 4], [3, 3], [4, 4], [3, 3], [2, 4], [1, 2]]
-        lst1, lst2 = zip(*closest_points)
+        # An index in indices is the same index in closest_points, and a value in indices is an index for a value in uniq_points, that is a value in closest_points with same index as indices 
+        uniq_points, indices = np.unique(closest_points_np, return_inverse=True, axis=0)
 
-        D_1 = defaultdict(list)
-        for i,item in enumerate(lst1):
-            D_1[item].append(i)
-        D_1 = {k:v for k,v in D_1.items() if len(v)>1}
-
-        D_2 = defaultdict(list)
-        for i,item in enumerate(lst2):
-            D_2[item].append(i)
-        D_2 = {k:v for k,v in D_2.items() if len(v)>1}
-
-        D_3 = defaultdict(list)
-        for k1, v1 in D_1.items():
-            for k2, v2 in D_2.items():
-                if (k1, k2) not in D_3:
-                    D_3[(k1, k2)] = []
-                if len(v1) > len(v2):
-                    for v in v1:
-                        if v in v2:
-                            D_3[(k1, k2)].append(v)
-                else:
-                    for v in v2:
-                        if v in v1:
-                            D_3[(k1, k2)].append(v)
+        num_closest_points = len(closest_points_np)
+        num_uniq_closest_points = len(uniq_points)
         
-        for key, value in D_3.items():
-            if not value:
-                del D_3[key]
-        
-        if D_3:
-            # print(D_3)
-            for point_key, value in D_3.items():
-                c_distances = [closest_point_dsts[idx] for idx in value]
+        if num_closest_points == num_uniq_closest_points:
+            self.prev_closest_points = closest_points
+            self.prev_closest_point_dsts = closest_point_dsts
+            return closest_points, closest_point_dsts
 
-                closest_point_idx = min(range(len(c_distances)), key=c_distances.__getitem__)
-                #closest_idc_point_idx = value[closest_point_idx]
-                del value[closest_point_idx]
+        # Duplicate point filter starts here
+        indices_of_indices = defaultdict(list)
+        for i,item in enumerate(indices):
+            indices_of_indices[item].append(i)
+        indices_of_indices = {index_of_val_in_uniq_points:index_of_point_in_closest_points for index_of_val_in_uniq_points,index_of_point_in_closest_points \
+                              in indices_of_indices.items() if len(index_of_point_in_closest_points)>1}
 
-                for not_closest_point_idx in value:
-                    closest_points[not_closest_point_idx] = self.prev_closest_points[not_closest_point_idx]
-                # print(value)
-                # print(c_distances)
+        for point_val_in_uniq_points, indices_of_p1 in indices_of_indices.items():
+            comp_dsts = []
+            for not_closest_point_idx in indices_of_p1:
+                comp_dsts.append(closest_point_dsts[not_closest_point_idx])
+            actual_closest_point_idx_in_indices_of_p1 = min(range(len(comp_dsts)), key=comp_dsts.__getitem__)
+            actual_closest_point_idx = indices_of_p1[actual_closest_point_idx_in_indices_of_p1]
+            
+            indices_of_p1.pop(actual_closest_point_idx_in_indices_of_p1)
+
+            for not_closest_point_idx in indices_of_p1:
+                closest_points[not_closest_point_idx] = self.prev_closest_points[not_closest_point_idx]
+                closest_point_dsts[not_closest_point_idx] = self.prev_closest_point_dsts[not_closest_point_idx]
 
         self.prev_closest_points = closest_points
-        return closest_points
+        self.prev_closest_point_dsts = closest_point_dsts
+        self.point_thresholding(1,2,3)
+        return closest_points, closest_point_dsts
+    
+    def point_thresholding(self, closest_points, closest_point_dsts, centers):
+        print("ksjdfs")
+
+    
+    def fitted_point_filtering(self, point_arr1, point_arr2):
+        closest_points, closest_point_dsts = self.custom_closest_point(point_arr1, point_arr2)
+        
+        closest_points_filtered, closest_point_dsts_filtered = self.duplicate_point_filter(closest_points, closest_point_dsts)
+        
+        return closest_points_filtered
+
 
     def rect_filtering(self, img, fitted_box_centers, icp_fitted_points):
         img_cp = copy.deepcopy(img)
@@ -424,7 +413,7 @@ class GateDetectionNode():
         closest_points = self.fitted_point_filtering(icp_fitted_points, fitted_box_centers)
         # self.ref_points_icp_fitting = np.array(closest_points, dtype=int)
 
-        print(closest_points)
+        # print(closest_points)
 
 
         # T_h, new_icp_points = icp.icp(icp_fitted_points, fitted_box_centers, verbose=True)
@@ -548,6 +537,7 @@ class GateDetectionNode():
         self.rect_filtering(cv_image, centroid_arr, icp_points)
 
         # self.convex_fitting(contours_img, contours, hull_contours_img, hull_contours, 0.4)
+        
         # line_img = self.line_fitting(contours_img, fitted_boxes)
 
         # self.corner_detection(line_img)
