@@ -8,7 +8,7 @@ from time import sleep
 import rospy
 
 from sensor_msgs.msg import Image
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, Empty
 
 from cv_bridge import CvBridge, CvBridgeError
 import dynamic_reconfigure.client
@@ -32,6 +32,7 @@ class GateDetectionNode():
         rospy.init_node('gate_detection_node')
 
         self.zedSub = rospy.Subscriber('/zed2/zed_node/rgb/image_rect_color', Image, self.zed_callback)
+        self.resetSub = rospy.Subscriber('/gate_detection/reset', Empty, self.gate_detection_reset_callback)
         
         self.linesPub = rospy.Publisher('/gate_detection/lines_image', Image, queue_size= 1)
         self.cannyPub = rospy.Publisher('/gate_detection/canny_image', Image, queue_size= 1)
@@ -53,6 +54,7 @@ class GateDetectionNode():
         # point filtering
         self.prev_closest_points = []
         self.prev_closest_point_dsts = []
+        self.ref_points_icp_fitting_base = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
         self.ref_points_icp_fitting = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
 
         # Canny params
@@ -202,20 +204,20 @@ class GateDetectionNode():
             centroid_center_y = int(cnt_moments['m01']/cnt_moments['m00'])
 
             cnt_area = cnt_moments['m00']
-            cv2.drawContours(blank_image, using_contours, cnt_idx, (255,0,0), 2)
+            cv2.drawContours(orig_img_cp, using_contours, cnt_idx, (255,0,0), 2)
 
             centroid_data.append((centroid_center_x, centroid_center_y, cnt_area))
             cnt_area_str = str(centroid_data[cnt_idx][2])
 
             orig_img_cp = cv2.circle(orig_img_cp, (centroid_data[cnt_idx][0], centroid_data[cnt_idx][1]), 2, (0,255,0), 2)
-            orig_img_cp = cv2.putText(orig_img_cp, cnt_area_str, (centroid_data[cnt_idx][0], centroid_data[cnt_idx][1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (1,0,0), 2)
+            # orig_img_cp = cv2.putText(orig_img_cp, cnt_area_str, (centroid_data[cnt_idx][0], centroid_data[cnt_idx][1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (1,0,0), 2)
 
-        contour_image = self.bridge.cv2_to_imgmsg(blank_image, encoding="bgra8")
+        contour_image = self.bridge.cv2_to_imgmsg(orig_img_cp, encoding="bgra8")
         if not enable_convex_hull:
             self.contourPub.publish(contour_image)
         else:
             self.hullPub.publish(contour_image)
-        return blank_image, using_contours
+        return orig_img_cp, using_contours
 
 
     def shape_fitting(self, orig_img, contours, fit_threshold):
@@ -257,7 +259,7 @@ class GateDetectionNode():
         shapes_ros_image = self.bridge.cv2_to_imgmsg(orig_img_cp, encoding="bgra8")
         self.shapePub.publish(shapes_ros_image)
 
-        return fitted_boxes
+        return fitted_boxes, orig_img_cp
 
     
     def icp_fitting(self, orig_img, fitted_boxes, ref_points):
@@ -379,7 +381,7 @@ class GateDetectionNode():
 
         return closest_points, closest_point_dsts
     
-    def point_thresholding(self, closest_points, closest_point_dsts, threshold):
+    def point_thresholding(self, closest_points, closest_point_dsts, threshold, reset_reference_points):
         pts_cp = copy.deepcopy(closest_points)
         pt_dsts_cp = copy.deepcopy(closest_point_dsts)
         diff_dsts = []
@@ -393,6 +395,11 @@ class GateDetectionNode():
                 pts_cp[i] = self.prev_closest_points[i]
                 pt_dsts_cp[i] = self.prev_closest_point_dsts[i]
                 # rospy.loginfo("Point changed position too rapidly! Change: %f", diff_prev_current_dst)
+                if reset_reference_points:
+                    self.ref_points_icp_fitting = self.ref_points_icp_fitting_base
+                    rospy.loginfo("Reference points reset!")
+
+
         return pts_cp, pt_dsts_cp, diff_dsts
 
     def reference_points_iteration(self, closest_points):
@@ -407,11 +414,11 @@ class GateDetectionNode():
 
         thresholded_closest_points, thresholded_closest_point_dsts, diff_dsts = self.point_thresholding(closest_points_filtered,
                                                                                                         closest_point_dsts_filtered,
-                                                                                                        threshold=90)
-        
+                                                                                                        threshold=90,
+                                                                                                        reset_reference_points=True)
+        # Sometimes makes it better, sometimes not
         self.reference_points_iteration(thresholded_closest_points)
-        
-        print(diff_dsts)
+
         self.prev_closest_points = thresholded_closest_points
         self.prev_closest_point_dsts = thresholded_closest_point_dsts
         
@@ -433,10 +440,10 @@ class GateDetectionNode():
 
 
         # for pnt in fitted_box_centers:
-        #     cv2.circle(img_cp, (int(pnt[0]), int(pnt[1])), radius, (0,255,0), 1)
+        #     cv2.circle(img_cp, (int(pnt[0]), int(pnt[1])), 3, (0,0,255), 10)
         
         for pnt in closest_points:
-            cv2.circle(img_cp, (int(pnt[0]), int(pnt[1])), 3, (0,0,255), 2)
+            cv2.circle(img_cp, (int(pnt[0]), int(pnt[1])), 5, (255,0,255), 2)
         
         """ for cx, cy, h, w, phi in fitted_boxes:
             if blank_image[cx - w//2: cx + w//2][cy - h//2: cy + h//2]: """
@@ -543,10 +550,10 @@ class GateDetectionNode():
         contours_img, contours = self.contour_processing(cv_image, noise_removed_img, False)
         # hull_contours_img, hull_contours = self.contour_processing(cv_image, noise_removed_img, True)
 
-        fitted_boxes = self.shape_fitting(contours_img, contours, 5)
+        fitted_boxes, shape_img = self.shape_fitting(cv_image, contours, 5)
         
         icp_points, centroid_arr = self.icp_fitting(cv_image, fitted_boxes, self.ref_points_icp_fitting)
-        self.rect_filtering(cv_image, centroid_arr, icp_points)
+        self.rect_filtering(shape_img, centroid_arr, icp_points)
 
         # self.convex_fitting(contours_img, contours, hull_contours_img, hull_contours, 0.4)
         
@@ -562,6 +569,11 @@ class GateDetectionNode():
         fps = 1 / timediff # Take reciprocal of the timediff to get runs per second. 
 
         self.timerPub.publish(fps)
+
+
+    def gate_detection_reset_callback(self, msg):
+        self.ref_points_icp_fitting = self.ref_points_icp_fitting_base
+
 
     def dynam_reconfigure_callback(self, config):
         self.canny_threshold1 = config.canny_threshold1
