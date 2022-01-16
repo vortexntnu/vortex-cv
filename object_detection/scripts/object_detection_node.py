@@ -2,7 +2,9 @@
 
 import rospy
 import sensor_msgs.point_cloud2 as pc2
-import pcl_ros
+# import pcl
+import ros_numpy
+import numpy as np
 
 # Import msg types
 from darknet_ros_msgs.msg import BoundingBoxes
@@ -21,7 +23,7 @@ from coord_pos import CoordPosition
 class ObjectDetectionNode():
     """Handles tasks related to object detection
     """
-    pc_data = 0
+    pcd = 0
 
     def __init__(self):
         rospy.init_node('object_detection_node')
@@ -37,9 +39,9 @@ class ObjectDetectionNode():
     def point_cloud(self, data):
         #pass
         PointCloudMessage = PointCloud2()
-        PointCloudMessage.header = self.pc_data.header 
-        PointCloudMessage.height = self.pc_data.height
-        PointCloudMessage.width = self.pc_data.width
+        PointCloudMessage.header = self.pcd.header 
+        PointCloudMessage.height = self.pcd.height
+        PointCloudMessage.width = self.pcd.width
 
         x_min_limit = data.xmin
         x_max_limit = data.xmax
@@ -48,7 +50,7 @@ class ObjectDetectionNode():
 
         for i in range(x_min_limit, x_max_limit):
             for j in range(y_min_limit,y_max_limit):
-                pc_values= point_cloud2.read_points(self.pc_data,uvs=[[i,j]])
+                pc_values= point_cloud2.read_points(self.pcd,uvs=[[i,j]])
                 # for pt in pc_values:
 
                 #     self.PointCloud.publish(PointCloudMessage)            
@@ -62,22 +64,58 @@ class ObjectDetectionNode():
 
 
     def publish_pointcloud(self):
-        new_pc_message = self.pc_data
+        newest_msg = self.pcd
         # new_pc_message.header.stamp = rospy.get_rostime()
         # new_pc_message.data = something
-        #      
-        points_list = []
+        
+        
+        data_from_zed = ros_numpy.numpify(newest_msg)
 
-        for data in pc2.read_points(ros_cloud, skip_nans=True):
-            points_list.append([data[0], data[1], data[2], data[3]])
+        # pcd_processing = np.zeros(newest_msg.height,newest_msg.width, dtype=[
+        #                 ('x', np.float32),
+        #                 ('y', np.float32),
+        #                 ('z', np.float32),
+        #                 ('rgb', np.float32),
+        #                             ])
 
-        pcl_data = pcl.PointCloud_PointXYZRGB()
-        pcl_data.from_list(points_list)
+        # pcd_processing['x'] = np.arange(100)
+        # pcd_processing['y'] = pcd_processing['x']*2
+        # pcd_processing['vectors'] = np.arange(100)[:,np.newaxis]
 
-        self.pointcloudPub.publish(new_pc_message)
+        # data_from_zed = np.resize(data_from_zed, (200,200))
+        # data_from_zed_old = np.hsplit(data_from_zed, 640)[0][:][0]
+        data_from_zed_old = np.array_split(data_from_zed, [640], axis=1)[0]
+        pcd_height, pcd_width = np.shape(data_from_zed_old)
+        rospy.loginfo(np.shape(data_from_zed_old))
+        
+        msg = ros_numpy.msgify(PointCloud2, data_from_zed_old)
+
+        msg.header = newest_msg.header
+        msg.height = pcd_height
+        msg.width = pcd_width
+        
+        # rospy.loginfo(pcd_processing)
+
+        self.pointcloudPub.publish(msg)
+
+        # points_list = []
+        # ros_cloud= self.pc_data
+        
+        # for data in pc2.read_points(ros_cloud, skip_nans=True):
+        #     points_list.append([data[0], data[1], data[2], data[3]])
+
+        # # pcl_data = pcl.PointCloud() #PointCloud_PointXYZRGB()
+        # # pcl_data.from_list(points_list)
+
+        # pc_np = ros_numpy.point_cloud2.pointcloud2_to_xyz_arraz(ros_cloud, remove_nans = True)
+
+
+        # pc_pcl = pcl.PointCloud(np.array(pc_np,dtype = np.float32))
+
+        # self.pointcloudPub.publish(new_pc_message)
 
     def pointcloud_cb(self, data):
-        self.pc_data = data
+        self.pcd = data
         # assert isinstance(data, PointCloud2)
         # pt_gen = point_cloud2.read_points(data, skip_nans=False, uvs=[1, 2])
         # for pt in pt_gen:
@@ -98,20 +136,20 @@ class ObjectDetectionNode():
         #     rospy.loginfo(pt)
 
 
-        if self.pc_data != 0:
-            arrayPosition = x_from*self.pc_data.point_step + y_from*self.pc_data.row_step
+        if self.pcd != 0:
+            arrayPosition = x_from*self.pcd.point_step + y_from*self.pcd.row_step
 
-            arrayPosX = arrayPosition + self.pc_data.fields[0].offset  # X has an offset of 0
-            arrayPosY = arrayPosition + self.pc_data.fields[1].offset  # Y has an offset of 4
-            arrayPosZ = arrayPosition + self.pc_data.fields[2].offset  # Z has an offset of 8
+            arrayPosX = arrayPosition + self.pcd.fields[0].offset  # X has an offset of 0
+            arrayPosY = arrayPosition + self.pcd.fields[1].offset  # Y has an offset of 4
+            arrayPosZ = arrayPosition + self.pcd.fields[2].offset  # Z has an offset of 8
 
-            x = self.pc_data.data[arrayPosX]
-            y = self.pc_data.data[arrayPosY]
-            z = self.pc_data.data[arrayPosZ]
+            x = self.pcd.data[arrayPosX]
+            y = self.pcd.data[arrayPosY]
+            z = self.pcd.data[arrayPosZ]
             #x = PointField.deserialize_numpy(x)
             
 
-            self.rviz_point_single_lense(self.pc_data.header, [x,y,z], "pc_test")
+            self.rviz_point_single_lense(self.pcd.header, [x,y,z], "pc_test")
 
 
 
