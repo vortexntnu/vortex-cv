@@ -344,15 +344,6 @@ class GateDetectionNode():
         
         return dupes
     
-    def unique2d(self, a):
-        x, y = a.T
-        b = x + y*1.0j 
-        # idx = np.unique(b,return_index=True)[1]
-        # return a[idx], idx
-        u, idx = np.unique(b,return_counts=True)
-        dup = u[idx > 1]
-        return dup
-    
     def duplicate_point_filter(self, closest_points, closest_point_dsts):
         # closest_points_np = np.rint(np.array([[2, 2], [3, 3], [4, 4], [3, 3], [2, 2], [1, 1]]))
         closest_points_np = np.rint(np.array(closest_points))
@@ -364,8 +355,6 @@ class GateDetectionNode():
         num_uniq_closest_points = len(uniq_points)
         
         if num_closest_points == num_uniq_closest_points:
-            self.prev_closest_points = closest_points
-            self.prev_closest_point_dsts = closest_point_dsts
             return closest_points, closest_point_dsts
 
         # Duplicate point filter starts here
@@ -388,21 +377,45 @@ class GateDetectionNode():
                 closest_points[not_closest_point_idx] = self.prev_closest_points[not_closest_point_idx]
                 closest_point_dsts[not_closest_point_idx] = self.prev_closest_point_dsts[not_closest_point_idx]
 
-        self.prev_closest_points = closest_points
-        self.prev_closest_point_dsts = closest_point_dsts
-        self.point_thresholding(1,2,3)
         return closest_points, closest_point_dsts
     
-    def point_thresholding(self, closest_points, closest_point_dsts, centers):
-        print("ksjdfs")
+    def point_thresholding(self, closest_points, closest_point_dsts, threshold):
+        pts_cp = copy.deepcopy(closest_points)
+        pt_dsts_cp = copy.deepcopy(closest_point_dsts)
+        diff_dsts = []
+        for i in range(len(self.prev_closest_point_dsts)):
+            closest_pt_dst = pt_dsts_cp[i]
+            prev_closest_pt_dst = self.prev_closest_point_dsts[i]
+            diff_prev_current_dst = abs(prev_closest_pt_dst - closest_pt_dst)
+            diff_dsts.append(diff_prev_current_dst)
+            
+            if diff_prev_current_dst > threshold:
+                pts_cp[i] = self.prev_closest_points[i]
+                pt_dsts_cp[i] = self.prev_closest_point_dsts[i]
+                # rospy.loginfo("Point changed position too rapidly! Change: %f", diff_prev_current_dst)
+        return pts_cp, pt_dsts_cp, diff_dsts
+
+    def reference_points_iteration(self, closest_points):
+        self.ref_points_icp_fitting = np.array(closest_points, dtype=int)
+        print(self.ref_points_icp_fitting)
 
     
     def fitted_point_filtering(self, point_arr1, point_arr2):
         closest_points, closest_point_dsts = self.custom_closest_point(point_arr1, point_arr2)
         
         closest_points_filtered, closest_point_dsts_filtered = self.duplicate_point_filter(closest_points, closest_point_dsts)
+
+        thresholded_closest_points, thresholded_closest_point_dsts, diff_dsts = self.point_thresholding(closest_points_filtered,
+                                                                                                        closest_point_dsts_filtered,
+                                                                                                        threshold=90)
         
-        return closest_points_filtered
+        self.reference_points_iteration(thresholded_closest_points)
+        
+        print(diff_dsts)
+        self.prev_closest_points = thresholded_closest_points
+        self.prev_closest_point_dsts = thresholded_closest_point_dsts
+        
+        return thresholded_closest_points
 
 
     def rect_filtering(self, img, fitted_box_centers, icp_fitted_points):
@@ -411,7 +424,6 @@ class GateDetectionNode():
 
         closest_points, closest_point_dsts = self.custom_closest_point(icp_fitted_points, fitted_box_centers)
         closest_points = self.fitted_point_filtering(icp_fitted_points, fitted_box_centers)
-        # self.ref_points_icp_fitting = np.array(closest_points, dtype=int)
 
         # print(closest_points)
 
