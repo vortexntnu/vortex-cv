@@ -98,7 +98,14 @@ class GateDetectionNode():
 
         self.dynam_client = dynamic_reconfigure.client.Client("gate_detection_cfg", timeout=5.0, config_callback=self.dynam_reconfigure_callback)
 
-    
+
+    def cv_image_publisher(self, publisher, image, msg_encoding="bgra8"):
+        """
+        Takes a cv::Mat image object, converts it into a ROS Image message type, and publishes it using the specified publisher.
+        """
+        msgified_img = self.bridge.cv2_to_imgmsg(image, encoding=msg_encoding)
+        publisher.publish(msgified_img)
+
 
     def lines_publisher(self, orig_img, edges_img):
         orig_img_cp = copy.deepcopy(orig_img)
