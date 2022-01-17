@@ -1,11 +1,5 @@
 #!/usr/bin/env python
 
-from asyncore import close_all
-from cmath import sqrt
-from enum import unique
-from fileinput import close
-from multiprocessing.sharedctypes import Value
-from time import sleep
 import rospy
 
 from sensor_msgs.msg import Image
@@ -106,29 +100,6 @@ class GateDetectionNode():
         """
         msgified_img = self.bridge.cv2_to_imgmsg(image, encoding=msg_encoding)
         publisher.publish(msgified_img)
-
-
-    def lines_publisher(self, orig_img, edges_img):
-        orig_img_cp = copy.deepcopy(orig_img)
-
-        lines = cv2.HoughLines(edges_img, 1, np.pi/180, 200)
-
-        lines_matrix = []
-
-        for line in lines:
-            for rho, theta in line:
-                a = np.cos(theta)
-                b = np.sin(theta)
-                x0 = a*rho
-                y0 = b*rho
-                x1 = int(x0 + 10000*(-b))
-                y1 = int(y0 + 10000*(a))
-                x2 = int(x0 - 10000*(-b))
-                y2 = int(y0 - 10000*(a))
-
-                lines_matrix.append([(x1,y1),(x2,y2)])
-                cv2.line(orig_img_cp, (x1,y1), (x2,y2), (0,0,255), 2)
-        # print(lines_matrix)
 
 
     def hsv_publisher(self, orig_img):
@@ -664,7 +635,6 @@ class GateDetectionNode():
         # canny_img = cv2.Canny(gray_img, self.canny_threshold1, self.canny_threshold2, apertureSize=self.canny_aperture)
         # edges_ros_image = self.bridge.cv2_to_imgmsg(canny_img, encoding="mono8")
         # self.cannyPub.publish(edges_ros_image)
-        # self.lines_publisher(cv_image, canny_img)
         
         hsv_mask = self.hsv_publisher(cv_image)
         noise_removed_img = self.noise_removal(hsv_mask)
