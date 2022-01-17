@@ -67,6 +67,8 @@ class GateDetectionNode():
         self.ref_points_icp_fitting_base = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
         self.ref_points_icp_fitting = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
 
+        self.classified_gate = False
+
         # Canny params
         self.canny_threshold1 = 100
         self.canny_threshold2 = 200
@@ -347,10 +349,9 @@ class GateDetectionNode():
         seen = set()
         dupes = []
 
-        for x_idx in a:
-            x = a[x_idx]
+        for x in a:
             if x in seen:
-                dupes.append(x_idx)
+                dupes.append(x)
             else:
                 seen.add(x)
         
@@ -408,7 +409,7 @@ class GateDetectionNode():
                 # rospy.loginfo("Point changed position too rapidly! Change: %f", diff_prev_current_dst)
 
             integral_check = (sum(self.integral_diff_values_arr) // self.integral_diff_values_arr_len)
-            print(integral_check, len(self.integral_diff_values_arr))
+            # print(integral_check, len(self.integral_diff_values_arr))
             if integral_check > reset_reference_points_threshold:
                 rospy.loginfo("Reset! I-arr len: %d    I-arr value: %d", len(self.integral_diff_values_arr), integral_check)
                 self.gate_detection_reset()
@@ -542,7 +543,10 @@ class GateDetectionNode():
 
         rect_area = (ymax - ymin) * (xmax - xmin)
 
-        bbox_ros_image = self.bridge.cv2_to_imgmsg(img_cp, encoding="bgra8")
+        if self.classified_gate:
+            bbox_ros_image = self.bridge.cv2_to_imgmsg(img_cp, encoding="bgra8")
+        else:
+            bbox_ros_image = self.bridge.cv2_to_imgmsg(img, encoding="bgra8")
         self.BBoxPub.publish(bbox_ros_image)
 
 
@@ -566,24 +570,39 @@ class GateDetectionNode():
         self.cvxFitPub.publish(cvx_ros_image)
 
 
-    def line_fitting(self, orig_img, contours):
+    def line_fitting(self, orig_img, contours, threshold=50):
         orig_img_cp = copy.deepcopy(orig_img)
 
         blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
         # cv2.fillPoly(blank_image, pts =contours, color=(255,255,255))
-        
+        theta_set = set()
         for cnt in contours:
             rows, cols = blank_image.shape[:2]
             [vx,vy,x,y] = cv2.fitLine(cnt, cv2.DIST_L2,0,0.01,0.01)
+            theta = math.atan(vy/vx)
+            theta = (abs(theta*math.pi*180) % 360)
+            theta_set.add(theta)
             lefty = int((-x*vy/vx) + y)
             righty = int(((cols-x)*vy/vx)+y)
-            cv2.line(blank_image,(cols-1,righty),(0,lefty),(0,255,0),2)
+            cv2.line(blank_image,(cols-1,righty),(0,lefty),(0,255,0),4)
+            cv2.putText(blank_image, str(theta), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
+
             #cv2.line(orig_img_cp,(cols-1,righty),(0,lefty),(0,255,0),2)
+        
+        theta_arr = list(theta_set)
+        parallell_line_count = 0
+        for theta_outer in theta_arr:
+            if 90 < theta_outer < 180:
+                for theta_inner in theta_arr:
+                    if (theta_outer + threshold >= theta_inner) and (theta_outer - threshold <= theta_inner) and (theta_outer != theta_inner):
+                        parallell_line_count += 1
+            else:
+                continue
         
         lines_ros_image = self.bridge.cv2_to_imgmsg(blank_image, encoding="bgra8")
         self.linesPub.publish(lines_ros_image)
 
-        return blank_image
+        return blank_image, parallell_line_count
     
     def corner_detection(self, line_fitted_img):
         line_fitted_img_cp = copy.deepcopy(line_fitted_img)
@@ -646,12 +665,14 @@ class GateDetectionNode():
         
         icp_points, centroid_arr = self.icp_fitting(cv_image, fitted_boxes, self.ref_points_icp_fitting)
         relevant_rects, closest_points, fitted_box_centers, points_in_rects = self.rect_filtering(cv_image, centroid_arr, icp_points, fitted_boxes)
+        line_img, parallell_line_count = self.line_fitting(contours_img, relevant_rects)
+        if parallell_line_count > 1:
+            self.classified_gate = True
 
         bbox_img = self.create_bbox(cv_image, points_in_rects)
-        # self.create_bbox(cv_image, relevant_rects)
 
+        self.classified_gate = False
         # self.convex_fitting(contours_img, contours, hull_contours_img, hull_contours, 0.4)
-        # line_img = self.line_fitting(contours_img, fitted_boxes)
         # self.corner_detection(line_img)
         #------------------------------------------>
         #------------------------------------------>
