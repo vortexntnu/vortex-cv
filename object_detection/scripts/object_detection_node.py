@@ -63,11 +63,10 @@ class ObjectDetectionNode():
         #                     PointCloudMessage.pointcloud.append(point)
 
 
-    def publish_pointcloud(self):
+    def publish_pointcloud(self,data_bbox):
         newest_msg = self.pcd
         # new_pc_message.header.stamp = rospy.get_rostime()
         # new_pc_message.data = something
-        
         
         data_from_zed = ros_numpy.numpify(newest_msg)
 
@@ -82,9 +81,18 @@ class ObjectDetectionNode():
         # pcd_processing['y'] = pcd_processing['x']*2
         # pcd_processing['vectors'] = np.arange(100)[:,np.newaxis]
 
+        x_min_limit = data_bbox.xmin
+        x_max_limit = data_bbox.xmax
+        y_min_limit = data_bbox.ymin
+        y_max_limit = data_bbox.ymax
+
+        size_of_data = np.shape(data_from_zed)
+        data_from_zed_old = np.zeros(size_of_data, dtype = np.float32)
+        data_from_zed_old[x_min_limit:x_max_limit,y_min_limit:y_max_limit] = data_from_zed[x_min_limit:x_max_limit,y_min_limit:y_max_limit]
+
         # data_from_zed = np.resize(data_from_zed, (200,200))
         # data_from_zed_old = np.hsplit(data_from_zed, 640)[0][:][0]
-        data_from_zed_old = np.array_split(data_from_zed, [640], axis=1)[0]
+        # data_from_zed_old = np.array_split(data_from_zed, [640], axis=1)[0]
         pcd_height, pcd_width = np.shape(data_from_zed_old)
         rospy.loginfo(np.shape(data_from_zed_old))
         
@@ -166,7 +174,7 @@ class ObjectDetectionNode():
         for bbox in data.bounding_boxes:
             # Sends bbox data to pointcloud func in order to respublish pointcloud data only within bbox
             self.send_pointcloud(bbox)
-            # self.point_cloud(bbox)
+            self.publish_pointcloud(bbox)
 
             # Store depth measurement of boundingbox
             depth_mtr = bbox.z
