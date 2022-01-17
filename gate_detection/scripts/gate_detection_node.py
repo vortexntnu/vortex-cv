@@ -59,6 +59,9 @@ class GateDetectionNode():
         # point filtering
         self.prev_closest_points = []
         self.prev_closest_point_dsts = []
+        
+        self.integral_diff_values_arr = []
+
         self.ref_points_icp_fitting_base = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
         self.ref_points_icp_fitting = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
 
@@ -413,19 +416,23 @@ class GateDetectionNode():
 
     
     def fitted_point_filtering(self, point_arr1, point_arr2):
+        tmp_threshold = 90
+
         closest_points, closest_point_dsts = self.custom_closest_point(point_arr1, point_arr2)
         
         closest_points_filtered, closest_point_dsts_filtered = self.duplicate_point_filter(closest_points, closest_point_dsts)
 
         thresholded_closest_points, thresholded_closest_point_dsts, diff_dsts = self.point_thresholding(closest_points_filtered,
                                                                                                         closest_point_dsts_filtered,
-                                                                                                        threshold=90,
+                                                                                                        threshold=tmp_threshold,
                                                                                                         reset_reference_points=True)
         # Sometimes makes it better, sometimes not
         self.reference_points_iteration(thresholded_closest_points)
 
         self.prev_closest_points = thresholded_closest_points
         self.prev_closest_point_dsts = thresholded_closest_point_dsts
+
+
         
         return thresholded_closest_points
 
@@ -507,44 +514,25 @@ class GateDetectionNode():
         filtered_rect_ros_image = self.bridge.cv2_to_imgmsg(img_cp, encoding="bgra8")
         self.filteredRectPub.publish(filtered_rect_ros_image)
 
-        return relevant_rects, closest_points, fitted_box_centers
+        return relevant_rects, closest_points, fitted_box_centers, points_in_rects
     
 
-    def create_bbox(self, img, relevant_rects):
+    def create_bbox(self, img, points_in_rects):
         img_cp = copy.deepcopy(img)
         blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
 
-        rects_arr_shape = np.shape(relevant_rects)
-        num_of_rects = rects_arr_shape[0]
+        x_lst, y_lst = zip(*points_in_rects)
+        xmin = min(x_lst)
+        ymin = min(y_lst)
+        xmax = max(x_lst)
+        ymax = max(y_lst)
         
-        x_lst = []
-        y_lst = []
+        cv2.rectangle(img_cp,(ymin, xmin),(ymax, xmax),(0,255,0),2)
+        cv2.putText(img_cp, 'GATE', (ymin, xmin-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
 
-        min = np.amin(relevant_rects, axis=1)
-        print(min)
-        print(relevant_rects)
-        print("\n")
-
-        # for rect in relevant_rects:
-        #     for corners in rect:
-        #         for point in corners:
-
-                # print(x, y)
-        return
-        # Debug number of rects
-        try:
-            for x, y in zip(*relevant_rects):
-                # print(x)
-                # print(y)
-                print("yup")
-            print(np.shape(relevant_rects))
-            print(relevant_rects)
-        except ValueError, e:
-            for x, y, z in zip(*relevant_rects):
-                print("nope")
-            print(np.shape(relevant_rects))
-            print(relevant_rects)
-
+        rect_area = (ymax - ymin) * (xmax - xmin)
+        # print(rect_area)
+        
         bbox_ros_image = self.bridge.cv2_to_imgmsg(img_cp, encoding="bgra8")
         self.BBoxPub.publish(bbox_ros_image)
 
@@ -648,8 +636,9 @@ class GateDetectionNode():
         fitted_boxes, shape_img = self.shape_fitting(cv_image, contours, 5)
         
         icp_points, centroid_arr = self.icp_fitting(cv_image, fitted_boxes, self.ref_points_icp_fitting)
-        relevant_rects, closest_points, fitted_box_centers = self.rect_filtering(cv_image, centroid_arr, icp_points, fitted_boxes)
+        relevant_rects, closest_points, fitted_box_centers, points_in_rects = self.rect_filtering(cv_image, centroid_arr, icp_points, fitted_boxes)
 
+        bbox_img = self.create_bbox(cv_image, points_in_rects)
         # self.create_bbox(cv_image, relevant_rects)
 
         # self.convex_fitting(contours_img, contours, hull_contours_img, hull_contours, 0.4)
