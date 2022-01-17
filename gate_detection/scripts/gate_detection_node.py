@@ -4,6 +4,7 @@ from asyncore import close_all
 from cmath import sqrt
 from enum import unique
 from fileinput import close
+from multiprocessing.sharedctypes import Value
 from time import sleep
 import rospy
 
@@ -61,6 +62,7 @@ class GateDetectionNode():
         self.prev_closest_point_dsts = []
         
         self.integral_diff_values_arr = []
+        self.integral_diff_values_arr_len = 5
 
         self.ref_points_icp_fitting_base = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
         self.ref_points_icp_fitting = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
@@ -389,13 +391,14 @@ class GateDetectionNode():
 
         return closest_points, closest_point_dsts
     
-    def point_thresholding(self, closest_points, closest_point_dsts, threshold, reset_reference_points):
+    def point_thresholding(self, closest_points, closest_point_dsts, threshold, reset_reference_points_threshold):
         pts_cp = copy.deepcopy(closest_points)
         pt_dsts_cp = copy.deepcopy(closest_point_dsts)
         diff_dsts = []
         for i in range(len(self.prev_closest_point_dsts)):
             closest_pt_dst = pt_dsts_cp[i]
             prev_closest_pt_dst = self.prev_closest_point_dsts[i]
+
             diff_prev_current_dst = abs(prev_closest_pt_dst - closest_pt_dst)
             diff_dsts.append(diff_prev_current_dst)
             
@@ -403,10 +406,18 @@ class GateDetectionNode():
                 pts_cp[i] = self.prev_closest_points[i]
                 pt_dsts_cp[i] = self.prev_closest_point_dsts[i]
                 # rospy.loginfo("Point changed position too rapidly! Change: %f", diff_prev_current_dst)
-                if reset_reference_points:
-                    self.ref_points_icp_fitting = self.ref_points_icp_fitting_base
-                    rospy.loginfo("Reference points reset!")
 
+            integral_check = (sum(self.integral_diff_values_arr) // self.integral_diff_values_arr_len)
+            print(integral_check, len(self.integral_diff_values_arr))
+            if integral_check > reset_reference_points_threshold:
+                rospy.loginfo("Reset! I-arr len: %d    I-arr value: %d", len(self.integral_diff_values_arr), integral_check)
+                self.gate_detection_reset()
+        try:
+            self.integral_diff_values_arr.append(max(diff_dsts))
+            if len(self.integral_diff_values_arr) > self.integral_diff_values_arr_len:
+                self.integral_diff_values_arr.pop(0)
+        except ValueError:
+            pass
 
         return pts_cp, pt_dsts_cp, diff_dsts
 
@@ -416,16 +427,14 @@ class GateDetectionNode():
 
     
     def fitted_point_filtering(self, point_arr1, point_arr2):
-        tmp_threshold = 90
-
         closest_points, closest_point_dsts = self.custom_closest_point(point_arr1, point_arr2)
         
         closest_points_filtered, closest_point_dsts_filtered = self.duplicate_point_filter(closest_points, closest_point_dsts)
 
         thresholded_closest_points, thresholded_closest_point_dsts, diff_dsts = self.point_thresholding(closest_points_filtered,
                                                                                                         closest_point_dsts_filtered,
-                                                                                                        threshold=tmp_threshold,
-                                                                                                        reset_reference_points=True)
+                                                                                                        threshold=50,
+                                                                                                        reset_reference_points_threshold=100)
         # Sometimes makes it better, sometimes not
         self.reference_points_iteration(thresholded_closest_points)
 
@@ -522,6 +531,7 @@ class GateDetectionNode():
         blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
 
         x_lst, y_lst = zip(*points_in_rects)
+        
         xmin = min(x_lst)
         ymin = min(y_lst)
         xmax = max(x_lst)
@@ -531,8 +541,7 @@ class GateDetectionNode():
         cv2.putText(img_cp, 'GATE', (ymin, xmin-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
 
         rect_area = (ymax - ymin) * (xmax - xmin)
-        # print(rect_area)
-        
+
         bbox_ros_image = self.bridge.cv2_to_imgmsg(img_cp, encoding="bgra8")
         self.BBoxPub.publish(bbox_ros_image)
 
@@ -655,8 +664,15 @@ class GateDetectionNode():
         self.timerPub.publish(fps)
 
 
-    def gate_detection_reset_callback(self, msg):
+    def gate_detection_reset(self):
         self.ref_points_icp_fitting = self.ref_points_icp_fitting_base
+        self.prev_closest_points = []
+        self.prev_closest_point_dsts = []        
+        self.integral_diff_values_arr = []
+
+
+    def gate_detection_reset_callback(self, msg):
+        self.gate_detection_reset()
 
 
     def dynam_reconfigure_callback(self, config):
