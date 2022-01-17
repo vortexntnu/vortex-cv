@@ -7,7 +7,7 @@ import ros_numpy
 import numpy as np
 
 # Import msg types
-from darknet_ros_msgs.msg import BoundingBoxes
+from darknet_ros_msgs.msg import BoundingBoxes, BoundingBox
 from cv_msgs.msg import BBox, BBoxes
 from geometry_msgs.msg import PointStamped
 from rospy.core import rospyinfo
@@ -27,49 +27,21 @@ class ObjectDetectionNode():
 
     def __init__(self):
         rospy.init_node('object_detection_node')
-        #self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.bboxSub_cb_single_lense)
+        # self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.bboxSub_cb_single_lense)
+        self.CVbboxSub = rospy.Subscriber('/gate_detection/BoundingBox', BoundingBox, self.feature_bbox_cb)
         self.pcSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_cb)
         self.pcPub = rospy.Publisher('/object_detection/bbox_pointcloud', PointCloud2, queue_size= 1)
         self.estimatorPub = rospy.Publisher('/object_detection/size_estimates', BBoxes, queue_size= 1)
         self.landmarkPub = rospy.Publisher('/object_detection/object_positions_in',ObjectPosition, queue_size= 1)
-        self.pointcloudPub = rospy.Publisher('/object_detection/pointcloud_limited_to_bbox',PointCloud2, queue_size=1) ################################## ???
+        self.pointcloudPub = rospy.Publisher('/object_detection/pointcloud_limited_to_bbox',PointCloud2, queue_size=1) 
         self.position_estimator = PositionEstimator()
         self.coord_positioner = CoordPosition()
     
-    def point_cloud(self, data):
-        #pass
-        PointCloudMessage = PointCloud2()
-        PointCloudMessage.header = self.pcd.header 
-        PointCloudMessage.height = self.pcd.height
-        PointCloudMessage.width = self.pcd.width
+    def feature_bbox_cb(self,data):
+        bounding_box = data
+        self.publish_pointcloud(bounding_box)
 
-        x_min_limit = data.xmin
-        x_max_limit = data.xmax
-        y_min_limit = data.ymin
-        y_max_limit = data.ymax
-
-        for i in range(x_min_limit, x_max_limit):
-            for j in range(y_min_limit,y_max_limit):
-                pc_values= point_cloud2.read_points(self.pcd,uvs=[[i,j]])
-                # for pt in pc_values:
-
-                #     self.PointCloud.publish(PointCloudMessage)            
-        
-        # for point in pc_values:
-        #    if point[0] > x_min_limit:
-        #        if point[0] < x_max_limit:
-        #            if point[1] > y_min_limit:
-        #                if point[1] < y_max_limit:
-        #                     PointCloudMessage.pointcloud.append(point)
-
-
-    def publish_pointcloud(self,data_bbox):
-        newest_msg = self.pcd
-        # new_pc_message.header.stamp = rospy.get_rostime()
-        # new_pc_message.data = something
-        
-        data_from_zed = ros_numpy.numpify(newest_msg)
-
+    def publish_pointcloud(self, bounding_box):
         # pcd_processing = np.zeros(newest_msg.height,newest_msg.width, dtype=[
         #                 ('x', np.float32),
         #                 ('y', np.float32),
@@ -80,47 +52,42 @@ class ObjectDetectionNode():
         # pcd_processing['x'] = np.arange(100)
         # pcd_processing['y'] = pcd_processing['x']*2
         # pcd_processing['vectors'] = np.arange(100)[:,np.newaxis]
+                 
 
-        x_min_limit = data_bbox.xmin
-        x_max_limit = data_bbox.xmax
-        y_min_limit = data_bbox.ymin
-        y_max_limit = data_bbox.ymax
+        # get pointcloud and bounding box data
+        newest_msg = self.pcd       
+        data_from_zed = ros_numpy.numpify(newest_msg)
 
-        size_of_data = np.shape(data_from_zed)
-        data_from_zed_old = np.zeros(size_of_data, dtype = np.float32)
-        data_from_zed_old[x_min_limit:x_max_limit,y_min_limit:y_max_limit] = data_from_zed[x_min_limit:x_max_limit,y_min_limit:y_max_limit]
+        # get limits from bounding box
+        x_min_limit = bounding_box.xmin
+        x_max_limit = bounding_box.xmax
+        y_min_limit = bounding_box.ymin
+        y_max_limit = bounding_box.ymax
 
-        # data_from_zed = np.resize(data_from_zed, (200,200))
-        # data_from_zed_old = np.hsplit(data_from_zed, 640)[0][:][0]
-        # data_from_zed_old = np.array_split(data_from_zed, [640], axis=1)[0]
-        pcd_height, pcd_width = np.shape(data_from_zed_old)
+
+        # if no bounding boxes are included, but the function should be tested
+        # x_min_limit = 10
+        # x_max_limit = 300
+        # y_min_limit = 400 
+        # y_max_limit = 600 
+
+        # limiting pointcloud to bounding_box_size
+        data_from_zed_old = np.array_split(data_from_zed, [x_min_limit], axis=0)[1]
+        data_from_zed_old = np.array_split(data_from_zed_old, [x_max_limit-x_min_limit], axis=0)[0]
+        data_from_zed_old = np.array_split(data_from_zed_old, [y_min_limit], axis=1)[1]
+        data_from_zed_old = np.array_split(data_from_zed_old, [y_max_limit-y_min_limit], axis=1)[0]
+        
         rospy.loginfo(np.shape(data_from_zed_old))
         
+        pcd_height, pcd_width = np.shape(data_from_zed_old)
         msg = ros_numpy.msgify(PointCloud2, data_from_zed_old)
 
         msg.header = newest_msg.header
         msg.height = pcd_height
         msg.width = pcd_width
-        
-        # rospy.loginfo(pcd_processing)
 
         self.pointcloudPub.publish(msg)
 
-        # points_list = []
-        # ros_cloud= self.pc_data
-        
-        # for data in pc2.read_points(ros_cloud, skip_nans=True):
-        #     points_list.append([data[0], data[1], data[2], data[3]])
-
-        # # pcl_data = pcl.PointCloud() #PointCloud_PointXYZRGB()
-        # # pcl_data.from_list(points_list)
-
-        # pc_np = ros_numpy.point_cloud2.pointcloud2_to_xyz_arraz(ros_cloud, remove_nans = True)
-
-
-        # pc_pcl = pcl.PointCloud(np.array(pc_np,dtype = np.float32))
-
-        # self.pointcloudPub.publish(new_pc_message)
 
     def pointcloud_cb(self, data):
         self.pcd = data
@@ -128,8 +95,8 @@ class ObjectDetectionNode():
         # pt_gen = point_cloud2.read_points(data, skip_nans=False, uvs=[1, 2])
         # for pt in pt_gen:
         #     rospy.loginfo(pt)
-        self.publish_pointcloud()
-        return
+
+        # self.publish_pointcloud(data)
 
     def send_pointcloud(self, bbox_data):
         """"""
@@ -174,7 +141,7 @@ class ObjectDetectionNode():
         for bbox in data.bounding_boxes:
             # Sends bbox data to pointcloud func in order to respublish pointcloud data only within bbox
             self.send_pointcloud(bbox)
-            self.publish_pointcloud(bbox)
+            # self.publish_pointcloud(bbox)
 
             # Store depth measurement of boundingbox
             depth_mtr = bbox.z
