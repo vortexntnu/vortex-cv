@@ -404,7 +404,7 @@ class GateDetectionNode():
 
     def reference_points_iteration(self, closest_points):
         self.ref_points_icp_fitting = np.array(closest_points, dtype=int)
-        print(self.ref_points_icp_fitting)
+        # print(self.ref_points_icp_fitting)
 
     
     def fitted_point_filtering(self, point_arr1, point_arr2):
@@ -424,13 +424,35 @@ class GateDetectionNode():
         
         return thresholded_closest_points
 
+    def does_rect_contain_point(self, rect, point):
+        ctr = np.array(rect).reshape((-1,1,2)).astype(np.int32)
 
-    def rect_filtering(self, img, fitted_box_centers, icp_fitted_points):
+        indicator = cv2.pointPolygonTest(ctr, tuple(point), measureDist=False)
+        if indicator >= 0:
+            return True
+        else:
+            return False
+
+    def get_relevant_rects(self, point_arr, rect_arr):
+        relevant_rects = []
+        for point in point_arr:
+            for rect in rect_arr:
+                is_in_rect = self.does_rect_contain_point(rect, point)
+                if is_in_rect:
+                    relevant_rects.append(rect)
+        
+        return relevant_rects
+
+                
+
+    def rect_filtering(self, img, fitted_box_centers, icp_fitted_points, fitted_boxes):
         img_cp = copy.deepcopy(img)
         blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
 
         closest_points, closest_point_dsts = self.custom_closest_point(icp_fitted_points, fitted_box_centers)
         closest_points = self.fitted_point_filtering(icp_fitted_points, fitted_box_centers)
+
+        relevant_rects = self.get_relevant_rects(closest_points, fitted_boxes)
 
         # print(closest_points)
 
@@ -444,6 +466,10 @@ class GateDetectionNode():
         
         for pnt in closest_points:
             cv2.circle(img_cp, (int(pnt[0]), int(pnt[1])), 5, (255,0,255), 2)
+        
+        for box in relevant_rects:
+            box = np.int0(box)
+            cv2.drawContours(img_cp,[box],0,(0,0,255),2)
         
         """ for cx, cy, h, w, phi in fitted_boxes:
             if blank_image[cx - w//2: cx + w//2][cy - h//2: cy + h//2]: """
@@ -553,7 +579,7 @@ class GateDetectionNode():
         fitted_boxes, shape_img = self.shape_fitting(cv_image, contours, 5)
         
         icp_points, centroid_arr = self.icp_fitting(cv_image, fitted_boxes, self.ref_points_icp_fitting)
-        self.rect_filtering(shape_img, centroid_arr, icp_points)
+        self.rect_filtering(cv_image, centroid_arr, icp_points, fitted_boxes)
 
         # self.convex_fitting(contours_img, contours, hull_contours_img, hull_contours, 0.4)
         
