@@ -596,7 +596,7 @@ class GateDetectionNode():
             lefty = int((-x*vy/vx) + y)
             righty = int(((cols-x)*vy/vx)+y)
             cv2.line(blank_image,(cols-1,righty),(0,lefty),(0,255,0),4)
-            cv2.putText(blank_image, str(theta), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
+            cv2.putText(blank_image, str(round(theta, 1)) + " deg", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
 
             #cv2.line(orig_img_cp,(cols-1,righty),(0,lefty),(0,255,0),2)
         
@@ -610,9 +610,7 @@ class GateDetectionNode():
             else:
                 continue
         
-        lines_ros_image = self.bridge.cv2_to_imgmsg(blank_image, encoding="bgra8")
-        self.linesPub.publish(lines_ros_image)
-
+        self.cv_image_publisher(self.linesPub, blank_image, msg_encoding="bgra8")
         return blank_image, parallell_line_count
 
 
