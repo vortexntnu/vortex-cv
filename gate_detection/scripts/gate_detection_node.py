@@ -9,6 +9,7 @@ import rospy
 
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float32, Empty
+from cv_msgs.msg import BBox
 
 from cv_bridge import CvBridge, CvBridgeError
 import dynamic_reconfigure.client
@@ -46,6 +47,9 @@ class GateDetectionNode():
         self.cvxFitPub = rospy.Publisher('/gate_detection/convex_fitting_image', Image, queue_size= 1)
         self.fittedPointsPub = rospy.Publisher('/gate_detection/fitted_points_image', Image, queue_size= 1)
         self.filteredRectPub = rospy.Publisher('/gate_detection/filtered_rect_image', Image, queue_size= 1)
+        self.BBoxPub = rospy.Publisher('/gate_detection/bbox_image', Image, queue_size= 1)
+        
+        self.classificationPub = rospy.Publisher('/gate_detection/bbox', Image, queue_size= 1)
 
         self.timerPub = rospy.Publisher('/gate_detection/timer', Float32, queue_size= 1)
 
@@ -442,7 +446,6 @@ class GateDetectionNode():
                     relevant_rects.append(rect)
         
         return relevant_rects
-
                 
 
     def rect_filtering(self, img, fitted_box_centers, icp_fitted_points, fitted_boxes):
@@ -474,10 +477,33 @@ class GateDetectionNode():
         """ for cx, cy, h, w, phi in fitted_boxes:
             if blank_image[cx - w//2: cx + w//2][cy - h//2: cy + h//2]: """
 
+        filtered_rect_ros_image = self.bridge.cv2_to_imgmsg(img_cp, encoding="bgra8")
+        self.filteredRectPub.publish(filtered_rect_ros_image)
 
+        return relevant_rects, closest_points, fitted_box_centers
+    
 
-        icp_points_ros_image = self.bridge.cv2_to_imgmsg(img_cp, encoding="bgra8")
-        self.filteredRectPub.publish(icp_points_ros_image)
+    def create_bbox(self, img, relevant_rects):
+        img_cp = copy.deepcopy(img)
+        blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
+        
+        x_lst = []
+        y_lst = []
+        try:
+            for x, y in zip(*relevant_rects):
+                # print(x)
+                # print(y)
+                print("yup")
+            print(np.shape(relevant_rects))
+            print(relevant_rects)
+        except ValueError, e:
+            for x, y, z in zip(*relevant_rects):
+                print("nope")
+            print(np.shape(relevant_rects))
+            print(relevant_rects)
+
+        bbox_ros_image = self.bridge.cv2_to_imgmsg(img_cp, encoding="bgra8")
+        self.BBoxPub.publish(bbox_ros_image)
 
 
     def convex_fitting(self, contours_image, contours, convex_image, convex_contours, fit_threshold):
@@ -579,12 +605,12 @@ class GateDetectionNode():
         fitted_boxes, shape_img = self.shape_fitting(cv_image, contours, 5)
         
         icp_points, centroid_arr = self.icp_fitting(cv_image, fitted_boxes, self.ref_points_icp_fitting)
-        self.rect_filtering(cv_image, centroid_arr, icp_points, fitted_boxes)
+        relevant_rects, closest_points, fitted_box_centers = self.rect_filtering(cv_image, centroid_arr, icp_points, fitted_boxes)
+
+        self.create_bbox(cv_image, relevant_rects)
 
         # self.convex_fitting(contours_img, contours, hull_contours_img, hull_contours, 0.4)
-        
         # line_img = self.line_fitting(contours_img, fitted_boxes)
-
         # self.corner_detection(line_img)
         #------------------------------------------>
         #------------------------------------------>
