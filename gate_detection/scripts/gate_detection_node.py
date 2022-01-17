@@ -47,6 +47,7 @@ class GateDetectionNode():
         self.cvxFitPub = rospy.Publisher('/gate_detection/convex_fitting_image', Image, queue_size= 1)
         self.fittedPointsPub = rospy.Publisher('/gate_detection/fitted_points_image', Image, queue_size= 1)
         self.filteredRectPub = rospy.Publisher('/gate_detection/filtered_rect_image', Image, queue_size= 1)
+        self.filteredRectMaskPub = rospy.Publisher('/gate_detection/filtered_rect_mask_image', Image, queue_size= 1)
         self.BBoxPub = rospy.Publisher('/gate_detection/bbox_image', Image, queue_size= 1)
         
         self.classificationPub = rospy.Publisher('/gate_detection/bbox', Image, queue_size= 1)
@@ -428,25 +429,57 @@ class GateDetectionNode():
         
         return thresholded_closest_points
 
-    def does_rect_contain_point(self, rect, point):
-        ctr = np.array(rect).reshape((-1,1,2)).astype(np.int32)
 
+    def get_contour_from_rect(self, rect):
+        return np.array(rect).reshape((-1,1,2)).astype(np.int32)
+
+
+    def does_ctr_contain_point(self, ctr, point):
         indicator = cv2.pointPolygonTest(ctr, tuple(point), measureDist=False)
         if indicator >= 0:
             return True
         else:
             return False
 
+
     def get_relevant_rects(self, point_arr, rect_arr):
         relevant_rects = []
-        for point in point_arr:
-            for rect in rect_arr:
-                is_in_rect = self.does_rect_contain_point(rect, point)
+        for rect in rect_arr:
+            ctr = self.get_contour_from_rect(rect)
+            for point in point_arr:
+                is_in_rect = self.does_ctr_contain_point(ctr, point)
                 if is_in_rect:
                     relevant_rects.append(rect)
         
         return relevant_rects
-                
+
+
+    def get_all_points_in_rects(self, rects):
+        # Not optimized at all lol
+        # Possible for rectangle-wise point extraction in this fnc (mv np.zeros blank img to rect in rects loop)
+        blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
+        
+        rects_arr_shape = np.shape(rects)
+        num_of_rects = rects_arr_shape[0]
+        
+        # points_in_rects = []
+        # for i in range(num_of_rects):
+        #     points_in_rects.append([])
+
+        for rect in rects:
+            ctr = self.get_contour_from_rect(rect)
+            cv2.drawContours(blank_image, [ctr], 0, (255,255,255), thickness=cv2.FILLED)
+        
+        blank_image = cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY)
+
+        px_arr = np.argwhere(blank_image == 255)
+        # print(px_arr)
+        
+        filtered_rect_mask_ros_image = self.bridge.cv2_to_imgmsg(blank_image, encoding="mono8")
+        self.filteredRectMaskPub.publish(filtered_rect_mask_ros_image)
+        
+        return px_arr, blank_image
+
 
     def rect_filtering(self, img, fitted_box_centers, icp_fitted_points, fitted_boxes):
         img_cp = copy.deepcopy(img)
@@ -456,13 +489,7 @@ class GateDetectionNode():
         closest_points = self.fitted_point_filtering(icp_fitted_points, fitted_box_centers)
 
         relevant_rects = self.get_relevant_rects(closest_points, fitted_boxes)
-
-        # print(closest_points)
-
-
-        # T_h, new_icp_points = icp.icp(icp_fitted_points, fitted_box_centers, verbose=True)
-        # new_icp_points_int = np.rint(new_icp_points)
-
+        points_in_rects, imgimg = self.get_all_points_in_rects(relevant_rects)
 
         # for pnt in fitted_box_centers:
         #     cv2.circle(img_cp, (int(pnt[0]), int(pnt[1])), 3, (0,0,255), 10)
@@ -486,9 +513,25 @@ class GateDetectionNode():
     def create_bbox(self, img, relevant_rects):
         img_cp = copy.deepcopy(img)
         blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
+
+        rects_arr_shape = np.shape(relevant_rects)
+        num_of_rects = rects_arr_shape[0]
         
         x_lst = []
         y_lst = []
+
+        min = np.amin(relevant_rects, axis=1)
+        print(min)
+        print(relevant_rects)
+        print("\n")
+
+        # for rect in relevant_rects:
+        #     for corners in rect:
+        #         for point in corners:
+
+                # print(x, y)
+        return
+        # Debug number of rects
         try:
             for x, y in zip(*relevant_rects):
                 # print(x)
@@ -607,7 +650,7 @@ class GateDetectionNode():
         icp_points, centroid_arr = self.icp_fitting(cv_image, fitted_boxes, self.ref_points_icp_fitting)
         relevant_rects, closest_points, fitted_box_centers = self.rect_filtering(cv_image, centroid_arr, icp_points, fitted_boxes)
 
-        self.create_bbox(cv_image, relevant_rects)
+        # self.create_bbox(cv_image, relevant_rects)
 
         # self.convex_fitting(contours_img, contours, hull_contours_img, hull_contours, 0.4)
         # line_img = self.line_fitting(contours_img, fitted_boxes)
