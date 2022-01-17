@@ -17,6 +17,8 @@ import cv2
 import copy
 from timeit import default_timer as timer
 
+from feature_detection import FeatureDetection
+
 import icp
 
 np.set_printoptions(threshold=np.inf)
@@ -122,8 +124,6 @@ class GateDetectionNode():
         self.hsvCheckPub.publish(hsv_check_ros_image)
 
         return hsv_mask
-        # rospy.loginfo("\nHue: %d %d\nSat: %d %d\nVal: %d %d\n", self.hsv_hue_min, self.hsv_hue_max, self.hsv_sat_min, self.hsv_sat_max, self.hsv_val_min, self.hsv_val_max)
-
 
     def noise_removal(self, hsv_mask):
         hsv_mask_cp = copy.deepcopy(hsv_mask)
