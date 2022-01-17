@@ -11,6 +11,7 @@ import rospy
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float32, Empty
 from cv_msgs.msg import BBox
+from darknet_ros_msgs.msg import BoundingBox
 
 from cv_bridge import CvBridge, CvBridgeError
 import dynamic_reconfigure.client
@@ -315,7 +316,8 @@ class GateDetectionNode():
         self.fittedPointsPub.publish(fitted_points_ros_image)
 
         return icp_points, centroid_arr
-    
+
+
     def point_distances(self, point_arr1, point_arr2):
         # Find distance from every reference point (array 1) to every point in array 2
         # Stores values in table formatted: array A of len(array_1), 
@@ -332,6 +334,7 @@ class GateDetectionNode():
                 dst2point = math.sqrt((abs(p_n[0] - p_k[0]) ** 2) + (abs(p_n[1] - p_k[1]) ** 2)) 
                 distance_table[p_n_idx].append(dst2point)
         return distance_table
+
 
     def custom_closest_point(self, point_arr1, point_arr2):
         # Gives the closest point and the distance to the point from point a in array 1 to point b in array 2
@@ -351,7 +354,8 @@ class GateDetectionNode():
             closest_points.append(point_arr2[point_idx])
 
         return closest_points, closest_point_dsts
-    
+
+
     def get_duplicate_points(self, a):
         seen = set()
         dupes = []
@@ -363,7 +367,8 @@ class GateDetectionNode():
                 seen.add(x)
         
         return dupes
-    
+
+
     def duplicate_point_filter(self, closest_points, closest_point_dsts):
         # closest_points_np = np.rint(np.array([[2, 2], [3, 3], [4, 4], [3, 3], [2, 2], [1, 1]]))
         closest_points_np = np.rint(np.array(closest_points))
@@ -398,7 +403,8 @@ class GateDetectionNode():
                 closest_point_dsts[not_closest_point_idx] = self.prev_closest_point_dsts[not_closest_point_idx]
 
         return closest_points, closest_point_dsts
-    
+
+
     def point_thresholding(self, closest_points, closest_point_dsts, threshold, reset_reference_points_threshold):
         pts_cp = copy.deepcopy(closest_points)
         pt_dsts_cp = copy.deepcopy(closest_point_dsts)
@@ -433,7 +439,7 @@ class GateDetectionNode():
         self.ref_points_icp_fitting = np.array(closest_points, dtype=int)
         # print(self.ref_points_icp_fitting)
 
-    
+
     def fitted_point_filtering(self, point_arr1, point_arr2):
         closest_points, closest_point_dsts = self.custom_closest_point(point_arr1, point_arr2)
         
@@ -449,8 +455,6 @@ class GateDetectionNode():
         self.prev_closest_points = thresholded_closest_points
         self.prev_closest_point_dsts = thresholded_closest_point_dsts
 
-
-        
         return thresholded_closest_points
 
 
@@ -532,9 +536,9 @@ class GateDetectionNode():
         self.filteredRectPub.publish(filtered_rect_ros_image)
 
         return relevant_rects, closest_points, fitted_box_centers, points_in_rects
-    
 
-    def create_bbox(self, img, points_in_rects):
+
+    def bounding_box_publisher(self, img, points_in_rects):
         img_cp = copy.deepcopy(img)
         blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
 
@@ -610,7 +614,8 @@ class GateDetectionNode():
         self.linesPub.publish(lines_ros_image)
 
         return blank_image, parallell_line_count
-    
+
+
     def corner_detection(self, line_fitted_img):
         line_fitted_img_cp = copy.deepcopy(line_fitted_img)
         #blur_line_fitted_img = cv2.GaussianBlur(line_fitted_img_cp, (5, 19), 5.2)
@@ -676,7 +681,7 @@ class GateDetectionNode():
         if parallell_line_count > 1:
             self.classified_gate = True
 
-        bbox_img = self.create_bbox(cv_image, points_in_rects)
+        bbox_img = self.bounding_box_publisher(cv_image, points_in_rects)
 
         self.classified_gate = False
         # self.convex_fitting(contours_img, contours, hull_contours_img, hull_contours, 0.4)
@@ -725,6 +730,7 @@ class GateDetectionNode():
         self.erosion_dilation_ksize = config.ed_ksize
         self.erosion_iterations = config.erosion_iterations
         self.dilation_iterations = config.dilation_iterations
+
 
 if __name__ == '__main__':
     node = GateDetectionNode()
