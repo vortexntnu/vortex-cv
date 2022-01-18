@@ -76,7 +76,7 @@ class FeatureDetection:
         Is meant to be used as a pre-processor for contour search.
 
         Params:
-            hsv_mask                        (cv2::Mat)  : Array of x, y points for binary pixels that were filtered by the HSV params.
+            hsv_mask                        (cv2::Mat)  : A mono8 (8UC1) image that has the filtered HSV pixels.
             gb_kernel_size1                 (uint8-odds): Vertical kernel size for Gaussian blur.
             gb_kernel_size2                 (uint8-odds): Horizontal kernel size for Gaussian blur.
             sigma                           (float32)   : Standard deviation to apply with Gaussian blur.
@@ -87,9 +87,7 @@ class FeatureDetection:
             dilation_iterations             (uint8)     : The times to serially apply the dilation method.
 
         Returns:
-            hsv_img             (cv2::Mat)  : original_image converted into HSV color space.
-            hsv_mask            (cv2::Mat)  : Array of x, y points for binary pixels that were filtered by the HSV params.
-            hsv_mask_check_img  (cv2::Mat)  : original_image with applied hsv_mask.
+            morphised_image (cv2::Mat): Passed HSV image with morphised features using blur, thresholding, erosion, dilation.
         """
         hsv_mask_cp = copy.deepcopy(hsv_mask)
 
@@ -112,18 +110,18 @@ class FeatureDetection:
         erosion_img = cv2.erode(
             thr_img, erosion_dilation_kernel, iterations=erosion_iterations
         )
-        dilation_img = cv2.dilate(
+        morphised_image = cv2.dilate(
             erosion_img, erosion_dilation_kernel, iterations=dilation_iterations
         )
 
-        return dilation_img
+        return morphised_image
 
-    def contour_filtering(hierarchy, contours, contour_area_threshold, mode=1):
+    def contour_filtering(contours, hierarchy, contour_area_threshold, mode=1):
         """Filters contours according to contour hierarchy and area.
 
         Params:
-            hierarchy               (array[][]) : Hierarchy of the contours parameter. Must be of 'cv2.RETR_CCOMP' type. 
             contours                (array[][]) : Contours that are to be filtered.
+            hierarchy               (array[][]) : Hierarchy of the contours parameter. Must be of 'cv2.RETR_CCOMP' type.
             contour_area_threshold  (uint16)    : Threshold for filtering based on inside-of-contour area.
                                                   Contours with lower area than the argument will be removed.
             mode                    (uint8)     : {default=1} Mode for hierarchical filtering.
@@ -131,7 +129,7 @@ class FeatureDetection:
                                                   Mode 2 leaves the contours that do not have any hierarchical children or neighbours.
 
         Returns:
-            hsv_img (array[][]): Filtered contours.
+            filtered_contours (array[][]): Filtered contours.
         """
         filtered_contours = []
 
@@ -154,7 +152,16 @@ class FeatureDetection:
                     filtered_contours.append(False)
 
             if mode == 2:
-                if len([i for i, j in zip(cnt_hier, [-1, -1, -1, cnt_idx - 1]) if i == j]) != 4:
+                if (
+                    len(
+                        [
+                            i
+                            for i, j in zip(cnt_hier, [-1, -1, -1, cnt_idx - 1])
+                            if i == j
+                        ]
+                    )
+                    != 4
+                ):
                     cnt = contours[cnt_idx]
                     cnt_area = cv2.contourArea(cnt)
                     if cnt_area < contour_area_threshold:
@@ -166,15 +173,52 @@ class FeatureDetection:
 
         return filtered_contours
 
-    def contour_processing(original_image, noise_removed_img, enable_convex_hull=False):
-        orig_img_cp = copy.deepcopy(original_image)
-        blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
+    def contour_processing(
+        noise_removed_image,
+        contour_area_threshold,
+        enable_convex_hull=False,
+        return_image=True,
+        image=None,
+        show_centers=True,
+        show_areas=False,
+    ):
+        """Finds contours in a pre-processed image and filters them.
 
-        # contours, hierarchy = cv2.findContours(noise_removed_img, 1, 2)
-        # contours, hierarchy = cv2.findContours(noise_removed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        contours, hierarchy = cv2.findContours(noise_removed_img, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+        Params:
+            noise_removed_image     (cv::Mat)   : A mono8 (8UC1) pre-processed image with morphised edges.
+            contour_area_threshold  (uint16)    : Threshold for filtering based on inside-of-contour area.
+                                                  Contours with lower area than the argument will be removed.
+            enable_convex_hull      (bool)      : Enable convex hull contour approximation method.
+            return_image            (bool)      : {default=True}False to return only contour data.
+                                                  If param 'image' is none - returns a blanked image with drawn contour data.
+                                                  If param 'image' is an image - returns both drawn blanked and passed images.
+            image                   (cv::Mat)   : An image on which to draw processed contours.
+            show_centers            (bool)      : Draw contour centers in the returned image(s).
+            show_areas              (bool)      : Draw contour areas in the returned image(s).
 
-        cnt_fiter = self.contour_filtering(hierarchy, contours)
+        Returns:
+                                contours    (array[][]) : Processed and filtered contours.
+            {return_image=True} blank_image (cv::Mat)   : Blank image with drawn contours.
+            {image != None}     image       (cv::Mat)   : Passed image with drawn contours.
+        """
+
+        if return_image:
+            if image != None:
+                orig_img_cp = copy.deepcopy(image)
+                img_shape = orig_img_cp.shape
+
+                blank_image = np.zeros(shape=img_shape, dtype=np.uint8)
+
+            else:
+                blank_image = np.zeros(shape=noise_removed_image.shape, dtype=np.uint8)
+
+        contours, hierarchy = cv2.findContours(
+            noise_removed_image, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        cnt_fiter = FeatureDetection.contour_filtering(
+            hierarchy, contours, contour_area_threshold, mode=1
+        )
         contours_array = np.array(contours)
         contours_filtered = contours_array[cnt_fiter]
 
@@ -187,28 +231,104 @@ class FeatureDetection:
         else:
             using_contours = contours_filtered
 
-
         centroid_data = []
         for cnt_idx in range(len(contours_filtered)):
 
             cnt = using_contours[cnt_idx]
             cnt_moments = cv2.moments(cnt)
 
-            centroid_center_x = int(cnt_moments['m10']/cnt_moments['m00'])
-            centroid_center_y = int(cnt_moments['m01']/cnt_moments['m00'])
+            centroid_center_x = int(cnt_moments["m10"] / cnt_moments["m00"])
+            centroid_center_y = int(cnt_moments["m01"] / cnt_moments["m00"])
 
-            cnt_area = cnt_moments['m00']
-            cv2.drawContours(orig_img_cp, using_contours, cnt_idx, (255,0,0), 2)
+            cnt_area = cnt_moments["m00"]
+
+            if return_image:
+                if image != None:
+                    cv2.drawContours(
+                        orig_img_cp, using_contours, cnt_idx, (255, 0, 0), 2
+                    )
+                cv2.drawContours(blank_image, using_contours, cnt_idx, (255, 0, 0), 2)
 
             centroid_data.append((centroid_center_x, centroid_center_y, cnt_area))
             cnt_area_str = str(centroid_data[cnt_idx][2])
 
-            orig_img_cp = cv2.circle(orig_img_cp, (centroid_data[cnt_idx][0], centroid_data[cnt_idx][1]), 2, (0,255,0), 2)
-            # orig_img_cp = cv2.putText(orig_img_cp, cnt_area_str, (centroid_data[cnt_idx][0], centroid_data[cnt_idx][1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (1,0,0), 2)
+            if return_image and show_centers:
+                cv2.circle(
+                    blank_image,
+                    (centroid_data[cnt_idx][0], centroid_data[cnt_idx][1]),
+                    2,
+                    (0, 255, 0),
+                    2,
+                )
+                if image != None:
+                    cv2.circle(
+                        orig_img_cp,
+                        (centroid_data[cnt_idx][0], centroid_data[cnt_idx][1]),
+                        2,
+                        (0, 255, 0),
+                        2,
+                    )
 
-        contour_image = self.bridge.cv2_to_imgmsg(orig_img_cp, encoding="bgra8")
-        if not enable_convex_hull:
-            self.contourPub.publish(contour_image)
+            if return_image and show_areas:
+                cv2.putText(
+                    blank_image,
+                    cnt_area_str,
+                    (centroid_data[cnt_idx][0], centroid_data[cnt_idx][1]),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (255, 255, 255),
+                    2,
+                )
+                if image != None:
+                    cv2.putText(
+                        orig_img_cp,
+                        cnt_area_str,
+                        (centroid_data[cnt_idx][0], centroid_data[cnt_idx][1]),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1,
+                        (1, 0, 0),
+                        2,
+                    )
+
+        if return_image:
+            if image != None:
+                return orig_img_cp, blank_image, using_contours
+            else:
+                return blank_image, using_contours
         else:
-            self.hullPub.publish(contour_image)
-        return orig_img_cp, using_contours
+            return using_contours
+
+    def shape_fitting(image, contours, fit_threshold):
+        orig_img_cp = copy.deepcopy(image)
+
+        blank_image = np.zeros(
+            shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8
+        )
+        fitted_boxes = []
+
+        for cnt in contours:
+            if len(cnt) > 20:
+                rect = cv2.minAreaRect(cnt)
+
+                rect_width = rect[1][0]
+                rect_height = rect[1][1]
+
+                rect_long = rect_height
+                rect_short = rect_width
+
+                if rect_height < rect_width:
+                    rect_long = rect_width
+                    rect_short = rect_height
+
+                if rect_long > rect_short * fit_threshold:
+                    box = cv2.boxPoints(rect)
+                    box = np.int0(box)
+                    orig_img_cp = cv2.drawContours(
+                        orig_img_cp, [box], 0, (0, 0, 255), 2
+                    )
+                    fitted_boxes.append(box)
+
+        shapes_ros_image = self.bridge.cv2_to_imgmsg(orig_img_cp, encoding="bgra8")
+        self.shapePub.publish(shapes_ros_image)
+
+        return fitted_boxes, orig_img_cp

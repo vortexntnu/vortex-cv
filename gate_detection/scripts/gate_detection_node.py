@@ -630,6 +630,8 @@ class GateDetectionNode():
             rospy.logerr("CvBridge Error: {0}".format(e))
         self.img_height, self.img_width, self.img_channels = cv_image.shape
 
+        FeatureDetection.contour_processing()
+
         # gray_img = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
         # canny_img = cv2.Canny(gray_img, self.canny_threshold1, self.canny_threshold2, apertureSize=self.canny_aperture)
