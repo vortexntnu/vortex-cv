@@ -324,9 +324,10 @@ class FeatureDetection:
             image                   (cv::Mat)   : An image on which to draw fitted shapes.
 
         Returns:
-                            fitted_boxes    (array[][]) : Contour-fitted and filtered rectangles.
-        {return_image=True} blank_image     (cv::Mat)   : Blank image with drawn contours.
-        {image != None}     image           (cv::Mat)   : Passed image with drawn contours.
+                            fitted_boxes    (array[][4])    : Contour-fitted and filtered rectangles.
+                            centroid_arr    (array[][2])    : Array of center points in each fitted rectangle.
+        {return_image=True} blank_image     (cv::Mat)       : Blank image with drawn contours.
+        {image != None}     image           (cv::Mat)       : Passed image with drawn contours.
         """
         if return_image:
             blank_image = np.zeros(shape=self.img_shape, dtype=np.uint8)
@@ -359,20 +360,7 @@ class FeatureDetection:
                         cv2.drawContours(
                             orig_img_cp, [box], 0, (0, 0, 255), 2
                         )
-        if return_image:
-            if image != None:
-                return orig_img_cp, blank_image, fitted_boxes
-            else:
-                return blank_image, fitted_boxes
-        else:
-            return fitted_boxes
-    
-    def icp_fitting(self, fitted_boxes, ref_points, return_image=False, image=None):
-        if return_image:
-            blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
-            if image != None:
-                orig_img_cp = copy.deepcopy(image)
-
+        
         centroid_arr = np.empty([len(fitted_boxes), 2], dtype=int)
 
         for cnt_idx in range(len(fitted_boxes)):
@@ -382,9 +370,22 @@ class FeatureDetection:
             centroid_center_x = int(cnt_moments['m10']/cnt_moments['m00'])
             centroid_center_y = int(cnt_moments['m01']/cnt_moments['m00'])
 
-            cnt_area = cnt_moments['m00']
-
             centroid_arr[cnt_idx] = [centroid_center_x, centroid_center_y]
+
+        if return_image:
+            if image != None:
+                return orig_img_cp, blank_image, fitted_boxes, centroid_arr
+            else:
+                return blank_image, fitted_boxes, centroid_arr
+        else:
+            return fitted_boxes, centroid_arr
+    
+    def icp_fitting(self, ref_points, point_set, return_image=False, image=None):
+        centroid_arr = point_set
+        if return_image:
+            blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
+            if image != None:
+                orig_img_cp = copy.deepcopy(image)
 
         _, icp_points = icp.icp(centroid_arr, ref_points, verbose=False)
         # points_int = np.rint(icp_points)
@@ -398,11 +399,11 @@ class FeatureDetection:
 
         if return_image:
             if image != None:
-                return orig_img_cp, blank_image, icp_points, centroid_arr
+                return orig_img_cp, blank_image, icp_points
             else:
-                return blank_image, icp_points, centroid_arr
+                return blank_image, icp_points
         else: 
-            return icp_points, centroid_arr
+            return icp_points
     
     def point_distances(self, point_arr1, point_arr2):
         # Find distance from every reference point (array 1) to every point in array 2
