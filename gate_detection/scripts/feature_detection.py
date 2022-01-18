@@ -654,7 +654,7 @@ class FeatureDetection:
     def rect_filtering(self, fitted_box_centers, fitted_boxes, return_image=False, image=None):
         if return_image:            
             blank_image = np.zeros(
-                shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8
+                shape=self.image_shape, dtype=np.uint8
             )
             if image != None:
                 img_cp = copy.deepcopy(image)
@@ -677,28 +677,32 @@ class FeatureDetection:
             for pnt in closest_points:
                 cv2.circle(blank_image, (int(pnt[0]), int(pnt[1])), 5, (255, 0, 255), 2)
                 if image != None:
+                    cv2.circle(img_cp, (int(pnt[0]), int(pnt[1])), 5, (255, 0, 255), 2)
+
                     
             for box in relevant_rects:
                 box = np.int0(box)
                 cv2.drawContours(blank_image, [box], 0, (0, 0, 255), 2)
+                if image != None:
+                    cv2.drawContours(img_cp, [box], 0, (0, 0, 255), 2)
 
-        """ for cx, cy, h, w, phi in fitted_boxes:
-            if blank_image[cx - w//2: cx + w//2][cy - h//2: cy + h//2]: """
+        if return_image:
+            if image != None:
+                return img_cp, blank_image, relevant_rects, closest_points, fitted_box_centers, points_in_rects
+            else:
+                return blank_image, relevant_rects, closest_points, fitted_box_centers, points_in_rects
+        else:
+            return relevant_rects, closest_points, fitted_box_centers, points_in_rects
 
-        filtered_rect_ros_image = self.bridge.cv2_to_imgmsg(img_cp, encoding="bgra8")
-        self.filteredRectPub.publish(filtered_rect_ros_image)
+    def convex_fitting(self, contours, convex_contours, area_diff_threshold, return_image=False, image=None):
+        if return_image:
+            blank_image = np.zeros(
+                shape=self.image_shape, dtype=np.uint8
+            )
+            if image != None:
+                img_cp = copy.deepcopy(image)
 
-        return relevant_rects, closest_points, fitted_box_centers, points_in_rects
-
-    def convex_fitting(
-        self, contours_image, contours, convex_image, convex_contours, fit_threshold
-    ):
-        contours_image = copy.deepcopy(contours_image)
-
-        blank_image = np.zeros(
-            shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8
-        )
-
+        convexes_filtered = []
         for cnt_idx in range(len(contours)):
             cnt = contours[cnt_idx]
             cvx = convex_contours[cnt_idx]
@@ -707,21 +711,32 @@ class FeatureDetection:
             cnt_area = cv2.contourArea(cnt)
             diff_area = cvx_area - cnt_area
 
-            if diff_area < (cnt_area * fit_threshold):
-                cv2.drawContours(
-                    contours_image, convex_contours, cnt_idx, (0, 255, 0), 2
-                )
+            if diff_area < (cnt_area * area_diff_threshold):
+                convexes_filtered.append(cvx)
+                if return_image:
+                    cv2.drawContours(
+                        blank_image, convex_contours, cnt_idx, (0, 255, 0), 2
+                    )
+                    if image != None:
+                        cv2.drawContours(
+                            img_cp, convex_contours, cnt_idx, (0, 255, 0), 2
+                        )
+        if return_image:
+            if image != None:
+                return img_cp, blank_image, convexes_filtered
+            else:
+                return blank_image, convexes_filtered
+        else:
+            return convexes_filtered
 
-        cvx_ros_image = self.bridge.cv2_to_imgmsg(contours_image, encoding="bgra8")
-        self.cvxFitPub.publish(cvx_ros_image)
+    def line_fitting(self, contours, angle_threshold=50, return_image=False, image=None):
+        if return_image:
+            blank_image = np.zeros(
+                shape=self.image_shape, dtype=np.uint8
+            )
+            if image != None:
+                img_cp = copy.deepcopy(image)
 
-    def line_fitting(self, orig_img, contours, threshold=50):
-        orig_img_cp = copy.deepcopy(orig_img)
-
-        blank_image = np.zeros(
-            shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8
-        )
-        # cv2.fillPoly(blank_image, pts =contours, color=(255,255,255))
         theta_set = set()
         for cnt in contours:
             rows, cols = blank_image.shape[:2]
@@ -731,18 +746,28 @@ class FeatureDetection:
             theta_set.add(theta)
             lefty = int((-x * vy / vx) + y)
             righty = int(((cols - x) * vy / vx) + y)
-            cv2.line(blank_image, (cols - 1, righty), (0, lefty), (0, 255, 0), 4)
-            cv2.putText(
-                blank_image,
-                str(round(theta, 1)) + " deg",
-                (x, y),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (255, 255, 255),
-                2,
-            )
-
-            # cv2.line(orig_img_cp,(cols-1,righty),(0,lefty),(0,255,0),2)
+            if return_image:
+                cv2.line(blank_image, (cols - 1, righty), (0, lefty), (0, 255, 0), 4)
+                cv2.putText(
+                    blank_image,
+                    str(round(theta, 1)) + " deg",
+                    (x, y),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (255, 255, 255),
+                    2,
+                )
+                if image != None:
+                    cv2.line(img_cp, (cols - 1, righty), (0, lefty), (0, 255, 0), 4)
+                    cv2.putText(
+                        img_cp,
+                        str(round(theta, 1)) + " deg",
+                        (x, y),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1,
+                        (255, 255, 255),
+                        2,
+                    )
 
         theta_arr = list(theta_set)
         parallell_line_count = 0
@@ -750,18 +775,25 @@ class FeatureDetection:
             if 90 < theta_outer < 180:
                 for theta_inner in theta_arr:
                     if (
-                        (theta_outer + threshold >= theta_inner)
-                        and (theta_outer - threshold <= theta_inner)
+                        (theta_outer + angle_threshold >= theta_inner)
+                        and (theta_outer - angle_threshold <= theta_inner)
                         and (theta_outer != theta_inner)
                     ):
                         parallell_line_count += 1
             else:
                 continue
-
-        self.cv_image_publisher(self.linesPub, blank_image, msg_encoding="bgra8")
-        return blank_image, parallell_line_count
+        
+        if return_image:
+            if image != None:
+                return img_cp, blank_image, theta_arr, parallell_line_count
+            else:
+                return blank_image, theta_arr, parallell_line_count
+        else:
+            return theta_arr, parallell_line_count
 
     def corner_detection(self, line_fitted_img):
+        """WIP
+        """
         line_fitted_img_cp = copy.deepcopy(line_fitted_img)
         # blur_line_fitted_img = cv2.GaussianBlur(line_fitted_img_cp, (5, 19), 5.2)
 
@@ -801,7 +833,36 @@ class FeatureDetection:
                 2,
             )
 
-        corners_ros_img = self.bridge.cv2_to_imgmsg(
-            blank_image_corners, encoding="bgra8"
-        )
-        self.cornersPub.publish(corners_ros_img)
+    def bounding_box_processor(self, points_in_rects, label_name, return_image=False, image=None):
+        if return_image:
+            blank_image = np.zeros(
+                shape=self.image_shape, dtype=np.uint8
+            )
+            if image != None:
+                img_cp = copy.deepcopy(image)
+        
+        x_lst, y_lst = zip(*points_in_rects)
+        
+        xmin = min(x_lst)
+        ymin = min(y_lst)
+        xmax = max(x_lst)
+        ymax = max(y_lst)
+
+        bbox_area = (ymax - ymin) * (xmax - xmin)
+        bbox_points = (xmin, ymin, xmax, ymax)
+        
+        if return_image:
+            cv2.rectangle(blank_image,(ymin, xmin),(ymax, xmax),(0,255,0),2)
+            cv2.putText(blank_image, label_name, (ymin, xmin-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
+            if image != None:
+                cv2.rectangle(img_cp,(ymin, xmin),(ymax, xmax),(0,255,0),2)
+                cv2.putText(img_cp, label_name, (ymin, xmin-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
+
+        # insert 'if self.classified_obj' check here 
+        if return_image:
+            if image != None:
+                return img_cp, blank_image, bbox_points, bbox_area
+            else:
+                return blank_image, bbox_points, bbox_area
+        else:
+            return bbox_points, bbox_area
