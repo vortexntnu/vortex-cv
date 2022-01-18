@@ -23,7 +23,20 @@ By BenG @ Vortex NTNU, 2022
 class FeatureDetection:
     """Class for every algorithm needed for feature-processing based object detection."""
 
-    def hsv_processor(
+    def __init__(self, image_shape, len_of_integral_binary_resetter=5):
+        self.image_shape = image_shape
+        self.img_height, self.img_width, self.img_channels = self.image_shape
+
+        self.integral_diff_values_arr = []
+        self.integral_diff_values_arr_len = len_of_integral_binary_resetter
+
+        self.prev_closest_points = []
+        self.prev_closest_point_dsts = []
+
+    def gate_detection_reset(self):
+        print("Yo")
+
+    def hsv_processor(self,
         original_image,
         hsv_hue_min,
         hsv_hue_max,
@@ -61,7 +74,7 @@ class FeatureDetection:
 
         return hsv_img, hsv_mask, hsv_mask_check_img
 
-    def noise_removal_processor(
+    def noise_removal_processor(self,
         hsv_mask,
         gb_kernel_size1,
         gb_kernel_size2,
@@ -116,7 +129,7 @@ class FeatureDetection:
 
         return morphised_image
 
-    def contour_filtering(contours, hierarchy, contour_area_threshold, mode=1):
+    def contour_filtering(self, contours, hierarchy, contour_area_threshold, contour_len_threshold=20, mode=1):
         """Filters contours according to contour hierarchy and area.
 
         Params:
@@ -124,6 +137,7 @@ class FeatureDetection:
             hierarchy               (array[][]) : Hierarchy of the contours parameter. Must be of 'cv2.RETR_CCOMP' type.
             contour_area_threshold  (uint16)    : Threshold for filtering based on inside-of-contour area.
                                                   Contours with lower area than the argument will be removed.
+            contour_len_threshold   (uint16)    : Threshold for filtering based on length of a contour.
             mode                    (uint8)     : {default=1} Mode for hierarchical filtering.
                                                   Mode 1 leaves only the contours that do not have any hierarchical children.
                                                   Mode 2 leaves the contours that do not have any hierarchical children or neighbours.
@@ -147,7 +161,10 @@ class FeatureDetection:
                     if cnt_area < contour_area_threshold:
                         filtered_contours.append(False)
                     else:
-                        filtered_contours.append(True)
+                        if len(cnt) > contour_len_threshold:
+                            filtered_contours.append(True)
+                        else:
+                            filtered_contours.append(False)
                 else:
                     filtered_contours.append(False)
 
@@ -167,13 +184,16 @@ class FeatureDetection:
                     if cnt_area < contour_area_threshold:
                         filtered_contours.append(False)
                     else:
-                        filtered_contours.append(True)
+                        if len(cnt) > contour_len_threshold:
+                            filtered_contours.append(True)
+                        else:
+                            filtered_contours.append(False)
                 else:
                     filtered_contours.append(False)
 
         return filtered_contours
 
-    def contour_processing(
+    def contour_processing(self,
         noise_removed_image,
         contour_area_threshold,
         enable_convex_hull=False,
@@ -203,14 +223,10 @@ class FeatureDetection:
         """
 
         if return_image:
+            blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
+            
             if image != None:
                 orig_img_cp = copy.deepcopy(image)
-                img_shape = orig_img_cp.shape
-
-                blank_image = np.zeros(shape=img_shape, dtype=np.uint8)
-
-            else:
-                blank_image = np.zeros(shape=noise_removed_image.shape, dtype=np.uint8)
 
         contours, hierarchy = cv2.findContours(
             noise_removed_image, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE
@@ -298,37 +314,198 @@ class FeatureDetection:
         else:
             return using_contours
 
-    def shape_fitting(image, contours, fit_threshold):
-        orig_img_cp = copy.deepcopy(image)
+    def shape_fitting(self, contours, ratio_threshold, return_image=False, image=None):
+        """Fit least area rectangles onto contours.
 
-        blank_image = np.zeros(
-            shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8
-        )
+        Params:
+            contours                (array[][]) : Contours that are to be fitted with the last area rectangles.
+            ratio_threshold         (uint16)    : Ratio threshold between longest and shortest rectangle sides. 
+                                                  Rectangles below this ratio threshold are removed.
+            image                   (cv::Mat)   : An image on which to draw fitted shapes.
+
+        Returns:
+                            fitted_boxes    (array[][]) : Contour-fitted and filtered rectangles.
+        {return_image=True} blank_image     (cv::Mat)   : Blank image with drawn contours.
+        {image != None}     image           (cv::Mat)   : Passed image with drawn contours.
+        """
+        if return_image:
+            blank_image = np.zeros(shape=self.img_shape, dtype=np.uint8)
+            if image != None:
+                orig_img_cp = copy.deepcopy(image)
+
         fitted_boxes = []
-
         for cnt in contours:
-            if len(cnt) > 20:
-                rect = cv2.minAreaRect(cnt)
+            rect = cv2.minAreaRect(cnt)
 
-                rect_width = rect[1][0]
-                rect_height = rect[1][1]
+            rect_width = rect[1][0]
+            rect_height = rect[1][1]
 
-                rect_long = rect_height
-                rect_short = rect_width
+            rect_long = rect_height
+            rect_short = rect_width
 
-                if rect_height < rect_width:
-                    rect_long = rect_width
-                    rect_short = rect_height
+            if rect_height < rect_width:
+                rect_long = rect_width
+                rect_short = rect_height
 
-                if rect_long > rect_short * fit_threshold:
-                    box = cv2.boxPoints(rect)
-                    box = np.int0(box)
-                    orig_img_cp = cv2.drawContours(
-                        orig_img_cp, [box], 0, (0, 0, 255), 2
+            if rect_long > rect_short * ratio_threshold:
+                box = cv2.boxPoints(rect)
+                box = np.int0(box)
+                fitted_boxes.append(box)
+                if return_image:
+                    cv2.drawContours(
+                        blank_image, [box], 0, (0, 0, 255), 2
                     )
-                    fitted_boxes.append(box)
+                    if image != None:    
+                        cv2.drawContours(
+                            orig_img_cp, [box], 0, (0, 0, 255), 2
+                        )
+        if return_image:
+            if image != None:
+                return orig_img_cp, blank_image, fitted_boxes
+            else:
+                return blank_image, fitted_boxes
+        else:
+            return fitted_boxes
+    
+    def icp_fitting(self, fitted_boxes, ref_points, return_image=False, image=None):
+        if return_image:
+            blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
+            if image != None:
+                orig_img_cp = copy.deepcopy(image)
 
-        shapes_ros_image = self.bridge.cv2_to_imgmsg(orig_img_cp, encoding="bgra8")
-        self.shapePub.publish(shapes_ros_image)
+        centroid_arr = np.empty([len(fitted_boxes), 2], dtype=int)
 
-        return fitted_boxes, orig_img_cp
+        for cnt_idx in range(len(fitted_boxes)):
+            cnt = fitted_boxes[cnt_idx]
+            cnt_moments = cv2.moments(cnt)
+
+            centroid_center_x = int(cnt_moments['m10']/cnt_moments['m00'])
+            centroid_center_y = int(cnt_moments['m01']/cnt_moments['m00'])
+
+            cnt_area = cnt_moments['m00']
+
+            centroid_arr[cnt_idx] = [centroid_center_x, centroid_center_y]
+
+        _, icp_points = icp.icp(centroid_arr, ref_points, verbose=False)
+        # points_int = np.rint(icp_points)
+        
+        if return_image:
+            for pnt in icp_points:
+                cv2.circle(blank_image, (int(pnt[0]), int(pnt[1])), 2, (0,255,0), 2)
+
+                if image != None:
+                    cv2.circle(orig_img_cp, (int(pnt[0]), int(pnt[1])), 2, (0,255,0), 2)
+
+        if return_image:
+            if image != None:
+                return orig_img_cp, blank_image, icp_points, centroid_arr
+            else:
+                return blank_image, icp_points, centroid_arr
+        else: 
+            return icp_points, centroid_arr
+    
+    def point_distances(self, point_arr1, point_arr2):
+        # Find distance from every reference point (array 1) to every point in array 2
+        # Stores values in table formatted: array A of len(array_1), 
+        # where every elem in A is array B of len(array_2) of distances from point idxed in A according to array 1 to point idxed in B according to array 2
+        number_reference_points = len(point_arr1)
+        distance_table = []
+
+        for p_n_idx in range(len(point_arr1)):
+            p_n = point_arr1[p_n_idx]
+            distance_table.append([])
+            for p_k_idx in range(len(point_arr2)):
+                p_k = point_arr2[p_k_idx]
+
+                dst2point = math.sqrt((abs(p_n[0] - p_k[0]) ** 2) + (abs(p_n[1] - p_k[1]) ** 2)) 
+                distance_table[p_n_idx].append(dst2point)
+        return distance_table
+    
+    def custom_closest_point(self, point_arr1, point_arr2):
+        # Gives the closest point and the distance to the point from point a in array 1 to point b in array 2
+        distance_table = self.point_distances(point_arr1, point_arr2)
+
+        closest_point_idxes = []
+        closest_points = []
+        closest_point_dsts = []
+
+        # for each reference point the closest point is written to the idx of the reference points list
+        for dsts_2_ref_point in distance_table:
+            closest_point_idx = min(range(len(dsts_2_ref_point)), key=dsts_2_ref_point.__getitem__)
+            closest_point_idxes.append(closest_point_idx)            
+            closest_point_dsts.append(round(dsts_2_ref_point[closest_point_idx], 4))
+
+        for point_idx in closest_point_idxes:
+            closest_points.append(point_arr2[point_idx])
+
+        return closest_points, closest_point_dsts
+
+    def duplicate_point_filter(self, closest_points, closest_point_dsts):
+        # closest_points_np = np.rint(np.array([[2, 2], [3, 3], [4, 4], [3, 3], [2, 2], [1, 1]]))
+        closest_points_np = np.rint(np.array(closest_points))
+
+        # An index in indices is the same index in closest_points, and a value in indices is an index for a value in uniq_points, that is a value in closest_points with same index as indices 
+        uniq_points, indices = np.unique(closest_points_np, return_inverse=True, axis=0)
+
+        num_closest_points = len(closest_points_np)
+        num_uniq_closest_points = len(uniq_points)
+        
+        # Function stops here if 
+        if num_closest_points == num_uniq_closest_points:
+            return closest_points, closest_point_dsts
+
+        # >===================================> Duplicate point filter starts here
+        # Checks which indices has a closest point as its closest point (finds duplicates in indices -> indices of indices)
+        indices_of_indices = defaultdict(list)
+        for i,item in enumerate(indices):
+            indices_of_indices[item].append(i)
+        indices_of_indices = {index_of_val_in_uniq_points:index_of_point_in_closest_points for index_of_val_in_uniq_points,index_of_point_in_closest_points \
+                              in indices_of_indices.items() if len(index_of_point_in_closest_points)>1}
+
+        # Logic for changing the closest point x of a point b to its previous closest point y,
+        # if there is another point c, which has point x as its closest point with smaller distance to it than point b
+        for point_val_in_uniq_points, indices_of_p1 in indices_of_indices.items():
+            comp_dsts = []
+            for not_closest_point_idx in indices_of_p1:
+                comp_dsts.append(closest_point_dsts[not_closest_point_idx])
+            actual_closest_point_idx_in_indices_of_p1 = min(range(len(comp_dsts)), key=comp_dsts.__getitem__)
+            actual_closest_point_idx = indices_of_p1[actual_closest_point_idx_in_indices_of_p1]
+            
+            indices_of_p1.pop(actual_closest_point_idx_in_indices_of_p1)
+
+            for not_closest_point_idx in indices_of_p1:
+                closest_points[not_closest_point_idx] = self.prev_closest_points[not_closest_point_idx]
+                closest_point_dsts[not_closest_point_idx] = self.prev_closest_point_dsts[not_closest_point_idx]
+
+        return closest_points, closest_point_dsts
+
+    def point_thresholding(self, closest_points, closest_point_dsts, threshold, reset_reference_points_threshold):
+        pts_cp = copy.deepcopy(closest_points)
+        pt_dsts_cp = copy.deepcopy(closest_point_dsts)
+        diff_dsts = []
+        for i in range(len(self.prev_closest_point_dsts)):
+            closest_pt_dst = pt_dsts_cp[i]
+            prev_closest_pt_dst = self.prev_closest_point_dsts[i]
+
+            diff_prev_current_dst = abs(prev_closest_pt_dst - closest_pt_dst)
+            diff_dsts.append(diff_prev_current_dst)
+            
+            if diff_prev_current_dst > threshold:
+                pts_cp[i] = self.prev_closest_points[i]
+                pt_dsts_cp[i] = self.prev_closest_point_dsts[i]
+
+            integral_check = (sum(self.integral_diff_values_arr) // self.integral_diff_values_arr_len)
+            if integral_check > reset_reference_points_threshold:
+                self.gate_detection_reset()
+        try:
+            self.integral_diff_values_arr.append(max(diff_dsts))
+            if len(self.integral_diff_values_arr) > self.integral_diff_values_arr_len:
+                self.integral_diff_values_arr.pop(0)
+        except ValueError:
+            pass
+
+        return pts_cp, pt_dsts_cp, diff_dsts
+    
+    def reference_points_iteration(self, closest_points):
+        self.ref_points_icp_fitting = np.array(closest_points, dtype=int)
+        # print(self.ref_points_icp_fitting)
