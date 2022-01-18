@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from matplotlib.pyplot import close
 import rospy
 import sensor_msgs.point_cloud2 as pc2
 # import pcl
@@ -9,33 +10,41 @@ import numpy as np
 # Import msg types
 from darknet_ros_msgs.msg import BoundingBoxes, BoundingBox
 from cv_msgs.msg import BBox, BBoxes
-from geometry_msgs.msg import PointStamped
-from rospy.core import rospyinfo
+from geometry_msgs.msg import PointStamped, PoseStamped
 from vortex_msgs.msg import ObjectPosition
-#from vortex_msgs.msg import PointStampedArray
 from sensor_msgs.msg import PointCloud2, PointField
 from sensor_msgs import point_cloud2
 
 # Import classes
 from position_estimator import PositionEstimator
 from coord_pos import CoordPosition
+from pointcloud_mapping import PointCloudMapping
 
 class ObjectDetectionNode():
-    """Handles tasks related to object detection
     """
-    pcd = 0
 
+    Handles tasks related to object detection
+    """
     def __init__(self):
         rospy.init_node('object_detection_node')
-        # self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.bboxSub_cb_single_lense)
+        self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.bboxSub_cb)
+        
         self.CVbboxSub = rospy.Subscriber('/gate_detection/BoundingBox', BoundingBox, self.feature_bbox_cb)
-        self.pcSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_cb)
-        self.pcPub = rospy.Publisher('/object_detection/bbox_pointcloud', PointCloud2, queue_size= 1)
+        self.pointcloudPub = rospy.Publisher('/object_detection/pointcloud_limited_to_bbox',PointCloud2, queue_size=1) 
+        
+        # self.pcSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_cb)
+        # self.pcPub = rospy.Publisher('/object_detection/bbox_pointcloud', PointCloud2, queue_size= 1)
+        
+        self.pointcloudRedSub = rospy.Subscriber('/object_detection/output', PointCloud2, self.pointcloud_downsampled_cb)
+        
+        
+        
         self.estimatorPub = rospy.Publisher('/object_detection/size_estimates', BBoxes, queue_size= 1)
         self.landmarkPub = rospy.Publisher('/object_detection/object_positions_in',ObjectPosition, queue_size= 1)
-        self.pointcloudPub = rospy.Publisher('/object_detection/pointcloud_limited_to_bbox',PointCloud2, queue_size=1) 
+        
         self.position_estimator = PositionEstimator()
         self.coord_positioner = CoordPosition()
+        self.pointcloud_mapper = PointCloudMapping()
     
     def feature_bbox_cb(self,data):
         bounding_box = data
@@ -55,7 +64,7 @@ class ObjectDetectionNode():
                  
 
         # get pointcloud and bounding box data
-        newest_msg = self.pcd       
+        newest_msg = self.pointcloud_data       
         data_from_zed = ros_numpy.numpify(newest_msg)
 
         # get limits from bounding box
@@ -88,49 +97,141 @@ class ObjectDetectionNode():
 
         self.pointcloudPub.publish(msg)
 
+       
 
-    def pointcloud_cb(self, data):
-        self.pcd = data
-        # assert isinstance(data, PointCloud2)
-        # pt_gen = point_cloud2.read_points(data, skip_nans=False, uvs=[1, 2])
-        # for pt in pt_gen:
-        #     rospy.loginfo(pt)
-
-        # self.publish_pointcloud(data)
-
-    def send_pointcloud(self, bbox_data):
-        """"""
-        x_from = bbox_data.xmin
-        x_to = bbox_data.xmax
-        y_from = bbox_data.xmin
-        y_to = bbox_data.ymax
-
-        # assert isinstance(self.pc_data, PointCloud2)
-        # pt_gen = point_cloud2.read_points(self.pc_data, False, [y_from, x_from])
-        # for pt in pt_gen:
-        #     rospy.loginfo(pt)
-
-
-        if self.pcd != 0:
-            arrayPosition = x_from*self.pcd.point_step + y_from*self.pcd.row_step
-
-            arrayPosX = arrayPosition + self.pcd.fields[0].offset  # X has an offset of 0
-            arrayPosY = arrayPosition + self.pcd.fields[1].offset  # Y has an offset of 4
-            arrayPosZ = arrayPosition + self.pcd.fields[2].offset  # Z has an offset of 8
-
-            x = self.pcd.data[arrayPosX]
-            y = self.pcd.data[arrayPosY]
-            z = self.pcd.data[arrayPosZ]
-            #x = PointField.deserialize_numpy(x)
-            
-
-            self.rviz_point_single_lense(self.pcd.header, [x,y,z], "pc_test")
-
-
-
-    def bboxSub_cb_single_lense(self, data):
+    def object_orientation_from_point_list(self, point_list, type):
         """
+        Uses known points to find object and its orientation
         
+        Args:
+            point_list: list of points as tuples [(x,y),(x,y)]
+            type: type of object as string
+        """
+        assert isinstance(self.pointcloud_data, PointCloud2)
+        generated_list = []
+        for point in point_list:
+            pt_gen = point_cloud2.read_points(self.pointcloud_data, skip_nans=True, uvs=[[point[0],point[1]]])
+            generated_list.append(pt_gen)
+        
+        fit, middle_point = self.pointcloud_mapper.points_to_plane(generated_list)
+        self.send_pose_message(self.pointcloud_data.header, middle_point, fit, type)
+
+
+    def pointcloud_cb(self, msg_data):
+        """
+        Stores message from a PointCloud2 message into a class variable
+
+        Args:
+            msg_data: callback message from subscription
+
+        Returns:
+            class variable: self.pointcloud_data
+        """
+        self.pointcloud_data = msg_data
+        self.object_orientation_from_poincloud(msg_data, 0.3)
+    
+    def pointcloud_downsampled_cb(self, msg_data):
+        self.pointcloud_data = msg_data
+        self.object_orientation_from_poincloud(msg_data, 0.3)
+
+    def object_orientation_from_poincloud(self, pointcloud_data, threshold):
+        """
+        Uses pointcloud data to find object and its orientation in regards to pointcloud_data frame
+        
+        Args:
+            pointcloud_data: The pointcloud data to analyze
+            threshold: maximum distance of expected object dimensions as float cm.mm. Ex: if height is bigger than width input height
+        """
+        assert isinstance(pointcloud_data, PointCloud2)
+        generated_pointcloud_list = []
+        closest_point = 200.00
+        pt_gen = point_cloud2.read_points(pointcloud_data, skip_nans=True)
+        
+        for pt in pt_gen:
+            tmp_list = list(pt)
+            tmp_list = tmp_list[:3]
+            if (abs(pt[2]) < closest_point) and (abs(pt[2]) > 0.2):
+                closest_point = abs(pt[2])
+            generated_pointcloud_list.append(tmp_list)
+
+        object_point_list = []
+        for point in generated_pointcloud_list:
+            if abs(point[2]) <= (threshold + closest_point):
+                object_point_list.append(point)
+        
+        fit, middle_point = self.pointcloud_mapper.points_to_plane(object_point_list)
+        quaternion_data = fit
+
+        self.send_pose_message(pointcloud_data.header, middle_point, quaternion_data, "middle_pose")
+    
+    def send_pose_message(self, headerdata, position_data, quaternion_data, name):
+        """
+        Publishes a PoseStamped as a topic under /object_detection/object_pose
+
+        Args:
+            headerdata: Headerdata to be used as a header will not be created in this function
+            position_data: A position xyz in the form [x, y, z] where xyz are floats
+            quaternion_data: A quaternion wxyz in the form [w, x, y, z]
+            name: name to be given to the point published, must not contain special characters.
+
+        Returns:
+            Topic:
+                /object_detection/object_pose/name where name is your input
+        """
+        posePub = rospy.Publisher('/object_detection/object_pose/' + name, PoseStamped, queue_size= 1)
+        p_msg = PoseStamped()
+        # Format header
+        p_msg.header = headerdata
+        p_msg.header.stamp = rospy.get_rostime()
+
+        # Build pose
+        p_msg.pose.position.x = position_data[0]
+        p_msg.pose.position.y = position_data[1]
+        p_msg.pose.position.z = position_data[2]
+        p_msg.pose.orientation.w = quaternion_data[0]
+        p_msg.pose.orientation.x = quaternion_data[1]
+        p_msg.pose.orientation.y = quaternion_data[2]
+        if len(quaternion_data) == 3:
+            p_msg.pose.orientation.z = 1
+        else:
+            p_msg.pose.orientation.z = quaternion_data[3]
+        posePub.publish(p_msg)
+
+    def send_pointcloud(self, x_pixel, y_pixel):
+        """
+        Reads the point cloud data from a given x, y coordinate
+
+        Args:
+            x_pixel: position in x direction of point you want clouddata from
+            y_pixel: position in y direction of point you want clouddata from
+
+        Returns:
+            Point cloud data for a point in the camera frame as list [x, y, z]
+        """
+        # Generates a readable version of the point cloud data
+        is_pointcloud = isinstance(self.pointcloud_data, PointCloud2)
+        if is_pointcloud:
+            # Reads the point cloud data at given uvs: u = x cord, v = y cord
+            pt_gen = point_cloud2.read_points(self.pointcloud_data, skip_nans=False, uvs=[[x_pixel, y_pixel]])
+            for pt in pt_gen:
+                self.pointcloud_x = pt[0]
+                self.pointcloud_y = pt[1]
+                self.pointcloud_z = pt[2]
+
+        x, y, z = self.pointcloud_x, self.pointcloud_y, self.pointcloud_z
+        return [x, y, z]
+
+
+    def bboxSub_cb(self, data):
+        """
+        Gets the data from the subscribed message BoundingBoxes and publishes the size estimates of a detected object, and the position of the object.
+
+        Args:
+            data: The message that has been recieved.
+
+        Returns:
+            Published topics:
+                estimatorPub: Array of detected objects as the estimated size of these. Topic also includes angles to the objects from the camera frame.
         """
         # Allocates msg data to local variables in order to process abs size
         ArrayBoundingBoxes = BBoxes()
@@ -139,9 +240,11 @@ class ObjectDetectionNode():
 
         # Iterate through all the detected objects and estimate sizes
         for bbox in data.bounding_boxes:
-            # Sends bbox data to pointcloud func in order to respublish pointcloud data only within bbox
-            self.send_pointcloud(bbox)
-            # self.publish_pointcloud(bbox)
+
+            # Unintuitively position is logged as top to bottom. We fix it so it is from bot to top
+            temp_ymin = bbox.ymin
+            bbox.ymin = 376 - bbox.ymax
+            bbox.ymax = 376 - temp_ymin
 
             # Store depth measurement of boundingbox
             depth_mtr = bbox.z
@@ -166,19 +269,23 @@ class ObjectDetectionNode():
 
             # Append the new message to bounding boxes array
             ArrayBoundingBoxes.bounding_boxes.append(CurrentBoundingBox)
-
-            # Create rviz point
-            key_string = str(bbox.Class)
-            self.rviz_point_single_lense(data.header, position, key_string)
-
             
         self.estimatorPub.publish(ArrayBoundingBoxes)
 
-    def rviz_point_single_lense(self, headerdata, position, name):
+    def rviz_point(self, headerdata, position, name):
+        """
+        Publishes a PointStamped as a topic under /object_detection/object_point
+
+        Args:
+            headerdata: Headerdata to be used as a header will not be created in this function
+            position: A position xyz in the form [x, y, z] where xyz are floats
+            name: name to be given to the point published, must not contain special characters.
+
+        Returns:
+            Topic:
+                /object_detection/object_point/name where name is your input
+        """
         # For testing
-        for i in position:
-            if i != float:
-                i = 0.0
         pointPub = rospy.Publisher('/object_detection/object_point/' + name, PointStamped, queue_size= 1)
         new_point = PointStamped()
         new_point.header = headerdata
@@ -187,7 +294,6 @@ class ObjectDetectionNode():
         new_point.point.y = position[1]
         new_point.point.z = position[2]
         pointPub.publish(new_point)
-        # rospy.loginfo(new_point)
 
     def bboxSub_cb_twin_lense(self, data):
         """
@@ -247,34 +353,15 @@ class ObjectDetectionNode():
             else:
                 saved_objects[str(bbox.Class)] = [position[0], position[1], position[2]]
 
-            self.rviz_point(data, saved_objects, key_string)
+            self.rviz_point_old(data, saved_objects, key_string)
 
             # Append the new message to bounding boxes array
             ArrayBoundingBoxes.bounding_boxes.append(CurrentBoundingBox)
 
         self.estimatorPub.publish(ArrayBoundingBoxes)
 
-    def rviz_point(self, data, dictionary, key_string):
+    def rviz_point_old(self, data, dictionary, key_string):
         """Delete this when no longer needed"""
-        # Create a publisher for each detected object. The name of the topic will be the name of the object from class in bounding box message.
-        # # Build the message to place detected obejct in relation to camera 
-
-        # pointPub = rospy.Publisher('/object_detection/object_points', PointStampedArray, queue_size= 1)
-        # points = PointStampedArray()
-        # points.header = data.header
-        # points.image_header = data.image_header
-
-        # for i in dictionary:
-        #     corrected_point = dictionary.get(key_string)
-        #     new_point = PointStamped()
-        #     new_point.header = data.header
-        #     new_point.header.stamp = rospy.get_rostime()
-        #     new_point.point.x = corrected_point[0]
-        #     new_point.point.y = corrected_point[1]
-        #     new_point.point.z = corrected_point[2]
-        #     points.positions.append(new_point)
-
-        # pointPub.publish(points)
 
         pointPub = rospy.Publisher('/object_detection/object_point/' + key_string, PointStamped, queue_size= 1)
         new_point = PointStamped()
