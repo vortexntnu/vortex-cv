@@ -2,9 +2,13 @@
 
 from matplotlib.pyplot import close
 import rospy
+import sensor_msgs.point_cloud2 as pc2
+# import pcl
+import ros_numpy
+import numpy as np
 
 # Import msg types
-from darknet_ros_msgs.msg import BoundingBoxes
+from darknet_ros_msgs.msg import BoundingBoxes, BoundingBox
 from cv_msgs.msg import BBox, BBoxes
 from geometry_msgs.msg import PointStamped, PoseStamped
 from vortex_msgs.msg import ObjectPosition
@@ -18,19 +22,82 @@ from pointcloud_mapping import PointCloudMapping
 
 class ObjectDetectionNode():
     """
+
     Handles tasks related to object detection
     """
     def __init__(self):
         rospy.init_node('object_detection_node')
         self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.bboxSub_cb)
+        
+        self.CVbboxSub = rospy.Subscriber('/gate_detection/BoundingBox', BoundingBox, self.feature_bbox_cb)
+        self.pointcloudPub = rospy.Publisher('/object_detection/pointcloud_limited_to_bbox',PointCloud2, queue_size=1) 
+        
         # self.pcSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_cb)
-        self.pointcloudRedSub = rospy.Subscriber('/object_detection/output', PointCloud2, self.pointcloud_downsampled_cb)
         # self.pcPub = rospy.Publisher('/object_detection/bbox_pointcloud', PointCloud2, queue_size= 1)
+        
+        self.pointcloudRedSub = rospy.Subscriber('/object_detection/output', PointCloud2, self.pointcloud_downsampled_cb)
+        
+        
+        
         self.estimatorPub = rospy.Publisher('/object_detection/size_estimates', BBoxes, queue_size= 1)
-        self.landmarkPub = rospy.Publisher('/object_positions_in',ObjectPosition, queue_size= 1)
+        self.landmarkPub = rospy.Publisher('/object_detection/object_positions_in',ObjectPosition, queue_size= 1)
+        
         self.position_estimator = PositionEstimator()
         self.coord_positioner = CoordPosition()
         self.pointcloud_mapper = PointCloudMapping()
+    
+    def feature_bbox_cb(self,data):
+        bounding_box = data
+        self.publish_pointcloud(bounding_box)
+
+    def publish_pointcloud(self, bounding_box):
+        # pcd_processing = np.zeros(newest_msg.height,newest_msg.width, dtype=[
+        #                 ('x', np.float32),
+        #                 ('y', np.float32),
+        #                 ('z', np.float32),
+        #                 ('rgb', np.float32),
+        #                             ])
+
+        # pcd_processing['x'] = np.arange(100)
+        # pcd_processing['y'] = pcd_processing['x']*2
+        # pcd_processing['vectors'] = np.arange(100)[:,np.newaxis]
+                 
+
+        # get pointcloud and bounding box data
+        newest_msg = self.pointcloud_data       
+        data_from_zed = ros_numpy.numpify(newest_msg)
+
+        # get limits from bounding box
+        x_min_limit = bounding_box.xmin
+        x_max_limit = bounding_box.xmax
+        y_min_limit = bounding_box.ymin
+        y_max_limit = bounding_box.ymax
+
+
+        # if no bounding boxes are included, but the function should be tested
+        # x_min_limit = 10
+        # x_max_limit = 300
+        # y_min_limit = 400 
+        # y_max_limit = 600 
+
+        # limiting pointcloud to bounding_box_size
+        data_from_zed_old = np.array_split(data_from_zed, [x_min_limit], axis=0)[1]
+        data_from_zed_old = np.array_split(data_from_zed_old, [x_max_limit-x_min_limit], axis=0)[0]
+        data_from_zed_old = np.array_split(data_from_zed_old, [y_min_limit], axis=1)[1]
+        data_from_zed_old = np.array_split(data_from_zed_old, [y_max_limit-y_min_limit], axis=1)[0]
+        
+        rospy.loginfo(np.shape(data_from_zed_old))
+        
+        pcd_height, pcd_width = np.shape(data_from_zed_old)
+        msg = ros_numpy.msgify(PointCloud2, data_from_zed_old)
+
+        msg.header = newest_msg.header
+        msg.height = pcd_height
+        msg.width = pcd_width
+
+        self.pointcloudPub.publish(msg)
+
+       
 
     def object_orientation_from_point_list(self, point_list, type):
         """
@@ -173,6 +240,7 @@ class ObjectDetectionNode():
 
         # Iterate through all the detected objects and estimate sizes
         for bbox in data.bounding_boxes:
+
             # Unintuitively position is logged as top to bottom. We fix it so it is from bot to top
             temp_ymin = bbox.ymin
             bbox.ymin = 376 - bbox.ymax
