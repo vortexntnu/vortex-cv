@@ -506,7 +506,210 @@ class FeatureDetection:
             pass
 
         return pts_cp, pt_dsts_cp, diff_dsts
-    
+
     def reference_points_iteration(self, closest_points):
         self.ref_points_icp_fitting = np.array(closest_points, dtype=int)
-        # print(self.ref_points_icp_fitting)
+
+    def fitted_point_filtering(self, point_arr1, point_arr2):
+        closest_points, closest_point_dsts = self.custom_closest_point(point_arr1, point_arr2)
+        
+        closest_points_filtered, closest_point_dsts_filtered = self.duplicate_point_filter(closest_points, closest_point_dsts)
+
+        thresholded_closest_points, thresholded_closest_point_dsts, diff_dsts = self.point_thresholding(closest_points_filtered,
+                                                                                                        closest_point_dsts_filtered,
+                                                                                                        threshold=50,
+                                                                                                        reset_reference_points_threshold=100)
+        # Sometimes makes it better, sometimes not
+        self.reference_points_iteration(thresholded_closest_points)
+
+        self.prev_closest_points = thresholded_closest_points
+        self.prev_closest_point_dsts = thresholded_closest_point_dsts
+
+        return thresholded_closest_points
+    
+    def get_contour_from_rect(self, rect):
+        return np.array(rect).reshape((-1,1,2)).astype(np.int32)
+
+
+    def does_ctr_contain_point(self, ctr, point):
+        indicator = cv2.pointPolygonTest(ctr, tuple(point), measureDist=False)
+        if indicator >= 0:
+            return True
+        else:
+            return False
+
+
+    def get_relevant_rects(self, point_arr, rect_arr):
+        relevant_rects = []
+        for rect in rect_arr:
+            ctr = self.get_contour_from_rect(rect)
+            for point in point_arr:
+                is_in_rect = self.does_ctr_contain_point(ctr, point)
+                if is_in_rect:
+                    relevant_rects.append(rect)
+        
+        return relevant_rects
+
+
+    def get_all_points_in_rects(self, rects, return_per_rect=False, return_image=False, image=None):
+        # Possible for rectangle-wise point extraction in this fnc (mv np.zeros blank img to rect in rects loop)
+        if return_image:
+            if image != None:
+                orig_img_cp = copy.deepcopy(image)
+
+        blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
+        rects_arr_shape = np.shape(rects)
+        num_of_rects = rects_arr_shape[0]
+        
+        # points_in_rects = []
+        # for i in range(num_of_rects):
+        #     points_in_rects.append([])
+
+        if not return_per_rect:
+            for rect in rects:
+                ctr = self.get_contour_from_rect(rect)
+
+                cv2.drawContours(blank_image, [ctr], 0, (255,255,255), thickness=cv2.FILLED)
+                if return_image and (image != None):
+                    cv2.drawContours(orig_img_cp, [ctr], 0, (255,255,255), thickness=cv2.FILLED)
+
+            blank_image = cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY)
+            px_arr = np.argwhere(blank_image == 255)
+
+        else:
+            px_arr = []
+            for rect in rects:
+                ctr = self.get_contour_from_rect(rect)
+                tmp_blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
+
+                cv2.drawContours(tmp_blank_image, [ctr], 0, (255,255,255), thickness=cv2.FILLED)
+                cv2.drawContours(blank_image, [ctr], 0, (255,255,255), thickness=cv2.FILLED)
+                if return_image and (image != None):
+                    cv2.drawContours(orig_img_cp, [ctr], 0, (255,255,255), thickness=cv2.FILLED)
+
+                tmp_blank_image = cv2.cvtColor(tmp_blank_image, cv2.COLOR_BGR2GRAY)
+                blank_image = cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY)
+                tmp_px_arr = np.argwhere(tmp_blank_image == 255)
+                px_arr.append(tmp_px_arr)
+
+
+        if return_image:
+            if image != None:
+                return orig_img_cp, blank_image, px_arr
+            else:
+                return blank_image, px_arr
+        else:        
+            return px_arr
+
+    def rect_filtering(self, img, fitted_box_centers, icp_fitted_points, fitted_boxes):
+        img_cp = copy.deepcopy(img)
+        blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
+
+        closest_points, closest_point_dsts = self.custom_closest_point(icp_fitted_points, fitted_box_centers)
+        closest_points = self.fitted_point_filtering(icp_fitted_points, fitted_box_centers)
+
+        relevant_rects = self.get_relevant_rects(closest_points, fitted_boxes)
+        points_in_rects, imgimg = self.get_all_points_in_rects(relevant_rects)
+
+        # for pnt in fitted_box_centers:
+        #     cv2.circle(img_cp, (int(pnt[0]), int(pnt[1])), 3, (0,0,255), 10)
+        
+        for pnt in closest_points:
+            cv2.circle(img_cp, (int(pnt[0]), int(pnt[1])), 5, (255,0,255), 2)
+        
+        for box in relevant_rects:
+            box = np.int0(box)
+            cv2.drawContours(img_cp,[box],0,(0,0,255),2)
+        
+        """ for cx, cy, h, w, phi in fitted_boxes:
+            if blank_image[cx - w//2: cx + w//2][cy - h//2: cy + h//2]: """
+
+        filtered_rect_ros_image = self.bridge.cv2_to_imgmsg(img_cp, encoding="bgra8")
+        self.filteredRectPub.publish(filtered_rect_ros_image)
+
+        return relevant_rects, closest_points, fitted_box_centers, points_in_rects
+
+    def convex_fitting(self, contours_image, contours, convex_image, convex_contours, fit_threshold):
+        contours_image = copy.deepcopy(contours_image)
+
+        blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
+
+        for cnt_idx in range(len(contours)):
+            cnt = contours[cnt_idx]
+            cvx = convex_contours[cnt_idx]
+
+            cvx_area = cv2.contourArea(cvx)
+            cnt_area = cv2.contourArea(cnt)
+            diff_area = cvx_area - cnt_area
+            
+            if diff_area < (cnt_area * fit_threshold):
+                cv2.drawContours(contours_image, convex_contours, cnt_idx, (0,255,0), 2)
+
+        cvx_ros_image = self.bridge.cv2_to_imgmsg(contours_image, encoding="bgra8")
+        self.cvxFitPub.publish(cvx_ros_image)
+
+
+    def line_fitting(self, orig_img, contours, threshold=50):
+        orig_img_cp = copy.deepcopy(orig_img)
+
+        blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
+        # cv2.fillPoly(blank_image, pts =contours, color=(255,255,255))
+        theta_set = set()
+        for cnt in contours:
+            rows, cols = blank_image.shape[:2]
+            [vx,vy,x,y] = cv2.fitLine(cnt, cv2.DIST_L2,0,0.01,0.01)
+            theta = math.atan(vy/vx)
+            theta = (abs(theta*math.pi*180) % 360)
+            theta_set.add(theta)
+            lefty = int((-x*vy/vx) + y)
+            righty = int(((cols-x)*vy/vx)+y)
+            cv2.line(blank_image,(cols-1,righty),(0,lefty),(0,255,0),4)
+            cv2.putText(blank_image, str(round(theta, 1)) + " deg", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
+
+            #cv2.line(orig_img_cp,(cols-1,righty),(0,lefty),(0,255,0),2)
+        
+        theta_arr = list(theta_set)
+        parallell_line_count = 0
+        for theta_outer in theta_arr:
+            if 90 < theta_outer < 180:
+                for theta_inner in theta_arr:
+                    if (theta_outer + threshold >= theta_inner) and (theta_outer - threshold <= theta_inner) and (theta_outer != theta_inner):
+                        parallell_line_count += 1
+            else:
+                continue
+        
+        self.cv_image_publisher(self.linesPub, blank_image, msg_encoding="bgra8")
+        return blank_image, parallell_line_count
+
+
+    def corner_detection(self, line_fitted_img):
+        line_fitted_img_cp = copy.deepcopy(line_fitted_img)
+        #blur_line_fitted_img = cv2.GaussianBlur(line_fitted_img_cp, (5, 19), 5.2)
+
+        blank_image = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
+        blank_image_corners = np.zeros(shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8)
+
+
+        gray = cv2.cvtColor(line_fitted_img_cp,cv2.COLOR_BGR2GRAY)
+        gray = np.float32(gray)
+        dst = cv2.cornerHarris(gray,13,19,0.04)
+
+        #result is dilated for marking the corners, not important
+        dst = cv2.dilate(dst,None)
+
+        # Threshold for an optimal value, it may vary depending on the image.
+        blank_image[dst>0.00001*dst.max()]=[0,0,255,0]
+        blank_image = cv2.cvtColor(blank_image,cv2.COLOR_BGR2GRAY)
+
+        contours, hierarchy = cv2.findContours(blank_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+        for cnt in contours:
+            cnt_moments = cv2.moments(cnt)
+
+            centroid_center_x = int(cnt_moments['m10']/cnt_moments['m00'])
+            centroid_center_y = int(cnt_moments['m01']/cnt_moments['m00'])
+
+            cv2.circle(blank_image_corners, (centroid_center_x, centroid_center_y), 2, (255,0,255), 2)
+
+        corners_ros_img = self.bridge.cv2_to_imgmsg(blank_image_corners, encoding="bgra8")
+        self.cornersPub.publish(corners_ros_img)
