@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from dataclasses import _MISSING_TYPE
 import rospy
 
 from sensor_msgs.msg import Image
@@ -25,7 +24,7 @@ class FeatureDetectionNode():
 
         self.zedSub                 = rospy.Subscriber('/zed2/zed_node/rgb/image_rect_color', Image, self.zed_callback)
         self.resetSub               = rospy.Subscriber('/feature_detection/reset', Empty, self.feature_detection_reset_callback)
-        # self.fsmStateSub            = rospy.Subscriber('/AUTONOMOUS/FSM_STATE', _MISSING_TYPE, self.FSM_cb)
+        # self.fsmStateSub            = rospy.Subscriber('/AUTONOMOUS/FSM_STATE', MISSING_TYPE, self.FSM_cb)
 
         self.hsvCheckPub            = rospy.Publisher('/feature_detection/hsv_check_image', Image, queue_size= 1)
         self.noiseRmPub             = rospy.Publisher('/feature_detection/noise_removal_image', Image, queue_size= 1)
@@ -72,7 +71,7 @@ class FeatureDetectionNode():
         self.erosion_iterations = 1
         self.dilation_iterations = 1
 
-        self.noise_rm_params = [self.ksize1, self.ksize2, self.sigma, self.thresholding_blocksize, self.thresholding_C, self.erosion_dilation_kernel_size, self.erosion_iterations, self.dilation_iterations]
+        self.noise_rm_params = [self.ksize1, self.ksize2, self.sigma, self.thresholding_blocksize, self.thresholding_C, self.erosion_dilation_ksize, self.erosion_iterations, self.dilation_iterations]
 
         self.dynam_client = dynamic_reconfigure.client.Client("feature_detection_cfg", timeout=5.0, config_callback=self.dynam_reconfigure_callback)
 
@@ -116,7 +115,7 @@ class FeatureDetectionNode():
         self.timerPub.publish(fps)
 
     def feature_detection_reset_callback(self, msg):
-        self.feature_detection_reset()
+        self.feat_detection.points_processing_reset()
 
     def dynam_reconfigure_callback(self, config):
         self.canny_threshold1 = config.canny_threshold1
