@@ -882,17 +882,39 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
         self.detection = False
 
     def feature_detection(self, original_image, hsv_params, noise_removal_params):
-        _, hsv_mask, hsv_mask_validation_img = self.hsv_processor(original_image, *hsv_params)
-        noise_removed_img = self.noise_removal_processor(hsv_mask, *noise_removal_params)
-        filtered_contours = self.contour_processing(noise_removed_img, 300, return_image=False)
+        _, hsv_mask, hsv_mask_validation_img = self.hsv_processor(
+            original_image, *hsv_params
+        )
+        noise_removed_img = self.noise_removal_processor(
+            hsv_mask, *noise_removal_params
+        )
+        filtered_contours = self.contour_processing(
+            noise_removed_img, 300, return_image=False
+        )
 
-        fitted_boxes, center_arr = self.shape_fitting(filtered_contours, 5, return_image=False)
+        fitted_boxes, center_arr = self.shape_fitting(
+            filtered_contours, 5, return_image=False
+        )
 
         closest_points = self.i2rcp(center_arr)
 
-        rect_filtering_img, rect_filtering_img_blank, relevant_rects, all_points_in_rects = self.rect_filtering(closest_points, fitted_boxes, return_image=True, image=original_image)
+        (
+            rect_filtering_img,
+            rect_filtering_img_blank,
+            relevant_rects,
+            all_points_in_rects,
+        ) = self.rect_filtering(
+            closest_points, fitted_boxes, return_image=True, image=original_image
+        )
 
-        line_fitting_img, line_fitting_img_blank, theta_arr, parallell_line_count = self.line_fitting(relevant_rects, angle_threshold=50, return_image=True, image=original_image)
+        (
+            line_fitting_img,
+            line_fitting_img_blank,
+            theta_arr,
+            parallell_line_count,
+        ) = self.line_fitting(
+            relevant_rects, angle_threshold=50, return_image=True, image=original_image
+        )
 
         # BGR images
         self.hsv_mask_validation_img = hsv_mask_validation_img
@@ -964,14 +986,26 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
         else:
             return bbox_points, bbox_area
 
-    def classification(self, original_image, label_name, hsv_params, noise_removal_params):
-        all_points_in_rects, theta_arr, parallell_line_count = self.feature_detection(original_image, hsv_params, noise_removal_params)
+    def classification(
+        self, original_image, label_name, hsv_params, noise_removal_params
+    ):
+        all_points_in_rects, theta_arr, parallell_line_count = self.feature_detection(
+            original_image, hsv_params, noise_removal_params
+        )
 
         detection = False
         if parallell_line_count > 1:
             detection = True
-            img_cp, blank_image, bbox_points, bbox_area = self.bounding_box_processor(all_points_in_rects, label_name, return_image=True, image=original_image)
-        
+            img_cp, blank_image, bbox_points, bbox_area = self.bounding_box_processor(
+                all_points_in_rects, label_name, return_image=True, image=original_image
+            )
+
         self.detection = detection
-        return img_cp, blank_image, bbox_points, bbox_area, all_points_in_rects, detection
-        
+        return (
+            img_cp,
+            blank_image,
+            bbox_points,
+            bbox_area,
+            all_points_in_rects,
+            detection,
+        )
