@@ -79,7 +79,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
 generate_dynamic_reconfigure_options(
-  cfg/feature_detection.cfg
+  cfg/gate_detection.cfg
 )
 
 ###################################
@@ -132,7 +132,7 @@ include_directories(
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-# add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(${PROJECT_NAME}_gencfg ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
@@ -150,7 +150,8 @@ include_directories(
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
   scripts/feature_detection_node.py
-  scripts/dynam_reconfigure_server.py
+  scripts/dynam_recfg.py
+  # scripts/dynam_reconfigure_server.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

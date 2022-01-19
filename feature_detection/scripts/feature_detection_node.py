@@ -13,7 +13,9 @@ import dynamic_reconfigure.client
 import numpy as np
 from timeit import default_timer as timer
 
+# feature detection library
 from feature_detection import FeatureDetection
+
 
 class FeatureDetectionNode():
     """Handles tasks related to feature detection
@@ -21,6 +23,8 @@ class FeatureDetectionNode():
 
     def __init__(self):
         rospy.init_node('feature_detection_node')
+
+        self.ros_rate = rospy.Rate(30.0)
 
         self.zedSub                 = rospy.Subscriber('/zed2/zed_node/rgb/image_rect_color', Image, self.zed_callback)
         self.resetSub               = rospy.Subscriber('/feature_detection/reset', Empty, self.feature_detection_reset_callback)
@@ -49,13 +53,12 @@ class FeatureDetectionNode():
         self.canny_aperture = 3
 
         # HSV params
-        self.hsv_hue_min = 179
-        self.hsv_hue_max = 0
-        self.hsv_sat_min = 255
-        self.hsv_sat_max = 0
-        self.hsv_val_min = 255
-        self.hsv_val_max = 0
-        self.hsv_params = [self.hsv_hue_min, self.hsv_hue_max, self.hsv_sat_min, self.hsv_sat_max, self.hsv_val_min, self.hsv_val_max]
+        self.hsv_params = [0,
+                           179,
+                           0,
+                           255,
+                           0,
+                           255]
 
         # Blur params
         self.ksize1 = 7
@@ -72,9 +75,7 @@ class FeatureDetectionNode():
         self.dilation_iterations = 1
 
         self.noise_rm_params = [self.ksize1, self.ksize2, self.sigma, self.thresholding_blocksize, self.thresholding_C, self.erosion_dilation_ksize, self.erosion_iterations, self.dilation_iterations]
-
-        self.dynam_client = dynamic_reconfigure.client.Client("feature_detection_cfg", timeout=5.0, config_callback=self.dynam_reconfigure_callback)
-
+        self.dynam_client = dynamic_reconfigure.client.Client("/CVOD/feature_detection_cfg", config_callback=self.dynam_reconfigure_callback)
 
     def cv_image_publisher(self, publisher, image, msg_encoding="bgra8"):
         """
@@ -82,7 +83,21 @@ class FeatureDetectionNode():
         """
         msgified_img = self.bridge.cv2_to_imgmsg(image, encoding=msg_encoding)
         publisher.publish(msgified_img)
+    
+    def spin(self):
+        while not rospy.is_shutdown():
+            if self.feat_detection is None:
+                self.feat_detection = FeatureDetection(self.cv_image.shape, icp_ref_points=self.ref_points_initial_guess)
+            else:
+                self.feat_detection.classification(self.cv_image.shape, "OBJECT FROM FSM", self.hsv_params, self.noise_rm_params)
 
+            self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_mask_validation_img)
+            self.cv_image_publisher(self.noiseRmPub, self.feat_detection.noise_removed_img)
+            self.cv_image_publisher(self.shapePub, self.feat_detection.rect_filtering_img)
+            self.cv_image_publisher(self.linesPub, self.feat_detection.line_fitting_img)
+            self.cv_image_publisher(self.BBoxPub, self.feat_detection.bounding_box_image)
+
+            self.ros_rate.sleep()
 
     def zed_callback(self, img_msg):
         start = timer() # Start function timer.
@@ -90,21 +105,17 @@ class FeatureDetectionNode():
         #------------------------------------------>
         #------------------------------------------>
         try:
-            cv_image = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
+            self.cv_image = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
         except CvBridgeError, e:
             rospy.logerr("CvBridge Error: {0}".format(e))
-        self.img_height, self.img_width, self.img_channels = cv_image.shape
+        self.img_height, self.img_width, self.img_channels = self.cv_image.shape
 
-        if self.feat_detection == None:
-            self.feat_detection = FeatureDetection(self.feat_detection, icp_ref_points=self.ref_points_initial_guess)
+        imgimgimg = None
+        if self.feat_detection is None:
+            self.feat_detection = FeatureDetection(self.cv_image.shape, icp_ref_points=self.ref_points_initial_guess)
         else:
-            self.feat_detection.classification(cv_image, "OBJECT FROM FSM", self.hsv_params, self.noise_rm_params)
-
-        self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_mask_validation_img)
-        self.cv_image_publisher(self.noiseRmPub, self.feat_detection.noise_removed_img)
-        self.cv_image_publisher(self.shapePub, self.feat_detection.rect_filtering_img)
-        self.cv_image_publisher(self.linesPub, self.feat_detection.line_fitting_img)
-        self.cv_image_publisher(self.BBoxPub, self.feat_detection.bounding_box_image)
+            _, _, imgimgimg = self.feat_detection.hsv_processor(self.cv_image, *self.hsv_params)
+        self.cv_image_publisher(self.hsvCheckPub, imgimgimg)
 
         #------------------------------------------>
         #------------------------------------------>
@@ -122,12 +133,12 @@ class FeatureDetectionNode():
         self.canny_threshold2 = config.canny_threshold2
         self.canny_aperture = config.canny_aperture_size
 
-        self.hsv_hue_min = config.hsv_hue_min
-        self.hsv_hue_max = config.hsv_hue_max
-        self.hsv_sat_min = config.hsv_sat_min
-        self.hsv_sat_max = config.hsv_sat_max
-        self.hsv_val_min = config.hsv_val_min
-        self.hsv_val_max = config.hsv_val_max
+        self.hsv_params[0] = config.hsv_hue_min
+        self.hsv_params[1] = config.hsv_hue_max
+        self.hsv_params[2] = config.hsv_sat_min
+        self.hsv_params[3] = config.hsv_sat_max
+        self.hsv_params[4] = config.hsv_val_min
+        self.hsv_params[5] = config.hsv_val_max
 
         self.ksize1 = config.ksize1
         self.ksize2 = config.ksize2
@@ -142,8 +153,12 @@ class FeatureDetectionNode():
 
 
 if __name__ == '__main__':
-    node = FeatureDetectionNode()
-
-    while not rospy.is_shutdown():
+    try:
+        feature_detection_node = FeatureDetectionNode()
         rospy.spin()
+        # feature_detection_node.spin()
+
+    except rospy.ROSInterruptException:
+        pass
+
 
