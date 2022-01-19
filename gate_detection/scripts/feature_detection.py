@@ -20,21 +20,11 @@ By BenG @ Vortex NTNU, 2022
 """
 
 
-class FeatureDetection:
-    """Class for every algorithm needed for feature-processing based object detection."""
-
-    def __init__(self, image_shape, len_of_integral_binary_resetter=5):
+class ImageFeatureProcessing(object):
+    def __init__(self, image_shape):
+        super(ImageFeatureProcessing, self).__init__()
         self.image_shape = image_shape
         self.img_height, self.img_width, self.img_channels = self.image_shape
-
-        self.integral_diff_values_arr = []
-        self.integral_diff_values_arr_len = len_of_integral_binary_resetter
-
-        self.prev_closest_points = []
-        self.prev_closest_point_dsts = []
-
-    def gate_detection_reset(self):
-        print("Yo")
 
     def hsv_processor(
         self,
@@ -324,67 +314,15 @@ class FeatureDetection:
         else:
             return using_contours
 
-    def shape_fitting(self, contours, ratio_threshold, return_image=False, image=None):
-        """Fit least area rectangles onto contours.
 
-        Params:
-            contours                (array[][]) : Contours that are to be fitted with the last area rectangles.
-            ratio_threshold         (uint16)    : Ratio threshold between longest and shortest rectangle sides.
-                                                  Rectangles below this ratio threshold are removed.
-            image                   (cv::Mat)   : An image on which to draw fitted shapes.
+class PointsProcessing(object):
+    def __init__(self, len_of_integral_binary_resetter=5):
+        super(PointsProcessing, self).__init__()
+        self.integral_diff_values_arr = []
+        self.integral_diff_values_arr_len = len_of_integral_binary_resetter
 
-        Returns:
-                            fitted_boxes    (array[][4])    : Contour-fitted and filtered rectangles.
-                            centroid_arr    (array[][2])    : Array of center points in each fitted rectangle.
-        {return_image=True} blank_image     (cv::Mat)       : Blank image with drawn contours.
-        {image != None}     image           (cv::Mat)       : Passed image with drawn contours.
-        """
-        if return_image:
-            blank_image = np.zeros(shape=self.img_shape, dtype=np.uint8)
-            if image != None:
-                orig_img_cp = copy.deepcopy(image)
-
-        fitted_boxes = []
-        for cnt in contours:
-            rect = cv2.minAreaRect(cnt)
-
-            rect_width = rect[1][0]
-            rect_height = rect[1][1]
-
-            rect_long = rect_height
-            rect_short = rect_width
-
-            if rect_height < rect_width:
-                rect_long = rect_width
-                rect_short = rect_height
-
-            if rect_long > rect_short * ratio_threshold:
-                box = cv2.boxPoints(rect)
-                box = np.int0(box)
-                fitted_boxes.append(box)
-                if return_image:
-                    cv2.drawContours(blank_image, [box], 0, (0, 0, 255), 2)
-                    if image != None:
-                        cv2.drawContours(orig_img_cp, [box], 0, (0, 0, 255), 2)
-
-        centroid_arr = np.empty([len(fitted_boxes), 2], dtype=int)
-
-        for cnt_idx in range(len(fitted_boxes)):
-            cnt = fitted_boxes[cnt_idx]
-            cnt_moments = cv2.moments(cnt)
-
-            centroid_center_x = int(cnt_moments["m10"] / cnt_moments["m00"])
-            centroid_center_y = int(cnt_moments["m01"] / cnt_moments["m00"])
-
-            centroid_arr[cnt_idx] = [centroid_center_x, centroid_center_y]
-
-        if return_image:
-            if image != None:
-                return orig_img_cp, blank_image, fitted_boxes, centroid_arr
-            else:
-                return blank_image, fitted_boxes, centroid_arr
-        else:
-            return fitted_boxes, centroid_arr
+        self.prev_closest_points = []
+        self.prev_closest_point_dsts = []
 
     def _icp_fitting(self, ref_points, point_set, return_image=False, image=None):
         centroid_arr = point_set
@@ -503,7 +441,7 @@ class FeatureDetection:
 
         return closest_points, closest_point_dsts
 
-    def point_thresholding(
+    def _point_thresholding(
         self,
         closest_points,
         closest_point_dsts,
@@ -528,7 +466,7 @@ class FeatureDetection:
                 sum(self.integral_diff_values_arr) // self.integral_diff_values_arr_len
             )
             if integral_check > reset_reference_points_threshold:
-                self.gate_detection_reset()
+                self.points_processing_reset()
         try:
             self.integral_diff_values_arr.append(max(diff_dsts))
             if len(self.integral_diff_values_arr) > self.integral_diff_values_arr_len:
@@ -538,7 +476,7 @@ class FeatureDetection:
 
         return pts_cp, pt_dsts_cp, diff_dsts
 
-    def reference_points_iteration(self, closest_points):
+    def _reference_points_iteration(self, closest_points):
         self.ref_points_icp_fitting = np.array(closest_points, dtype=int)
 
     def fitted_point_filtering(self, point_arr1, point_arr2):
@@ -555,19 +493,252 @@ class FeatureDetection:
             thresholded_closest_points,
             thresholded_closest_point_dsts,
             diff_dsts,
-        ) = self.point_thresholding(
+        ) = self._point_thresholding(
             closest_points_filtered,
             closest_point_dsts_filtered,
             threshold=50,
             reset_reference_points_threshold=100,
         )
-        # Sometimes makes it better, sometimes not
-        self.reference_points_iteration(thresholded_closest_points)
+        # Sometimes makes it better, sometimes not, sometimes worse
+        self._reference_points_iteration(thresholded_closest_points)
 
         self.prev_closest_points = thresholded_closest_points
         self.prev_closest_point_dsts = thresholded_closest_point_dsts
 
         return thresholded_closest_points
+
+    def i2rcp(self, rect_center_points):
+        icp_points = self._icp_fitting(
+            self.ref_points_icp_fitting, rect_center_points, return_image=False
+        )
+
+        closest_points, closest_point_dsts = self._euclidian_closest_point(
+            icp_points, rect_center_points
+        )
+        closest_points = self.fitted_point_filtering(icp_points, rect_center_points)
+
+        return closest_points
+
+    def points_processing_reset(self):
+        self.ref_points_icp_fitting = self.ref_points_icp_fitting_base
+        self.prev_closest_points = []
+        self.prev_closest_point_dsts = []
+        self.integral_diff_values_arr = []
+
+
+class ShapeProcessing(object):
+    def __init__(self):
+        super(ShapeProcessing, self).__init__()
+
+    def shape_fitting(self, contours, ratio_threshold, return_image=False, image=None):
+        """Fit least area rectangles onto contours.
+
+        Params:
+            contours                (array[][]) : Contours that are to be fitted with the last area rectangles.
+            ratio_threshold         (uint16)    : Ratio threshold between longest and shortest rectangle sides.
+                                                  Rectangles below this ratio threshold are removed.
+            image                   (cv::Mat)   : An image on which to draw fitted shapes.
+
+        Returns:
+                            fitted_boxes    (array[][4])    : Contour-fitted and filtered rectangles.
+                            centroid_arr    (array[][2])    : Array of center points in each fitted rectangle.
+        {return_image=True} blank_image     (cv::Mat)       : Blank image with drawn contours.
+        {image != None}     image           (cv::Mat)       : Passed image with drawn contours.
+        """
+        if return_image:
+            blank_image = np.zeros(shape=self.img_shape, dtype=np.uint8)
+            if image != None:
+                orig_img_cp = copy.deepcopy(image)
+
+        fitted_boxes = []
+        for cnt in contours:
+            rect = cv2.minAreaRect(cnt)
+
+            rect_width = rect[1][0]
+            rect_height = rect[1][1]
+
+            rect_long = rect_height
+            rect_short = rect_width
+
+            if rect_height < rect_width:
+                rect_long = rect_width
+                rect_short = rect_height
+
+            if rect_long > rect_short * ratio_threshold:
+                box = cv2.boxPoints(rect)
+                box = np.int0(box)
+                fitted_boxes.append(box)
+                if return_image:
+                    cv2.drawContours(blank_image, [box], 0, (0, 0, 255), 2)
+                    if image != None:
+                        cv2.drawContours(orig_img_cp, [box], 0, (0, 0, 255), 2)
+
+        centroid_arr = np.empty([len(fitted_boxes), 2], dtype=int)
+
+        for cnt_idx in range(len(fitted_boxes)):
+            cnt = fitted_boxes[cnt_idx]
+            cnt_moments = cv2.moments(cnt)
+
+            centroid_center_x = int(cnt_moments["m10"] / cnt_moments["m00"])
+            centroid_center_y = int(cnt_moments["m01"] / cnt_moments["m00"])
+
+            centroid_arr[cnt_idx] = [centroid_center_x, centroid_center_y]
+
+        if return_image:
+            if image != None:
+                return orig_img_cp, blank_image, fitted_boxes, centroid_arr
+            else:
+                return blank_image, fitted_boxes, centroid_arr
+        else:
+            return fitted_boxes, centroid_arr
+
+    def convex_fitting(
+        self,
+        contours,
+        convex_contours,
+        area_diff_threshold,
+        return_image=False,
+        image=None,
+    ):
+        if return_image:
+            blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
+            if image != None:
+                img_cp = copy.deepcopy(image)
+
+        convexes_filtered = []
+        for cnt_idx in range(len(contours)):
+            cnt = contours[cnt_idx]
+            cvx = convex_contours[cnt_idx]
+
+            cvx_area = cv2.contourArea(cvx)
+            cnt_area = cv2.contourArea(cnt)
+            diff_area = cvx_area - cnt_area
+
+            if diff_area < (cnt_area * area_diff_threshold):
+                convexes_filtered.append(cvx)
+                if return_image:
+                    cv2.drawContours(
+                        blank_image, convex_contours, cnt_idx, (0, 255, 0), 2
+                    )
+                    if image != None:
+                        cv2.drawContours(
+                            img_cp, convex_contours, cnt_idx, (0, 255, 0), 2
+                        )
+        if return_image:
+            if image != None:
+                return img_cp, blank_image, convexes_filtered
+            else:
+                return blank_image, convexes_filtered
+        else:
+            return convexes_filtered
+
+    def line_fitting(
+        self, contours, angle_threshold=50, return_image=False, image=None
+    ):
+        if return_image:
+            blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
+            if image != None:
+                img_cp = copy.deepcopy(image)
+
+        theta_set = set()
+        for cnt in contours:
+            rows, cols = blank_image.shape[:2]
+            [vx, vy, x, y] = cv2.fitLine(cnt, cv2.DIST_L2, 0, 0.01, 0.01)
+            theta = math.atan(vy / vx)
+            theta = abs(theta * math.pi * 180) % 360
+            theta_set.add(theta)
+            lefty = int((-x * vy / vx) + y)
+            righty = int(((cols - x) * vy / vx) + y)
+            if return_image:
+                cv2.line(blank_image, (cols - 1, righty), (0, lefty), (0, 255, 0), 4)
+                cv2.putText(
+                    blank_image,
+                    str(round(theta, 1)) + " deg",
+                    (x, y),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (255, 255, 255),
+                    2,
+                )
+                if image != None:
+                    cv2.line(img_cp, (cols - 1, righty), (0, lefty), (0, 255, 0), 4)
+                    cv2.putText(
+                        img_cp,
+                        str(round(theta, 1)) + " deg",
+                        (x, y),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1,
+                        (255, 255, 255),
+                        2,
+                    )
+
+        theta_arr = list(theta_set)
+        parallell_line_count = 0
+        for theta_outer in theta_arr:
+            if 90 < theta_outer < 180:
+                for theta_inner in theta_arr:
+                    if (
+                        (theta_outer + angle_threshold >= theta_inner)
+                        and (theta_outer - angle_threshold <= theta_inner)
+                        and (theta_outer != theta_inner)
+                    ):
+                        parallell_line_count += 1
+            else:
+                continue
+
+        if return_image:
+            if image != None:
+                return img_cp, blank_image, theta_arr, parallell_line_count
+            else:
+                return blank_image, theta_arr, parallell_line_count
+        else:
+            return theta_arr, parallell_line_count
+
+    def corner_detection(self, line_fitted_img):
+        """WIP"""
+        line_fitted_img_cp = copy.deepcopy(line_fitted_img)
+        # blur_line_fitted_img = cv2.GaussianBlur(line_fitted_img_cp, (5, 19), 5.2)
+
+        blank_image = np.zeros(
+            shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8
+        )
+        blank_image_corners = np.zeros(
+            shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8
+        )
+
+        gray = cv2.cvtColor(line_fitted_img_cp, cv2.COLOR_BGR2GRAY)
+        gray = np.float32(gray)
+        dst = cv2.cornerHarris(gray, 13, 19, 0.04)
+
+        # result is dilated for marking the corners, not important
+        dst = cv2.dilate(dst, None)
+
+        # Threshold for an optimal value, it may vary depending on the image.
+        blank_image[dst > 0.00001 * dst.max()] = [0, 0, 255, 0]
+        blank_image = cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY)
+
+        contours, hierarchy = cv2.findContours(
+            blank_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        corner_point_arr = []
+        for cnt in contours:
+            cnt_moments = cv2.moments(cnt)
+
+            centroid_center_x = int(cnt_moments["m10"] / cnt_moments["m00"])
+            centroid_center_y = int(cnt_moments["m01"] / cnt_moments["m00"])
+
+            cv2.circle(
+                blank_image_corners,
+                (centroid_center_x, centroid_center_y),
+                2,
+                (255, 0, 255),
+                2,
+            )
+
+            corner_point_arr.append((centroid_center_x, centroid_center_y))
+
+        return blank_image_corners, corner_point_arr
 
     def get_contour_from_rect(self, rect):
         return np.array(rect).reshape((-1, 1, 2)).astype(np.int32)
@@ -651,35 +822,23 @@ class FeatureDetection:
         else:
             return px_arr
 
-    def rect_filtering(self, fitted_box_centers, fitted_boxes, return_image=False, image=None):
-        if return_image:            
-            blank_image = np.zeros(
-                shape=self.image_shape, dtype=np.uint8
-            )
+    def rect_filtering(
+        self, i2rcp_points, fitted_boxes, return_image=False, image=None
+    ):
+        if return_image:
+            blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
             if image != None:
                 img_cp = copy.deepcopy(image)
 
-        icp_points = self._icp_fitting(
-            self.ref_points_icp_fitting, fitted_box_centers, return_image=False
-        )
-
-        closest_points, closest_point_dsts = self._euclidian_closest_point(
-            icp_points, fitted_box_centers
-        )
-        closest_points = self.fitted_point_filtering(
-            icp_points, fitted_box_centers
-        )
-
-        relevant_rects = self.get_relevant_rects(closest_points, fitted_boxes)
+        relevant_rects = self.get_relevant_rects(i2rcp_points, fitted_boxes)
         points_in_rects, imgimg = self.get_all_points_in_rects(relevant_rects)
-        
+
         if return_image:
-            for pnt in closest_points:
+            for pnt in i2rcp_points:
                 cv2.circle(blank_image, (int(pnt[0]), int(pnt[1])), 5, (255, 0, 255), 2)
                 if image != None:
                     cv2.circle(img_cp, (int(pnt[0]), int(pnt[1])), 5, (255, 0, 255), 2)
 
-                    
             for box in relevant_rects:
                 box = np.int0(box)
                 cv2.drawContours(blank_image, [box], 0, (0, 0, 255), 2)
@@ -688,161 +847,75 @@ class FeatureDetection:
 
         if return_image:
             if image != None:
-                return img_cp, blank_image, relevant_rects, closest_points, fitted_box_centers, points_in_rects
+                return img_cp, blank_image, relevant_rects, points_in_rects
             else:
-                return blank_image, relevant_rects, closest_points, fitted_box_centers, points_in_rects
+                return blank_image, relevant_rects, points_in_rects
         else:
-            return relevant_rects, closest_points, fitted_box_centers, points_in_rects
+            return relevant_rects, points_in_rects
 
-    def convex_fitting(self, contours, convex_contours, area_diff_threshold, return_image=False, image=None):
+
+class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing):
+    """Algorithms for feature-processing-based object detection."""
+
+    def __init__(self, image_shape, len_of_integral_binary_resetter=5):
+        super(FeatureDetection, self).__init__()
+
+        self.image_shape = image_shape
+        self.img_height, self.img_width, self.img_channels = self.image_shape
+
+        # BGR images
+        self.hsv_mask_validation_img = None
+        self.noise_removed_img = None
+        self.rect_filtering_img = None
+        self.line_fitting_img = None
+        self.bounding_box_image = None
+
+        # Blank images
+        self.rect_filtering_img_blank = None
+        self.line_fitting_img_blank = None
+
+        self.all_points_in_filtered_rects = None
+        self.bounding_box_corners = None
+        self.bounding_box_area = None
+
+    def feature_detection(self, original_image, hsv_params, noise_removal_params):
+        _, hsv_mask, hsv_mask_validation_img = self.hsv_processor(original_image, *hsv_params)
+        noise_removed_img = self.noise_removal_processor(hsv_mask, *noise_removal_params)
+        filtered_contours = self.contour_processing(noise_removed_img, 300, return_image=False)
+
+        fitted_boxes, center_arr = self.shape_fitting(filtered_contours, 5, return_image=False)
+
+        closest_points = self.i2rcp(center_arr)
+
+        rect_filtering_img, rect_filtering_img_blank, relevant_rects, all_points_in_rects = self.rect_filtering(closest_points, fitted_boxes, return_image=True, image=original_image)
+
+        line_fitting_img, line_fitting_img_blank, theta_arr, parallell_line_count = self.line_fitting(relevant_rects, angle_threshold=50, return_image=True, image=original_image)
+
+        # BGR images
+        self.hsv_mask_validation_img = hsv_mask_validation_img
+        self.noise_removed_img = noise_removed_img
+        self.rect_filtering_img = rect_filtering_img
+        self.line_fitting_img = line_fitting_img
+
+        # Blank images
+        self.rect_filtering_img_blank = rect_filtering_img_blank
+        self.line_fitting_img_blank = line_fitting_img_blank
+
+        # Points
+        self.all_points_in_filtered_rects = all_points_in_rects
+
+        return all_points_in_rects, theta_arr, parallell_line_count
+
+    def bounding_box_processor(
+        self, all_points_in_rects, label_name, return_image=False, image=None
+    ):
         if return_image:
-            blank_image = np.zeros(
-                shape=self.image_shape, dtype=np.uint8
-            )
+            blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
             if image != None:
                 img_cp = copy.deepcopy(image)
 
-        convexes_filtered = []
-        for cnt_idx in range(len(contours)):
-            cnt = contours[cnt_idx]
-            cvx = convex_contours[cnt_idx]
+        x_lst, y_lst = zip(*all_points_in_rects)
 
-            cvx_area = cv2.contourArea(cvx)
-            cnt_area = cv2.contourArea(cnt)
-            diff_area = cvx_area - cnt_area
-
-            if diff_area < (cnt_area * area_diff_threshold):
-                convexes_filtered.append(cvx)
-                if return_image:
-                    cv2.drawContours(
-                        blank_image, convex_contours, cnt_idx, (0, 255, 0), 2
-                    )
-                    if image != None:
-                        cv2.drawContours(
-                            img_cp, convex_contours, cnt_idx, (0, 255, 0), 2
-                        )
-        if return_image:
-            if image != None:
-                return img_cp, blank_image, convexes_filtered
-            else:
-                return blank_image, convexes_filtered
-        else:
-            return convexes_filtered
-
-    def line_fitting(self, contours, angle_threshold=50, return_image=False, image=None):
-        if return_image:
-            blank_image = np.zeros(
-                shape=self.image_shape, dtype=np.uint8
-            )
-            if image != None:
-                img_cp = copy.deepcopy(image)
-
-        theta_set = set()
-        for cnt in contours:
-            rows, cols = blank_image.shape[:2]
-            [vx, vy, x, y] = cv2.fitLine(cnt, cv2.DIST_L2, 0, 0.01, 0.01)
-            theta = math.atan(vy / vx)
-            theta = abs(theta * math.pi * 180) % 360
-            theta_set.add(theta)
-            lefty = int((-x * vy / vx) + y)
-            righty = int(((cols - x) * vy / vx) + y)
-            if return_image:
-                cv2.line(blank_image, (cols - 1, righty), (0, lefty), (0, 255, 0), 4)
-                cv2.putText(
-                    blank_image,
-                    str(round(theta, 1)) + " deg",
-                    (x, y),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    1,
-                    (255, 255, 255),
-                    2,
-                )
-                if image != None:
-                    cv2.line(img_cp, (cols - 1, righty), (0, lefty), (0, 255, 0), 4)
-                    cv2.putText(
-                        img_cp,
-                        str(round(theta, 1)) + " deg",
-                        (x, y),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1,
-                        (255, 255, 255),
-                        2,
-                    )
-
-        theta_arr = list(theta_set)
-        parallell_line_count = 0
-        for theta_outer in theta_arr:
-            if 90 < theta_outer < 180:
-                for theta_inner in theta_arr:
-                    if (
-                        (theta_outer + angle_threshold >= theta_inner)
-                        and (theta_outer - angle_threshold <= theta_inner)
-                        and (theta_outer != theta_inner)
-                    ):
-                        parallell_line_count += 1
-            else:
-                continue
-        
-        if return_image:
-            if image != None:
-                return img_cp, blank_image, theta_arr, parallell_line_count
-            else:
-                return blank_image, theta_arr, parallell_line_count
-        else:
-            return theta_arr, parallell_line_count
-
-    def corner_detection(self, line_fitted_img):
-        """WIP
-        """
-        line_fitted_img_cp = copy.deepcopy(line_fitted_img)
-        # blur_line_fitted_img = cv2.GaussianBlur(line_fitted_img_cp, (5, 19), 5.2)
-
-        blank_image = np.zeros(
-            shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8
-        )
-        blank_image_corners = np.zeros(
-            shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8
-        )
-
-        gray = cv2.cvtColor(line_fitted_img_cp, cv2.COLOR_BGR2GRAY)
-        gray = np.float32(gray)
-        dst = cv2.cornerHarris(gray, 13, 19, 0.04)
-
-        # result is dilated for marking the corners, not important
-        dst = cv2.dilate(dst, None)
-
-        # Threshold for an optimal value, it may vary depending on the image.
-        blank_image[dst > 0.00001 * dst.max()] = [0, 0, 255, 0]
-        blank_image = cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY)
-
-        contours, hierarchy = cv2.findContours(
-            blank_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
-        )
-
-        for cnt in contours:
-            cnt_moments = cv2.moments(cnt)
-
-            centroid_center_x = int(cnt_moments["m10"] / cnt_moments["m00"])
-            centroid_center_y = int(cnt_moments["m01"] / cnt_moments["m00"])
-
-            cv2.circle(
-                blank_image_corners,
-                (centroid_center_x, centroid_center_y),
-                2,
-                (255, 0, 255),
-                2,
-            )
-
-    def bounding_box_processor(self, points_in_rects, label_name, return_image=False, image=None):
-        if return_image:
-            blank_image = np.zeros(
-                shape=self.image_shape, dtype=np.uint8
-            )
-            if image != None:
-                img_cp = copy.deepcopy(image)
-        
-        x_lst, y_lst = zip(*points_in_rects)
-        
         xmin = min(x_lst)
         ymin = min(y_lst)
         xmax = max(x_lst)
@@ -850,19 +923,48 @@ class FeatureDetection:
 
         bbox_area = (ymax - ymin) * (xmax - xmin)
         bbox_points = (xmin, ymin, xmax, ymax)
-        
-        if return_image:
-            cv2.rectangle(blank_image,(ymin, xmin),(ymax, xmax),(0,255,0),2)
-            cv2.putText(blank_image, label_name, (ymin, xmin-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
-            if image != None:
-                cv2.rectangle(img_cp,(ymin, xmin),(ymax, xmax),(0,255,0),2)
-                cv2.putText(img_cp, label_name, (ymin, xmin-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
 
-        # insert 'if self.classified_obj' check here 
+        if return_image:
+            cv2.rectangle(blank_image, (ymin, xmin), (ymax, xmax), (0, 255, 0), 2)
+            cv2.putText(
+                blank_image,
+                label_name,
+                (ymin, xmin - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.9,
+                (36, 255, 12),
+                2,
+            )
+            if image != None:
+                cv2.rectangle(img_cp, (ymin, xmin), (ymax, xmax), (0, 255, 0), 2)
+                cv2.putText(
+                    img_cp,
+                    label_name,
+                    (ymin, xmin - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.9,
+                    (36, 255, 12),
+                    2,
+                )
+
+        # insert 'if self.classified_obj' check here
+        self.bounding_box_corners = bbox_points
+        self.bounding_box_area = bbox_area
         if return_image:
             if image != None:
+                self.bounding_box_image = img_cp
+                self.bounding_box_image_blank = blank_image
                 return img_cp, blank_image, bbox_points, bbox_area
             else:
+                self.bounding_box_image_blank = blank_image
                 return blank_image, bbox_points, bbox_area
         else:
             return bbox_points, bbox_area
+
+    def classification(self, original_image, label_name, hsv_params, noise_removal_params):
+        all_points_in_rects, theta_arr, parallell_line_count = self.feature_detection(original_image, hsv_params, noise_removal_params)
+        if parallell_line_count > 1:
+            img_cp, blank_image, bbox_points, bbox_area = self.bounding_box_processor(all_points_in_rects, label_name, return_image=True, image=original_image)
+        
+        return img_cp, blank_image, bbox_points, bbox_area, all_points_in_rects
+        

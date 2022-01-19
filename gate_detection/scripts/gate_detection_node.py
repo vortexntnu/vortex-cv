@@ -668,7 +668,7 @@ class GateDetectionNode():
     def gate_detection_reset(self):
         self.ref_points_icp_fitting = self.ref_points_icp_fitting_base
         self.prev_closest_points = []
-        self.prev_closest_point_dsts = []        
+        self.prev_closest_point_dsts = []
         self.integral_diff_values_arr = []
 
 
