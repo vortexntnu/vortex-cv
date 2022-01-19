@@ -1,13 +1,17 @@
 #!/usr/bin/env python
 
+from operator import index
+import numpy
+from scipy import empty
 import rospy
 # import ros_numpy
 import numpy as np
+import math
 
 # Import msg types
 from darknet_ros_msgs.msg import BoundingBoxes, BoundingBox
 from cv_msgs.msg import BBox, BBoxes
-from geometry_msgs.msg import PointStamped, PoseStamped
+from geometry_msgs.msg import PointStamped, PoseStamped, Pose
 from vortex_msgs.msg import ObjectPosition
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs import point_cloud2
@@ -105,12 +109,13 @@ class ObjectDetectionNode():
             generated_list.append(pt_gen) # needs testing
         
         pose_data, middle_point = self.pointcloud_mapper.points_to_plane(generated_list)
-        self.send_pose_message(self.pointcloud_data.header, middle_point, pose_data, name)
-        self.send_ObjectPosition_message(self.pointcloud_data.header, middle_point, pose_data, name)
+        if pose_data:
+            self.send_pose_message(self.pointcloud_data.header, middle_point, pose_data, name)
+            self.send_ObjectPosition_message(self.pointcloud_data.header, middle_point, pose_data, name)
 
     def object_orientation_from_poincloud(self, pointcloud_data, threshold):
         """
-        Uses pointcloud data to find object and its orientation in regards to pointcloud_data frame
+        Uses pointcloud data to find closest flat object and its orientation in regards to pointcloud_data frame
         
         Args:
             pointcloud_data: The pointcloud data to analyze
@@ -133,10 +138,10 @@ class ObjectDetectionNode():
             if abs(point[2]) <= (threshold + closest_point):
                 object_point_list.append(point)
         
-        fit, middle_point = self.pointcloud_mapper.points_to_plane(object_point_list)
-        quaternion_data = fit
+        pose_data, middle_point = self.pointcloud_mapper.points_to_plane(object_point_list)
 
-        self.send_pose_message(pointcloud_data.header, middle_point, quaternion_data, "middle_pose")
+        if pose_data:
+            self.send_pose_message(pointcloud_data.header, middle_point, pose_data, "middle_pose")
     
     def send_pose_message(self, headerdata, position_data, quaternion_data, name):
         """
@@ -162,13 +167,10 @@ class ObjectDetectionNode():
         p_msg.pose.position.x = position_data[0]
         p_msg.pose.position.y = position_data[1]
         p_msg.pose.position.z = position_data[2]
-        p_msg.pose.orientation.x = 0 # quaternion_data[1]
-        p_msg.pose.orientation.y = 0 # quaternion_data[1]
-        p_msg.pose.orientation.z = 1 # quaternion_data[0]
-        if len(quaternion_data) == 3:
-            p_msg.pose.orientation.w = quaternion_data[1]
-        else:
-            p_msg.pose.orientation.w = 1
+        p_msg.pose.orientation.x = 1
+        p_msg.pose.orientation.y = quaternion_data[2]
+        p_msg.pose.orientation.z = 1
+        p_msg.pose.orientation.w = 1
         posePub.publish(p_msg)
 
     def send_ObjectPosition_message(self, headerdata, position_data, quaternion_data, name):
@@ -194,13 +196,13 @@ class ObjectDetectionNode():
         p_msg.objectPose.pose.position.x = position_data[0]
         p_msg.objectPose.pose.position.y = position_data[1]
         p_msg.objectPose.pose.position.z = position_data[2]
-        p_msg.objectPose.pose.orientation.w = quaternion_data[0]
-        p_msg.objectPose.pose.orientation.x = quaternion_data[1]
-        p_msg.objectPose.pose.orientation.y = quaternion_data[2]
+        p_msg.objectPose.pose.orientation.x = quaternion_data[0]
+        p_msg.objectPose.pose.orientation.y = quaternion_data[1]
+        p_msg.objectPose.pose.orientation.z = quaternion_data[2]
         if len(quaternion_data) == 3:
-            p_msg.objectPose.pose.orientation.z = 1
+            p_msg.objectPose.pose.orientation.w = 1
         else:
-            p_msg.objectPose.pose.orientation.z = quaternion_data[3]
+            p_msg.objectPose.pose.orientation.w = quaternion_data[3]
         objposePub.publish(p_msg)
 
     def get_pointcloud_position_of_xy_point(self, x_pixel, y_pixel):
@@ -253,11 +255,12 @@ class ObjectDetectionNode():
                 for pt in pt_gen:
                     obj_list.append(pt)
 
-        name = "gate"
+        name = "gate" # TODO: remove
 
         pose_data, middle_point = self.pointcloud_mapper.points_to_plane(obj_list)
-        self.send_pose_message(self.pointcloud_data.header, middle_point, pose_data, name)
-        self.send_ObjectPosition_message(self.pointcloud_data.header, middle_point, pose_data, name)
+        if pose_data:
+            self.send_pose_message(self.pointcloud_data.header, middle_point, pose_data, name)
+            self.send_ObjectPosition_message(self.pointcloud_data.header, middle_point, pose_data, name)
 
     def bboxSub_cb(self, data):
         """
@@ -280,26 +283,10 @@ class ObjectDetectionNode():
 
             # Unintuitively position is logged as top to bottom. We fix it so it is from bot to top
             temp_ymin = bbox.ymin
-            bbox.ymin = 376 - bbox.ymax # needs to be updated to automatically read ymax of camera
+            bbox.ymin = 376 - bbox.ymax # TODO: needs to be updated to automatically read ymax of camera
             bbox.ymax = 376 - temp_ymin
 
-            # self.object_orientation_from_xy_area([bbox.xmin, bbox.xmax, bbox.ymin, bbox.ymax])
-            botleft = self.get_pointcloud_position_of_xy_point(bbox.xmin + 50,bbox.ymin + 50)
-            topleft = self.get_pointcloud_position_of_xy_point(bbox.xmin + 50,bbox.ymax - 50)
-            botright = self.get_pointcloud_position_of_xy_point(bbox.xmax - 50,bbox.ymin + 50)
-            topright = self.get_pointcloud_position_of_xy_point(bbox.xmax - 50,bbox.ymax - 50)
-            
-
-            self.send_pointStamped_message(ArrayBoundingBoxes.header, botleft, "botleft")
-            self.send_pointStamped_message(ArrayBoundingBoxes.header, topleft, "topleft")
-            self.send_pointStamped_message(ArrayBoundingBoxes.header, botright, "botright")
-            self.send_pointStamped_message(ArrayBoundingBoxes.header, topright, "topright")
-
-            pose_data, middle_point = self.pointcloud_mapper.points_to_plane([botright,botleft,topright,topleft])
-            self.send_pose_message(self.pointcloud_data.header, middle_point, pose_data, "name")
-            self.send_ObjectPosition_message(self.pointcloud_data.header, middle_point, pose_data, "name")
-
-            rospy.loginfo(pose_data)
+            self.object_orientation_from_xy_area([bbox.xmin,bbox.xmax,bbox.ymin,bbox.ymax])
 
             # Store depth measurement of boundingbox
             depth_mtr = bbox.z
