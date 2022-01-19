@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>gate_detection</name>
+  <name>feature_detection</name>
   <version>0.0.0</version>
-  <description>The gate_detection package</description>
+  <description>The feature_detection package</description>
 
   <maintainer email="thebadmusician@gmail.com">BenG</maintainer>
 

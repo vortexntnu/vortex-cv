@@ -3,7 +3,7 @@
 import rospy
 
 from dynamic_reconfigure.server import Server
-from gate_detection.cfg import GateDetectionConfig
+from feature_detection.cfg import FeatureDetectionConfig
 
 def callback(config, level):
     # rospy.loginfo("""Reconfigure Request: {canny_threshold1}, {canny_threshold2},\ 
@@ -11,7 +11,7 @@ def callback(config, level):
     return config
 
 if __name__ == "__main__":
-    rospy.init_node("gate_detection_cfg", anonymous = False)
+    rospy.init_node("feature_detection_cfg", anonymous = False)
 
-    srv = Server(GateDetectionConfig, callback)
+    srv = Server(FeatureDetectionConfig, callback)
     rospy.spin()

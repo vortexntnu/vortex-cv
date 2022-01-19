@@ -26,6 +26,8 @@ class ImageFeatureProcessing(object):
         self.image_shape = image_shape
         self.img_height, self.img_width, self.img_channels = self.image_shape
 
+        self.hsv_mask = None
+
     def hsv_processor(
         self,
         original_image,
@@ -63,6 +65,7 @@ class ImageFeatureProcessing(object):
             orig_img_cp, orig_img_cp, mask=hsv_mask
         )  # Applies mask
 
+        self.hsv_mask = hsv_mask
         return hsv_img, hsv_mask, hsv_mask_check_img
 
     def noise_removal_processor(
@@ -316,13 +319,20 @@ class ImageFeatureProcessing(object):
 
 
 class PointsProcessing(object):
-    def __init__(self, len_of_integral_binary_resetter=5):
+    def __init__(self, len_of_integral_binary_resetter=5, icp_ref_points=None):
         super(PointsProcessing, self).__init__()
         self.integral_diff_values_arr = []
         self.integral_diff_values_arr_len = len_of_integral_binary_resetter
 
         self.prev_closest_points = []
         self.prev_closest_point_dsts = []
+
+        self.ref_points_icp_fitting_base = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
+        self.ref_points_icp_fitting = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
+
+        if icp_ref_points != None and self.ref_points_icp_fitting == np.array([[449, 341], [845, 496], [690, 331]], dtype=int):
+            self.ref_points_icp_fitting_base = icp_ref_points
+            self.ref_points_icp_fitting = icp_ref_points
 
     def _icp_fitting(self, ref_points, point_set, return_image=False, image=None):
         centroid_arr = point_set
@@ -857,11 +867,18 @@ class ShapeProcessing(object):
 class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing):
     """Algorithms for feature-processing-based object detection."""
 
-    def __init__(self, image_shape, len_of_integral_binary_resetter=5):
+    def __init__(self, image_shape, len_of_integral_binary_resetter=5, icp_ref_points=None):
         super(FeatureDetection, self).__init__()
 
         self.image_shape = image_shape
         self.img_height, self.img_width, self.img_channels = self.image_shape
+
+        self.ref_points_icp_fitting_base = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
+        self.ref_points_icp_fitting = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
+
+        if icp_ref_points != None and self.ref_points_icp_fitting == np.array([[449, 341], [845, 496], [690, 331]], dtype=int):
+            self.ref_points_icp_fitting_base = icp_ref_points
+            self.ref_points_icp_fitting = icp_ref_points
 
         # BGR images
         self.hsv_mask_validation_img = None
