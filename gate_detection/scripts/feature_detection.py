@@ -878,6 +878,9 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
         self.bounding_box_corners = None
         self.bounding_box_area = None
 
+        # Classification
+        self.detection = False
+
     def feature_detection(self, original_image, hsv_params, noise_removal_params):
         _, hsv_mask, hsv_mask_validation_img = self.hsv_processor(original_image, *hsv_params)
         noise_removed_img = self.noise_removal_processor(hsv_mask, *noise_removal_params)
@@ -963,8 +966,12 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
 
     def classification(self, original_image, label_name, hsv_params, noise_removal_params):
         all_points_in_rects, theta_arr, parallell_line_count = self.feature_detection(original_image, hsv_params, noise_removal_params)
+
+        detection = False
         if parallell_line_count > 1:
+            detection = True
             img_cp, blank_image, bbox_points, bbox_area = self.bounding_box_processor(all_points_in_rects, label_name, return_image=True, image=original_image)
         
-        return img_cp, blank_image, bbox_points, bbox_area, all_points_in_rects
+        self.detection = detection
+        return img_cp, blank_image, bbox_points, bbox_area, all_points_in_rects, detection
         
