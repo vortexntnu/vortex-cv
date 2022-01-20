@@ -1,49 +1,49 @@
 !!python/object/new:dynamic_reconfigure.encoding.Config
 dictitems:
-  C: 20
-  blocksize: 27
+  C: 1
+  blocksize: 7
   canny_aperture_size: 3
   canny_threshold1: 100
   canny_threshold2: 200
-  dilation_iterations: 1
-  ed_ksize: 0
+  dilation_iterations: 6
+  ed_ksize: 3
   erosion_iterations: 1
   groups: !!python/object/new:dynamic_reconfigure.encoding.Config
     dictitems:
-      C: 20
-      blocksize: 27
+      C: 1
+      blocksize: 7
       canny_aperture_size: 3
       canny_threshold1: 100
       canny_threshold2: 200
-      dilation_iterations: 1
-      ed_ksize: 0
+      dilation_iterations: 6
+      ed_ksize: 3
       erosion_iterations: 1
       groups: !!python/object/new:dynamic_reconfigure.encoding.Config
         state: []
-      hsv_hue_max: 14
+      hsv_hue_max: 64
       hsv_hue_min: 0
       hsv_sat_max: 255
-      hsv_sat_min: 141
-      hsv_val_max: 212
-      hsv_val_min: 48
+      hsv_sat_min: 0
+      hsv_val_max: 255
+      hsv_val_min: 191
       id: 0
-      ksize1: 13
-      ksize2: 13
+      ksize1: 1
+      ksize2: 1
       name: Default
       parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
         state: []
       parent: 0
-      sigma: 0.3
+      sigma: 10.0
       state: true
       type: ''
     state: []
-  hsv_hue_max: 14
+  hsv_hue_max: 64
   hsv_hue_min: 0
   hsv_sat_max: 255
-  hsv_sat_min: 141
-  hsv_val_max: 212
-  hsv_val_min: 48
-  ksize1: 13
-  ksize2: 13
-  sigma: 0.3
+  hsv_sat_min: 0
+  hsv_val_max: 255
+  hsv_val_min: 191
+  ksize1: 1
+  ksize2: 1
+  sigma: 10.0
 state: []
