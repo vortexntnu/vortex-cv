@@ -10,7 +10,7 @@ import rospy
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float32, Empty
 from cv_msgs.msg import BBox
-from darknet_ros_msgs.msg import BoundingBox
+from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
 
 from cv_bridge import CvBridge, CvBridgeError
 import dynamic_reconfigure.client
@@ -44,7 +44,7 @@ class FeatureDetectionNode():
         self.pointAreasPub          = rospy.Publisher('/feature_detection/point_areas_image', Image, queue_size= 1)
         self.BBoxPub                = rospy.Publisher('/feature_detection/bbox_image', Image, queue_size= 1)
         
-        self.BBoxPointsPub          = rospy.Publisher('/feature_detection/detection_bbox', BoundingBox, queue_size= 1)
+        self.BBoxPointsPub          = rospy.Publisher('/feature_detection/detection_bbox', BoundingBoxes, queue_size= 1)
         # self.RectPointsPub          = rospy.Publisher('/feature_detection/object_points', SOMETOPIC, queue_size= 1)
 
         self.timerPub               = rospy.Publisher('/feature_detection/fps_timer', Float32, queue_size= 1)
@@ -101,6 +101,24 @@ class FeatureDetectionNode():
         msgified_img = self.bridge.cv2_to_imgmsg(image, encoding=msg_encoding)
         publisher.publish(msgified_img)
     
+    def build_bounding_boxes_msg(self, bbox_points):
+        bbox = BoundingBox
+        bbox.probability = 69.69
+        bbox.xmin = bbox_points[0]
+        bbox.ymin = bbox_points[1]
+        bbox.xmax = bbox_points[2]
+        bbox.ymax = bbox_points[3]
+        bbox.z = 100000.0
+        bbox.id = 0
+        bbox.Class = "gate"
+
+        new_bbox_points_msg = BoundingBoxes
+        new_bbox_points_msg.header.stamp = rospy.get_rostime
+        new_bbox_points_msg.header.frame = "zed_left_optical_camera_sensor"
+        new_bbox_points_msg.bounding_boxes.append(bbox)
+
+        return new_bbox_points_msg
+
     def spin(self):
         while not rospy.is_shutdown():            
             if self.cv_image is not None:
@@ -116,6 +134,10 @@ class FeatureDetectionNode():
                     self.cv_image_publisher(self.linesPub, self.feat_detection.line_fitting_img)
                     self.cv_image_publisher(self.BBoxPub, self.feat_detection.bbox_img)
                     self.cv_image_publisher(self.pointAreasPub, self.feat_detection.pointed_rects_img)
+
+                    # if bbox_points:
+                    #     bboxes_msg = self.build_bounding_boxes_msg(bbox_points)
+                    #     self.BBoxPointsPub.publish(bboxes_msg)
 
                     end = timer() # Stop function timer.
                     timediff = (end - start)
