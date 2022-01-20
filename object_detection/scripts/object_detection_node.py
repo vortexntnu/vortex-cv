@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 
-from operator import index
-import numpy
-from scipy import empty
 import rospy
-# import ros_numpy
+import ros_numpy
 import numpy as np
 import math
 
@@ -25,10 +22,14 @@ class ObjectDetectionNode():
     """
     Handles tasks related to object detection
     """
+    cameraframe_x = 1280    # Param to set the expected width of cameraframe in pixels
+    cameraframe_y = 720     # Param to set the expected height of cameraframe in pixels
+    use_reduced_pc = False  # Param to change wether or not to use reduced pointcloud data
+
     def __init__(self):
         rospy.init_node('object_detection_node')
         self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.bboxSub_cb)
-        # self.CVbboxSub = rospy.Subscriber('/gate_detection/BoundingBox', BoundingBox, self.feature_bbox_cb)
+        self.CVbboxSub = rospy.Subscriber('/gate_detection/BoundingBox', BoundingBox, self.feature_bbox_cb)
         self.lim_pointcloudPub = rospy.Publisher('/object_detection/pointcloud_limited_to_bbox',PointCloud2, queue_size=1) 
         
         self.pointcloudSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_cb)
@@ -67,32 +68,32 @@ class ObjectDetectionNode():
 
     def republish_pointcloud_from_bbox(self, bounding_box):
         """
+        TODO: This needs explanation
         """
-        # # get pointcloud and bounding box data
-        # newest_msg = self.pointcloud_data       
-        # data_from_zed = ros_numpy.numpify(newest_msg)
+        # get pointcloud and bounding box data
+        newest_msg = self.pointcloud_data       
+        data_from_zed = ros_numpy.numpify(newest_msg)
 
-        # # get limits from bounding box
-        # x_min_limit = bounding_box.xmin
-        # x_max_limit = bounding_box.xmax
-        # y_min_limit = bounding_box.ymin
-        # y_max_limit = bounding_box.ymax
+        # get limits from bounding box
+        x_min_limit = bounding_box.xmin
+        x_max_limit = bounding_box.xmax
+        y_min_limit = bounding_box.ymin
+        y_max_limit = bounding_box.ymax
 
-        # # limiting pointcloud to bounding_box_size
-        # data_from_zed_old = np.array_split(data_from_zed, [x_min_limit], axis=0)[1]
-        # data_from_zed_old = np.array_split(data_from_zed_old, [x_max_limit-x_min_limit], axis=0)[0]
-        # data_from_zed_old = np.array_split(data_from_zed_old, [y_min_limit], axis=1)[1]
-        # data_from_zed_old = np.array_split(data_from_zed_old, [y_max_limit-y_min_limit], axis=1)[0]
+        # limiting pointcloud to bounding_box_size
+        data_from_zed_old = np.array_split(data_from_zed, [x_min_limit], axis=0)[1]
+        data_from_zed_old = np.array_split(data_from_zed_old, [x_max_limit-x_min_limit], axis=0)[0]
+        data_from_zed_old = np.array_split(data_from_zed_old, [y_min_limit], axis=1)[1]
+        data_from_zed_old = np.array_split(data_from_zed_old, [y_max_limit-y_min_limit], axis=1)[0]
         
-        # pcd_height, pcd_width = np.shape(data_from_zed_old)
-        # msg = ros_numpy.msgify(PointCloud2, data_from_zed_old)
+        pcd_height, pcd_width = np.shape(data_from_zed_old)
+        msg = ros_numpy.msgify(PointCloud2, data_from_zed_old)
 
-        # msg.header = newest_msg.header
-        # msg.height = pcd_height
-        # msg.width = pcd_width
+        msg.header = newest_msg.header
+        msg.height = pcd_height
+        msg.width = pcd_width
 
-        # self.lim_pointcloudPub.publish(msg)
-        pass
+        self.lim_pointcloudPub.publish(msg)
 
     def object_orientation_from_point_list(self, point_list, name):
         """
@@ -121,6 +122,7 @@ class ObjectDetectionNode():
             pointcloud_data: The pointcloud data to analyze
             threshold: maximum distance of expected object dimensions as float cm.mm. Ex: if height is bigger than width input height
         """
+        # TODO: Rethink using this function
         assert isinstance(pointcloud_data, PointCloud2)
         generated_pointcloud_list = []
         closest_point = 200.00
@@ -189,20 +191,16 @@ class ObjectDetectionNode():
         """
         objposePub = rospy.Publisher('/object_detection/object_pose/' + name, ObjectPosition, queue_size= 1)
         p_msg = ObjectPosition()
-
         p_msg.objectID = name
 
         # Build pose
         p_msg.objectPose.pose.position.x = position_data[0]
         p_msg.objectPose.pose.position.y = position_data[1]
         p_msg.objectPose.pose.position.z = position_data[2]
-        p_msg.objectPose.pose.orientation.x = quaternion_data[0]
-        p_msg.objectPose.pose.orientation.y = quaternion_data[1]
-        p_msg.objectPose.pose.orientation.z = quaternion_data[2]
-        if len(quaternion_data) == 3:
-            p_msg.objectPose.pose.orientation.w = 1
-        else:
-            p_msg.objectPose.pose.orientation.w = quaternion_data[3]
+        p_msg.objectPose.pose.orientation.x = 1
+        p_msg.objectPose.pose.orientation.y = quaternion_data[2]
+        p_msg.objectPose.pose.orientation.z = 1
+        p_msg.objectPose.pose.orientation.w = 1
         objposePub.publish(p_msg)
 
     def get_pointcloud_position_of_xy_point(self, x_pixel, y_pixel):
@@ -229,15 +227,13 @@ class ObjectDetectionNode():
         x, y, z = self.pointcloud_x, self.pointcloud_y, self.pointcloud_z
         return [x, y, z]
 
-    def object_orientation_from_xy_area(self, area_with_limits):
+    def object_orientation_from_xy_area(self, area_with_limits, name):
         """
         Reads the point cloud data from a given area
 
         Args:
             area_with_limits: list of data [xmin, xmax, ymin, ymax]
-
-        Returns:
-            orientation
+            name: name of object that is seen
         """
         # Generates a readable version of the point cloud data
         assert isinstance(self.pointcloud_data, PointCloud2)
@@ -254,8 +250,6 @@ class ObjectDetectionNode():
                 pt_gen = point_cloud2.read_points(self.pointcloud_data, skip_nans=True, uvs=[[x,y]])
                 for pt in pt_gen:
                     obj_list.append(pt)
-
-        name = "gate" # TODO: remove
 
         pose_data, middle_point = self.pointcloud_mapper.points_to_plane(obj_list)
         if pose_data:
@@ -283,10 +277,10 @@ class ObjectDetectionNode():
 
             # Unintuitively position is logged as top to bottom. We fix it so it is from bot to top
             temp_ymin = bbox.ymin
-            bbox.ymin = 376 - bbox.ymax # TODO: needs to be updated to automatically read ymax of camera
-            bbox.ymax = 376 - temp_ymin
+            bbox.ymin = self.cameraframe_y - bbox.ymax # TODO: needs to be updated to automatically read ymax of camera
+            bbox.ymax = self.cameraframe_y - temp_ymin
 
-            self.object_orientation_from_xy_area([bbox.xmin,bbox.xmax,bbox.ymin,bbox.ymax])
+            self.object_orientation_from_xy_area([bbox.xmin,bbox.xmax,bbox.ymin,bbox.ymax], bbox.Class)
 
             # Store depth measurement of boundingbox
             depth_mtr = bbox.z

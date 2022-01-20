@@ -6,8 +6,8 @@ class PositionEstimator():
     fov_horizontal = 110.0                          # Degrees
     fov_vertical = 70.0                             # Degrees
     focal_length = 2.12                             # mm
-    max_width = 1344                                # pxl
-    max_height = 376                                # pxl
+    max_width = 1280                                # pxl
+    max_height = 720                                # pxl
     angles_pr_pxl_hor = fov_horizontal/max_width
     angles_pr_pxl_ver = fov_vertical/max_height
     use_single_lense = True
