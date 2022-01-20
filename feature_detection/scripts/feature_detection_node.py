@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+# import debugpy
+# print("Waiting for VSCode debugger...")
+# debugpy.listen(5678)
+# debugpy.wait_for_client()
+
 import rospy
 
 from sensor_msgs.msg import Image
@@ -12,6 +17,7 @@ import dynamic_reconfigure.client
 
 import numpy as np
 from timeit import default_timer as timer
+import traceback
 
 # feature detection library
 from feature_detection import FeatureDetection
@@ -32,8 +38,10 @@ class FeatureDetectionNode():
 
         self.hsvCheckPub            = rospy.Publisher('/feature_detection/hsv_check_image', Image, queue_size= 1)
         self.noiseRmPub             = rospy.Publisher('/feature_detection/noise_removal_image', Image, queue_size= 1)
+        self.i2rcpPub               = rospy.Publisher('/feature_detection/i2rcp_image', Image, queue_size= 1)
         self.shapePub               = rospy.Publisher('/feature_detection/shapes_image', Image, queue_size= 1)
         self.linesPub               = rospy.Publisher('/feature_detection/lines_image', Image, queue_size= 1)
+        self.pointAreasPub          = rospy.Publisher('/feature_detection/point_areas_image', Image, queue_size= 1)
         self.BBoxPub                = rospy.Publisher('/feature_detection/bbox_image', Image, queue_size= 1)
         
         self.BBoxPointsPub          = rospy.Publisher('/feature_detection/detection_bbox', BoundingBox, queue_size= 1)
@@ -45,8 +53,9 @@ class FeatureDetectionNode():
 
         self.ref_points_initial_guess = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
 
-        self.feat_detection = None
-        
+        self.image_shape = (720, 1280, 4)
+        self.cv_image = None
+
         # Canny params
         self.canny_threshold1 = 100
         self.canny_threshold2 = 200
@@ -75,6 +84,9 @@ class FeatureDetectionNode():
         self.dilation_iterations = 1
 
         self.noise_rm_params = [self.ksize1, self.ksize2, self.sigma, self.thresholding_blocksize, self.thresholding_C, self.erosion_dilation_ksize, self.erosion_iterations, self.dilation_iterations]
+        
+        self.feat_detection = FeatureDetection((720, 1280, 4), icp_ref_points=self.ref_points_initial_guess)
+        
         self.dynam_client = dynamic_reconfigure.client.Client("/CVOD/feature_detection_cfg", config_callback=self.dynam_reconfigure_callback)
 
     def cv_image_publisher(self, publisher, image, msg_encoding="bgra8"):
@@ -85,45 +97,37 @@ class FeatureDetectionNode():
         publisher.publish(msgified_img)
     
     def spin(self):
-        while not rospy.is_shutdown():
-            if self.feat_detection is None:
-                self.feat_detection = FeatureDetection(self.cv_image.shape, icp_ref_points=self.ref_points_initial_guess)
-            else:
-                self.feat_detection.classification(self.cv_image.shape, "OBJECT FROM FSM", self.hsv_params, self.noise_rm_params)
+        while not rospy.is_shutdown():            
+            if self.cv_image is not None:
+                try:
+                    start = timer() # Start function timer.
 
-            self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_mask_validation_img)
-            self.cv_image_publisher(self.noiseRmPub, self.feat_detection.noise_removed_img)
-            self.cv_image_publisher(self.shapePub, self.feat_detection.rect_filtering_img)
-            self.cv_image_publisher(self.linesPub, self.feat_detection.line_fitting_img)
-            self.cv_image_publisher(self.BBoxPub, self.feat_detection.bounding_box_image)
+                    self.feat_detection.classification(self.cv_image, "SOMETHING", self.hsv_params, self.noise_rm_params)
 
+                    self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_validation_img)
+                    self.cv_image_publisher(self.noiseRmPub, self.feat_detection.nr_img, msg_encoding="mono8")
+                    self.cv_image_publisher(self.i2rcpPub, self.feat_detection.i2rcp_image_blank)
+                    self.cv_image_publisher(self.shapePub, self.feat_detection.rect_flt_img)
+                    self.cv_image_publisher(self.linesPub, self.feat_detection.line_fitting_img)
+                    self.cv_image_publisher(self.BBoxPub, self.feat_detection.bbox_img)
+                    self.cv_image_publisher(self.pointAreasPub, self.feat_detection.pointed_rects_img)
+
+                    end = timer() # Stop function timer.
+                    timediff = (end - start)
+                    fps = 1 / timediff # Take reciprocal of the timediff to get runs per second. 
+                    self.timerPub.publish(fps)
+                
+                except Exception, e:
+                    print(traceback.format_exc())
+                    print(rospy.get_rostime())
+            
             self.ros_rate.sleep()
 
     def zed_callback(self, img_msg):
-        start = timer() # Start function timer.
-        #------------------------------------------>
-        #------------------------------------------>
-        #------------------------------------------>
         try:
             self.cv_image = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
         except CvBridgeError, e:
             rospy.logerr("CvBridge Error: {0}".format(e))
-        self.img_height, self.img_width, self.img_channels = self.cv_image.shape
-
-        imgimgimg = None
-        if self.feat_detection is None:
-            self.feat_detection = FeatureDetection(self.cv_image.shape, icp_ref_points=self.ref_points_initial_guess)
-        else:
-            _, _, imgimgimg = self.feat_detection.hsv_processor(self.cv_image, *self.hsv_params)
-        self.cv_image_publisher(self.hsvCheckPub, imgimgimg)
-
-        #------------------------------------------>
-        #------------------------------------------>
-        #------------------------------------------>
-        end = timer() # Stop function timer.
-        timediff = (end - start)
-        fps = 1 / timediff # Take reciprocal of the timediff to get runs per second. 
-        self.timerPub.publish(fps)
 
     def feature_detection_reset_callback(self, msg):
         self.feat_detection.points_processing_reset()
@@ -151,14 +155,14 @@ class FeatureDetectionNode():
         self.erosion_iterations = config.erosion_iterations
         self.dilation_iterations = config.dilation_iterations
 
+        self.noise_rm_params = [self.ksize1, self.ksize2, self.sigma, self.thresholding_blocksize, self.thresholding_C, self.erosion_dilation_ksize, self.erosion_iterations, self.dilation_iterations]
+
 
 if __name__ == '__main__':
     try:
         feature_detection_node = FeatureDetectionNode()
-        rospy.spin()
-        # feature_detection_node.spin()
+        # rospy.spin()
+        feature_detection_node.spin()
 
     except rospy.ROSInterruptException:
         pass
-
-
