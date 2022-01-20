@@ -905,6 +905,8 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
         super(FeatureDetection, self).__init__(image_shape=image_shape, len_of_integral_binary_resetter=len_of_integral_binary_resetter, icp_ref_points=icp_ref_points)
 
         self.image_shape = image_shape
+        self.shape_processing_image_shape = self.image_shape
+        self.points_processing_image_shape = self.image_shape
 
         self.ref_points_icp_fitting_base = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
         self.ref_points_icp_fitting = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)

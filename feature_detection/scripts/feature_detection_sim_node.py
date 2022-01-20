@@ -32,7 +32,7 @@ class FeatureDetectionNode():
 
         self.ros_rate = rospy.Rate(30.0)
 
-        self.zedSub                 = rospy.Subscriber('/zed2/zed_node/rgb/image_rect_color', Image, self.camera_callback)
+        self.zedSub                 = rospy.Subscriber('/front/image_view/output', Image, self.camera_callback)
         self.resetSub               = rospy.Subscriber('/feature_detection/reset', Empty, self.feature_detection_reset_callback)
         # self.fsmStateSub            = rospy.Subscriber('/AUTONOMOUS/FSM_STATE', MISSING_TYPE, self.FSM_cb)
 
@@ -53,7 +53,8 @@ class FeatureDetectionNode():
 
         self.ref_points_initial_guess = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
 
-        self.image_shape = (720, 1280, 4)
+        # self.image_shape = (720, 1280, 4)
+        self.image_shape = (492, 768, 3)
         self.cv_image = None
 
         # Canny params
@@ -101,16 +102,21 @@ class FeatureDetectionNode():
             if self.cv_image is not None:
                 try:
                     start = timer() # Start function timer.
+                    hsv_img, hsv_mask, hsv_mask_validation_img = self.feat_detection.hsv_processor(self.cv_image, *self.hsv_params)
+                    self.cv_image_publisher(self.hsvCheckPub, hsv_mask_validation_img, msg_encoding="bgr8")
 
-                    bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, "SOMETHING", self.hsv_params, self.noise_rm_params)
+                    nr_img = self.feat_detection.noise_removal_processor(hsv_mask, *self.noise_rm_params)
+                    self.cv_image_publisher(self.noiseRmPub, nr_img, msg_encoding="mono8")
 
-                    self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_validation_img)
-                    self.cv_image_publisher(self.noiseRmPub, self.feat_detection.nr_img, msg_encoding="mono8")
-                    self.cv_image_publisher(self.i2rcpPub, self.feat_detection.i2rcp_image_blank)
-                    self.cv_image_publisher(self.shapePub, self.feat_detection.rect_flt_img)
-                    self.cv_image_publisher(self.linesPub, self.feat_detection.line_fitting_img)
-                    self.cv_image_publisher(self.BBoxPub, self.feat_detection.bbox_img)
-                    self.cv_image_publisher(self.pointAreasPub, self.feat_detection.pointed_rects_img)
+                    # bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, "SOMETHING", self.hsv_params, self.noise_rm_params)
+
+                    # self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_validation_img, msg_encoding="bgr8")
+                    # self.cv_image_publisher(self.noiseRmPub, self.feat_detection.nr_img, msg_encoding="mono8")
+                    # self.cv_image_publisher(self.i2rcpPub, self.feat_detection.i2rcp_image_blank, msg_encoding="bgr8")
+                    # self.cv_image_publisher(self.shapePub, self.feat_detection.rect_flt_img, msg_encoding="bgr8")
+                    # self.cv_image_publisher(self.linesPub, self.feat_detection.line_fitting_img, msg_encoding="bgr8")
+                    # self.cv_image_publisher(self.BBoxPub, self.feat_detection.bbox_img, msg_encoding="bgr8")
+                    # self.cv_image_publisher(self.pointAreasPub, self.feat_detection.pointed_rects_img, msg_encoding="bgr8")
 
                     end = timer() # Stop function timer.
                     timediff = (end - start)
