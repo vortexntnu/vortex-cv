@@ -102,7 +102,7 @@ class FeatureDetectionNode():
                 try:
                     start = timer() # Start function timer.
 
-                    self.feat_detection.classification(self.cv_image, "SOMETHING", self.hsv_params, self.noise_rm_params)
+                    bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, "SOMETHING", self.hsv_params, self.noise_rm_params)
 
                     self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_validation_img)
                     self.cv_image_publisher(self.noiseRmPub, self.feat_detection.nr_img, msg_encoding="mono8")
