@@ -1,4 +1,6 @@
+import imp
 import numpy as np
+import math
 
 class PointCloudMapping():
     """
@@ -12,7 +14,7 @@ class PointCloudMapping():
             points_list: list of points on the form [[x1,y1,z1],[x2,y2,z2]] or [(x1,y1,z1),(x2,y2,z2)], contents must be floats.
 
         Returns:
-            fit: the equation as list of [a, b, c]
+            vectordata: the equation as list of [a, b, c]
             middle_point: middle point cord as a list of points [x_center, y_center, z_center]
         """
         xs = []
@@ -36,10 +38,16 @@ class PointCloudMapping():
         errors = b - A * fit
         residual = np.linalg.norm(errors)
         planar_equation = ("%f x + %f y + %f = z" % (fit[0], fit[1], fit[2]))
+        
+        vectordata = []
+        for i in range(3):
+            numb = np.matrix.item(fit,i)
+            if not math.isnan(numb):
+                vectordata.append(numb)
 
         middle_point = self.get_middle_point(points_list)
 
-        return fit, middle_point
+        return vectordata, middle_point
 
     def get_middle_point(self, points_list):
         """
