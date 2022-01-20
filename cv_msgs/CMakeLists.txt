@@ -14,6 +14,8 @@ add_message_files(
   FILES
   BBox.msg
   BBoxes.msg
+  Point2.msg
+  PointArray.msg
 )
 ## Generate messages in the 'msg' folder
 # add_message_files(
@@ -42,6 +44,7 @@ generate_messages(
   geometry_msgs
   std_msgs
   actionlib_msgs
+  cv_msgs
 )
 
 
