@@ -27,12 +27,12 @@ class FeatureDetectionNode():
     """Handles tasks related to feature detection
     """
 
-    def __init__(self):
+    def __init__(self, image_topic):
         rospy.init_node('feature_detection_node')
 
-        self.ros_rate = rospy.Rate(30.0)
+        self.ros_rate = rospy.Rate(60.0)
 
-        self.zedSub                 = rospy.Subscriber('/zed2/zed_node/rgb/image_rect_color', Image, self.camera_callback)
+        self.zedSub                 = rospy.Subscriber(image_topic, Image, self.camera_callback)
         self.resetSub               = rospy.Subscriber('/feature_detection/reset', Empty, self.feature_detection_reset_callback)
         # self.fsmStateSub            = rospy.Subscriber('/AUTONOMOUS/FSM_STATE', MISSING_TYPE, self.FSM_cb)
 
@@ -53,8 +53,6 @@ class FeatureDetectionNode():
 
         self.ref_points_initial_guess = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
 
-        self.image_shape = (720, 1280, 4)
-        self.cv_image = None
 
         # Canny params
         self.canny_threshold1 = 100
@@ -82,9 +80,16 @@ class FeatureDetectionNode():
         self.erosion_dilation_ksize = 5
         self.erosion_iterations = 1
         self.dilation_iterations = 1
-
         self.noise_rm_params = [self.ksize1, self.ksize2, self.sigma, self.thresholding_blocksize, self.thresholding_C, self.erosion_dilation_ksize, self.erosion_iterations, self.dilation_iterations]
         
+        # First initialization of image shape
+        first_image_msg = rospy.wait_for_message(image_topic, Image)
+        try:
+            self.cv_image = self.bridge.imgmsg_to_cv2(first_image_msg, "passthrough")
+            self.image_shape = self.cv_image.shape
+        except CvBridgeError, e:
+            self.image_shape = (720, 1280, 4)
+
         self.feat_detection = FeatureDetection(self.image_shape, icp_ref_points=self.ref_points_initial_guess)
         
         self.dynam_client = dynamic_reconfigure.client.Client("/CVOD/feature_detection_cfg", config_callback=self.dynam_reconfigure_callback)
@@ -101,7 +106,7 @@ class FeatureDetectionNode():
             if self.cv_image is not None:
                 try:
                     start = timer() # Start function timer.
-
+                    
                     bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, "SOMETHING", self.hsv_params, self.noise_rm_params)
 
                     self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_validation_img)
@@ -160,7 +165,7 @@ class FeatureDetectionNode():
 
 if __name__ == '__main__':
     try:
-        feature_detection_node = FeatureDetectionNode()
+        feature_detection_node = FeatureDetectionNode(image_topic='/zed2/zed_node/rgb/image_rect_color')
         # rospy.spin()
         feature_detection_node.spin()
 
