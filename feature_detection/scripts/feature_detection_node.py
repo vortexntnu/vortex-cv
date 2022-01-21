@@ -8,7 +8,7 @@
 import rospy
 
 from sensor_msgs.msg import Image
-from std_msgs.msg import Float32, Empty
+from std_msgs.msg import Float32, Empty, String
 from cv_msgs.msg import Point2, PointArray
 from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
 
@@ -34,7 +34,7 @@ class FeatureDetectionNode():
 
         self.zedSub                 = rospy.Subscriber(image_topic, Image, self.camera_callback)
         self.resetSub               = rospy.Subscriber('/feature_detection/reset', Empty, self.feature_detection_reset_callback)
-        # self.fsmStateSub            = rospy.Subscriber('/AUTONOMOUS/FSM_STATE', MISSING_TYPE, self.FSM_cb)
+        self.fsmStateSub            = rospy.Subscriber('/fsm/state', String, self.fsm_state_cb)
 
         self.hsvCheckPub            = rospy.Publisher('/feature_detection/hsv_check_image', Image, queue_size= 1)
         self.noiseRmPub             = rospy.Publisher('/feature_detection/noise_removal_image', Image, queue_size= 1)
@@ -51,8 +51,14 @@ class FeatureDetectionNode():
 
         self.bridge = CvBridge()
 
+        # ICP initial reference points
         self.ref_points_initial_guess = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
 
+        # FSM
+        self.current_object = "UNKNOWN"
+        self.fsm_state = "UNKNOWN"
+        self.prev_fsm_state = "UNKNOWN" # Not used rn
+        self.states_obj_dict = {"gate_search": 'gate', "pole_search": 'pole'}
 
         # Canny params
         self.canny_threshold1 = 100
@@ -140,10 +146,9 @@ class FeatureDetectionNode():
             if self.cv_image is not None:
                 try:
                     start = timer() # Start function timer.
-                    obj_class = "UNKNOWN"
-
-                    bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, "SOMETHING", self.hsv_params, self.noise_rm_params)
-                    pt_arr_msg = self.build_point_array_msg(points_in_rects, obj_class, self.image_shape[0], self.image_shape[1])
+                    
+                    bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, self.current_object, self.hsv_params, self.noise_rm_params)
+                    pt_arr_msg = self.build_point_array_msg(points_in_rects, self.current_object, self.image_shape[0], self.image_shape[1])
                     self.RectPointsPub.publish(pt_arr_msg)
                     
                     self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_validation_img)
@@ -155,7 +160,7 @@ class FeatureDetectionNode():
                     self.cv_image_publisher(self.pointAreasPub, self.feat_detection.pointed_rects_img)
 
                     if bbox_points:
-                        bboxes_msg = self.build_bounding_boxes_msg(bbox_points, obj_class)
+                        bboxes_msg = self.build_bounding_boxes_msg(bbox_points, self.current_object)
                         self.BBoxPointsPub.publish(bboxes_msg)
                     
                         self.prev_bboxes_msg = bboxes_msg
@@ -163,7 +168,7 @@ class FeatureDetectionNode():
                     else:
                         rospy.logwarn("Bounding Box wasnt found... keep on spinning...")
                         self.BBoxPointsPub.publish(self.prev_bboxes_msg)
-
+                    
                     end = timer() # Stop function timer.
                     timediff = (end - start)
                     fps = 1 / timediff # Take reciprocal of the timediff to get runs per second. 
@@ -180,6 +185,11 @@ class FeatureDetectionNode():
             self.cv_image = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
         except CvBridgeError, e:
             rospy.logerr("CvBridge Error: {0}".format(e))
+    
+    def fsm_state_cb(self, state_msg):
+        if state_msg.data in self.states_obj_dict:
+            self.fsm_state = state_msg.data
+            self.current_object = self.states_obj_dict[self.fsm_state]
 
     def feature_detection_reset_callback(self, msg):
         self.feat_detection.points_processing_reset()
