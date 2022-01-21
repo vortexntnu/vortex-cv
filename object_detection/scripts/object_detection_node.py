@@ -56,7 +56,7 @@ class ObjectDetectionNode():
         # Generates an empty list and adds all the point from msg to it
         point_list = []
         for point in msg.point_array:
-            point_list.append([point.x, point.y])
+            point_list.append((point.x, point.y))
 
         # Calls function to find object centre and orientation
         orientationdata, positiondata = self.object_orientation_from_point_list(point_list)
@@ -73,8 +73,6 @@ class ObjectDetectionNode():
             class variable: self.pointcloud_data
         """
         self.pointcloud_data = msg_data
-        orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_point_list([(100,132),(99,128),(107,137),(96,130),(105,133)],self.pointcloud_data)
-        self.send_position_orientation_data(self.pointcloud_data.header, positiondata, orientationdata, "objectID")
 
     # def feature_bbox_cb(self, data):
     #     """
