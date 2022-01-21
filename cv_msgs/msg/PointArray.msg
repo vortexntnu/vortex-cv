@@ -2,7 +2,7 @@
 # Also includes x and y of "object sendt"
 
 Header header
-string class
+string Class
 Point2[] point_array
 int32 width
 int32 height

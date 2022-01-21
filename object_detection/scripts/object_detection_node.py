@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 
 import rospy
-import ros_numpy
-import numpy as np
-import math
+# import numpy as np
+# import ros_numpy
 
 # Import msg types
 from darknet_ros_msgs.msg import BoundingBoxes, BoundingBox
-from cv_msgs.msg import BBox, BBoxes
+from cv_msgs.msg import BBox, BBoxes, Point2, PointArray
 from geometry_msgs.msg import PointStamped, PoseStamped, Pose
 from vortex_msgs.msg import ObjectPosition
 from sensor_msgs.msg import PointCloud2
@@ -28,28 +27,42 @@ class ObjectDetectionNode():
 
     def __init__(self):
         rospy.init_node('object_detection_node')
-        self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.bboxSub_cb)
-        self.CVbboxSub = rospy.Subscriber('/gate_detection/BoundingBox', BoundingBox, self.feature_bbox_cb)
-        self.lim_pointcloudPub = rospy.Publisher('/object_detection/pointcloud_limited_to_bbox',PointCloud2, queue_size=1) 
+        self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.darknet_cb)
+        # self.CVbboxSub = rospy.Subscriber('/gate_detection/BoundingBox', BoundingBox, self.feature_bbox_cb)
+        # self.lim_pointcloudPub = rospy.Publisher('/object_detection/pointcloud_limited_to_bbox',PointCloud2, queue_size=1) 
+        self.feat_detSub = rospy.Subscriber('/feature_detection/object_points', PointArray, self.feat_det_cb)
         
-        self.pointcloudSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_cb)
-        self.pointcloud_reducedSub = rospy.Subscriber('/object_detection/output', PointCloud2, self.pointcloud_downsampled_cb)
+        # Decide which pointcloud to use, this onsly works on topics described below
+        if self.use_reduced_pc:
+            self.pointcloud_reducedSub = rospy.Subscriber('/pointcloud_downsize/output', PointCloud2, self.pointcloud_camera_cb)
+        else:
+            self.pointcloudSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_camera_cb)
         
-        self.estimatorPub = rospy.Publisher('/object_detection/size_estimates', BBoxes, queue_size= 1) # Needs reevaluation
+        # TODO: Needs reevaluation
+        self.estimatorPub = rospy.Publisher('/object_detection/size_estimates', BBoxes, queue_size= 1) # TODO: Needs reevaluation
         
+        # Calling classes from other files
         self.position_estimator = PositionEstimator()
         self.coord_positioner = CoordPosition()
         self.pointcloud_mapper = PointCloudMapping()
-    
-    def feature_bbox_cb(self, data):
-        """
-        Args:
-            data: bbox msg data
-        """
-        bounding_box = data
-        self.republish_pointcloud_from_bbox(bounding_box)
 
-    def pointcloud_cb(self, msg_data):
+    def feat_det_cb(self, msg):
+        """
+        TODO: fillit
+        """
+        headerdata = msg.header
+        objectID = msg.Class
+        
+        # Generates an empty list and adds all the point from msg to it
+        point_list = []
+        for point in msg.point_array:
+            point_list.append([point.x, point.y])
+
+        # Calls function to find object centre and orientation
+        orientationdata, positiondata = self.object_orientation_from_point_list(point_list, objectID)
+        self.send_position_orientation_data(headerdata, positiondata, orientationdata, objectID)
+
+    def pointcloud_camera_cb(self, msg_data):
         """
         Stores message from a PointCloud2 message into a class variable
 
@@ -60,59 +73,78 @@ class ObjectDetectionNode():
             class variable: self.pointcloud_data
         """
         self.pointcloud_data = msg_data
-        # self.object_orientation_from_poincloud(msg_data, 0.3)
-    
-    def pointcloud_downsampled_cb(self, msg_data):
-        self.pointcloud_data_redused = msg_data
-        # self.object_orientation_from_poincloud(msg_data, 0.3)
 
-    def republish_pointcloud_from_bbox(self, bounding_box):
-        """
-        TODO: This needs explanation
-        """
-        # get pointcloud and bounding box data
-        newest_msg = self.pointcloud_data       
-        data_from_zed = ros_numpy.numpify(newest_msg)
+    # def feature_bbox_cb(self, data):
+    #     """
+    #     Args:
+    #         data: bbox msg data
+    #     """
+    #     bounding_box = data
+    #     self.republish_pointcloud_from_bbox(bounding_box)
 
-        # get limits from bounding box
-        x_min_limit = bounding_box.xmin
-        x_max_limit = bounding_box.xmax
-        y_min_limit = bounding_box.ymin
-        y_max_limit = bounding_box.ymax
+    # def republish_pointcloud_from_bbox(self, bounding_box):
+    #     """
+    #     TODO: This needs explanation
+    #     """
+    #     # get pointcloud and bounding box data
+    #     newest_msg = self.pointcloud_data       
+    #     data_from_zed = ros_numpy.numpify(newest_msg)
 
-        # limiting pointcloud to bounding_box_size
-        data_from_zed_old = np.array_split(data_from_zed, [x_min_limit], axis=0)[1]
-        data_from_zed_old = np.array_split(data_from_zed_old, [x_max_limit-x_min_limit], axis=0)[0]
-        data_from_zed_old = np.array_split(data_from_zed_old, [y_min_limit], axis=1)[1]
-        data_from_zed_old = np.array_split(data_from_zed_old, [y_max_limit-y_min_limit], axis=1)[0]
+    #     # get limits from bounding box
+    #     x_min_limit = bounding_box.xmin
+    #     x_max_limit = bounding_box.xmax
+    #     y_min_limit = bounding_box.ymin
+    #     y_max_limit = bounding_box.ymax
+
+    #     # limiting pointcloud to bounding_box_size
+    #     data_from_zed_old = np.array_split(data_from_zed, [x_min_limit], axis=0)[1]
+    #     data_from_zed_old = np.array_split(data_from_zed_old, [x_max_limit-x_min_limit], axis=0)[0]
+    #     data_from_zed_old = np.array_split(data_from_zed_old, [y_min_limit], axis=1)[1]
+    #     data_from_zed_old = np.array_split(data_from_zed_old, [y_max_limit-y_min_limit], axis=1)[0]
         
-        pcd_height, pcd_width = np.shape(data_from_zed_old)
-        msg = ros_numpy.msgify(PointCloud2, data_from_zed_old)
+    #     pcd_height, pcd_width = np.shape(data_from_zed_old)
+    #     msg = ros_numpy.msgify(PointCloud2, data_from_zed_old)
 
-        msg.header = newest_msg.header
-        msg.height = pcd_height
-        msg.width = pcd_width
+    #     msg.header = newest_msg.header
+    #     msg.height = pcd_height
+    #     msg.width = pcd_width
 
-        self.lim_pointcloudPub.publish(msg)
+    #     self.lim_pointcloudPub.publish(msg)
 
-    def object_orientation_from_point_list(self, point_list, name):
+    def send_position_orientation_data(self, headerdata, positiondata, orientationdata, name):
+        """
+        Call to send position and orientation data for other nodes
+
+        Args:
+            headerdata: header you want to send with (frame)
+            positiondata: [x, y, z] floats
+            orientationdata: [x, y, z, w] floats
+            name: name of detected object. String
+        """
+        if orientationdata:
+            self.send_pose_message(headerdata, positiondata, orientationdata, name)
+            self.send_ObjectPosition_message(headerdata, positiondata, orientationdata, name)
+    
+    def object_orientation_from_point_list(self, point_list):
         """
         Uses known points to find object and its orientation
         
         Args:
             point_list: list of points as tuples [(x,y),(x,y)]
-            name: name of object as string
+        
+        Returns:
+            orientationdata = [x, y, z, w] \n
+            positiondata = [x, y, z]
         """
         assert isinstance(self.pointcloud_data, PointCloud2)
-        generated_list = []
+        point_list = []
         for point in point_list:
             pt_gen = point_cloud2.read_points(self.pointcloud_data, skip_nans=True, uvs=[[point[0],point[1]]])
-            generated_list.append(pt_gen) # needs testing
+            for pt in pt_gen:
+                point_list.append(pt)
         
-        pose_data, middle_point = self.pointcloud_mapper.points_to_plane(generated_list)
-        if pose_data:
-            self.send_pose_message(self.pointcloud_data.header, middle_point, pose_data, name)
-            self.send_ObjectPosition_message(self.pointcloud_data.header, middle_point, pose_data, name)
+        orientationdata, positiondata = self.pointcloud_mapper.points_to_plane(point_list)
+        return orientationdata, positiondata
 
     def object_orientation_from_poincloud(self, pointcloud_data, threshold):
         """
@@ -121,6 +153,10 @@ class ObjectDetectionNode():
         Args:
             pointcloud_data: The pointcloud data to analyze
             threshold: maximum distance of expected object dimensions as float cm.mm. Ex: if height is bigger than width input height
+
+        Returns:
+            orientationdata = [x, y, z, w]
+            positiondata = [x, y, z]
         """
         # TODO: Rethink using this function
         assert isinstance(pointcloud_data, PointCloud2)
@@ -140,68 +176,8 @@ class ObjectDetectionNode():
             if abs(point[2]) <= (threshold + closest_point):
                 object_point_list.append(point)
         
-        pose_data, middle_point = self.pointcloud_mapper.points_to_plane(object_point_list)
-
-        if pose_data:
-            self.send_pose_message(pointcloud_data.header, middle_point, pose_data, "middle_pose")
-    
-    def send_pose_message(self, headerdata, position_data, quaternion_data, name):
-        """
-        Publishes a PoseStamped as a topic under /object_detection/object_pose
-
-        Args:
-            headerdata: Headerdata to be used as a header will not be created in this function
-            position_data: A position xyz in the form [x, y, z] where xyz are floats
-            quaternion_data: A quaternion wxyz in the form [w, x, y, z]
-            name: name to be given to the point published, must not contain special characters.
-
-        Returns:
-            Topic:
-                /object_detection/object_pose/name where name is your input
-        """
-        posePub = rospy.Publisher('/object_detection/object_pose_rviz/' + name, PoseStamped, queue_size= 1)
-        p_msg = PoseStamped()
-        # Format header
-        p_msg.header = headerdata
-        p_msg.header.stamp = rospy.get_rostime()
-
-        # Build pose
-        p_msg.pose.position.x = position_data[0]
-        p_msg.pose.position.y = position_data[1]
-        p_msg.pose.position.z = position_data[2]
-        p_msg.pose.orientation.x = 1
-        p_msg.pose.orientation.y = quaternion_data[2]
-        p_msg.pose.orientation.z = 1
-        p_msg.pose.orientation.w = 1
-        posePub.publish(p_msg)
-
-    def send_ObjectPosition_message(self, headerdata, position_data, quaternion_data, name):
-        """
-        Publishes a PoseStamped as a topic under /object_detection/object_pose
-
-        Args:
-            headerdata: Headerdata to be used as a header will not be created in this function
-            position_data: A position xyz in the form [x, y, z] where xyz are floats
-            quaternion_data: A quaternion wxyz in the form [w, x, y, z]
-            name: string name to be given to the point published, must not contain special characters.
-
-        Returns:
-            Topic:
-                /object_detection/object_pose/name where name is your input
-        """
-        objposePub = rospy.Publisher('/object_detection/object_pose/' + name, ObjectPosition, queue_size= 1)
-        p_msg = ObjectPosition()
-        p_msg.objectID = name
-
-        # Build pose
-        p_msg.objectPose.pose.position.x = position_data[0]
-        p_msg.objectPose.pose.position.y = position_data[1]
-        p_msg.objectPose.pose.position.z = position_data[2]
-        p_msg.objectPose.pose.orientation.x = 1
-        p_msg.objectPose.pose.orientation.y = quaternion_data[2]
-        p_msg.objectPose.pose.orientation.z = 1
-        p_msg.objectPose.pose.orientation.w = 1
-        objposePub.publish(p_msg)
+        orientationdata, positiondata = self.pointcloud_mapper.points_to_plane(object_point_list)
+        return orientationdata, positiondata
 
     def get_pointcloud_position_of_xy_point(self, x_pixel, y_pixel):
         """
@@ -227,13 +203,16 @@ class ObjectDetectionNode():
         x, y, z = self.pointcloud_x, self.pointcloud_y, self.pointcloud_z
         return [x, y, z]
 
-    def object_orientation_from_xy_area(self, area_with_limits, name):
+    def object_orientation_from_xy_area(self, area_with_limits):
         """
         Reads the point cloud data from a given area
 
         Args:
             area_with_limits: list of data [xmin, xmax, ymin, ymax]
-            name: name of object that is seen
+
+        Returns:
+            orientationdata = [x, y, z, w]
+            positiondata = [x, y, z]
         """
         # Generates a readable version of the point cloud data
         assert isinstance(self.pointcloud_data, PointCloud2)
@@ -244,19 +223,17 @@ class ObjectDetectionNode():
         ymax = area_with_limits[3]
 
         # loops through the area data and adds points to a list
-        obj_list = []
+        point_list = []
         for x in range(xmin  -1, xmax -1):
             for y in range(ymin - 1, ymax - 1):
                 pt_gen = point_cloud2.read_points(self.pointcloud_data, skip_nans=True, uvs=[[x,y]])
                 for pt in pt_gen:
-                    obj_list.append(pt)
+                    point_list.append(pt)
 
-        pose_data, middle_point = self.pointcloud_mapper.points_to_plane(obj_list)
-        if pose_data:
-            self.send_pose_message(self.pointcloud_data.header, middle_point, pose_data, name)
-            self.send_ObjectPosition_message(self.pointcloud_data.header, middle_point, pose_data, name)
+        orientationdata, positiondata = self.pointcloud_mapper.points_to_plane(point_list)
+        return orientationdata, positiondata
 
-    def bboxSub_cb(self, data):
+    def darknet_cb(self, data):
         """
         Gets the data from the subscribed message BoundingBoxes and publishes the size estimates of a detected object, and the position of the object.
 
@@ -330,6 +307,64 @@ class ObjectDetectionNode():
         new_point.point.y = position[1]
         new_point.point.z = position[2]
         pointPub.publish(new_point)
+
+    def send_pose_message(self, headerdata, position_data, quaternion_data, name):
+        """
+        Publishes a PoseStamped as a topic under /object_detection/object_pose
+
+        Args:
+            headerdata: Headerdata to be used as a header will not be created in this function
+            position_data: A position xyz in the form [x, y, z] where xyz are floats
+            quaternion_data: A quaternion wxyz in the form [w, x, y, z]
+            name: name to be given to the point published, must not contain special characters.
+
+        Returns:
+            Topic:
+                /object_detection/object_pose/name where name is your input
+        """
+        posePub = rospy.Publisher('/object_detection/object_pose_rviz/' + name, PoseStamped, queue_size= 1)
+        p_msg = PoseStamped()
+        # Format header
+        p_msg.header = headerdata
+        p_msg.header.stamp = rospy.get_rostime()
+
+        # Build pose
+        p_msg.pose.position.x = position_data[0]
+        p_msg.pose.position.y = position_data[1]
+        p_msg.pose.position.z = position_data[2]
+        p_msg.pose.orientation.x = 1
+        p_msg.pose.orientation.y = quaternion_data[2]
+        p_msg.pose.orientation.z = 1
+        p_msg.pose.orientation.w = 1
+        posePub.publish(p_msg)
+
+    def send_ObjectPosition_message(self, headerdata, position_data, quaternion_data, name):
+        """
+        Publishes a PoseStamped as a topic under /object_detection/object_pose
+
+        Args:
+            headerdata: Headerdata to be used as a header will not be created in this function
+            position_data: A position xyz in the form [x, y, z] where xyz are floats
+            quaternion_data: A quaternion wxyz in the form [w, x, y, z]
+            name: string name to be given to the point published, must not contain special characters.
+
+        Returns:
+            Topic:
+                /object_detection/object_pose/name where name is your input
+        """
+        objposePub = rospy.Publisher('/object_detection/object_pose/' + name, ObjectPosition, queue_size= 1)
+        p_msg = ObjectPosition()
+        p_msg.objectID = name
+
+        # Build pose
+        p_msg.objectPose.pose.position.x = position_data[0]
+        p_msg.objectPose.pose.position.y = position_data[1]
+        p_msg.objectPose.pose.position.z = position_data[2]
+        p_msg.objectPose.pose.orientation.x = 1
+        p_msg.objectPose.pose.orientation.y = quaternion_data[2]
+        p_msg.objectPose.pose.orientation.z = 1
+        p_msg.objectPose.pose.orientation.w = 1
+        objposePub.publish(p_msg)
 
 
 if __name__ == '__main__':
