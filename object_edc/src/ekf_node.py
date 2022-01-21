@@ -1,17 +1,22 @@
 #!/usr/bin/env python
 
+# import debugpy
+# print("Waiting for VSCode debugger...")
+# debugpy.listen(5678)
+# debugpy.wait_for_client()
+
 ##EKF imports
 #from logging import exception
 from re import X
-from ekf_filtering.ekf.ekf_python2.gaussparams_py2 import MultiVarGaussian
-from ekf_filtering.ekf.ekf_python2.dynamicmodels_py2 import landmark_gate
-from ekf_filtering.ekf.ekf_python2.measurementmodels_py2 import NED_range_bearing
-from ekf_filtering.ekf.ekf_python2.ekf_py2 import EKF
+from ekf_python2.gaussparams_py2 import MultiVarGaussian
+from ekf_python2.dynamicmodels_py2 import landmark_gate
+from ekf_python2.measurementmodels_py2 import NED_range_bearing
+from ekf_python2.ekf_py2 import EKF
 #from importlib.metadata import distribution
 
 #ekf_node_imports
-from src.transform_to_world import transform_world_to_gate
-from src.tf_pb_bc import tf_pb_bc
+from transform_to_world import transform_world_to_gate
+from tf_pb_bc import tf_pb_bc
 
 #Math imports
 import numpy as np
@@ -62,6 +67,8 @@ class EKFNode:
 
         # ROS node init
         rospy.init_node('ekf_vision')
+        self.last_time = rospy.get_time()
+
 
         # Subscriber to gate pose and orientation #ToDo update the message type received from cv
         self.object_pose_sub = rospy.Subscriber('/object_detection/object_pose/gate', PoseStamped, self.obj_pose_callback, queue_size=1)
@@ -115,7 +122,7 @@ class EKFNode:
         odom_pose = Odometry()
         odom_pose = msg
         
-        if self.obj_pose == 0 or self.obj_pose.pose.position.x == self.obj_pose_prev.pose.position.x:
+        if self.obj_pose == 14:
             rospy.loginfo("No new object pose")
             rospy.sleep(2.)
             pass

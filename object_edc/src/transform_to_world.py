@@ -19,12 +19,12 @@ def transform_world_to_gate(odom, obj_pose, pb_bc, euler_bc): #msg=Odometry, obj
     drone_orientation_euler = np.array(euler_from_quaternion(odom_explicit_quat))
 
     #Getting rotation matrices
-    #Rot_bc = euler2Rot_wb(euler_bc)
-    #Rot_wb = euler2Rot_wb(drone_orientation_euler)
+    Rot_bc = euler2Rot_wb(euler_bc)
+    Rot_wb = euler2Rot_wb(drone_orientation_euler)
 
-    Rot_bc = R.from_euler(euler_bc)
-    Rot_wb = R.from_euler(drone_orientation_euler)
-    Rot_wc = np.dot(Rot_wb, Rot_bc) #Rot_wb @ Rot_bc
+    # Rot_bc = R.from_euler(euler_bc)
+    # Rot_wb = R.from_euler(drone_orientation_euler)
+    Rot_wc = np.matmul(Rot_wb, Rot_bc) #Rot_wb @ Rot_bc
 
 
     #Camera world vector
