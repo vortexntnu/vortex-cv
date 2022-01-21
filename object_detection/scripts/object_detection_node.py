@@ -27,7 +27,7 @@ class ObjectDetectionNode():
 
     def __init__(self):
         rospy.init_node('object_detection_node')
-        self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.bboxSub_cb)
+        self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.darknet_cb)
         # self.CVbboxSub = rospy.Subscriber('/gate_detection/BoundingBox', BoundingBox, self.feature_bbox_cb)
         # self.lim_pointcloudPub = rospy.Publisher('/object_detection/pointcloud_limited_to_bbox',PointCloud2, queue_size=1) 
         self.feat_detSub = rospy.Subscriber('/feature_detection/object_points', PointArray, self.feat_det_cb)
@@ -62,15 +62,6 @@ class ObjectDetectionNode():
         orientationdata, positiondata = self.object_orientation_from_point_list(point_list, objectID)
         self.send_position_orientation_data(headerdata, positiondata, orientationdata, objectID)
 
-    
-    def feature_bbox_cb(self, data):
-        """
-        Args:
-            data: bbox msg data
-        """
-        bounding_box = data
-        self.republish_pointcloud_from_bbox(bounding_box)
-
     def pointcloud_camera_cb(self, msg_data):
         """
         Stores message from a PointCloud2 message into a class variable
@@ -82,6 +73,14 @@ class ObjectDetectionNode():
             class variable: self.pointcloud_data
         """
         self.pointcloud_data = msg_data
+
+    # def feature_bbox_cb(self, data):
+    #     """
+    #     Args:
+    #         data: bbox msg data
+    #     """
+    #     bounding_box = data
+    #     self.republish_pointcloud_from_bbox(bounding_box)
 
     # def republish_pointcloud_from_bbox(self, bounding_box):
     #     """
