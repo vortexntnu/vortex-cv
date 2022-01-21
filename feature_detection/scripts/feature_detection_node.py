@@ -9,7 +9,7 @@ import rospy
 
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float32, Empty
-from cv_msgs.msg import BBox
+from cv_msgs.msg import Point2, PointArray
 from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
 
 from cv_bridge import CvBridge, CvBridgeError
@@ -45,7 +45,7 @@ class FeatureDetectionNode():
         self.BBoxPub                = rospy.Publisher('/feature_detection/bbox_image', Image, queue_size= 1)
         
         self.BBoxPointsPub          = rospy.Publisher('/feature_detection/detection_bbox', BoundingBoxes, queue_size= 1)
-        # self.RectPointsPub          = rospy.Publisher('/feature_detection/object_points', SOMETOPIC, queue_size= 1)
+        self.RectPointsPub          = rospy.Publisher('/feature_detection/object_points', PointArray, queue_size= 1)
 
         self.timerPub               = rospy.Publisher('/feature_detection/fps_timer', Float32, queue_size= 1)
 
@@ -101,8 +101,8 @@ class FeatureDetectionNode():
         msgified_img = self.bridge.cv2_to_imgmsg(image, encoding=msg_encoding)
         publisher.publish(msgified_img)
     
-    def build_bounding_boxes_msg(self, bbox_points):
-        bbox = BoundingBox
+    def build_bounding_boxes_msg(self, bbox_points, obj_class):
+        bbox = BoundingBox()
         bbox.probability = 69.69
         bbox.xmin = bbox_points[0]
         bbox.ymin = bbox_points[1]
@@ -110,23 +110,42 @@ class FeatureDetectionNode():
         bbox.ymax = bbox_points[3]
         bbox.z = 100000.0
         bbox.id = 0
-        bbox.Class = "gate"
+        bbox.Class = obj_class
 
-        new_bbox_points_msg = BoundingBoxes
-        new_bbox_points_msg.header.stamp = rospy.get_rostime
-        new_bbox_points_msg.header.frame = "zed_left_optical_camera_sensor"
+        new_bbox_points_msg = BoundingBoxes()
+        new_bbox_points_msg.header.stamp = rospy.get_rostime()
+        new_bbox_points_msg.header.frame_id = "zed_left_optical_camera_sensor"
         new_bbox_points_msg.bounding_boxes.append(bbox)
 
         return new_bbox_points_msg
+    
+    def build_point_array_msg(self, point_array, obj_class, image_width, image_height):
+        pt_arr_msg = PointArray()
+        # py_pt_arr = []
+        for pt in point_array:
+            pt2_msg = Point2
+            pt2_msg.x = pt[0]
+            pt2_msg.y = pt[1]
+            pt_arr_msg.point_array.append(pt2_msg)
+        pt_arr_msg.header.stamp = rospy.get_rostime()
+        pt_arr_msg.header.frame_id = "zed_left_optical_camera_sensor"
+        pt_arr_msg.Class = obj_class
+        pt_arr_msg.width = image_width
+        pt_arr_msg.height = image_height
+        
+        return pt_arr_msg
 
     def spin(self):
         while not rospy.is_shutdown():            
             if self.cv_image is not None:
                 try:
                     start = timer() # Start function timer.
-                    
-                    bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, "SOMETHING", self.hsv_params, self.noise_rm_params)
+                    obj_class = "UNKNOWN"
 
+                    bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, "SOMETHING", self.hsv_params, self.noise_rm_params)
+                    pt_arr_msg = self.build_point_array_msg(points_in_rects, obj_class, self.image_shape[0], self.image_shape[1])
+                    self.RectPointsPub.publish(pt_arr_msg)
+                    
                     self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_validation_img)
                     self.cv_image_publisher(self.noiseRmPub, self.feat_detection.nr_img, msg_encoding="mono8")
                     self.cv_image_publisher(self.i2rcpPub, self.feat_detection.i2rcp_image_blank)
@@ -135,9 +154,15 @@ class FeatureDetectionNode():
                     self.cv_image_publisher(self.BBoxPub, self.feat_detection.bbox_img)
                     self.cv_image_publisher(self.pointAreasPub, self.feat_detection.pointed_rects_img)
 
-                    # if bbox_points:
-                    #     bboxes_msg = self.build_bounding_boxes_msg(bbox_points)
-                    #     self.BBoxPointsPub.publish(bboxes_msg)
+                    if bbox_points:
+                        bboxes_msg = self.build_bounding_boxes_msg(bbox_points, obj_class)
+                        self.BBoxPointsPub.publish(bboxes_msg)
+                    
+                        self.prev_bboxes_msg = bboxes_msg
+                    
+                    else:
+                        rospy.logwarn("Bounding Box wasnt found... keep on spinning...")
+                        self.BBoxPointsPub.publish(self.prev_bboxes_msg)
 
                     end = timer() # Stop function timer.
                     timediff = (end - start)
@@ -145,8 +170,8 @@ class FeatureDetectionNode():
                     self.timerPub.publish(fps)
                 
                 except Exception, e:
-                    print(traceback.format_exc())
-                    print(rospy.get_rostime())
+                    rospy.logwarn(traceback.format_exc())
+                    rospy.logwarn(rospy.get_rostime())
 
             self.ros_rate.sleep()
 
