@@ -4,7 +4,7 @@ from numpy import ndarray
 import scipy.linalg as la
 from gaussparams_py2 import MultiVarGaussian
 from config import DEBUG
-from typing import Sequence
+#from typing import Sequence
 
 
 def get_NIS(z_pred_gauss, z):

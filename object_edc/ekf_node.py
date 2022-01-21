@@ -16,6 +16,7 @@ from src.tf_pb_bc import tf_pb_bc
 #Math imports
 import numpy as np
 import math
+from scipy.spatial.transform import Rotation
 
 #ROS imports
 import rospy
@@ -34,10 +35,17 @@ class EKFNode:
         ##################
 
         # Geometric parameters
+        self.rad2deg = 180 / np.pi
+        self.deg2rad = np.pi / 180
+
         self.gate_prior = [27 , 0, 0] # z, roll, pitch of gate
+
+        self.pb_bc = [0.3175, 0, - 0.10]
+        self.euler_bc = [self.deg2rad*0.5, self.deg2rad*17.3, 0]
+        
         # Tuning parameters
         self.sigma_a = np.array([0.5, 0.5, 0.5, 0.5])
-        self.sigma_z = np.array([0.5, 0.5, 0.5, 0.5])
+        self.sigma_z = np.array([0.05, 0.05, 0.05, 0.05])
 
         # Making gate model object
         self.gate_model = landmark_gate(self.sigma_a)
@@ -67,7 +75,7 @@ class EKFNode:
         self.gate_pose_pub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
 
         #Constant vector and rotation between body and camera
-        self.pb_bc, self.euler_bc = tf_pb_bc()
+        #self.pb_bc, self.euler_bc = tf_pb_bc()
 
 
     def get_Ts(self):

@@ -4,6 +4,7 @@ import numpy as np
 import math
 import rospy
 from tf.transformations import euler_from_quaternion
+from scipy.spatial.transform import Rotation as R
 
 def transform_world_to_gate(odom, obj_pose, pb_bc, euler_bc): #msg=Odometry, obj_pose=ObjectPosition, pb_bc=[x,y,z], euler_bc=[x,y,z]
     
@@ -18,9 +19,13 @@ def transform_world_to_gate(odom, obj_pose, pb_bc, euler_bc): #msg=Odometry, obj
     drone_orientation_euler = np.array(euler_from_quaternion(odom_explicit_quat))
 
     #Getting rotation matrices
-    Rot_bc = euler2Rot_wb(euler_bc)
-    Rot_wb = euler2Rot_wb(drone_orientation_euler)
+    #Rot_bc = euler2Rot_wb(euler_bc)
+    #Rot_wb = euler2Rot_wb(drone_orientation_euler)
+
+    Rot_bc = R.from_euler(euler_bc)
+    Rot_wb = R.from_euler(drone_orientation_euler)
     Rot_wc = np.dot(Rot_wb, Rot_bc) #Rot_wb @ Rot_bc
+
 
     #Camera world vector
     pw_wc = pw_wb + np.dot(Rot_wb, pb_bc) #Rot_wb @ self.pb_bc
