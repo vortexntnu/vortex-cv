@@ -6,6 +6,7 @@
 # debugpy.wait_for_client()
 
 import rospy
+import rospkg
 
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float32, Empty, String
@@ -21,7 +22,7 @@ import traceback
 
 # feature detection library
 from feature_detection import FeatureDetection
-
+from read_yaml_config import read_yaml_file
 
 class FeatureDetectionNode():
     """Handles tasks related to feature detection
@@ -29,6 +30,11 @@ class FeatureDetectionNode():
 
     def __init__(self, image_topic):
         rospy.init_node('feature_detection_node')
+        self.rospack = rospkg.RosPack()
+        
+        feat_det_pkg_path = self.rospack.get_path('feature_detection')
+        self.gate_cfg_path = feat_det_pkg_path + "/object_cfgs/gate_2.yaml"
+        self.pole_cfg_path = feat_det_pkg_path + "/object_cfgs/pole_cfg.yaml"
 
         self.ros_rate = rospy.Rate(60.0)
 
@@ -59,6 +65,7 @@ class FeatureDetectionNode():
         self.fsm_state = "UNKNOWN"
         self.prev_fsm_state = "UNKNOWN" # Not used rn
         self.states_obj_dict = {"gate_search": 'gate', "pole_search": 'pole'}
+        self.states_cfg_dict = {"gate_search": self.gate_cfg_path, "pole_search": self.pole_cfg_path}
 
         # Canny params
         self.canny_threshold1 = 100
@@ -146,7 +153,7 @@ class FeatureDetectionNode():
             if self.cv_image is not None:
                 try:
                     start = timer() # Start function timer.
-                    
+
                     bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, self.current_object, self.hsv_params, self.noise_rm_params)
                     pt_arr_msg = self.build_point_array_msg(points_in_rects, self.current_object, self.image_shape[0], self.image_shape[1])
                     self.RectPointsPub.publish(pt_arr_msg)
@@ -191,6 +198,32 @@ class FeatureDetectionNode():
             self.fsm_state = state_msg.data
             self.current_object = self.states_obj_dict[self.fsm_state]
 
+            config_path = self.states_cfg_dict[self.fsm_state]
+            self.load_obj_config(config_path)
+
+            rospy.loginfo("Now detecting: %s", self.current_object)
+
+            self.feat_detection.points_processing_reset()
+    
+    def load_obj_config(self, config_path):
+        params = read_yaml_file(config_path)
+
+        self.hsv_params[0] = params['hsv_hue_min']
+        self.hsv_params[1] = params['hsv_hue_max']
+        self.hsv_params[2] = params['hsv_sat_min']
+        self.hsv_params[3] = params['hsv_sat_max']
+        self.hsv_params[4] = params['hsv_val_min']
+        self.hsv_params[5] = params['hsv_val_max']
+
+        self.noise_rm_params = [params["ksize1"],
+                                params["ksize2"],
+                                params["sigma"],
+                                params["blocksize"],
+                                params["C"], 
+                                params["ed_ksize"], 
+                                params["erosion_iterations"], 
+                                params["dilation_iterations"]]
+    
     def feature_detection_reset_callback(self, msg):
         self.feat_detection.points_processing_reset()
 
