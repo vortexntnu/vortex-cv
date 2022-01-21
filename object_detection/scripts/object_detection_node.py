@@ -59,7 +59,7 @@ class ObjectDetectionNode():
             point_list.append([point.x, point.y])
 
         # Calls function to find object centre and orientation
-        orientationdata, positiondata = self.object_orientation_from_point_list(point_list, objectID)
+        orientationdata, positiondata = self.object_orientation_from_point_list(point_list)
         self.send_position_orientation_data(headerdata, positiondata, orientationdata, objectID)
 
     def pointcloud_camera_cb(self, msg_data):
@@ -73,6 +73,8 @@ class ObjectDetectionNode():
             class variable: self.pointcloud_data
         """
         self.pointcloud_data = msg_data
+        orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_point_list([(100,132),(99,128),(107,137),(96,130),(105,133)],self.pointcloud_data)
+        self.send_position_orientation_data(self.pointcloud_data.header, positiondata, orientationdata, "objectID")
 
     # def feature_bbox_cb(self, data):
     #     """
@@ -124,114 +126,6 @@ class ObjectDetectionNode():
         if orientationdata:
             self.send_pose_message(headerdata, positiondata, orientationdata, name)
             self.send_ObjectPosition_message(headerdata, positiondata, orientationdata, name)
-    
-    def object_orientation_from_point_list(self, point_list):
-        """
-        Uses known points to find object and its orientation
-        
-        Args:
-            point_list: list of points as tuples [(x,y),(x,y)]
-        
-        Returns:
-            orientationdata = [x, y, z, w] \n
-            positiondata = [x, y, z]
-        """
-        assert isinstance(self.pointcloud_data, PointCloud2)
-        point_list = []
-        for point in point_list:
-            pt_gen = point_cloud2.read_points(self.pointcloud_data, skip_nans=True, uvs=[[point[0],point[1]]])
-            for pt in pt_gen:
-                point_list.append(pt)
-        
-        orientationdata, positiondata = self.pointcloud_mapper.points_to_plane(point_list)
-        return orientationdata, positiondata
-
-    def object_orientation_from_poincloud(self, pointcloud_data, threshold):
-        """
-        Uses pointcloud data to find closest flat object and its orientation in regards to pointcloud_data frame
-        
-        Args:
-            pointcloud_data: The pointcloud data to analyze
-            threshold: maximum distance of expected object dimensions as float cm.mm. Ex: if height is bigger than width input height
-
-        Returns:
-            orientationdata = [x, y, z, w]
-            positiondata = [x, y, z]
-        """
-        # TODO: Rethink using this function
-        assert isinstance(pointcloud_data, PointCloud2)
-        generated_pointcloud_list = []
-        closest_point = 200.00
-        pt_gen = point_cloud2.read_points(pointcloud_data, skip_nans=True)
-        
-        for pt in pt_gen:
-            tmp_list = list(pt)
-            tmp_list = tmp_list[:3]
-            if (abs(pt[2]) < closest_point) and (abs(pt[2]) > 0.2):
-                closest_point = abs(pt[2])
-            generated_pointcloud_list.append(tmp_list)
-
-        object_point_list = []
-        for point in generated_pointcloud_list:
-            if abs(point[2]) <= (threshold + closest_point):
-                object_point_list.append(point)
-        
-        orientationdata, positiondata = self.pointcloud_mapper.points_to_plane(object_point_list)
-        return orientationdata, positiondata
-
-    def get_pointcloud_position_of_xy_point(self, x_pixel, y_pixel):
-        """
-        Reads the point cloud data from a given x, y coordinate
-
-        Args:
-            x_pixel: position in x direction of point you want clouddata from
-            y_pixel: position in y direction of point you want clouddata from
-
-        Returns:
-            Point cloud data for a point in the camera frame as list [x, y, z]
-        """
-        # Generates a readable version of the point cloud data
-        is_pointcloud = isinstance(self.pointcloud_data, PointCloud2)
-        if is_pointcloud:
-            # Reads the point cloud data at given uvs: u = x cord, v = y cord
-            pt_gen = point_cloud2.read_points(self.pointcloud_data, skip_nans=False, uvs=[[x_pixel, y_pixel]])
-            for pt in pt_gen:
-                self.pointcloud_x = pt[0]
-                self.pointcloud_y = pt[1]
-                self.pointcloud_z = pt[2]
-
-        x, y, z = self.pointcloud_x, self.pointcloud_y, self.pointcloud_z
-        return [x, y, z]
-
-    def object_orientation_from_xy_area(self, area_with_limits):
-        """
-        Reads the point cloud data from a given area
-
-        Args:
-            area_with_limits: list of data [xmin, xmax, ymin, ymax]
-
-        Returns:
-            orientationdata = [x, y, z, w]
-            positiondata = [x, y, z]
-        """
-        # Generates a readable version of the point cloud data
-        assert isinstance(self.pointcloud_data, PointCloud2)
-
-        xmin = area_with_limits[0]
-        xmax = area_with_limits[1]
-        ymin = area_with_limits[2]
-        ymax = area_with_limits[3]
-
-        # loops through the area data and adds points to a list
-        point_list = []
-        for x in range(xmin  -1, xmax -1):
-            for y in range(ymin - 1, ymax - 1):
-                pt_gen = point_cloud2.read_points(self.pointcloud_data, skip_nans=True, uvs=[[x,y]])
-                for pt in pt_gen:
-                    point_list.append(pt)
-
-        orientationdata, positiondata = self.pointcloud_mapper.points_to_plane(point_list)
-        return orientationdata, positiondata
 
     def darknet_cb(self, data):
         """
@@ -257,7 +151,8 @@ class ObjectDetectionNode():
             bbox.ymin = self.cameraframe_y - bbox.ymax # TODO: needs to be updated to automatically read ymax of camera
             bbox.ymax = self.cameraframe_y - temp_ymin
 
-            self.object_orientation_from_xy_area([bbox.xmin,bbox.xmax,bbox.ymin,bbox.ymax], bbox.Class)
+            or_data, pos_data = self.pointcloud_mapper.object_orientation_from_xy_area([bbox.xmin,bbox.xmax,bbox.ymin,bbox.ymax])
+            self.send_pointStamped_message(self.pointcloud_data.header, pos_data, "test")
 
             # Store depth measurement of boundingbox
             depth_mtr = bbox.z

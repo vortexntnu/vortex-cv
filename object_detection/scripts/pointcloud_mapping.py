@@ -3,10 +3,123 @@
 import numpy as np
 import math
 
+from sensor_msgs import point_cloud2
+from sensor_msgs.msg import PointCloud2
+
 class PointCloudMapping():
     """
     Class used for various tasks surrounding pointcloud mappng
     """
+    def object_orientation_from_xy_area(self, area_with_limits, pointcloud_data):
+        """
+        Reads the point cloud data from a given area
+
+        Args:
+            area_with_limits: list of data [xmin, xmax, ymin, ymax]
+            pointcloud_data: poiintcloud data extracted from camera
+
+        Returns:
+            orientationdata = [x, y, z, w]
+            positiondata = [x, y, z]
+        """
+        # Generates a readable version of the point cloud data
+        assert isinstance(pointcloud_data, PointCloud2)
+
+        xmin = area_with_limits[0]
+        xmax = area_with_limits[1]
+        ymin = area_with_limits[2]
+        ymax = area_with_limits[3]
+
+        # loops through the area data and adds points to a list
+        point_list = []
+        for x in range(xmin  -1, xmax -1):
+            for y in range(ymin - 1, ymax - 1):
+                pt_gen = point_cloud2.read_points(pointcloud_data, skip_nans=True, uvs=[[x,y]])
+                for pt in pt_gen:
+                    point_list.append([pt[0], pt[1], pt[2]])
+
+        orientationdata, positiondata = self.points_to_plane(point_list)
+        return orientationdata, positiondata
+
+    def get_pointcloud_position_of_xy_point(self, x_pixel, y_pixel, pointcloud_data):
+        """
+        Reads the point cloud data from a given x, y coordinate
+
+        Args:
+            x_pixel: position in x direction of point you want clouddata from
+            y_pixel: position in y direction of point you want clouddata from
+            pointcloud_data: poiintcloud data extracted from camera
+
+        Returns:
+            Point cloud data for a point in the camera frame as list [x, y, z]
+        """
+        # Generates a readable version of the point cloud data
+        is_pointcloud = isinstance(pointcloud_data, PointCloud2)
+        if is_pointcloud:
+            # Reads the point cloud data at given uvs: u = x cord, v = y cord
+            pt_gen = point_cloud2.read_points(pointcloud_data, skip_nans=False, uvs=[[x_pixel, y_pixel]])
+            for pt in pt_gen:
+                self.pointcloud_x = pt[0]
+                self.pointcloud_y = pt[1]
+                self.pointcloud_z = pt[2]
+
+        x, y, z = self.pointcloud_x, self.pointcloud_y, self.pointcloud_z
+        return [x, y, z]
+
+    def object_orientation_from_poincloud(self, pointcloud_data, threshold):
+        """
+        Uses pointcloud data to find closest flat object and its orientation in regards to pointcloud_data frame
+        
+        Args:
+            pointcloud_data: poiintcloud data extracted from camera
+            threshold: maximum distance of expected object dimensions as float cm.mm. Ex: if height is bigger than width input height
+
+        Returns:
+            orientationdata = [x, y, z, w]
+            positiondata = [x, y, z]
+        """
+        # TODO: Rethink using this function
+        assert isinstance(pointcloud_data, PointCloud2)
+        generated_pointcloud_list = []
+        closest_point = 200.00
+        pt_gen = point_cloud2.read_points(pointcloud_data, skip_nans=True)
+        for pt in pt_gen:
+            tmp_list = list(pt)
+            tmp_list = tmp_list[:3]
+            if (abs(pt[2]) < closest_point) and (abs(pt[2]) > 0.2):
+                closest_point = abs(pt[2])
+            generated_pointcloud_list.append(tmp_list)
+
+        object_point_list = []
+        for point in generated_pointcloud_list:
+            if abs(point[2]) <= (threshold + closest_point):
+                object_point_list.append(point)
+        
+        orientationdata, positiondata = self.points_to_plane(object_point_list)
+        return orientationdata, positiondata
+
+    def object_orientation_from_point_list(self, point_list, pointcloud_data):
+        """
+        Uses known points to find object and its orientation
+        
+        Args:
+            point_list: list of points as tuples [(x,y),(x,y)]
+            pointcloud_data: poiintcloud data extracted from camera
+        
+        Returns:
+            orientationdata = [x, y, z, w] \n
+            positiondata = [x, y, z]
+        """
+        assert isinstance(pointcloud_data, PointCloud2)
+        new_point_list = []
+        for point in point_list:
+            pt_gen = point_cloud2.read_points(pointcloud_data, skip_nans=True, uvs=[[point[0],point[1]]])
+            for pt in pt_gen:
+                new_point_list.append(pt)
+        
+        orientationdata, positiondata = self.points_to_plane(new_point_list)
+        return orientationdata, positiondata
+
     def points_to_plane(self, points_list):
         """
         Function will give you an estimated plane from points in a 3D plane
