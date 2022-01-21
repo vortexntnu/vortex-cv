@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 import rospy
-import ros_numpy
-import numpy as np
+# import numpy as np
+# import ros_numpy
 
 # Import msg types
 from darknet_ros_msgs.msg import BoundingBoxes, BoundingBox
@@ -28,8 +28,8 @@ class ObjectDetectionNode():
     def __init__(self):
         rospy.init_node('object_detection_node')
         self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.bboxSub_cb)
-        self.CVbboxSub = rospy.Subscriber('/gate_detection/BoundingBox', BoundingBox, self.feature_bbox_cb)
-        self.lim_pointcloudPub = rospy.Publisher('/object_detection/pointcloud_limited_to_bbox',PointCloud2, queue_size=1) 
+        # self.CVbboxSub = rospy.Subscriber('/gate_detection/BoundingBox', BoundingBox, self.feature_bbox_cb)
+        # self.lim_pointcloudPub = rospy.Publisher('/object_detection/pointcloud_limited_to_bbox',PointCloud2, queue_size=1) 
         self.feat_detSub = rospy.Subscriber('/feature_detection/object_points', PointArray, self.feat_det_cb)
         
         # Decide which pointcloud to use, this onsly works on topics described below
@@ -83,34 +83,34 @@ class ObjectDetectionNode():
         """
         self.pointcloud_data = msg_data
 
-    def republish_pointcloud_from_bbox(self, bounding_box):
-        """
-        TODO: This needs explanation
-        """
-        # get pointcloud and bounding box data
-        newest_msg = self.pointcloud_data       
-        data_from_zed = ros_numpy.numpify(newest_msg)
+    # def republish_pointcloud_from_bbox(self, bounding_box):
+    #     """
+    #     TODO: This needs explanation
+    #     """
+    #     # get pointcloud and bounding box data
+    #     newest_msg = self.pointcloud_data       
+    #     data_from_zed = ros_numpy.numpify(newest_msg)
 
-        # get limits from bounding box
-        x_min_limit = bounding_box.xmin
-        x_max_limit = bounding_box.xmax
-        y_min_limit = bounding_box.ymin
-        y_max_limit = bounding_box.ymax
+    #     # get limits from bounding box
+    #     x_min_limit = bounding_box.xmin
+    #     x_max_limit = bounding_box.xmax
+    #     y_min_limit = bounding_box.ymin
+    #     y_max_limit = bounding_box.ymax
 
-        # limiting pointcloud to bounding_box_size
-        data_from_zed_old = np.array_split(data_from_zed, [x_min_limit], axis=0)[1]
-        data_from_zed_old = np.array_split(data_from_zed_old, [x_max_limit-x_min_limit], axis=0)[0]
-        data_from_zed_old = np.array_split(data_from_zed_old, [y_min_limit], axis=1)[1]
-        data_from_zed_old = np.array_split(data_from_zed_old, [y_max_limit-y_min_limit], axis=1)[0]
+    #     # limiting pointcloud to bounding_box_size
+    #     data_from_zed_old = np.array_split(data_from_zed, [x_min_limit], axis=0)[1]
+    #     data_from_zed_old = np.array_split(data_from_zed_old, [x_max_limit-x_min_limit], axis=0)[0]
+    #     data_from_zed_old = np.array_split(data_from_zed_old, [y_min_limit], axis=1)[1]
+    #     data_from_zed_old = np.array_split(data_from_zed_old, [y_max_limit-y_min_limit], axis=1)[0]
         
-        pcd_height, pcd_width = np.shape(data_from_zed_old)
-        msg = ros_numpy.msgify(PointCloud2, data_from_zed_old)
+    #     pcd_height, pcd_width = np.shape(data_from_zed_old)
+    #     msg = ros_numpy.msgify(PointCloud2, data_from_zed_old)
 
-        msg.header = newest_msg.header
-        msg.height = pcd_height
-        msg.width = pcd_width
+    #     msg.header = newest_msg.header
+    #     msg.height = pcd_height
+    #     msg.width = pcd_width
 
-        self.lim_pointcloudPub.publish(msg)
+    #     self.lim_pointcloudPub.publish(msg)
 
     def send_position_orientation_data(self, headerdata, positiondata, orientationdata, name):
         """
