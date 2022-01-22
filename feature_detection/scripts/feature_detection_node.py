@@ -24,6 +24,8 @@ import traceback
 from feature_detection import FeatureDetection
 from read_yaml_config import read_yaml_file
 
+from time import sleep
+
 class FeatureDetectionNode():
     """Handles tasks related to feature detection
     """
@@ -134,12 +136,15 @@ class FeatureDetectionNode():
     
     def build_point_array_msg(self, point_array, obj_class, image_width, image_height):
         pt_arr_msg = PointArray()
-        # py_pt_arr = []
-        for pt in point_array:
-            pt2_msg = Point2
+
+        for pt_idx in range(len(point_array)):
+            pt = point_array[pt_idx]
+            pt2_msg = Point2()
             pt2_msg.x = pt[0]
             pt2_msg.y = pt[1]
+
             pt_arr_msg.point_array.append(pt2_msg)
+
         pt_arr_msg.header.stamp = rospy.get_rostime()
         pt_arr_msg.header.frame_id = "zed_left_optical_camera_sensor"
         pt_arr_msg.Class = obj_class
