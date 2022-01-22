@@ -122,9 +122,10 @@ class EKFNode:
         odom_pose = Odometry()
         odom_pose = msg
         
-        if self.obj_pose == 14:
-            rospy.loginfo("No new object pose")
-            rospy.sleep(2.)
+        if self.obj_pose == 0:
+            ros_rate = 2.
+            rospy.loginfo("No object pose recieved, will try again in " + str(ros_rate) + "seconds")
+            rospy.sleep(ros_rate)
             pass
         else:   
             rospy.loginfo("New obj pose")
@@ -140,19 +141,19 @@ class EKFNode:
 
             #EKF data pub
             position, pose = self.est_to_pose(x_hat)
-            pose_quaterion = quaternion_from_euler(pose)
+            pose_quaterion = quaternion_from_euler(pose[0], pose[1], pose[2])
 
 
             p = ObjectPosition() 
             #p.pose.header[]
             p.objectID = self.obj_pose.header.frame_id
-            p.pose.position.x = position[0]
-            p.pose.position.y = position[1]
-            p.pose.position.z = position[2]
-            p.pose.orientation.x = pose_quaterion[0]
-            p.pose.orientation.y = pose_quaterion[1]
-            p.pose.orientation.z = pose_quaterion[2]
-            p.pose.orientation.w = pose_quaterion[3]
+            p.objectPose.pose.position.x = position[0]
+            p.objectPose.pose.position.y = position[1]
+            p.objectPose.pose.position.z = position[2]
+            p.objectPose.pose.orientation.x = pose_quaterion[0]
+            p.objectPose.pose.orientation.y = pose_quaterion[1]
+            p.objectPose.pose.orientation.z = pose_quaterion[2]
+            p.objectPose.pose.orientation.w = pose_quaterion[3]
             rospy.loginfo("Published: %s ", p)
 
             #Publish data
