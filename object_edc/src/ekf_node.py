@@ -46,7 +46,7 @@ class EKFNode:
         self.rad2deg = 180 / np.pi
         self.deg2rad = np.pi / 180
 
-        self.gate_prior = [1 , 0, 0] # z, roll, pitch of gate
+        self.gate_prior = [0, 0] # z, roll, pitch of gate
 
         self.pb_bc = [0.3175, 0, - 0.10]
         self.euler_bc = [self.deg2rad*0.5, self.deg2rad*17.3, 0]
@@ -110,10 +110,10 @@ class EKFNode:
     def est_to_pose(self, x_hat):
         x = x_hat[0]
         y = x_hat[1]
-        z = self.gate_prior[0]
+        z = x_hat[2]
         pos = [x, y, z]
 
-        euler_angs = [self.gate_prior[1], self.gate_prior[2], x_hat[3]]
+        euler_angs = [self.gate_prior[0], self.gate_prior[1], x_hat[3]]
 
         return pos, euler_angs
 
@@ -138,6 +138,7 @@ class EKFNode:
     def obj_pose_callback(self, msg):
         self.obj_pose = PoseStamped()
         self.obj_pose = msg
+
 
     def odometry_callback(self, msg):
         odom_pose = Odometry()
