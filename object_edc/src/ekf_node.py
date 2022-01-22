@@ -8,6 +8,7 @@
 ##EKF imports
 #from logging import exception
 from re import X
+#from statistics import geometric_mean
 from ekf_python2.gaussparams_py2 import MultiVarGaussian
 from ekf_python2.dynamicmodels_py2 import landmark_gate
 from ekf_python2.measurementmodels_py2 import NED_range_bearing
@@ -26,9 +27,11 @@ from scipy.spatial.transform import Rotation
 #ROS imports
 import rospy
 from vortex_msgs.msg import ObjectPosition
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, TransformStamped
 from nav_msgs.msg import Odometry
 from tf.transformations import quaternion_from_euler
+import tf2_ros
+import tf2_py 
 
 class EKFNode:
     ## gate state: x = [p_wg, theta_wg]
@@ -43,7 +46,7 @@ class EKFNode:
         self.rad2deg = 180 / np.pi
         self.deg2rad = np.pi / 180
 
-        self.gate_prior = [27 , 0, 0] # z, roll, pitch of gate
+        self.gate_prior = [1 , 0, 0] # z, roll, pitch of gate
 
         self.pb_bc = [0.3175, 0, - 0.10]
         self.euler_bc = [self.deg2rad*0.5, self.deg2rad*17.3, 0]
@@ -114,6 +117,24 @@ class EKFNode:
 
         return pos, euler_angs
 
+    def transformbroadcast(self, parent_frame, pose):
+        p = ObjectPosition()
+        p = pose
+        br = tf2_ros.TransformBroadcaster()
+        t = TransformStamped()
+        t.header.stamp = rospy.Time.now()
+        t.header.frame_id = parent_frame
+        t.child_frame_id = "object_"+str(p.objectID)
+        t.transform.translation.x = p.objectPose.pose.position.x
+        t.transform.translation.y = p.objectPose.pose.position.y
+        t.transform.translation.z = p.objectPose.pose.position.z
+        t.transform.rotation.x = p.objectPose.pose.orientation.x
+        t.transform.rotation.y = p.objectPose.pose.orientation.y
+        t.transform.rotation.z = p.objectPose.pose.orientation.z
+        t.transform.rotation.w = p.objectPose.pose.orientation.w
+        br.sendTransform(t)
+
+
     def obj_pose_callback(self, msg):
         self.obj_pose = PoseStamped()
         self.obj_pose = msg
@@ -128,21 +149,17 @@ class EKFNode:
             rospy.sleep(ros_rate)
             pass
         else:   
-            rospy.loginfo("New obj pose")
+            rospy.loginfo("New obj pose %s", self.obj_pose)
             self.obj_pose_prev = self.obj_pose 
             pw_wc, Rot_wc, z = transform_world_to_gate(odom_pose, self.obj_pose, self.pb_bc, self.euler_bc)
-
-
 
             #Do ekf here
             gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_wc, z)
             x_hat = gauss_est.mean
 
-
             #EKF data pub
             position, pose = self.est_to_pose(x_hat)
             pose_quaterion = quaternion_from_euler(pose[0], pose[1], pose[2])
-
 
             p = ObjectPosition() 
             #p.pose.header[]
@@ -158,6 +175,8 @@ class EKFNode:
 
             #Publish data
             self.gate_pose_pub.publish(p)
+            #Transform between objects and odom
+            self.transformbroadcast("odom", p)
     
 if __name__ == '__main__':
     try:
