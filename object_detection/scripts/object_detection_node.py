@@ -56,10 +56,11 @@ class ObjectDetectionNode():
         # Generates an empty list and adds all the point from msg to it
         point_list = []
         for point in msg.point_array:
-            point_list.append((point.x, point.y))
+            point_list.append((point.y, point.x)) # TODO: change back from y, x to x, y as it is supposed to be the latter
 
         # Calls function to find object centre and orientation
-        orientationdata, positiondata = self.object_orientation_from_point_list(point_list)
+        assert isinstance(self.pointcloud_data, PointCloud2) # TODO: Figure out whether assertion can be done before calling a function or in function
+        orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_point_list(point_list, self.pointcloud_data)
         self.send_position_orientation_data(headerdata, positiondata, orientationdata, objectID)
 
     def pointcloud_camera_cb(self, msg_data):
@@ -73,6 +74,12 @@ class ObjectDetectionNode():
             class variable: self.pointcloud_data
         """
         self.pointcloud_data = msg_data
+
+        # Test
+        # point_list = [(100,122),(101,130),(99,128),(102,125)]
+        # assert isinstance(self.pointcloud_data, PointCloud2) # TODO: Figure out whether assertion can be done before calling a function or in function
+        # orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_point_list(point_list, self.pointcloud_data)
+        # self.send_position_orientation_data(self.pointcloud_data.header, positiondata, orientationdata, "objectID")
 
     # def feature_bbox_cb(self, data):
     #     """

@@ -115,7 +115,8 @@ class PointCloudMapping():
         for point in point_list:
             pt_gen = point_cloud2.read_points(pointcloud_data, skip_nans=True, uvs=[[point[0],point[1]]])
             for pt in pt_gen:
-                new_point_list.append(pt)
+                # new_point_list.append(pt)
+                new_point_list.append([pt[0], pt[1], pt[2]])
         
         orientationdata, positiondata = self.points_to_plane(new_point_list)
         return orientationdata, positiondata
