@@ -25,10 +25,7 @@ def tf_pb_bc(body, cam_front):
     pb_bc = np.array([tf_lookup_bc.transform.translation.x, tf_lookup_bc.transform.translation.y, tf_lookup_bc.transform.translation.z])
     rospy.loginfo(tf_lookup_bc.transform.rotation)
     explicit_quat = [tf_lookup_bc.transform.rotation.x, tf_lookup_bc.transform.rotation.y, tf_lookup_bc.transform.rotation.z, tf_lookup_bc.transform.rotation.w ]
-    euler_bc = np.array(euler_from_quaternion(explicit_quat))
-    #euler_bc = np.array([euler_bc_ros[0], euler_bc_ros[1], euler_bc_ros[2]])
-    print(type(euler_bc))
-    print(np.shape(euler_bc))
-    rospy.loginfo("Euler_bc %s", euler_bc)
+    euler_bc = np.array(euler_from_quaternion(explicit_quat, axes = "sxyz"))
+    rospy.loginfo("The euler angles of camera: %s", euler_bc)
 
     return pb_bc, euler_bc
