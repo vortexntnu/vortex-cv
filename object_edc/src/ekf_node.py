@@ -166,45 +166,40 @@ class EKFNode:
 
             #Gate to camera publish
             obj_pose_position = np.array([self.obj_pose.pose.position.x, self.obj_pose.pose.position.y, self.obj_pose.pose.position.z])
+
             odom_pos = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z])
+    
             n_2 = np.random.normal(0, 0.2**2, 3)
-            odom_pos = odom_pos + n_2
+            odom_pos = odom_pos #+ n_2
+            #rospy.loginfo(odom_pos)
 
             odom_explicit_quat = [msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w]
-            drone_orientation_euler = np.array(tft.euler_from_quaternion(odom_explicit_quat, axes= "sxyz"))
-            
-
+            drone_orientation_euler = np.array(tft.euler_from_quaternion(odom_explicit_quat, axes= "sxyz"))           
+            rospy.loginfo(drone_orientation_euler)
             #Rot_bc = R.from_euler('xyz', self.euler_bc)
             #Rot_wb = R.from_euler('xyz', drone_orientation_euler)  
 
-            #Rot_bc = tft.euler_matrix(self.euler_bc[0], self.euler_bc[1], self.euler_bc[2], axes = "sxyz")
-            #Rot_wb = tft.euler_matrix(drone_orientation_euler[0], drone_orientation_euler[1], drone_orientation_euler[2], axes = "sxyz")
+            Rot_bc = tft.euler_matrix(self.euler_bc[0], self.euler_bc[1], self.euler_bc[2], axes = "sxyz")
+            Rot_wb = tft.euler_matrix(drone_orientation_euler[0], drone_orientation_euler[1], drone_orientation_euler[2], axes = "sxyz")
 
-            #Rot_bc = Rot_bc[0:3, 0:3]
-            #Rot_wb = Rot_wb[0:3, 0:3]
-            tfBuffer = tf2_ros.Buffer()
-            listener = tf2_ros.TransformListener(tfBuffer)
-            tf_lookup_wc = tfBuffer.lookup_transform(self.odom, self.body, rospy.Time.now())
-            pw_wc = np.array([tf_lookup_wc.transform.translation.x, tf_lookup_wc.transform.translation.y, tf_lookup_wc.transform.translation.z])
-            Rot_wc = tft.euler_matrix(tft.euler_from_quaternion(tf_lookup_wc))
+            Rot_bc = Rot_bc[0:3, 0:3]
+            Rot_wb = Rot_wb[0:3, 0:3]
+            
+            Rot_wc = np.matmul(Rot_wb, Rot_bc)
+            bruh = tft.euler_matrix(90, 0, 0, axes= "sxyz")
+            bruh = bruh[0:3, 0:3]
 
-            #rospy.loginfo("What is matrix %s", Rot_wb[0:3, 0:3])
-            #rospy.loginfo("What is this: %s", self.euler_bc[0])
-            #rospy.loginfo("What is this: %s", self.euler_bc[1])
-            #rospy.loginfo("What is this: %s", self.euler_bc[2])
-            #rospy.loginfo("Dimensions of the rotation matrices: %s", np.shape(Rot_bc))
-            #rospy.loginfo("Dimensions of the rotation matrices: %s", np.shape(Rot_wb))
-            pc_cg = pw_wc - obj_pose_position #ground truth, odom
-            #pc_cg = np.matmul(np.transpose(np.matmul(Rot_wb, Rot_bc)), (obj_pose_position - odom_pos - np.matmul(Rot_wb, self.pb_bc)))
+            pw_wc = odom_pos + np.matmul(Rot_wb, self.pb_bc)
+            rospy.loginfo(self.pb_bc)
+            rospy.loginfo(np.matmul(Rot_wb, self.pb_bc))
+
+            #pc_cg = pw_wc - obj_pose_position #ground truth, odom
+
+            pc_cg = np.matmul(np.transpose(Rot_wc), (obj_pose_position - odom_pos - np.matmul(Rot_wb, self.pb_bc)))
             gamma_wc = 1
             z = np.matmul(Rot_wc[0:3, 0:3], pc_cg)
             z = np.append(z, gamma_wc)
-            #rospy.loginfo("#########################")
-            #rospy.loginfo("obj_pose_position %s", obj_pose_position)
-            #rospy.loginfo("odom_pos %s", odom_pos)
-            #rospy.loginfo("self.pb_bc %s", self.pb_bc)
-            #rospy.loginfo("Camera_gate %s", pc_cg)
-    
+
             self.obj_pose_prev = self.obj_pose 
             #pw_wc, Rot_wc, z, Rot_wbw, Rot_bcw = transform_world_to_gate(odom_pose, pc_cg, self.pb_bc, self.euler_bc)
 
@@ -215,6 +210,8 @@ class EKFNode:
             #EKF data pub
             ekf_position, ekf_pose = self.est_to_pose(x_hat)
             ekf_pose_quaterion = tft.quaternion_from_euler(ekf_pose[0], ekf_pose[1], ekf_pose[2])
+
+            #ekf_position = np.matmul(bruh, ekf_position)
 
             p = ObjectPosition() 
             #p.pose.header[]
