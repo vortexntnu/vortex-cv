@@ -7,7 +7,6 @@ from tf.transformations import euler_from_quaternion
 from scipy.spatial.transform import Rotation as R
 
 def transform_world_to_gate(odom, obj_pose, pb_bc, euler_bc): #msg=Odometry, obj_pose=ObjectPosition, pb_bc=[x,y,z], euler_bc=[x,y,z]
-    
     ## TODO project the 3D point to the plane of the camera. Right now we just assume 2D vector
 
     #Gate
@@ -21,12 +20,9 @@ def transform_world_to_gate(odom, obj_pose, pb_bc, euler_bc): #msg=Odometry, obj
     drone_orientation_euler = np.array(euler_from_quaternion(odom_explicit_quat))
 
     #Getting rotation matrices
-    Rot_bc = R.from_euler(euler_bc)
-    Rot_wb = R.from_euler(drone_orientation_euler)
-
-    # Rot_bc = R.from_euler(euler_bc)
-    # Rot_wb = R.from_euler(drone_orientation_euler)
-    Rot_wc = np.matmul(Rot_wb, Rot_bc) #Rot_wb @ Rot_bc
+    Rot_bc = R.from_euler('zyx', euler_bc)
+    Rot_wb = R.from_euler('zyx', drone_orientation_euler)
+    Rot_wc = Rot_wb * Rot_bc #Rot_wb @ Rot_bc
 
     # TODO Rewrite this next week
     #vc_diff = gatec_v2 - gatec_v1
@@ -35,22 +31,16 @@ def transform_world_to_gate(odom, obj_pose, pb_bc, euler_bc): #msg=Odometry, obj
     #gamma = np.arctan2(vw_diff[0], vw_diff[1])
 
     #Camera world vector
-    pw_wc = pw_wb + np.matmul(Rot_wb, pb_bc) #Rot_wb @ self.pb_bc
+    pw_wc = pw_wb + Rot_wb.apply(pb_bc) #Rot_wb @ self.pb_bc
 
     #Angle
     gamma_gc = get_measurement_angle(gate_explicit_quat)
     gamma_wc = gamma_gc + np.pi + drone_orientation_euler[2] # nonsense
 
-    z = np.matmul(Rot_wc, pc_cg)
+    z = Rot_wc.apply(pc_cg)
     z = np.append(z, gamma_wc)
-    #rospy.loginfo("pw_wc")
-    #rospy.loginfo(pw_wc)
-    #rospy.loginfo("gamma_gc")
-    #rospy.loginfo(gamma_gc)
-    #rospy.loginfo("gamma_wc")
-    #rospy.loginfo(gamma_wc)
 
-    return pw_wc, Rot_wc, z
+    return pw_wc, Rot_wc.as_dcm(), z, Rot_wb.as_dcm(), Rot_bc.as_dcm()
 
 def get_measurement_angle(quaternion):
     euler_p = euler_from_quaternion(quaternion)

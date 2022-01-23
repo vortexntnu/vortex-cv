@@ -50,6 +50,8 @@ class EKFNode:
 
         self.pb_bc = [0.3175, 0, - 0.10]
         self.euler_bc = [self.deg2rad*0.5, self.deg2rad*17.3, 0]
+
+        self.gate_truth = []
         
         # Tuning parameters
         self.sigma_a = np.array([0.5, 0.5, 0.5, 0.5])
@@ -85,7 +87,13 @@ class EKFNode:
         self.gate_pose_pub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
 
         #Constant vector and rotation between body and camera
-        #self.pb_bc, self.euler_bc = tf_pb_bc()
+        body = 'auv/base_link' 
+        cam_front = 'auv/camerafront_link'
+        self.pb_bc = 0
+        self.pb_bc, self.euler_bc = tf_pb_bc(body, cam_front)
+
+        #Subscriber to gate truth
+        self.object_pose_truth_sub = rospy.Subscriber('/object_detection/object_pose/gate_truth', PoseStamped, self.obj_pose_truth_callback, queue_size=1)
 
 
     def get_Ts(self):
@@ -139,6 +147,9 @@ class EKFNode:
         self.obj_pose = PoseStamped()
         self.obj_pose = msg
 
+    def obj_pose_truth_callback(self, msg):
+        self.obj_pose_truth = PoseStamped()
+        self.obj_pose_truth = msg
 
     def odometry_callback(self, msg):
         odom_pose = Odometry()
@@ -150,35 +161,47 @@ class EKFNode:
             rospy.sleep(ros_rate)
             pass
         else:   
-            rospy.loginfo("New obj pose %s", self.obj_pose)
+            rospy.loginfo("New obj pose \n")
+            rospy.sleep(2.)
             self.obj_pose_prev = self.obj_pose 
-            pw_wc, Rot_wc, z = transform_world_to_gate(odom_pose, self.obj_pose, self.pb_bc, self.euler_bc)
+            pw_wc, Rot_wc, z, Rot_wb, Rot_bc = transform_world_to_gate(odom_pose, self.obj_pose, self.pb_bc, self.euler_bc)
 
             #Do ekf here
             gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_wc, z)
             x_hat = gauss_est.mean
 
             #EKF data pub
-            position, pose = self.est_to_pose(x_hat)
-            pose_quaterion = quaternion_from_euler(pose[0], pose[1], pose[2])
+            ekf_position, ekf_pose = self.est_to_pose(x_hat)
+            ekf_pose_quaterion = quaternion_from_euler(ekf_pose[0], ekf_pose[1], ekf_pose[2])
 
             p = ObjectPosition() 
             #p.pose.header[]
             p.objectID = self.obj_pose.header.frame_id
-            p.objectPose.pose.position.x = position[0]
-            p.objectPose.pose.position.y = position[1]
-            p.objectPose.pose.position.z = position[2]
-            p.objectPose.pose.orientation.x = pose_quaterion[0]
-            p.objectPose.pose.orientation.y = pose_quaterion[1]
-            p.objectPose.pose.orientation.z = pose_quaterion[2]
-            p.objectPose.pose.orientation.w = pose_quaterion[3]
-            rospy.loginfo("Published: %s ", p)
+            p.objectPose.pose.position.x = ekf_position[0]
+            p.objectPose.pose.position.y = ekf_position[1]
+            p.objectPose.pose.position.z = ekf_position[2]
+            p.objectPose.pose.orientation.x = ekf_pose_quaterion[0]
+            p.objectPose.pose.orientation.y = ekf_pose_quaterion[1]
+            p.objectPose.pose.orientation.z = ekf_pose_quaterion[2]
+            p.objectPose.pose.orientation.w = ekf_pose_quaterion[3]
+            #rospy.loginfo("Published: %s ", p)
 
             #Publish data
             self.gate_pose_pub.publish(p)
             #Transform between objects and odom
-            self.transformbroadcast("odom", p)
+            self.transformbroadcast("auv/odom", p)
     
+
+            #Gate to camera publish
+            obj_pose_position = np.array([self.obj_pose.pose.position.x, self.obj_pose.pose.position.y, self.obj_pose.pose.position.z])
+            odom = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z])
+            n_2 = np.random.normal(0, 0.2**2, 3)
+            odom = odom + n_2
+            pc_cg = np.matmul(np.transpose(np.matmul(Rot_wb, Rot_bc)),(obj_pose_position - odom)) #ground truth, odom
+            rospy.loginfo("#########################")
+            rospy.loginfo("Camera_gate \n %s", pc_cg)
+
+
 if __name__ == '__main__':
     try:
         ekf_vision = EKFNode()
