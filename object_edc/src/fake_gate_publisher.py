@@ -9,7 +9,7 @@ from nav_msgs.msg import Odometry
 class PublishNode():
     def __init__(self):
         rospy.init_node("fake_publisher") #,  log_level=rospy.DEBUG
-        self.sleep_rate = 2.
+        self.sleep_rate = 1.
         
         self.pub = rospy.Publisher('/object_detection/object_pose/gate', PoseStamped, queue_size=1)
         self.pub_true = rospy.Publisher('/object_detection/object_pose/gate_truth', PoseStamped, queue_size=1)

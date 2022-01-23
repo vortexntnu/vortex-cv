@@ -23,6 +23,7 @@ from tf_pb_bc import tf_pb_bc
 import numpy as np
 import math
 from scipy.spatial.transform import Rotation
+from scipy.spatial.transform import Rotation as R
 
 #ROS imports
 import rospy
@@ -30,6 +31,7 @@ from vortex_msgs.msg import ObjectPosition
 from geometry_msgs.msg import PoseStamped, TransformStamped
 from nav_msgs.msg import Odometry
 from tf.transformations import quaternion_from_euler
+from tf.transformations import euler_from_quaternion
 import tf2_ros
 import tf2_py 
 
@@ -54,8 +56,8 @@ class EKFNode:
         self.gate_truth = []
         
         # Tuning parameters
-        self.sigma_a = np.array([0.5, 0.5, 0.5, 0.5])
-        self.sigma_z = np.array([0.05, 0.05, 0.05, 0.05])
+        self.sigma_a = np.array([0.05, 0.05, 0.05, 0.05])
+        self.sigma_z = np.array([0.5, 0.5, 0.5, 0.5])
 
         # Making gate model object
         self.gate_model = landmark_gate(self.sigma_a)
@@ -93,7 +95,7 @@ class EKFNode:
         self.pb_bc, self.euler_bc = tf_pb_bc(body, cam_front)
 
         #Subscriber to gate truth
-        self.object_pose_truth_sub = rospy.Subscriber('/object_detection/object_pose/gate_truth', PoseStamped, self.obj_pose_truth_callback, queue_size=1)
+        #self.object_pose_truth_sub = rospy.Subscriber('/object_detection/object_pose/gate_truth', PoseStamped, self.obj_pose_truth_callback, queue_size=1)
 
 
     def get_Ts(self):
@@ -161,10 +163,29 @@ class EKFNode:
             rospy.sleep(ros_rate)
             pass
         else:   
-            rospy.loginfo("New obj pose \n")
-            rospy.sleep(2.)
+
+            #Gate to camera publish
+            obj_pose_position = np.array([self.obj_pose.pose.position.x, self.obj_pose.pose.position.y, self.obj_pose.pose.position.z])
+            odom = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z])
+            n_2 = np.random.normal(0, 0.2**2, 3)
+            odom = odom + n_2
+
+            odom_explicit_quat = [msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w]
+            drone_orientation_euler = np.array(euler_from_quaternion(odom_explicit_quat))
+
+
+            Rot_bc = R.from_euler('zyx', self.euler_bc)
+            Rot_wb = R.from_euler('zyx', drone_orientation_euler)
+
+            pc_cg = np.matmul(np.transpose(np.matmul(Rot_wb.as_dcm(), Rot_bc.as_dcm())),(obj_pose_position - odom)) #ground truth, odom
+            #rospy.loginfo("#########################")
+            rospy.loginfo("Camera_gate \n %s", pc_cg)
+            #rospy.loginfo("New obj pose \n")
+            #rospy.sleep(2.)
+
+    
             self.obj_pose_prev = self.obj_pose 
-            pw_wc, Rot_wc, z, Rot_wb, Rot_bc = transform_world_to_gate(odom_pose, self.obj_pose, self.pb_bc, self.euler_bc)
+            pw_wc, Rot_wc, z, Rot_wb, Rot_bc = transform_world_to_gate(odom_pose, pc_cg, self.pb_bc, self.euler_bc)
 
             #Do ekf here
             gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_wc, z)
@@ -184,7 +205,7 @@ class EKFNode:
             p.objectPose.pose.orientation.y = ekf_pose_quaterion[1]
             p.objectPose.pose.orientation.z = ekf_pose_quaterion[2]
             p.objectPose.pose.orientation.w = ekf_pose_quaterion[3]
-            #rospy.loginfo("Published: %s ", p)
+            rospy.loginfo("EKF Published: %s ", p)
 
             #Publish data
             self.gate_pose_pub.publish(p)
@@ -192,14 +213,7 @@ class EKFNode:
             self.transformbroadcast("auv/odom", p)
     
 
-            #Gate to camera publish
-            obj_pose_position = np.array([self.obj_pose.pose.position.x, self.obj_pose.pose.position.y, self.obj_pose.pose.position.z])
-            odom = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z])
-            n_2 = np.random.normal(0, 0.2**2, 3)
-            odom = odom + n_2
-            pc_cg = np.matmul(np.transpose(np.matmul(Rot_wb, Rot_bc)),(obj_pose_position - odom)) #ground truth, odom
-            rospy.loginfo("#########################")
-            rospy.loginfo("Camera_gate \n %s", pc_cg)
+
 
 
 if __name__ == '__main__':

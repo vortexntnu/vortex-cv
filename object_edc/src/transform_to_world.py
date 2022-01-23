@@ -11,8 +11,10 @@ def transform_world_to_gate(odom, obj_pose, pb_bc, euler_bc): #msg=Odometry, obj
 
     #Gate
     gate = obj_pose
-    pc_cg = np.array([gate.pose.position.x, gate.pose.position.y, gate.pose.position.z])
-    gate_explicit_quat = np.array([gate.pose.orientation.x, gate.pose.orientation.y, gate.pose.orientation.z, gate.pose.orientation.w ])
+    #pc_cg = np.array([gate.pose.position.x, gate.pose.position.y, gate.pose.position.z])
+    pc_cg = gate
+    #gate_explicit_quat = np.array([gate.pose.orientation.x, gate.pose.orientation.y, gate.pose.orientation.z, gate.pose.orientation.w ])
+    gate_explicit_quat = np.array([1,0,0,0])
 
     #Odometry (world to baselink)
     pw_wb = np.array([odom.pose.pose.position.x, odom.pose.pose.position.y, odom.pose.pose.position.z])
