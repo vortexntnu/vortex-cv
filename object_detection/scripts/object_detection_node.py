@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+# import debugpy
+# print("Waiting for VSCode debugger...")
+# debugpy.listen(5678)
+# debugpy.wait_for_client()
+
 import rospy
 # import numpy as np
 # import ros_numpy
@@ -59,7 +64,8 @@ class ObjectDetectionNode():
             point_list.append([point.x, point.y])
 
         # Calls function to find object centre and orientation
-        orientationdata, positiondata = self.object_orientation_from_point_list(point_list, objectID)
+        # orientationdata, positiondata = self.object_orientation_from_point_list(point_list, objectID)
+        orientationdata, positiondata = self.object_orientation_from_point_list(point_list)
         self.send_position_orientation_data(headerdata, positiondata, orientationdata, objectID)
 
     def pointcloud_camera_cb(self, msg_data):
@@ -137,13 +143,13 @@ class ObjectDetectionNode():
             positiondata = [x, y, z]
         """
         assert isinstance(self.pointcloud_data, PointCloud2)
-        point_list = []
+        new_point_list = []
         for point in point_list:
             pt_gen = point_cloud2.read_points(self.pointcloud_data, skip_nans=True, uvs=[[point[0],point[1]]])
             for pt in pt_gen:
-                point_list.append(pt)
-        
-        orientationdata, positiondata = self.pointcloud_mapper.points_to_plane(point_list)
+                new_point_list.append(pt)
+
+        orientationdata, positiondata = self.pointcloud_mapper.points_to_plane(new_point_list)
         return orientationdata, positiondata
 
     def object_orientation_from_poincloud(self, pointcloud_data, threshold):

@@ -19,12 +19,15 @@ import dynamic_reconfigure.client
 import numpy as np
 from timeit import default_timer as timer
 import traceback
+import numpy as np
+import cv2
 
 # feature detection library
 from feature_detection import FeatureDetection
 from read_yaml_config import read_yaml_file
 
 from time import sleep
+
 
 class FeatureDetectionNode():
     """Handles tasks related to feature detection
@@ -40,7 +43,10 @@ class FeatureDetectionNode():
 
         self.ros_rate = rospy.Rate(60.0)
 
-        self.zedSub                 = rospy.Subscriber(image_topic, Image, self.camera_callback)
+        # self.zedSub                 = rospy.Subscriber(image_topic, Image, self.camera_callback)
+        self.cfdSub                 = rospy.Subscriber("/zed2/zed_node/confidence/confidence_map", Image, self.cfd_callback)
+        self.dpthSub                = rospy.Subscriber("/zed2/zed_node/depth/depth_registered", Image, self.dpth_callback)
+
         self.resetSub               = rospy.Subscriber('/feature_detection/reset', Empty, self.feature_detection_reset_callback)
         self.fsmStateSub            = rospy.Subscriber('/fsm/state', String, self.fsm_state_cb)
 
@@ -158,34 +164,21 @@ class FeatureDetectionNode():
             if self.cv_image is not None:
                 try:
                     start = timer() # Start function timer.
+                    
+                    # self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_validation_img)
+                    norm_image = cv2.normalize(self.dpth_image, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_U8C1)
+                    
+                    cfd_arr = np.array(self.cfd_image)
+                    dpth_arr = np.array(self.dpth_image)
 
-                    bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, self.current_object, self.hsv_params, self.noise_rm_params)
-                    pt_arr_msg = self.build_point_array_msg(points_in_rects, self.current_object, self.image_shape[0], self.image_shape[1])
-                    self.RectPointsPub.publish(pt_arr_msg)
-                    
-                    self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_validation_img)
-                    self.cv_image_publisher(self.noiseRmPub, self.feat_detection.nr_img, msg_encoding="mono8")
-                    self.cv_image_publisher(self.i2rcpPub, self.feat_detection.i2rcp_image_blank)
-                    self.cv_image_publisher(self.shapePub, self.feat_detection.rect_flt_img)
-                    self.cv_image_publisher(self.linesPub, self.feat_detection.line_fitting_img)
-                    self.cv_image_publisher(self.BBoxPub, self.feat_detection.bbox_img)
-                    self.cv_image_publisher(self.pointAreasPub, self.feat_detection.pointed_rects_img)
+                    fltred_arr = np.where(cfd_arr>50.0, dpth_arr, 0)
+                    fltred_arr[fltred_arr == np.nan] = 0
+                    fltred_arr[fltred_arr == np.inf] = 255
+                    fltred_arr *= 255.0/fltred_arr.max()
 
-                    if bbox_points:
-                        bboxes_msg = self.build_bounding_boxes_msg(bbox_points, self.current_object)
-                        self.BBoxPointsPub.publish(bboxes_msg)
-                    
-                        self.prev_bboxes_msg = bboxes_msg
-                    
-                    else:
-                        rospy.logwarn("Bounding Box wasnt found... keep on spinning...")
-                        self.BBoxPointsPub.publish(self.prev_bboxes_msg)
-                    
-                    end = timer() # Stop function timer.
-                    timediff = (end - start)
-                    fps = 1 / timediff # Take reciprocal of the timediff to get runs per second. 
-                    self.timerPub.publish(fps)
-                
+                    print(fltred_arr)
+
+                    self.cv_image_publisher(self.hsvCheckPub, norm_image, msg_encoding="mono8")
                 except Exception, e:
                     rospy.logwarn(traceback.format_exc())
                     rospy.logwarn(rospy.get_rostime())
@@ -197,7 +190,19 @@ class FeatureDetectionNode():
             self.cv_image = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
         except CvBridgeError, e:
             rospy.logerr("CvBridge Error: {0}".format(e))
-    
+
+    def cfd_callback(self, img_msg):
+        try:
+            self.cfd_image = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
+        except CvBridgeError, e:
+            rospy.logerr("CvBridge Error: {0}".format(e))
+
+    def dpth_callback(self, img_msg):
+        try:
+            self.dpth_image = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
+        except CvBridgeError, e:
+            rospy.logerr("CvBridge Error: {0}".format(e))
+
     def fsm_state_cb(self, state_msg):
         if state_msg.data in self.states_obj_dict:
             self.fsm_state = state_msg.data
