@@ -1,16 +1,11 @@
 <?xml version="1.0"?>
 <launch>
-
-    <node name="object_detection_node"    pkg="object_detection"     type="object_detection_node.py"    output="screen"/>
+    <!-- Pointcloud processing node -->
+    <node name="pointcloud_processing_node"    pkg="pointcloud_processing"     type="pointcloud_processing_node.py"    output="screen"/>
+    <node name="feature"    pkg="pointcloud_processing"     type="pointcloud_processing_node.py"    output="screen"/>
 
     <!-- <include file="$(find zed_wrapper)/launch/zed2.launch" /> -->
     <node pkg="tf2_ros" type="static_transform_publisher" name="detection" args="0 0 0 0 0 0 zed2_left_camera_frame detection" />
-    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="detection" args="0 0 0 0 0 0 map detection" /> -->
-
     <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="detection" args="0 0 0 0 0 0 1 map detection" /> -->
-
     <node name="test"    pkg="landmarks"     type="landmarks"    output="screen"/>
-
-
-
 </launch>
