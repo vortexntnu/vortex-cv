@@ -805,7 +805,7 @@ class ShapeProcessing(object):
         return relevant_rects
 
     def get_all_points_in_rects(
-        self, rects, return_per_rect=False, return_image=False, image=None
+        self, rects, return_per_rect=False, return_image=False, image=None, decimation_lvl=100
     ):
         # Possible for rectangle-wise point extraction in this fnc (mv np.zeros blank img to rect in rects loop)
         if return_image:
@@ -856,12 +856,15 @@ class ShapeProcessing(object):
                 blank_image = cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY)
                 tmp_px_arr = np.argwhere(tmp_blank_image == 255)
                 px_arr.append(tmp_px_arr)
+        
+        if decimation_lvl is not None:
+            decimated_px_arr = px_arr[::decimation_lvl].copy()
 
         if return_image:
             if image is not None:
-                return orig_img_cp, blank_image, px_arr
+                return orig_img_cp, blank_image, decimated_px_arr
             else:
-                return blank_image, px_arr
+                return blank_image, decimated_px_arr
         else:
             return px_arr
 
