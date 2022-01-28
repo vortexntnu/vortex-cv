@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Feature detection node -->
+    <include file="$(find feature_detection)/launch/feature_detection_node.launch"/>
+
+    <!-- Pointcloud processing node -->
+    <include file="$(find pointcloud_processing)/launch/pointcloud_processing_node.launch"/>
+
+</launch>
