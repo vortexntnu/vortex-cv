@@ -17,19 +17,19 @@ from position_estimator import PositionEstimator
 from coord_pos import CoordPosition
 from pointcloud_mapping import PointCloudMapping
 
-class ObjectDetectionNode():
+class PointcloudProcessingNode():
     """
-    Handles tasks related to object detection
+    Handles tasks related to pointcloud processing
     """
     cameraframe_x = 1280    # Param to set the expected width of cameraframe in pixels
     cameraframe_y = 720     # Param to set the expected height of cameraframe in pixels
     use_reduced_pc = False  # Param to change wether or not to use reduced pointcloud data
 
     def __init__(self):
-        rospy.init_node('object_detection_node')
+        rospy.init_node('pointcloud_processing_node')
         self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.darknet_cb)
         # self.CVbboxSub = rospy.Subscriber('/gate_detection/BoundingBox', BoundingBox, self.feature_bbox_cb)
-        # self.lim_pointcloudPub = rospy.Publisher('/object_detection/pointcloud_limited_to_bbox',PointCloud2, queue_size=1) 
+        # self.lim_pointcloudPub = rospy.Publisher('/pointcloud_processing/pointcloud_limited_to_bbox',PointCloud2, queue_size=1) 
         self.feat_detSub = rospy.Subscriber('/feature_detection/object_points', PointArray, self.feat_det_cb)
         
         # Decide which pointcloud to use, this onsly works on topics described below
@@ -39,7 +39,7 @@ class ObjectDetectionNode():
             self.pointcloudSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_camera_cb)
         
         # TODO: Needs reevaluation
-        self.estimatorPub = rospy.Publisher('/object_detection/size_estimates', BBoxes, queue_size= 1) # TODO: Needs reevaluation
+        self.estimatorPub = rospy.Publisher('/pointcloud_processing/size_estimates', BBoxes, queue_size= 1) # TODO: Needs reevaluation
         
         # Calling classes from other files
         self.position_estimator = PositionEstimator()
@@ -187,7 +187,7 @@ class ObjectDetectionNode():
 
     def send_pointStamped_message(self, headerdata, position, name):
         """
-        Publishes a PointStamped as a topic under /object_detection/object_point
+        Publishes a PointStamped as a topic under /pointcloud_processing/object_point
 
         Args:
             headerdata: Headerdata to be used as a header will not be created in this function
@@ -196,10 +196,10 @@ class ObjectDetectionNode():
 
         Returns:
             Topic:
-                /object_detection/object_point/name where name is your input
+                /pointcloud_processing/object_point/name where name is your input
         """
         # For testing
-        pointPub = rospy.Publisher('/object_detection/object_point/' + name, PointStamped, queue_size= 1)
+        pointPub = rospy.Publisher('/pointcloud_processing/object_point/' + name, PointStamped, queue_size= 1)
         new_point = PointStamped()
         new_point.header = headerdata
         new_point.header.stamp = rospy.get_rostime()
@@ -210,7 +210,7 @@ class ObjectDetectionNode():
 
     def send_pose_message(self, headerdata, position_data, quaternion_data, name):
         """
-        Publishes a PoseStamped as a topic under /object_detection/object_pose
+        Publishes a PoseStamped as a topic under /pointcloud_processing/object_pose
 
         Args:
             headerdata: Headerdata to be used as a header will not be created in this function
@@ -220,9 +220,9 @@ class ObjectDetectionNode():
 
         Returns:
             Topic:
-                /object_detection/object_pose/name where name is your input
+                /pointcloud_processing/object_pose/name where name is your input
         """
-        posePub = rospy.Publisher('/object_detection/object_pose_rviz/' + name, PoseStamped, queue_size= 1)
+        posePub = rospy.Publisher('/pointcloud_processing/object_pose_rviz/' + name, PoseStamped, queue_size= 1)
         p_msg = PoseStamped()
         # Format header
         p_msg.header = headerdata
@@ -240,7 +240,7 @@ class ObjectDetectionNode():
 
     def send_ObjectPosition_message(self, headerdata, position_data, quaternion_data, name):
         """
-        Publishes a PoseStamped as a topic under /object_detection/object_pose
+        Publishes a PoseStamped as a topic under /pointcloud_processing/object_pose
 
         Args:
             headerdata: Headerdata to be used as a header will not be created in this function
@@ -250,9 +250,9 @@ class ObjectDetectionNode():
 
         Returns:
             Topic:
-                /object_detection/object_pose/name where name is your input
+                /pointcloud_processing/object_pose/name where name is your input
         """
-        objposePub = rospy.Publisher('/object_detection/object_pose/' + name, ObjectPosition, queue_size= 1)
+        objposePub = rospy.Publisher('/pointcloud_processing/object_pose/' + name, ObjectPosition, queue_size= 1)
         p_msg = ObjectPosition()
         p_msg.objectID = name
 
@@ -268,7 +268,7 @@ class ObjectDetectionNode():
 
 
 if __name__ == '__main__':
-    node = ObjectDetectionNode()
+    node = PointcloudProcessingNode()
 
     while not rospy.is_shutdown():
         rospy.spin()
