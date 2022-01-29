@@ -107,7 +107,7 @@ class FeatureDetectionNode():
 
         self.feat_detection = FeatureDetection(self.image_shape, icp_ref_points=self.ref_points_initial_guess)
         
-        self.dynam_client = dynamic_reconfigure.client.Client("/CVOD/feature_detection_cfg", config_callback=self.dynam_reconfigure_callback)
+        self.dynam_client = dynamic_reconfigure.client.Client("/CVOD_cfg/feature_detection_cfg", config_callback=self.dynam_reconfigure_callback)
 
     def cv_image_publisher(self, publisher, image, msg_encoding="bgra8"):
         """
