@@ -22,7 +22,7 @@ class BoundingBoxProcessingNode():
     cameraframe_y = 720     # Param to set the expected height of cameraframe in pixels
 
     def __init__(self):
-        rospy.init_node('pointcloud_processing_node')
+        rospy.init_node('boundingbox_processing_node')
         self.pointcloudSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_camera_cb)
         self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.darknet_cb)
         self.CVbboxSub = rospy.Subscriber('/gate_detection/BoundingBox', BoundingBox, self.feature_bbox_cb)
