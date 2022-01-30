@@ -1,5 +1,5 @@
 # Vortex-CV
-A repository of a set of modules for computer vision (CV) used and developed by Vortex NTNU in their AUV and ASV software stacks. The modules are meant to be pipelined serially with the end goal of classifying objects and determining their poses (positions and according orientations) in 3D space. Having that in mind, the individual modules are built to be able to use individually for singular goals, e.g. shape detection, pose estimation, etc.
+A repository for a set of computer vision (CV) modules, developed by students in Vortex NTNU for use in the AUV and ASV software stacks. The modules are meant to be pipelined serially with the end goal of classifying objects and determining their poses (positions and according orientations) in 3D space. Having that in mind, the individual modules are built to be able to use individually for singular goals, e.g. shape detection, pose estimation, etc.
 
 ## Table of contents
 * [Overview](#overview)
@@ -8,7 +8,7 @@ A repository of a set of modules for computer vision (CV) used and developed by 
 
 ## Overview
 Dataflow diagram over the modules:
-![dataflow diagram](https://github.com/vortexntnu/Vortex-CV/blob/documentation/repo_readme/docs/Vortex-CV_dataflow.jpg?raw=true)
+![dataflow diagram](https://github.com/vortexntnu/Vortex-CV/blob/main/docs/Vortex-CV_dataflow.jpg?raw=true)
 
 Summary of the packages and their functionalities:
 | Folder/Package        | Contents |
