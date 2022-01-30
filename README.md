@@ -27,4 +27,27 @@ Summary of the packages and their functionalities:
 - NumPy
 - scikit-learn
 - opencv-python
+
+### Github dependencies
 - [Dynamic dynamic reconfigure python](https://github.com/pal-robotics/ddynamic_reconfigure_python)
+- [Darknet ROS ZED](https://github.com/vortexntnu/darknet_ros_zed)
+
+## Setup
+With all the dependencies installed:
+```
+$ cd ~/ && mkdir -p cv_ws/src & cd ~/cv_ws/src
+$ git clone https://github.com/pal-robotics/ddynamic_reconfigure_python
+$ git clone https://github.com/vortexntnu/darknet_ros_zed --recursive
+$ git clone https://github.com/vortexntnu/Vortex-CV
+```
+
+```
+$ cd ~/cv_ws && catkin build
+```
+In regards to any errors you get when building Darknet ROS, as well as integration with ZED2 camera, check out the object detection wiki in Vortex-AUV: 
+https://github.com/vortexntnu/Vortex-AUV/wiki/Object-detection
+
+```
+$ source devel/setup.bash
+$ roslaunch vision_launch vision_launch.launch
+```
