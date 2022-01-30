@@ -1,0 +1,2 @@
+class ConfidenceMasking():
+    def
