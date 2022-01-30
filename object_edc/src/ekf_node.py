@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-# import debugpy
-# print("Waiting for VSCode debugger...")
-# debugpy.listen(5678)
-# debugpy.wait_for_client()
+import debugpy
+print("Waiting for VSCode debugger...")
+debugpy.listen(5678)
+debugpy.wait_for_client()
 
 ##EKF imports
 #from logging import exception
@@ -68,6 +68,7 @@ class EKFNode:
         # ROS node init
         rospy.init_node('ekf_vision')
         self.last_time = rospy.get_time()
+        rospy.loginfo("EKF Vision Node initialized...")
 
 
         # Subscriber to gate pose and orientation #ToDo update the message type received from cv
