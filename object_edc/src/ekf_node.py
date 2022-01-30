@@ -78,10 +78,11 @@ class EKFNode:
         # ROS node init
         rospy.init_node('ekf_vision')
         self.last_time = rospy.get_time()
+        rospy.logdebug("Help", level='debug')
 
         #Gets transform from camera to body(base_link)
         self.odom = 'world_ned'
-        self.body = 'auv/base_link' 
+        self.body = 'base_link' 
         self.cam_front = 'auv/camerafront_link'
         self.pb_bc = 0
         self.pb_bc, self.euler_bc = tf_pb_bc(self.body, self.cam_front)
@@ -163,7 +164,7 @@ class EKFNode:
             rospy.sleep(ros_rate)
             pass
         else:   
-
+            rospy.loginfo("2nd detected")
             #Gate to camera publish
             obj_pose_position = np.array([self.obj_pose.pose.position.x, self.obj_pose.pose.position.y, self.obj_pose.pose.position.z])
 

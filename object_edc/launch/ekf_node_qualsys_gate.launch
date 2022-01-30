@@ -7,26 +7,28 @@
         bag_gate:=${HOME}/hdd/MCLAB_rosbags/day2/gate_static_qual_pose.bag
 
         This launch file provides transform 
-
+        
+     <node name="playbag_drone" pkg="rosbag" type="play" required="true" args="$(arg bag_drone)"/>
+         
     -->
+    <!--Parameters-->
+    <param name="/use_sim_time" value="true"/>
 
     <!--Input args-->
     <arg name="bag_gate" default="/media/vortex/hdd/MCLAB_rosbags/day2/gate_static_qual_pose.bag" />
     <arg name="bag_drone" default="/media/vortex/hdd/MCLAB_rosbags/day2/cv_ekf/gate_medium_sway_backwards_qual.bag" />
 
-    <!--Parameters-->
-    <param name="/use_sim_time" value="true"/>
+    <node pkg="tf2_ros" type="static_transform_publisher" name="qualsys_to_base_link" args="0 0 0 0 0 0 Body_1 auv/base_link" output="screen" />
+    <node pkg="tf2_ros" type="static_transform_publisher" name="auv_base_link_to_camera_center" args="0 0 0 0 0 0 auv/base_link auv/camerafront_link" output="screen" />
+    <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_camera_center" args="0.3175 0 0.10 0 -0.296706 -0.0087266 base_link auv/camerafront_link" output="screen" />
     
     
-    <!--<node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_camera_center" args="0.3175 0 0.10 0 -0.296706 -0.0087266 base_link zed2_camera_center" /> -->
     <!-- Remap cameraview to base -->
-    
+          
+   
     <group>
         <remap from="/qualisys/Body_1/pose" to="/object_detection/object_pose/gate"/>
-        <node name="playbag_gate" pkg="rosbag" type="play" required="true" args="$(arg bag_gate)" />
+        <node name="playbag_gate" pkg="rosbag" type="play" required="true" args="-l $(arg bag_gate)" output="screen" />
     </group>
-    
-    <node name="playbag_drone" pkg="rosbag" type="play" required="true" args="$(arg bag_drone)" />
-         
-    <include file="$(find object_edc)/launch/ekf_node.launch"/>
+
   </launch>
