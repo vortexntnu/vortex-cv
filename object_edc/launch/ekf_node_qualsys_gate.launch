@@ -1,0 +1,32 @@
+  <launch>
+    <!--
+        TODO: Inlude ZED2 transform from cam_center to left_cam_lens
+
+        This node is for running on offline data. 
+        bag_drone:=${HOME}/hdd/MCLAB_rosbags/day2/cv_ekf/gate_medium_sway_backwards_qual.bag
+        bag_gate:=${HOME}/hdd/MCLAB_rosbags/day2/gate_static_qual_pose.bag
+
+        This launch file provides transform 
+
+    -->
+
+    <!--Input args-->
+    <arg name="bag_gate" default="/media/vortex/hdd/MCLAB_rosbags/day2/gate_static_qual_pose.bag" />
+    <arg name="bag_drone" default="/media/vortex/hdd/MCLAB_rosbags/day2/cv_ekf/gate_medium_sway_backwards_qual.bag" />
+
+    <!--Parameters-->
+    <param name="/use_sim_time" value="true"/>
+    
+    
+    <!--<node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_camera_center" args="0.3175 0 0.10 0 -0.296706 -0.0087266 base_link zed2_camera_center" /> -->
+    <!-- Remap cameraview to base -->
+    
+    <group>
+        <remap from="/qualisys/Body_1/pose" to="/object_detection/object_pose/gate"/>
+        <node name="playbag_gate" pkg="rosbag" type="play" required="true" args="$(arg bag_gate)" />
+    </group>
+    
+    <node name="playbag_drone" pkg="rosbag" type="play" required="true" args="$(arg bag_drone)" />
+         
+    <include file="$(find object_edc)/launch/ekf_node.launch"/>
+  </launch>

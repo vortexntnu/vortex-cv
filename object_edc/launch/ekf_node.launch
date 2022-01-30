@@ -1,4 +1,3 @@
   <launch>
-      <node pkg="object_edc" type="ekf_node" name="ekf_node"/>
-      <node pkg="object_edc" type="fake_gate_publisher" name="fake_gate_publisher"/>
+      <node pkg="object_edc" type="ekf_node.py" name="ekf_node2" output="screen"/>
   </launch>

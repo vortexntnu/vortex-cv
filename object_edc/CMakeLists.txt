@@ -27,4 +27,6 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-
+set(ekf_node/SOURCES
+  src/ekf_node.py
+)
