@@ -10,8 +10,8 @@ from cv_bridge import CvBridge, CvBridgeError
 from confidence_masking import ConfidenceMasking
 
 
-class ConfidenceThresholdingNode():
-    rospy.init_node('confidence_thresholding_node')
+class PreprocessingNode():
+    rospy.init_node('preprocessing_node')
     def __init__(self):
         rospy.Subscriber('/zed2/zed_node/confidence/confidence_map', Image, self.confidence_cb)
         self.bridge = CvBridge()
@@ -28,7 +28,7 @@ class ConfidenceThresholdingNode():
         rospy.loginfo(maskedMap)
 
 if __name__ == '__main__':
-    node = ConfidenceThresholdingNode()
+    node = PreprocessingNode()
 
     while not rospy.is_shutdown():
         rospy.spin()
