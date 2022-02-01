@@ -25,6 +25,8 @@ class BoundingBoxProcessingNode():
         rospy.init_node('boundingbox_processing_node')
         self.pointcloudSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_camera_cb)
         self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.darknet_cb)
+
+        # subscriber and publisher for limiting pointcloud to bounding box
         self.CVbboxSub = rospy.Subscriber('/gate_detection/BoundingBox', BoundingBox, self.feature_bbox_cb)
         self.lim_pointcloudPub = rospy.Publisher('/pointcloud_processing/pointcloud_limited_to_bbox',PointCloud2, queue_size=1) 
         
@@ -57,10 +59,19 @@ class BoundingBoxProcessingNode():
 
     def republish_pointcloud_from_bbox(self, bounding_box):
         """
-        TODO: This needs explanation
+        Limits pointcloud data to size of detected bounding box and republishs this
+
+        Args: 
+            bounding_box: boundingbox message from subscription 
+
+        Returns: 
+            Published topics:
+                lim_pointcloudPub: Limited pointcloud data to the size of the bounding boxes
         """
         # get pointcloud and bounding box data
-        newest_msg = self.pointcloud_data       
+        newest_msg = self.pointcloud_data   
+
+        # converts pointcloud data into numpy array
         data_from_zed = ros_numpy.numpify(newest_msg)
 
         # get limits from bounding box
@@ -75,13 +86,14 @@ class BoundingBoxProcessingNode():
         data_from_zed_old = np.array_split(data_from_zed_old, [y_min_limit], axis=1)[1]
         data_from_zed_old = np.array_split(data_from_zed_old, [y_max_limit-y_min_limit], axis=1)[0]
         
+        # converts data back into pointcloud message 
         pcd_height, pcd_width = np.shape(data_from_zed_old)
         msg = ros_numpy.msgify(PointCloud2, data_from_zed_old)
-
         msg.header = newest_msg.header
         msg.height = pcd_height
         msg.width = pcd_width
 
+        # republish limited pointcloud
         self.lim_pointcloudPub.publish(msg)
 
     def darknet_cb(self, data):
