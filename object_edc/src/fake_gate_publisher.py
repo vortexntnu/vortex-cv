@@ -22,13 +22,13 @@ class PublishNode():
 
             gate = PoseStamped()
             gate.header.frame_id = "1"
-            gate.pose.position.x = 3 + n[0]
-            gate.pose.position.y = 1 + n[1]
-            gate.pose.position.z = -0.5 + n[2]
-            gate.pose.orientation.x = 0
-            gate.pose.orientation.y = 0
-            gate.pose.orientation.z = 0.3826834
-            gate.pose.orientation.w = 0.9238795
+            gate.pose.position.x = 2.30953173828
+            gate.pose.position.y = -0.274446075439
+            gate.pose.position.z = 1.12427368164
+            gate.pose.orientation.x = 0.0168736690947
+            gate.pose.orientation.y = 0.0740790786578
+            gate.pose.orientation.z = 0.0434789330927
+            gate.pose.orientation.w = 0.99616120054
             rospy.loginfo(gate)
             self.pub.publish(gate)
 

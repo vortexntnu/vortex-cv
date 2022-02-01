@@ -17,23 +17,21 @@ from ekf_python2.measurementmodels_py2 import NED_range_bearing
 from ekf_python2.ekf_py2 import EKF
 #from importlib.metadata import distribution
 
-#ekf_node_imports
-from transform_to_world import transform_world_to_gate
-from tf_pb_bc import tf_pb_bc
-
 #Math imports
 import numpy as np
 import math
 from scipy.spatial.transform import Rotation
 from scipy.spatial.transform import Rotation as R
 
+#ekf_node_imports
+#from transform_to_world import transform_world_to_gate
+from tf_pb_bc import tf_pb_bc
+
 #ROS imports
 import rospy
 from vortex_msgs.msg import ObjectPosition
 from geometry_msgs.msg import PoseStamped, TransformStamped
 from nav_msgs.msg import Odometry
-#from tf.transformations import quaternion_from_euler
-#from tf.transformations import euler_from_quaternion
 import tf.transformations as tft
 import tf2_ros
 import tf2_py 
@@ -43,6 +41,7 @@ class EKFNode:
     
 
     def __init__(self):
+        
         ##################
         ####EKF stuff####
         ##################
@@ -53,10 +52,9 @@ class EKFNode:
 
         self.gate_prior = [0, 0] # z, roll, pitch of gate
 
-        self.pb_bc = [0.3175, 0, - 0.10]
-        self.euler_bc = [self.deg2rad*0.5, self.deg2rad*17.3, 0]
-
-        self.gate_truth = []
+        #self.pb_bc = [0.3175, 0, - 0.10]
+        #self.euler_bc = [self.deg2rad*0.5, self.deg2rad*17.3, 0]
+        #self.gate_truth = []
         
         # Tuning parameters
         self.sigma_a = np.array([0.05, 0.05, 0.05, 0.05])
@@ -78,25 +76,33 @@ class EKFNode:
         # ROS node init
         rospy.init_node('ekf_vision')
         self.last_time = rospy.get_time()
-        rospy.logdebug("Help", level='debug')
 
-        #Gets transform from camera to body(base_link)
-        self.odom = 'world_ned'
-        self.body = 'base_link' 
-        self.cam_front = 'auv/camerafront_link'
+        now = rospy.get_rostime()
+        rospy.loginfo("Current time %i %i", now.secs, now.nsecs)
+
+        self.__tfBuffer = tf2_ros.Buffer()# Add a tf buffer length? tf2_ros.Buffer(rospy.Duration(1200.0))
+        self.__listener = tf2_ros.TransformListener(self.__tfBuffer)
+
+        #Transform names
+        self.odom = 'mocap' #'mcap' for cyb pool, TODO 'odom'? for regular
+        self.body = 'auv/base_link' 
+        self.cam = 'auv/camerafront_link'
+
         self.pb_bc = 0
-        self.pb_bc, self.euler_bc = tf_pb_bc(self.body, self.cam_front)
+        self.tf_lookup_bc = tf_pb_bc(self.odom, self.cam)
+        rospy.loginfo("Transformation between odom and camera published")
 
         # Subscriber to gate pose and orientation #ToDo update the message type received from cv
         self.object_pose_sub = rospy.Subscriber('/object_detection/object_pose/gate', PoseStamped, self.obj_pose_callback, queue_size=1)
         self.obj_pose = 0
         self.obj_pose_prev = PoseStamped()
 
-        # Subscriber to Odometry 
-        self.odometry_sub = rospy.Subscriber('/odometry/filtered', Odometry, self.odometry_callback, queue_size=1)
-
+      
         # Publisher to autonomous
         self.gate_pose_pub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
+
+        # Subscriber to Odometry 
+        #self.odometry_sub = rospy.Subscriber('/odometry/filtered', Odometry, self.odometry_callback, queue_size=1)
 
 
     def get_Ts(self):
@@ -128,10 +134,7 @@ class EKFNode:
 
         return pos, euler_angs
 
-    def transformbroadcast(self, parent_frame, pose):
-        p = ObjectPosition()
-        p = pose
-        br = tf2_ros.TransformBroadcaster()
+    def transformbroadcast(self, parent_frame, p):
         t = TransformStamped()
         t.header.stamp = rospy.Time.now()
         t.header.frame_id = parent_frame
@@ -143,95 +146,73 @@ class EKFNode:
         t.transform.rotation.y = p.objectPose.pose.orientation.y
         t.transform.rotation.z = p.objectPose.pose.orientation.z
         t.transform.rotation.w = p.objectPose.pose.orientation.w
-        br.sendTransform(t)
+        
 
+    def publish_gate(self, ekf_position, ekf_pose_quaterion):
+        p = ObjectPosition() 
+        #p.pose.header[]
+        p.objectID = "1" #self.obj_pose.header.frame_id #TODO automate for sim use and real use
+        p.objectPose.pose.position.x = ekf_position[0]
+        p.objectPose.pose.position.y = ekf_position[1]
+        p.objectPose.pose.position.z = ekf_position[2]
+        p.objectPose.pose.orientation.x = ekf_pose_quaterion[0]
+        p.objectPose.pose.orientation.y = ekf_pose_quaterion[1]
+        p.objectPose.pose.orientation.z = ekf_pose_quaterion[2]
+        p.objectPose.pose.orientation.w = ekf_pose_quaterion[3]
+        
+        self.gate_pose_pub.publish(p)
+        rospy.loginfo("gate published")
+        self.transformbroadcast("auv/odom", p) #TODO fix this tf broadcast
 
     def obj_pose_callback(self, msg):
-        self.obj_pose = PoseStamped()
-        self.obj_pose = msg
+        rospy.loginfo("Gate data recieved")
+        #Gate in world frame for cyb pool
+        obj_pose_position_w = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
+        obj_pose_pose_w = np.array([msg.pose.orientation.x,
+                                    msg.pose.orientation.y,
+                                    msg.pose.orientation.z,
+                                    msg.pose.orientation.w])
 
-    def obj_pose_truth_callback(self, msg):
-        self.obj_pose_truth = PoseStamped()
-        self.obj_pose_truth = msg
+        #Rot_bc = R.from_euler('xyz', self.euler_bc)
+        #Rot_wb = R.from_euler('xyz', drone_orientation_euler)  
 
-    def odometry_callback(self, msg):
-        odom_pose = Odometry()
-        odom_pose = msg
+        tf_lookup_wc = self.__tfBuffer.lookup_transform(self.odom, self.cam, rospy.Time(), rospy.Duration(1.0))
+        tf_lookup_wc_euler = tft.euler_from_quaternion([tf_lookup_wc.transform.rotation.x, 
+                                                       tf_lookup_wc.transform.rotation.y,
+                                                       tf_lookup_wc.transform.rotation.z,
+                                                       tf_lookup_wc.transform.rotation.w])
+
         
-        if self.obj_pose == 0:
-            ros_rate = 2.
-            rospy.loginfo("No object pose recieved, will try again in " + str(ros_rate) + "seconds")
-            rospy.sleep(ros_rate)
-            pass
-        else:   
-            rospy.loginfo("2nd detected")
-            #Gate to camera publish
-            obj_pose_position = np.array([self.obj_pose.pose.position.x, self.obj_pose.pose.position.y, self.obj_pose.pose.position.z])
+        pw_wc = np.array([tf_lookup_wc.transform.translation.x,
+                          tf_lookup_wc.transform.translation.y,
+                          tf_lookup_wc.transform.translation.z])
 
-            odom_pos = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z])
-    
-            n_2 = np.random.normal(0, 0.2**2, 3)
-            odom_pos = odom_pos #+ n_2
-            #rospy.loginfo(odom_pos)
+        Rot_wc = tft.euler_matrix(tf_lookup_wc_euler[0], 
+                                  tf_lookup_wc_euler[1],
+                                  tf_lookup_wc_euler[2], axes = "sxyz")
 
-            odom_explicit_quat = [msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w]
-            drone_orientation_euler = np.array(tft.euler_from_quaternion(odom_explicit_quat, axes= "sxyz"))           
-            rospy.loginfo(drone_orientation_euler)
-            #Rot_bc = R.from_euler('xyz', self.euler_bc)
-            #Rot_wb = R.from_euler('xyz', drone_orientation_euler)  
+        Rot_wc = Rot_wc[0:3, 0:3]
+        
+        
+        #TODO fix ekf value inputs
+        pc_cg = np.matmul(np.transpose(Rot_wc), (obj_pose_position_w - pw_wc))
+        gamma_wc = 1
+        z = np.matmul(Rot_wc[0:3, 0:3], pc_cg)
+        z = np.append(z, gamma_wc)
+        self.obj_pose_prev = self.obj_pose 
+ 
+        #Do ekf here
+        gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_wc, z)
+        x_hat = gauss_est.mean
+        #EKF data pub
+        ekf_position, ekf_pose = self.est_to_pose(x_hat)
+        ekf_pose_quaterion = tft.quaternion_from_euler(ekf_pose[0], ekf_pose[1], ekf_pose[2])
 
-            Rot_bc = tft.euler_matrix(self.euler_bc[0], self.euler_bc[1], self.euler_bc[2], axes = "sxyz")
-            Rot_wb = tft.euler_matrix(drone_orientation_euler[0], drone_orientation_euler[1], drone_orientation_euler[2], axes = "sxyz")
-
-            Rot_bc = Rot_bc[0:3, 0:3]
-            Rot_wb = Rot_wb[0:3, 0:3]
-            
-            Rot_wc = np.matmul(Rot_wb, Rot_bc)
-            bruh = tft.euler_matrix(90, 0, 0, axes= "sxyz")
-            bruh = bruh[0:3, 0:3]
-
-            pw_wc = odom_pos + np.matmul(Rot_wb, self.pb_bc)
-            rospy.loginfo(self.pb_bc)
-            rospy.loginfo(np.matmul(Rot_wb, self.pb_bc))
-
-            #pc_cg = pw_wc - obj_pose_position #ground truth, odom
-
-            pc_cg = np.matmul(np.transpose(Rot_wc), (obj_pose_position - odom_pos - np.matmul(Rot_wb, self.pb_bc)))
-            gamma_wc = 1
-            z = np.matmul(Rot_wc[0:3, 0:3], pc_cg)
-            z = np.append(z, gamma_wc)
-
-            self.obj_pose_prev = self.obj_pose 
-            #pw_wc, Rot_wc, z, Rot_wbw, Rot_bcw = transform_world_to_gate(odom_pose, pc_cg, self.pb_bc, self.euler_bc)
-
-            #Do ekf here
-            gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_wc, z)
-            x_hat = gauss_est.mean
-
-            #EKF data pub
-            ekf_position, ekf_pose = self.est_to_pose(x_hat)
-            ekf_pose_quaterion = tft.quaternion_from_euler(ekf_pose[0], ekf_pose[1], ekf_pose[2])
-
-            #ekf_position = np.matmul(bruh, ekf_position)
-
-            p = ObjectPosition() 
-            #p.pose.header[]
-            p.objectID = self.obj_pose.header.frame_id
-            p.objectPose.pose.position.x = ekf_position[0]
-            p.objectPose.pose.position.y = ekf_position[1]
-            p.objectPose.pose.position.z = ekf_position[2]
-            p.objectPose.pose.orientation.x = ekf_pose_quaterion[0]
-            p.objectPose.pose.orientation.y = ekf_pose_quaterion[1]
-            p.objectPose.pose.orientation.z = ekf_pose_quaterion[2]
-            p.objectPose.pose.orientation.w = ekf_pose_quaterion[3]
-            #rospy.loginfo("EKF Published: %s ", p)
-
-            #Publish data
-            self.gate_pose_pub.publish(p)
-            #Transform between objects and odom
-            self.transformbroadcast("auv/odom", p)
-    
-
+        
+        #Publish data
+        self.publish_gate(ekf_position, ekf_pose_quaterion)
+        
+       
 
 
 

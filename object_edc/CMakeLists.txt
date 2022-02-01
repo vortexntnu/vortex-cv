@@ -23,10 +23,6 @@ catkin_package(
 ###########
 
 include_directories(
-# include
+  src
   ${catkin_INCLUDE_DIRS}
-)
-
-set(ekf_node/SOURCES
-  src/ekf_node.py
 )
