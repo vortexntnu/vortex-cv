@@ -44,12 +44,12 @@ class PublishNode():
         while not rospy.is_shutdown():
             n = np.random.normal(0, 0.1**2, 3)
             n_2 = np.random.normal(0, 0.2**2, 3)
-
+            print(n)
             gate = PoseStamped()
             gate.header.frame_id = "gate_estimated"
-            gate.pose.position.x = 2.30953173828
-            gate.pose.position.y = -0.274446075439
-            gate.pose.position.z = 1.12427368164
+            gate.pose.position.x = 2.30953173828    
+            gate.pose.position.y = -0.274446075439  
+            gate.pose.position.z = 1.12427368164    
             gate.pose.orientation.x = 0.0168736690947
             gate.pose.orientation.y = 0.0740790786578
             gate.pose.orientation.z = 0.0434789330927

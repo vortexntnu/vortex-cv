@@ -28,6 +28,22 @@ class EKFNode:
     
 
     def __init__(self):
+        ########################################
+        ####Things you can change yourselves####
+        ########################################
+
+        #Name of the node
+        node_name = "ekf_vision"
+
+        #Frame names, e.g. "odom" and "cam"
+        self.parent_frame = 'mocap' 
+        self.child_frame = 'auv/camerafront_link'
+        self.object_frame = "gate_truth"
+        self.using_global_fake_object = 1 #Set to 1 for global coords for the object, set to 0 for child_frame-object_frame coords
+        self.n = np.random.normal(0, 0.4**2, 3) #Noise added TODO is there a better way to disturbe the filter (Ivan)
+        #Subscribe topic
+        object_topic_subscribe = "/object_detection/object_pose/gate"
+
         
         ##################
         ####EKF stuff####
@@ -54,20 +70,15 @@ class EKFNode:
         ###ROS stuff####
         ################
 
-        ###Change these to your required frames###
-        #Frame names, e.g. "odom" and "cam"
-        self.parent_frame = 'odom' 
-        self.child_frame = 'zed2_left_camera_frame'
-
         # ROS node init
-        rospy.init_node('ekf_vision')
+        rospy.init_node(node_name)
         self.last_time = rospy.get_time()
 
         now = rospy.get_rostime()
         rospy.loginfo("Current time %i %i", now.secs, now.nsecs)
 
         # Subscriber to gate pose and orientation 
-        self.object_pose_sub = rospy.Subscriber('/object_detection/object_pose/gate', PoseStamped, self.obj_pose_callback, queue_size=1)
+        self.object_pose_sub = rospy.Subscriber(object_topic_subscribe, PoseStamped, self.obj_pose_callback, queue_size=1)
       
         # Publisher to autonomous
         self.gate_pose_pub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
@@ -77,6 +88,7 @@ class EKFNode:
         self.__listener = tf2_ros.TransformListener(self.__tfBuffer)
         self.__tfBroadcaster = tf2_ros.TransformBroadcaster()
 
+        #The init will only continue if a transform between parent frame and child frame can be found
         while self.__tfBuffer.can_transform(self.parent_frame, self.child_frame, rospy.Time()) == 0:
             try:
                 rospy.loginfo("No transform between "+str(self.parent_frame) +' and ' + str(self.child_frame))
@@ -87,9 +99,9 @@ class EKFNode:
         
         rospy.loginfo("Transform between "+str(self.parent_frame) +' and ' + str(self.child_frame) + 'found.')
         
-        ##########
-        #Init end#
-        ##########
+        ############
+        ##Init end##
+        ############
 
     def get_Ts(self): # TODO inspect how well this works (Ivan)
         Ts = rospy.get_time() - self.last_time
@@ -134,7 +146,6 @@ class EKFNode:
         self.__tfBroadcaster.sendTransform(t)
 
         
-
     def publish_gate(self, object_name, ekf_position, ekf_pose_quaterion):
         p = ObjectPosition() 
         #p.pose.header[]
@@ -153,17 +164,36 @@ class EKFNode:
 
     def obj_pose_callback(self, msg):
         rospy.loginfo("Object data recieved for: %s", msg.header.frame_id)
-        #Gate in world frame for cyb pool
-        obj_pose_position_c = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
+        
+        if self.using_global_fake_object == 1:
+            tf_lookup_cg = self.__tfBuffer.lookup_transform(self.child_frame, self.object_frame, rospy.Time(), rospy.Duration(2))
+            
+            obj_pose_position_c = np.array([tf_lookup_cg.transform.translation.x + self.n[0],
+                                            tf_lookup_cg.transform.translation.y + self.n[1],
+                                            tf_lookup_cg.transform.translation.z + self.n[2]])
+            
+            obj_pose_pose_c  = np.array([tf_lookup_cg.transform.rotation.x, 
+                                         tf_lookup_cg.transform.rotation.y,
+                                         tf_lookup_cg.transform.rotation.z,
+                                         tf_lookup_cg.transform.rotation.w])
+
+        else:
+            #Gate in world frame for cyb pool
+            obj_pose_position_c = np.array([msg.pose.position.x, 
+                                            msg.pose.position.y, 
+                                            msg.pose.position.z])
+
+           
+            obj_pose_pose_c = np.array([msg.pose.orientation.x,
+                                        msg.pose.orientation.y,
+                                        msg.pose.orientation.z,
+                                        msg.pose.orientation.w])
+        
+
+
+        tf_lookup_wc = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5))
+
         #Go directly from quaternion to matrix
-        obj_pose_pose_c = np.array([msg.pose.orientation.x,
-                                    msg.pose.orientation.y,
-                                    msg.pose.orientation.z,
-                                    msg.pose.orientation.w])
- 
-
-        tf_lookup_wc = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5.0))
-
         Rot_wc = tft.quaternion_matrix([tf_lookup_wc.transform.rotation.x, 
                                         tf_lookup_wc.transform.rotation.y,
                                         tf_lookup_wc.transform.rotation.z,
