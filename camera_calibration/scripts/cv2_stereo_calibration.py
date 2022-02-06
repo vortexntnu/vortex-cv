@@ -7,15 +7,18 @@ from PIL import Image
 from sklearn.feature_extraction import image
 import time
 
-path_left = "/home/vortex/vortex_ws/src/Vortex_CV/camera_calibration/calibrationdata/calibration_data_left/left-0040.png"
-path_right = "/home/vortex/vortex_ws/src/Vortex_CV/camera_calibration/calibrationdata/calibration_data_right/right-0040.png"
+path_left = "/home/vortex/vortex_ws/src/Vortex_CV/camera_calibration/scripts/build/zed_image_L0.png"
+path_right = "/home/vortex/vortex_ws/src/Vortex_CV/camera_calibration/scripts/build/zed_image_R0.png"
 # termination criteria
 criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
-objp = np.zeros((6*8,3), np.float32)
-objp[:,:2] = np.mgrid[0:8,0:6].T.reshape(-1,2)
+ROWS = 8
+COLUMNS = 6
 
-# prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
+objp = np.zeros((COLUMNS*ROWS,3), np.float32)
+objp[:,:2] = np.mgrid[0:ROWS,0:COLUMNS].T.reshape(-1,2)
+
+# prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(COLUMNS,5,0)
 objpoints = [] # 3d point in real world space
 imgpoints_left = [] # 2d points in image plane.
 imgpoints_right = [] # 2d points in image plane.
@@ -29,13 +32,17 @@ img_right = cv.imread(path_right)
 gray_left = cv.cvtColor(img_left, cv.COLOR_BGR2GRAY)
 gray_right = cv.cvtColor(img_right, cv.COLOR_BGR2GRAY)
 
-ret, corners = cv.findChessboardCorners(img_left, (8,6), None)
+
+cv.imshow("gray_left", gray_right)
+cv.waitKey(500)
+
+ret, corners = cv.findChessboardCorners(img_left, (ROWS,COLUMNS), None)
 if ret:
     print("true")
 imgpoints_left.append(corners)
 objpoints.append(objp)
 
-ret, corners = cv.findChessboardCorners(img_right, (8,6), None)
+ret, corners = cv.findChessboardCorners(img_right, (ROWS,COLUMNS), None)
 if ret:
     print("true")
 imgpoints_right.append(corners)

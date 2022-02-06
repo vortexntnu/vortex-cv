@@ -1,3 +1,5 @@
+#define OPENCV_TRAITS_ENABLE_DEPRECATED
+
  // Standard includes
 #include <string.h>
 
