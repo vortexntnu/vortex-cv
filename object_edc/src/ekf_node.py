@@ -49,13 +49,8 @@ class EKFNode:
         # Geometric parameters
         self.rad2deg = 180 / np.pi
         self.deg2rad = np.pi / 180
-
         self.gate_prior = [0, 0] # z, roll, pitch of gate
 
-        #self.pb_bc = [0.3175, 0, - 0.10]
-        #self.euler_bc = [self.deg2rad*0.5, self.deg2rad*17.3, 0]
-        #self.gate_truth = []
-        
         # Tuning parameters
         self.sigma_a = np.array([0.05, 0.05, 0.05, 0.05])
         self.sigma_z = np.array([0.5, 0.5, 0.5, 0.5])
@@ -64,7 +59,6 @@ class EKFNode:
         self.gate_model = landmark_gate(self.sigma_a)
 
         #Gauss prev values
-
         self.x_hat0 = np.array([0, 0, 0, 0]) 
         self.P_hat0 = np.diag(self.sigma_z)
         self.prev_gauss = MultiVarGaussian(self.x_hat0, self.P_hat0)
@@ -80,29 +74,25 @@ class EKFNode:
         now = rospy.get_rostime()
         rospy.loginfo("Current time %i %i", now.secs, now.nsecs)
 
-        self.__tfBuffer = tf2_ros.Buffer()# Add a tf buffer length? tf2_ros.Buffer(rospy.Duration(1200.0))
+        self.__tfBuffer = tf2_ros.Buffer()# TODO: Add a tf buffer length? tf2_ros.Buffer(rospy.Duration(1200.0))
         self.__listener = tf2_ros.TransformListener(self.__tfBuffer)
+        self.__tfBroadcaster = tf2_ros.TransformBroadcaster()
 
         #Transform names
         self.odom = 'mocap' #'mcap' for cyb pool, TODO 'odom'? for regular
-        self.body = 'auv/base_link' 
+        self.body = 'Body_1' 
         self.cam = 'auv/camerafront_link'
-
+        
         self.pb_bc = 0
         self.tf_lookup_bc = tf_pb_bc(self.odom, self.cam)
         rospy.loginfo("Transformation between odom and camera published")
 
         # Subscriber to gate pose and orientation #ToDo update the message type received from cv
         self.object_pose_sub = rospy.Subscriber('/object_detection/object_pose/gate', PoseStamped, self.obj_pose_callback, queue_size=1)
-        self.obj_pose = 0
         self.obj_pose_prev = PoseStamped()
-
       
         # Publisher to autonomous
         self.gate_pose_pub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
-
-        # Subscriber to Odometry 
-        #self.odometry_sub = rospy.Subscriber('/odometry/filtered', Odometry, self.odometry_callback, queue_size=1)
 
 
     def get_Ts(self):
@@ -131,7 +121,6 @@ class EKFNode:
         pos = [x, y, z]
 
         euler_angs = [self.gate_prior[0], self.gate_prior[1], x_hat[3]]
-
         return pos, euler_angs
 
     def transformbroadcast(self, parent_frame, p):
@@ -146,12 +135,14 @@ class EKFNode:
         t.transform.rotation.y = p.objectPose.pose.orientation.y
         t.transform.rotation.z = p.objectPose.pose.orientation.z
         t.transform.rotation.w = p.objectPose.pose.orientation.w
+        self.__tfBroadcaster.sendTransform(t)
+
         
 
-    def publish_gate(self, ekf_position, ekf_pose_quaterion):
+    def publish_gate(self, object_name, ekf_position, ekf_pose_quaterion):
         p = ObjectPosition() 
         #p.pose.header[]
-        p.objectID = "1" #self.obj_pose.header.frame_id #TODO automate for sim use and real use
+        p.objectID = object_name
         p.objectPose.pose.position.x = ekf_position[0]
         p.objectPose.pose.position.y = ekf_position[1]
         p.objectPose.pose.position.z = ekf_position[2]
@@ -161,28 +152,25 @@ class EKFNode:
         p.objectPose.pose.orientation.w = ekf_pose_quaterion[3]
         
         self.gate_pose_pub.publish(p)
-        rospy.loginfo("gate published")
-        self.transformbroadcast("auv/odom", p) #TODO fix this tf broadcast
+        rospy.loginfo("Object published: %s", object_name)
+        self.transformbroadcast(self.odom, p)
 
     def obj_pose_callback(self, msg):
-        rospy.loginfo("Gate data recieved")
+        rospy.loginfo("Object data recieved for: %s", msg.header.frame_id)
         #Gate in world frame for cyb pool
         obj_pose_position_w = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
         obj_pose_pose_w = np.array([msg.pose.orientation.x,
                                     msg.pose.orientation.y,
                                     msg.pose.orientation.z,
                                     msg.pose.orientation.w])
+ 
 
-        #Rot_bc = R.from_euler('xyz', self.euler_bc)
-        #Rot_wb = R.from_euler('xyz', drone_orientation_euler)  
-
-        tf_lookup_wc = self.__tfBuffer.lookup_transform(self.odom, self.cam, rospy.Time(), rospy.Duration(1.0))
+        tf_lookup_wc = self.__tfBuffer.lookup_transform(self.odom, self.cam, rospy.Time(), rospy.Duration(5.0))
         tf_lookup_wc_euler = tft.euler_from_quaternion([tf_lookup_wc.transform.rotation.x, 
-                                                       tf_lookup_wc.transform.rotation.y,
-                                                       tf_lookup_wc.transform.rotation.z,
-                                                       tf_lookup_wc.transform.rotation.w])
+                                                        tf_lookup_wc.transform.rotation.y,
+                                                        tf_lookup_wc.transform.rotation.z,
+                                                        tf_lookup_wc.transform.rotation.w])
 
-        
         pw_wc = np.array([tf_lookup_wc.transform.translation.x,
                           tf_lookup_wc.transform.translation.y,
                           tf_lookup_wc.transform.translation.z])
@@ -199,7 +187,7 @@ class EKFNode:
         gamma_wc = 1
         z = np.matmul(Rot_wc[0:3, 0:3], pc_cg)
         z = np.append(z, gamma_wc)
-        self.obj_pose_prev = self.obj_pose 
+        
  
         #Do ekf here
         gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_wc, z)
@@ -208,18 +196,18 @@ class EKFNode:
         ekf_position, ekf_pose = self.est_to_pose(x_hat)
         ekf_pose_quaterion = tft.quaternion_from_euler(ekf_pose[0], ekf_pose[1], ekf_pose[2])
 
-        
         #Publish data
-        self.publish_gate(ekf_position, ekf_pose_quaterion)
-        
+        self.publish_gate(msg.header.frame_id ,ekf_position, ekf_pose_quaterion)
+        self.obj_pose_prev = msg
        
 
 
 
 if __name__ == '__main__':
-    try:
-        ekf_vision = EKFNode()
-        rospy.spin()
-    except rospy.ROSInterruptException:
-        pass
+    while not rospy.is_shutdown():     
+        try:
+            ekf_vision = EKFNode()
+            rospy.spin()
+        except rospy.ROSInterruptException:
+            pass
     
