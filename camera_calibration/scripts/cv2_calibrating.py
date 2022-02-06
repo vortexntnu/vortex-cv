@@ -115,8 +115,6 @@ def stereo_calib_cam(path_left, path_right):
     objpoints_right = [] # 3d point in real world space
     imgpoints_right = [] # 2d points in image plane.
 
-
-
     directory_left = os.fsencode(path_left)
     directory_right = os.fsencode(path_right)
 
@@ -144,9 +142,6 @@ def stereo_calib_cam(path_left, path_right):
             
                 ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(objpoints_left, imgpoints_left, gray.shape[::-1], None, None)
                 # print((ret))
-
-
-
             
             
         mean_error = 0
@@ -256,13 +251,25 @@ for i in range(len(objpoints_left)):
 print( "total error: {}".format(mean_error/len(objpoints_left)) )
 """
 
-left_params = calib_cam(path_left)
-right_params = calib_cam(path_right)
+# left_params = calib_cam(path_left)
+# right_params = calib_cam(path_right)
 
-print("\n\n")
-print(left_params)
-print("\n\n")
-print(right_params)
-cv.CALIB_FIX_INTRINSIC
+# print("\n\n")
+# print(left_params)
+# print("\n\n")
+# print(right_params)
+# cv.CALIB_FIX_INTRINSIC
 
-cv.destroyAllWindows()
+# cv.destroyAllWindows()
+
+path_right = "/home/vortex/calib_ws_2/calibrationdata/calibration_data_right/"
+directory_right = os.fsencode(path_right)
+
+paths_right = sorted(os.listdir(directory_right))
+
+
+path_left = "/home/vortex/calib_ws_2/calibrationdata/calibration_data_left/"
+directory_left = os.fsencode(path_left)
+
+paths_left = sorted(os.listdir(directory_left))
+
