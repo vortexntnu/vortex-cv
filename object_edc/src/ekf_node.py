@@ -181,14 +181,9 @@ class EKFNode:
         z = obj_pose_position_c
         z = np.append(z, gamma_wc)
         
-<<<<<<< HEAD
+
         #Data from EKF
-        gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_cw.T, z)
-=======
- 
-        #Do ekf here
         gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_wc, z)
->>>>>>> 0dc9a5bda0fbb309893a9c55627b4c79444e592d
         x_hat = gauss_est.mean
         ekf_position, ekf_pose = self.est_to_pose(x_hat)
         ekf_pose_quaterion = tft.quaternion_from_euler(ekf_pose[0], ekf_pose[1], ekf_pose[2])
