@@ -91,8 +91,8 @@ class NED_range_bearing(MeasurementModel):
         """
 
         #z = self.Rot_wb.T @ (x[0:3] - self.p_wb[0:3])
-        
-        z = np.matmul(self.Rot_wb, (x[0:3] - self.p_wb[0:3]))
+         
+        z = np.matmul(self.Rot_wb.T, (x[0:3] - self.p_wb[0:3]))
         z = np.append(z, x[3])
 
         return z
@@ -104,7 +104,7 @@ class NED_range_bearing(MeasurementModel):
                  0, 0, 0, 1]
         """
 
-        H = block_diag(self.Rot_wb, 1)
+        H = block_diag(self.Rot_wb.T, 1)
         return H
 
     def R(self, x):

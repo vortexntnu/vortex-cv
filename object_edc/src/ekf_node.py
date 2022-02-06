@@ -100,9 +100,9 @@ class EKFNode:
         Ts = rospy.get_time() - self.last_time
         return Ts
     
-    def ekf_function(self, pw_wc, Rot_wb, z):
+    def ekf_function(self, pw_wc, Rot_wc, z):
 
-        measurement_model = NED_range_bearing(self.sigma_z, pw_wc, Rot_wb)
+        measurement_model = NED_range_bearing(self.sigma_z, pw_wc, Rot_wc)
 
         Ts = self.get_Ts()
 
@@ -170,7 +170,9 @@ class EKFNode:
         tf_lookup_wc = self.__tfBuffer.lookup_transform(self.odom, self.cam, rospy.Time(), rospy.Duration(5.0))
 
         # Assumption: this is the matrix that transforms a vector from world to camera (parent to child)
-        Rot_cw = tft.quaternion_matrix([tf_lookup_wc.transform.rotation.x, 
+        # New working assumption: this is actually from child to parent (camera to world)
+        # The new working assumption is the current best estimate.. kill me
+        Rot_wc = tft.quaternion_matrix([tf_lookup_wc.transform.rotation.x, 
                                         tf_lookup_wc.transform.rotation.y,
                                         tf_lookup_wc.transform.rotation.z,
                                         tf_lookup_wc.transform.rotation.w])
@@ -183,25 +185,25 @@ class EKFNode:
         #                          tf_lookup_wc_euler[1],
         #                          tf_lookup_wc_euler[2], axes = "sxyz")
 
-        Rot_cw = Rot_cw[0:3, 0:3]
+        Rot_wc = Rot_wc[0:3, 0:3]
         
         
         #TODO fix ekf value inputs
         # 1. Generate measurement. We use only tf because fuck doing this ourselves : 
         tf_lookup_cg = self.__tfBuffer.lookup_transform(self.cam, self.gate_truth, rospy.Time(), rospy.Duration(5.0))
 
-        pc_cg = np.array([tf_lookup_cg.transform.translation.x,
+        pc_cg =  np.array([tf_lookup_cg.transform.translation.x,
                           tf_lookup_cg.transform.translation.y,
                           tf_lookup_cg.transform.translation.z]) 
 
         #pc_cg = np.matmul(np.transpose(Rot_wc), (obj_pose_position_w - pw_wc))
         gamma_wc = 1
         z = pc_cg # This might be wrong, 
-        z = np.append(z, gamma_wc)
+        z = np.append(z, gamma_wc) 
         
  
         #Do ekf here
-        gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_cw.T, z)
+        gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_wc, z)
         x_hat = gauss_est.mean
         #EKF data pub
         ekf_position, ekf_pose = self.est_to_pose(x_hat)
