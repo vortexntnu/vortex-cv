@@ -79,9 +79,9 @@ class NED_range_bearing(MeasurementModel):
                 Rot
                 ):
         self.sigma_z = sigma_sensor
-        self.p_wb = pos
+        self.p_wb = pos 
         self.Rot_wb = Rot
-
+        # TODO Change this to be more general
     
     def h(self, x):
         """Predict measurement through the non-linear vector field h given the
@@ -109,8 +109,7 @@ class NED_range_bearing(MeasurementModel):
 
     def R(self, x):
         """Calculate the measurement covariance matrix at x in sensor_state."""
-
-        # TODO replace this with your own code
+        
         n = len(self.sigma_z)
 
         R = (self.sigma_z**2) * np.eye(n)
