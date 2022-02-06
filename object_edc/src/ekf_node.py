@@ -9,35 +9,22 @@
 #from logging import exception
 from re import X
 
-from scipy import matmul
-#from statistics import geometric_mean
 from ekf_python2.gaussparams_py2 import MultiVarGaussian
 from ekf_python2.dynamicmodels_py2 import landmark_gate
 from ekf_python2.measurementmodels_py2 import NED_range_bearing
 from ekf_python2.ekf_py2 import EKF
-#from importlib.metadata import distribution
 
 #Math imports
 import numpy as np
-import math
-from scipy.spatial.transform import Rotation
-from scipy.spatial.transform import Rotation as R
-
-#ekf_node_imports
-#from transform_to_world import transform_world_to_gate
-from tf_pb_bc import tf_pb_bc
 
 #ROS imports
 import rospy
 from vortex_msgs.msg import ObjectPosition
 from geometry_msgs.msg import PoseStamped, TransformStamped
-from nav_msgs.msg import Odometry
 import tf.transformations as tft
 import tf2_ros
-import tf2_py 
 
 class EKFNode:
-    ## gate state: x = [p_wg, theta_wg]
     
 
     def __init__(self):
@@ -67,6 +54,11 @@ class EKFNode:
         ###ROS stuff####
         ################
 
+        ###Change these to your required frames###
+        #Frame names, e.g. "odom" and "cam"
+        self.parent_frame = 'odom' 
+        self.child_frame = 'zed2_left_camera_frame'
+
         # ROS node init
         rospy.init_node('ekf_vision')
         self.last_time = rospy.get_time()
@@ -74,29 +66,32 @@ class EKFNode:
         now = rospy.get_rostime()
         rospy.loginfo("Current time %i %i", now.secs, now.nsecs)
 
-        self.__tfBuffer = tf2_ros.Buffer()# TODO: Add a tf buffer length? tf2_ros.Buffer(rospy.Duration(1200.0))
-        self.__listener = tf2_ros.TransformListener(self.__tfBuffer)
-        self.__tfBroadcaster = tf2_ros.TransformBroadcaster()
-
-        #Transform names
-        self.odom = 'mocap' #'mcap' for cyb pool, TODO 'odom'? for regular
-        self.body = 'Body_1' 
-        self.cam = 'auv/camerafront_link'
-        self.gate_truth = 'gate_truth'
-        
-        self.pb_bc = 0
-        self.tf_lookup_bc = tf_pb_bc(self.odom, self.cam)
-        rospy.loginfo("Transformation between odom and camera published")
-
-        # Subscriber to gate pose and orientation #ToDo update the message type received from cv
+        # Subscriber to gate pose and orientation 
         self.object_pose_sub = rospy.Subscriber('/object_detection/object_pose/gate', PoseStamped, self.obj_pose_callback, queue_size=1)
-        self.obj_pose_prev = PoseStamped()
       
         # Publisher to autonomous
         self.gate_pose_pub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
 
+        #TF stuff
+        self.__tfBuffer = tf2_ros.Buffer() # TODO Add a tf buffer length? tf2_ros.Buffer(rospy.Duration(1200.0)) (Kristian)
+        self.__listener = tf2_ros.TransformListener(self.__tfBuffer)
+        self.__tfBroadcaster = tf2_ros.TransformBroadcaster()
 
-    def get_Ts(self):
+        while self.__tfBuffer.can_transform(self.parent_frame, self.child_frame, rospy.Time()) == 0:
+            try:
+                rospy.loginfo("No transform between "+str(self.parent_frame) +' and ' + str(self.child_frame))
+                rospy.sleep(2)
+            except: #, tf2_ros.ExtrapolationException  (tf2_ros.LookupException, tf2_ros.ConnectivityException)
+                rospy.sleep(2)
+                continue
+        
+        rospy.loginfo("Transform between "+str(self.parent_frame) +' and ' + str(self.child_frame) + 'found.')
+        
+        ##########
+        #Init end#
+        ##########
+
+    def get_Ts(self): # TODO inspect how well this works (Ivan)
         Ts = rospy.get_time() - self.last_time
         return Ts
     
@@ -154,24 +149,21 @@ class EKFNode:
         
         self.gate_pose_pub.publish(p)
         rospy.loginfo("Object published: %s", object_name)
-        self.transformbroadcast(self.odom, p)
+        self.transformbroadcast(self.parent_frame, p)
 
     def obj_pose_callback(self, msg):
         rospy.loginfo("Object data recieved for: %s", msg.header.frame_id)
         #Gate in world frame for cyb pool
-        obj_pose_position_w = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
+        obj_pose_position_c = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
         #Go directly from quaternion to matrix
-        obj_pose_pose_w = np.array([msg.pose.orientation.x,
+        obj_pose_pose_c = np.array([msg.pose.orientation.x,
                                     msg.pose.orientation.y,
                                     msg.pose.orientation.z,
                                     msg.pose.orientation.w])
  
 
-        tf_lookup_wc = self.__tfBuffer.lookup_transform(self.odom, self.cam, rospy.Time(), rospy.Duration(5.0))
+        tf_lookup_wc = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5.0))
 
-        # Assumption: this is the matrix that transforms a vector from world to camera (parent to child)
-        # New working assumption: this is actually from child to parent (camera to world)
-        # The new working assumption is the current best estimate.. kill me
         Rot_wc = tft.quaternion_matrix([tf_lookup_wc.transform.rotation.x, 
                                         tf_lookup_wc.transform.rotation.y,
                                         tf_lookup_wc.transform.rotation.z,
@@ -181,39 +173,23 @@ class EKFNode:
                           tf_lookup_wc.transform.translation.y,
                           tf_lookup_wc.transform.translation.z])
 
-        #Rot_wc = tft.euler_matrix(tf_lookup_wc_euler[0], 
-        #                          tf_lookup_wc_euler[1],
-        #                          tf_lookup_wc_euler[2], axes = "sxyz")
-
         Rot_wc = Rot_wc[0:3, 0:3]
         
         
-        #TODO fix ekf value inputs
-        # 1. Generate measurement. We use only tf because fuck doing this ourselves : 
-        tf_lookup_cg = self.__tfBuffer.lookup_transform(self.cam, self.gate_truth, rospy.Time(), rospy.Duration(5.0))
-
-        pc_cg =  np.array([tf_lookup_cg.transform.translation.x,
-                          tf_lookup_cg.transform.translation.y,
-                          tf_lookup_cg.transform.translation.z]) 
-
-        #pc_cg = np.matmul(np.transpose(Rot_wc), (obj_pose_position_w - pw_wc))
-        gamma_wc = 1
-        z = pc_cg # This might be wrong, 
-        z = np.append(z, gamma_wc) 
+        #TODO add pose estimation capabilities to the EKF as position works now (Ivan + Kristian)
+        gamma_wc = 1 # TODO fix this to estimate gate orientation
+        z = obj_pose_position_c
+        z = np.append(z, gamma_wc)
         
- 
-        #Do ekf here
+
+        #Data from EKF
         gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_wc, z)
         x_hat = gauss_est.mean
-        #EKF data pub
         ekf_position, ekf_pose = self.est_to_pose(x_hat)
         ekf_pose_quaterion = tft.quaternion_from_euler(ekf_pose[0], ekf_pose[1], ekf_pose[2])
 
-        #Publish data
+        #Publish data and transform the data
         self.publish_gate(msg.header.frame_id ,ekf_position, ekf_pose_quaterion)
-        self.obj_pose_prev = msg
-       
-
 
 
 if __name__ == '__main__':
