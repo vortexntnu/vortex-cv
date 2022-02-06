@@ -13,7 +13,7 @@
 
     <!--Input args-->
     <arg name="type" default="simulator"/> <!--TODO: Change default to real when the node is complete-->
-    <arg name="bag_drone" default="/home/kristian/MCLAB/day2/cv_ekf/gate_medium_sway_backwards_qual.bag" />
+    <arg name="bag_drone" default="/home/ivang/ros_bagz/gate_medium_sway_backwards_qual.bag" />
 
     <node name="rviz" pkg="rviz" type="rviz" required="true"
       args="-d $(find object_edc)/src/visualizer.rviz" />

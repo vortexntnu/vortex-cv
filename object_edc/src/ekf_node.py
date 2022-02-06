@@ -82,6 +82,7 @@ class EKFNode:
         self.odom = 'mocap' #'mcap' for cyb pool, TODO 'odom'? for regular
         self.body = 'Body_1' 
         self.cam = 'auv/camerafront_link'
+        self.gate_truth = 'gate_truth'
         
         self.pb_bc = 0
         self.tf_lookup_bc = tf_pb_bc(self.odom, self.cam)
@@ -159,6 +160,7 @@ class EKFNode:
         rospy.loginfo("Object data recieved for: %s", msg.header.frame_id)
         #Gate in world frame for cyb pool
         obj_pose_position_w = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
+        #Go directly from quaternion to matrix
         obj_pose_pose_w = np.array([msg.pose.orientation.x,
                                     msg.pose.orientation.y,
                                     msg.pose.orientation.z,
@@ -166,31 +168,40 @@ class EKFNode:
  
 
         tf_lookup_wc = self.__tfBuffer.lookup_transform(self.odom, self.cam, rospy.Time(), rospy.Duration(5.0))
-        tf_lookup_wc_euler = tft.euler_from_quaternion([tf_lookup_wc.transform.rotation.x, 
-                                                        tf_lookup_wc.transform.rotation.y,
-                                                        tf_lookup_wc.transform.rotation.z,
-                                                        tf_lookup_wc.transform.rotation.w])
+
+        # Assumption: this is the matrix that transforms a vector from world to camera (parent to child)
+        Rot_cw = tft.quaternion_matrix([tf_lookup_wc.transform.rotation.x, 
+                                        tf_lookup_wc.transform.rotation.y,
+                                        tf_lookup_wc.transform.rotation.z,
+                                        tf_lookup_wc.transform.rotation.w])
 
         pw_wc = np.array([tf_lookup_wc.transform.translation.x,
                           tf_lookup_wc.transform.translation.y,
                           tf_lookup_wc.transform.translation.z])
 
-        Rot_wc = tft.euler_matrix(tf_lookup_wc_euler[0], 
-                                  tf_lookup_wc_euler[1],
-                                  tf_lookup_wc_euler[2], axes = "sxyz")
+        #Rot_wc = tft.euler_matrix(tf_lookup_wc_euler[0], 
+        #                          tf_lookup_wc_euler[1],
+        #                          tf_lookup_wc_euler[2], axes = "sxyz")
 
-        Rot_wc = Rot_wc[0:3, 0:3]
+        Rot_cw = Rot_cw[0:3, 0:3]
         
         
         #TODO fix ekf value inputs
-        pc_cg = np.matmul(np.transpose(Rot_wc), (obj_pose_position_w - pw_wc))
+        # 1. Generate measurement. We use only tf because fuck doing this ourselves : 
+        tf_lookup_cg = self.__tfBuffer.lookup_transform(self.cam, self.gate_truth, rospy.Time(), rospy.Duration(5.0))
+
+        pc_cg = np.array([tf_lookup_cg.transform.translation.x,
+                          tf_lookup_cg.transform.translation.y,
+                          tf_lookup_cg.transform.translation.z]) 
+
+        #pc_cg = np.matmul(np.transpose(Rot_wc), (obj_pose_position_w - pw_wc))
         gamma_wc = 1
-        z = np.matmul(Rot_wc[0:3, 0:3], pc_cg)
+        z = pc_cg # This might be wrong, 
         z = np.append(z, gamma_wc)
         
  
         #Do ekf here
-        gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_wc, z)
+        gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_cw.T, z)
         x_hat = gauss_est.mean
         #EKF data pub
         ekf_position, ekf_pose = self.est_to_pose(x_hat)
