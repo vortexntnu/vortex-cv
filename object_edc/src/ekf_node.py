@@ -164,7 +164,7 @@ class EKFNode:
 
         tf_lookup_wc = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5.0))
 
-        Rot_cw = tft.quaternion_matrix([tf_lookup_wc.transform.rotation.x, 
+        Rot_wc = tft.quaternion_matrix([tf_lookup_wc.transform.rotation.x, 
                                         tf_lookup_wc.transform.rotation.y,
                                         tf_lookup_wc.transform.rotation.z,
                                         tf_lookup_wc.transform.rotation.w])
@@ -173,7 +173,7 @@ class EKFNode:
                           tf_lookup_wc.transform.translation.y,
                           tf_lookup_wc.transform.translation.z])
 
-        Rot_cw = Rot_cw[0:3, 0:3]
+        Rot_wc = Rot_wc[0:3, 0:3]
         
         
         #TODO add pose estimation capabilities to the EKF as position works now (Ivan + Kristian)
@@ -181,8 +181,14 @@ class EKFNode:
         z = obj_pose_position_c
         z = np.append(z, gamma_wc)
         
+<<<<<<< HEAD
         #Data from EKF
         gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_cw.T, z)
+=======
+ 
+        #Do ekf here
+        gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_wc, z)
+>>>>>>> 0dc9a5bda0fbb309893a9c55627b4c79444e592d
         x_hat = gauss_est.mean
         ekf_position, ekf_pose = self.est_to_pose(x_hat)
         ekf_pose_quaterion = tft.quaternion_from_euler(ekf_pose[0], ekf_pose[1], ekf_pose[2])
