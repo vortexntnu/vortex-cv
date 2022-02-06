@@ -21,6 +21,21 @@ By BenG @ Vortex NTNU, 2022
 
 
 class ImageFeatureProcessing(object):
+    """Various functions for processing of (matrix-like) image data.
+    Needs instantiation with a (matrix) shape of the image that going to be manipulated.
+
+    Params:
+        image_shape (array-like [3]): Shape of the relevant image - height, width, channels.
+    
+    Attributes:
+        image_shape (array-like [3]): Same as the param. Is passed down to sub-classes.
+
+    Methods:
+        hsv_processor:              Takes a raw image and applies Hue-Saturation-Value filtering
+        noise_removal_processor:    Applies various noise removal and morphism algorithms.
+        contour_filtering:          Filters contours according to contour hierarchy and area.
+        contour_processing:         Finds contours in a pre-processed image and filters them.
+    """
     def __init__(self, image_shape, *args, **kwargs):
         self.image_shape = image_shape
 
@@ -328,8 +343,10 @@ class ImageFeatureProcessing(object):
 
 
 class PointsProcessing(object):
+    """Functions for processing, filtering, fitting, and otherwise manipulating of 2D point-type data.
+    """
     def __init__(self, len_of_integral_binary_resetter=5, icp_ref_points=None, *args, **kwargs):
-        self.points_processing_image_shape = (720, 1280, 4)
+        self.points_processing_image_shape = (720, 1280, 4) # Only used for drawing data on image.
         self.integral_diff_values_arr = []
         self.integral_diff_values_arr_len = len_of_integral_binary_resetter
 
