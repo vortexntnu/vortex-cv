@@ -40,7 +40,7 @@ class EKFNode:
         self.child_frame = 'auv/camerafront_link'
         self.object_frame = "gate_truth"
         self.using_global_fake_object = 1 #Set to 1 for global coords for the object, set to 0 for child_frame-object_frame coords
-        self.n = np.random.normal(0, 0.4**2, 3) #Noise added TODO is there a better way to disturbe the filter (Ivan)
+        self.n = np.random.normal(0, 0.2**2, 3) #Noise added TODO is there a better way to disturbe the filter (Ivan)
         #Subscribe topic
         object_topic_subscribe = "/object_detection/object_pose/gate"
 

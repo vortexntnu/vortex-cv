@@ -4,7 +4,6 @@ import rospy
 import numpy as np
 from geometry_msgs.msg import PoseStamped, TransformStamped
 import tf2_ros
-from tf_pb_bc import tf_pb_bc
 
 
 class PublishNode():
@@ -15,21 +14,28 @@ class PublishNode():
         self.pub = rospy.Publisher('/object_detection/object_pose/gate', PoseStamped, queue_size=1)
         
         #Frame names
-        self.odom = "mocap"
+        self.parent_frame = "mocap"
         self.gate = "gate_truth"
-        self.cam = 'auv/camerafront_link'
+        self.child_frame = 'auv/camerafront_link'
 
         self.__tfBuffer = tf2_ros.Buffer()# Add a tf buffer length? tf2_ros.Buffer(rospy.Duration(1200.0))
         self.__listener = tf2_ros.TransformListener(self.__tfBuffer)
         self.__tfBroadcaster = tf2_ros.TransformBroadcaster()
 
-        _ = tf_pb_bc(self.odom, self.cam) #Checks if transform exists
+        #Checks if transform exists
+        while self.__tfBuffer.can_transform(self.parent_frame, self.child_frame, rospy.Time()) == 0:
+            try:
+                rospy.loginfo("No transform between "+str(self.parent_frame) +' and ' + str(self.child_frame))
+                rospy.sleep(2)
+            except: #, tf2_ros.ExtrapolationException  (tf2_ros.LookupException, tf2_ros.ConnectivityException)
+                rospy.sleep(2)
+                continue
     
  
     def transformbroadcast(self, p):
         t = TransformStamped()
         t.header.stamp = rospy.Time.now()
-        t.header.frame_id = self.odom
+        t.header.frame_id = self.parent_frame
         t.child_frame_id = self.gate
         t.transform.translation.x = p.pose.position.x
         t.transform.translation.y = p.pose.position.y
