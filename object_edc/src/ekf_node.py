@@ -29,7 +29,7 @@ class EKFNode:
 
     def __init__(self):
         ########################################
-        ####Things you can change yourselves####
+        ####Things you can change yourself####
         ########################################
 
         #Name of the node
@@ -38,7 +38,7 @@ class EKFNode:
         #Frame names, e.g. "odom" and "cam"
         self.parent_frame = 'mocap' 
         self.child_frame = 'auv/camerafront_link'
-        self.object_frame = "gate_truth"
+        self.object_frame = "object_truth"
         self.using_global_fake_object = 1 #Set to 1 for global coords for the object, set to 0 for child_frame-object_frame coords
         self.n = np.random.normal(0, 0.2**2, 3) #Noise added TODO is there a better way to disturbe the filter (Ivan)
         #Subscribe topic

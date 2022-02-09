@@ -1,22 +1,25 @@
 #!/usr/bin/env python
 
+from ekf_python2.ekf_py2 import EKF
 import rospy
 import numpy as np
 from geometry_msgs.msg import PoseStamped, TransformStamped
 import tf2_ros
+from ekf_node import EKFNode
 
 
 class PublishNode():
     def __init__(self):
-        rospy.init_node("fake_publisher") #,  log_level=rospy.DEBUG
         self.sleep_rate = 0.5
+        rospy.init_node("fake_publisher") #,  log_level=rospy.DEBUG
         
         self.pub = rospy.Publisher('/object_detection/object_pose/gate', PoseStamped, queue_size=1)
         
         #Frame names
-        self.parent_frame = "mocap"
-        self.gate = "gate_truth"
+        self.parent_frame = 'mocap'
         self.child_frame = 'auv/camerafront_link'
+        self.object_estimated = 'object_estimated'
+        self.object = "object_truth"
 
         self.__tfBuffer = tf2_ros.Buffer()# Add a tf buffer length? tf2_ros.Buffer(rospy.Duration(1200.0))
         self.__listener = tf2_ros.TransformListener(self.__tfBuffer)
@@ -36,7 +39,7 @@ class PublishNode():
         t = TransformStamped()
         t.header.stamp = rospy.Time.now()
         t.header.frame_id = self.parent_frame
-        t.child_frame_id = self.gate
+        t.child_frame_id = self.object
         t.transform.translation.x = p.pose.position.x
         t.transform.translation.y = p.pose.position.y
         t.transform.translation.z = p.pose.position.z
@@ -52,7 +55,7 @@ class PublishNode():
             n_2 = np.random.normal(0, 0.2**2, 3)
             print(n)
             gate = PoseStamped()
-            gate.header.frame_id = "gate_estimated"
+            gate.header.frame_id = self.object_estimated
             gate.pose.position.x = 2.30953173828    
             gate.pose.position.y = -0.274446075439  
             gate.pose.position.z = 1.12427368164    
