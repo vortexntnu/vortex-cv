@@ -28,14 +28,27 @@ class EKFNode:
     
 
     def __init__(self):
+        ########################################
+        ####Things you can change yourself####
+        ########################################
+
+        #Name of the node
+        node_name = "ekf_vision"
+
+        #Frame names, e.g. "odom" and "cam"
+        self.parent_frame = 'odom' 
+        self.child_frame = 'auv/camerafront_link'
+        self.object_frame = ""
+
+        #Subscribe topic
+        object_topic_subscribe = "/object_detection/object_pose/gate"
+
         
         ##################
         ####EKF stuff####
         ##################
 
         # Geometric parameters
-        self.rad2deg = 180 / np.pi
-        self.deg2rad = np.pi / 180
         self.gate_prior = [0, 0] # z, roll, pitch of gate
 
         # Tuning parameters
@@ -54,20 +67,15 @@ class EKFNode:
         ###ROS stuff####
         ################
 
-        ###Change these to your required frames###
-        #Frame names, e.g. "odom" and "cam"
-        self.parent_frame = 'odom' 
-        self.child_frame = 'zed2_left_camera_frame'
-
         # ROS node init
-        rospy.init_node('ekf_vision')
+        rospy.init_node(node_name)
         self.last_time = rospy.get_time()
 
         now = rospy.get_rostime()
         rospy.loginfo("Current time %i %i", now.secs, now.nsecs)
 
         # Subscriber to gate pose and orientation 
-        self.object_pose_sub = rospy.Subscriber('/object_detection/object_pose/gate', PoseStamped, self.obj_pose_callback, queue_size=1)
+        self.object_pose_sub = rospy.Subscriber(object_topic_subscribe, PoseStamped, self.obj_pose_callback, queue_size=1)
       
         # Publisher to autonomous
         self.gate_pose_pub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
@@ -77,6 +85,7 @@ class EKFNode:
         self.__listener = tf2_ros.TransformListener(self.__tfBuffer)
         self.__tfBroadcaster = tf2_ros.TransformBroadcaster()
 
+        #The init will only continue if a transform between parent frame and child frame can be found
         while self.__tfBuffer.can_transform(self.parent_frame, self.child_frame, rospy.Time()) == 0:
             try:
                 rospy.loginfo("No transform between "+str(self.parent_frame) +' and ' + str(self.child_frame))
@@ -87,9 +96,9 @@ class EKFNode:
         
         rospy.loginfo("Transform between "+str(self.parent_frame) +' and ' + str(self.child_frame) + 'found.')
         
-        ##########
-        #Init end#
-        ##########
+        ############
+        ##Init end##
+        ############
 
     def get_Ts(self): # TODO inspect how well this works (Ivan)
         Ts = rospy.get_time() - self.last_time
@@ -123,7 +132,7 @@ class EKFNode:
         t = TransformStamped()
         t.header.stamp = rospy.Time.now()
         t.header.frame_id = parent_frame
-        t.child_frame_id = "object_"+str(p.objectID)
+        t.child_frame_id = "object" + str(p.objectID)
         t.transform.translation.x = p.objectPose.pose.position.x
         t.transform.translation.y = p.objectPose.pose.position.y
         t.transform.translation.z = p.objectPose.pose.position.z
@@ -153,6 +162,7 @@ class EKFNode:
 
     def obj_pose_callback(self, msg):
         rospy.loginfo("Object data recieved for: %s", msg.header.frame_id)
+
         #Gate in world frame for cyb pool
         obj_pose_position_c = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
         #Go directly from quaternion to matrix
