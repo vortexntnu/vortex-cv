@@ -39,8 +39,12 @@ class EKFNode:
         self.parent_frame = 'mocap' 
         self.child_frame = 'auv/camerafront_link'
         self.object_frame = "object_truth"
-        self.using_global_fake_object = 1 #Set to 1 for global coords for the object, set to 0 for child_frame-object_frame coords
+
+        #Set to 1 for global coords for the object(use tf-frames to get the distance from gate to camera), 
+        #Set to 0 for recieving distance from gate to camera using "object_topic_subscribe"
+        self.using_global_fake_object = 1 
         self.n = np.random.normal(0, 0.2**2, 3) #Noise added TODO is there a better way to disturbe the filter (Ivan)
+        
         #Subscribe topic
         object_topic_subscribe = "/object_detection/object_pose/gate"
 
@@ -50,8 +54,6 @@ class EKFNode:
         ##################
 
         # Geometric parameters
-        self.rad2deg = 180 / np.pi
-        self.deg2rad = np.pi / 180
         self.gate_prior = [0, 0] # z, roll, pitch of gate
 
         # Tuning parameters
