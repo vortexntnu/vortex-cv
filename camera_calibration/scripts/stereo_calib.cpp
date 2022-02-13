@@ -362,7 +362,8 @@ int main(int argc, char** argv)
     if (parser.has("help"))
         return print_help(argv);
     showRectified = !parser.has("nr");
-    imagelistfn = samples::findFile(parser.get<string>("@input"));
+    // imagelistfn = samples::findFile(parser.get<string>("@input"));
+    imagelistfn = "/home/vortex/opencv-344/installation/OpenCV-3.4.4/share/OpenCV/samples/data/stereo_calib.xml";
     boardSize.width = parser.get<int>("w");
     boardSize.height = parser.get<int>("h");
     float squareSize = parser.get<float>("s");
@@ -372,6 +373,7 @@ int main(int argc, char** argv)
         return 1;
     }
     vector<string> imagelist;
+    cout << imagelistfn << endl;
     bool ok = readStringList(imagelistfn, imagelist);
     if(!ok || imagelist.empty())
     {
