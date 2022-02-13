@@ -1,13 +1,7 @@
   <launch>
     <!--
         TODO: Inlude ZED2 transform from cam_center to left_cam_lengt
-
         This node is for running on offline data. 
-        bag_drone:=${HOME}/hdd/MCLAB_rosbags/day2/cv_ekf/gate_medium_sway_backwards_qual.bag
-        bag_gate:=${HOME}/hdd/MCLAB_rosbags/day2/gate_static_qual_pose.bag
-
-            <arg name="bag_drone" default="$(env HOME)/vortex_ws/src/Vortex-CV/object_edc/bagfiles/lite_gate_medium_sway_backwards_qual.bag" />
-
     -->
     <!--Parameters  -->
     <param name ="/use_sim_time" value="true"/>
