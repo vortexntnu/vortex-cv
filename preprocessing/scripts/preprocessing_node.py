@@ -18,12 +18,17 @@ class PreprocessingNode():
     """
     def __init__(self):
         rospy.init_node('preprocessing_node')
-        rospy.Subscriber('/zed2/zed_node/confidence/confidence_map', Image, self.confidence_cb)
-
-        self.maskedMapImagePub = rospy.Publisher('/cv/preprocessing/confidence_map_masked', Image, queue_size= 1)
 
         self.bridge = CvBridge()
         self.confMap = ConfidenceMapping()
+
+        # Confidence map
+        rospy.Subscriber('/zed2/zed_node/confidence/confidence_map', Image, self.confidence_cb)
+        self.maskedMapImagePub = rospy.Publisher('/cv/preprocessing/confidence_map_masked', Image, queue_size= 1)
+
+        # Depth Registered
+        rospy.Subscriber('/zed2/zed_node/depth/depth_registered', Image, self.depth_registered_cb)
+        self.confident_depthPub = rospy.Publisher('/cv/preprocessing/depth_registered', Image, queue_size= 1)
 
     def confidence_cb(self, msg):
         """
@@ -31,35 +36,53 @@ class PreprocessingNode():
         and creates a mask where confidence above a threshold is set to 1 and below is set to 0.
         The masked confidence map is the same size as the original but includes only 0 and 1 as unique values.
 
+        A topic with the masked data is published. The result is an Image where only the pixels that are over the threshold are included
+
         Args:
             msg: confidence map message from camera. Type: Image message.
         """
         # Bridge image data from Image to cv_image data
-        try:
-            self.cv_image = self.bridge.imgmsg_to_cv2(msg, "passthrough")
-        except CvBridgeError as e:
-            rospy.logerr("CvBridge Error: {0}".format(e))
-
+        cv_image = self.bridge_to_cv(msg)
+        
         # Make the masked map and store it in a class variable
-        self.maskedMap, masked_as_cv_image = self.confMap.add_mask(self.cv_image, 50)
+        self.maskedMap, masked_as_cv_image = self.confMap.create_mask(cv_image, 30)
 
         # Bridge image data from cv_image to Image data
-        # try:
-        #     self.image = self.bridge.cv2_to_imgmsg(masked_as_cv_image, "passthrough")
-        # except CvBridgeError as e:
-        #     rospy.logerr("CvBridge Error: {0}".format(e))
+        ros_image = self.bridge_to_image(masked_as_cv_image)
+        self.maskedMapImagePub.publish(ros_image)
 
-        # masked_image = Image()
-        # masked_image.header = msg.header
-        # masked_image.height = msg.height
-        # masked_image.width = msg.width
-        # masked_image.encoding = msg.encoding
-        # masked_image.is_bigendian = msg.is_bigendian
-        # masked_image.step = msg.step
-        # masked_image.data = self.image.data
-        # self.maskedMapImagePub.publish(masked_image)
+    def depth_registered_cb(self, msg):
+        """Callback"""
+        cv_image = self.bridge_to_cv(msg)
+        
+        try:
+            masked_map = self.maskedMap
+        except AttributeError:
+            return
 
+        confident_depth = self.confMap.add_mask_to_depth_data(masked_map, cv_image)
+        ros_image = self.bridge_to_image(confident_depth)
+        self.confident_depthPub.publish(ros_image)
 
+    def bridge_to_cv(self, image_msg, encoding = "passthrough"):
+        """This function returns a cv image from a ros image"""
+        # Bridge image data from Image to cv_image data
+        image_transformed = None
+        try:
+            image_transformed = self.bridge.imgmsg_to_cv2(image_msg, encoding)
+        except CvBridgeError as e:
+            rospy.logerr("CvBridge Error: {0}".format(e))
+        return image_transformed
+
+    def bridge_to_image(self, cv_image_msg, encoding = "passthrough"):
+        """This function returns a ros image from a cv image"""
+        # Bridge image data from CV image to Image data
+        image_transformed = None
+        try:
+            image_transformed = self.bridge.cv2_to_imgmsg(cv_image_msg, encoding)
+        except CvBridgeError as e:
+            rospy.logerr("CvBridge Error: {0}".format(e))
+        return image_transformed
         
 
 if __name__ == '__main__':
