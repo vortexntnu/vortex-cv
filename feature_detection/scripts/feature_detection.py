@@ -364,10 +364,17 @@ class PointsProcessing(object):
         ref_points_icp_fitting          (A[N][2, uint16])                           : Dynamic reference points list. Used as argument in the ICP, recursively iterated using the I2RCP. 
 
     Methods:
-        icp_fitting:              Takes a raw image and applies Hue-Saturation-Value filtering
-        noise_removal_processor:    Applies various noise removal and morphism algorithms.
-        contour_filtering:          Filters contours according to contour hierarchy and area.
-        contour_processing:         Finds contours in a pre-processed image and filters them.
+        icp_fitting                 : Applies iterative closest points (ICP) algorithm given a set of N reference points and a set of M points to be fitted, where N<=M.  
+        point_distances             : Finds distances from every point in array A to every point in array B.
+        euclidian_closest_point     : (ECD) Brute-force algorithm to find the closest point and its euclidian distance from every point in array A to every point in array B.
+        duplicate_point_filter      : (DPF) Finds if there are multiple points in set A that have the same point in set B as their closest points. 
+                                      The point 'a' with the smallest distance will be left with heir actual closest point, whilst the other(s) will have their previous closest point(s).
+        point_thresholding          : Binary Integral Derivative (BID) controller. Checks for point position deltas - if delta is too huge, point will take its previous step value.
+                                      Gathers integral sum of position deltas over N previous steps - if the sum delta is too huge, resets the initial reference points.
+        reference_points_iteration  : Iterates the reference points array with new values.
+        fitted_point_filtering      : (FPF) Wrapper function for ECD, DPF, and BID. Delays the closest points and distances by one step.
+        i2rcp                       : Intra-Iterative Recursive Closest Point (I2RCP) is an algorithm for optimal point fitting using
+        points_processing_reset     : Finds contours in a pre-processed image and filters them.
     """
     def __init__(self, len_of_integral_binary_resetter=5, icp_ref_points=None, *args, **kwargs):
         self.points_processing_image_shape = (720, 1280, 4) # Only used for drawing data on image.
