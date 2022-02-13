@@ -14,7 +14,7 @@
 
     <!--Input args-->
     <arg name="type" default="simulator"/> <!--TODO: Change default to real when the node is complete-->
-    <arg name="bag_drone" default="$(env HOME)/vortex_ws/src/Vortex-CV/object_edc/bagfiles/lite_gate_medium_sway_backwards_qual.bag" />
+    <arg name="bagfile" default="$(env HOME)/vortex_ws/src/Vortex-CV/object_edc/bagfiles/lite_gate_medium_sway_backwards_qual.bag" />
 
     <node name="rviz" pkg="rviz" type="rviz" required="true"
       args="-d $(find object_edc)/src/visualizer.rviz" />
