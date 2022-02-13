@@ -5,7 +5,6 @@ import rospy
 import numpy as np
 from geometry_msgs.msg import PoseStamped, TransformStamped
 import tf2_ros
-from ekf_node import EKFNode
 
 
 class PublishNode():
