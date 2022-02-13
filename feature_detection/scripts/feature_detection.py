@@ -373,8 +373,9 @@ class PointsProcessing(object):
                                       Gathers integral sum of position deltas over N previous steps - if the sum delta is too huge, resets the initial reference points.
         reference_points_iteration  : Iterates the reference points array with new values.
         fitted_point_filtering      : (FPF) Wrapper function for ECD, DPF, and BID. Delays the closest points and distances by one step.
-        i2rcp                       : Intra-Iterative Recursive Closest Point (I2RCP) is an algorithm for optimal point fitting using
-        points_processing_reset     : Finds contours in a pre-processed image and filters them.
+        i2rcp                       : Intra-Iterative Recursive Closest Point (I2RCP) - an algorithm for optimal point fitting using ICP as the base, but also applying ECD, DPF, and BID serially.
+                                      The algo: I2RCP := ICP -> ECD -> DPF -> BID -> ref. pts. iteration -> delay (z^-1) -> loop (ICP)
+        points_processing_reset     : Resets the current reference points to the base (initial) reference points.
     """
     def __init__(self, len_of_integral_binary_resetter=5, icp_ref_points=None, *args, **kwargs):
         self.points_processing_image_shape = (720, 1280, 4) # Only used for drawing data on image.
@@ -394,14 +395,29 @@ class PointsProcessing(object):
 
         super(PointsProcessing, self).__init__(*args, **kwargs)
 
-    def icp_fitting(self, ref_points, point_set, return_image=False, image=None):
-        centroid_arr = point_set
+    def icp_fitting(self, ref_points, points_set, return_image=False, image=None):
+        """Applies iterative closest points (ICP) algorithm given a set of N reference points and a set of M points to be fitted, where N<=M.
+
+        Params:
+            ref_points      (A[N][2, uint8])    : Reference points to be fitted to the points' set.
+            points_set      (A[M][2, uint8])    : A set of points on which the reference points will be fitted (N <= M).
+            return_image    (bool)              : {default=True} False to return only point data.
+                                                  If param 'image' is none - returns a blanked image with drawn point data.
+                                                  If param 'image' is an image - returns both drawn blanked and passed images.
+            image           (cv::Mat)           : An image on which to draw the processed points.
+
+        Returns:
+                                icp_points  (array[][]) : Processed and fitted points.
+            {return_image=True} blank_image (cv::Mat)   : Blank image with drawn points.
+            {image is not None} orig_img_cp (cv::Mat)   : Passed image with drawn points.
+        """
+
         if return_image:
             blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
             if image is not None:
                 orig_img_cp = copy.deepcopy(image)
 
-        _, icp_points = icp.icp(centroid_arr, ref_points, verbose=False)
+        _, icp_points = icp.icp(points_set, ref_points, verbose=False)
         # points_int = np.rint(icp_points)
 
         if return_image:
@@ -422,9 +438,19 @@ class PointsProcessing(object):
             return icp_points
 
     def point_distances(self, point_arr1, point_arr2):
-        # Find distance from every reference point (array 1) to every point in array 2
-        # Stores values in table formatted: array A of len(array_1),
-        # where every elem in A is array B of len(array_2) of distances from point idxed in A according to array 1 to point idxed in B according to array 2
+        """Finds distances from every point in array A to every point in array B.
+        Find distance from every reference point (array 1) to every point in array 2
+        Stores values in table formatted by: array A of len(array_1),
+        where every elem in A is array B of len(array_2) of distances from point idxed in A according to array 1 to point idxed in B according to array 2.
+
+        Params:
+            point_arr1  (A[N][2, uint8])    : Reference points.
+            point_arr2  (A[M][2, uint8])    : The set of points to which distances are going to be found.
+
+        Returns:
+            distance_table  (A[N][M, float16]) : Processed and fitted points.
+        """
+
         number_reference_points = len(point_arr1)
         distance_table = []
 
