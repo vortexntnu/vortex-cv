@@ -232,7 +232,7 @@ class ImageFeatureProcessing(object):
             contour_area_threshold  (uint16)    : Threshold for filtering based on inside-of-contour area.
                                                   Contours with lower area than the argument will be removed.
             enable_convex_hull      (bool)      : Enable convex hull contour approximation method.
-            return_image            (bool)      : {default=True}False to return only contour data.
+            return_image            (bool)      : {default=True} False to return only contour data.
                                                   If param 'image' is none - returns a blanked image with drawn contour data.
                                                   If param 'image' is an image - returns both drawn blanked and passed images.
             image                   (cv::Mat)   : An image on which to draw processed contours.
@@ -242,7 +242,7 @@ class ImageFeatureProcessing(object):
         Returns:
                                 contours    (array[][]) : Processed and filtered contours.
             {return_image=True} blank_image (cv::Mat)   : Blank image with drawn contours.
-            {image is not None}     image       (cv::Mat)   : Passed image with drawn contours.
+            {image is not None} image       (cv::Mat)   : Passed image with drawn contours.
         """
 
         if return_image:
@@ -348,6 +348,26 @@ class ImageFeatureProcessing(object):
 
 class PointsProcessing(object):
     """Functions for processing, filtering, fitting, and otherwise manipulating of 2D point-type data.
+
+    Params:
+        len_of_integral_binary_resetter (uint8)             : {default=5} Number of steps in the binary integral reference point resetter.
+        icp_ref_points                  (A[N][2, uint16])   : {default=[[449, 341], [845, 496], [690, 331]]} Initial reference points for the point fitting algorithm.
+
+    Attributes:
+        points_processing_image_shape   (array-like [3])                            : Shape of the image to be drawn with point visualization - height, width, channels.
+        integral_diff_values_arr        (A[len_of_integral_binary_resetter, uint16]): List of delta distances between delta times used for the binary integral resetter.
+        integral_diff_values_arr_len    (uint8)                                     : Member variable copy of the 'len_of_integral_binary_resetter' parameter.
+        prev_closest_points             (A[len(icp_ref_points)][2, uint8])          : List of closest points from the previous timestep with length N according to how man.
+        prev_closest_points_dsts        (A[len(icp_ref_points)][float16])           : List of closest point distances from the previous timestep.
+        ref_points_icp_fitting_base     (A[N][2, uint16])                           : Member variable copy of the 'icp_ref_points' parameter. This variable stays static for the duration of the runtime.
+                                                                                      Is used as a fallback reference using the binary integral resetter.
+        ref_points_icp_fitting          (A[N][2, uint16])                           : Dynamic reference points list. Used as argument in the ICP, recursively iterated using the I2RCP. 
+
+    Methods:
+        icp_fitting:              Takes a raw image and applies Hue-Saturation-Value filtering
+        noise_removal_processor:    Applies various noise removal and morphism algorithms.
+        contour_filtering:          Filters contours according to contour hierarchy and area.
+        contour_processing:         Finds contours in a pre-processed image and filters them.
     """
     def __init__(self, len_of_integral_binary_resetter=5, icp_ref_points=None, *args, **kwargs):
         self.points_processing_image_shape = (720, 1280, 4) # Only used for drawing data on image.
@@ -367,7 +387,7 @@ class PointsProcessing(object):
 
         super(PointsProcessing, self).__init__(*args, **kwargs)
 
-    def _icp_fitting(self, ref_points, point_set, return_image=False, image=None):
+    def icp_fitting(self, ref_points, point_set, return_image=False, image=None):
         centroid_arr = point_set
         if return_image:
             blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
@@ -394,7 +414,7 @@ class PointsProcessing(object):
         else:
             return icp_points
 
-    def _point_distances(self, point_arr1, point_arr2):
+    def point_distances(self, point_arr1, point_arr2):
         # Find distance from every reference point (array 1) to every point in array 2
         # Stores values in table formatted: array A of len(array_1),
         # where every elem in A is array B of len(array_2) of distances from point idxed in A according to array 1 to point idxed in B according to array 2
@@ -414,9 +434,9 @@ class PointsProcessing(object):
 
         return distance_table
 
-    def _euclidian_closest_point(self, point_arr1, point_arr2):
+    def euclidian_closest_point(self, point_arr1, point_arr2):
         # Gives the closest point and the distance to the point from point a in array 1 to point b in array 2
-        distance_table = self._point_distances(point_arr1, point_arr2)
+        distance_table = self.point_distances(point_arr1, point_arr2)
 
         closest_point_idxes = []
         closest_points = []
@@ -435,7 +455,7 @@ class PointsProcessing(object):
 
         return closest_points, closest_point_dsts
 
-    def _duplicate_point_filter(self, closest_points, closest_point_dsts):
+    def duplicate_point_filter(self, closest_points, closest_point_dsts):
         # closest_points_np = np.rint(np.array([[2, 2], [3, 3], [4, 4], [3, 3], [2, 2], [1, 1]]))
         closest_points_np = np.rint(np.array(closest_points))
 
@@ -485,7 +505,7 @@ class PointsProcessing(object):
 
         return closest_points, closest_point_dsts
 
-    def _point_thresholding(
+    def point_thresholding(
         self,
         closest_points,
         closest_point_dsts,
@@ -520,31 +540,31 @@ class PointsProcessing(object):
 
         return pts_cp, pt_dsts_cp, diff_dsts
 
-    def _reference_points_iteration(self, closest_points):
+    def reference_points_iteration(self, closest_points):
         self.ref_points_icp_fitting = np.array(closest_points, dtype=int)
 
     def fitted_point_filtering(self, point_arr1, point_arr2):
-        closest_points, closest_point_dsts = self._euclidian_closest_point(
+        closest_points, closest_point_dsts = self.euclidian_closest_point(
             point_arr1, point_arr2
         )
 
         (
             closest_points_filtered,
             closest_point_dsts_filtered,
-        ) = self._duplicate_point_filter(closest_points, closest_point_dsts)
+        ) = self.duplicate_point_filter(closest_points, closest_point_dsts)
 
         (
             thresholded_closest_points,
             thresholded_closest_point_dsts,
             diff_dsts,
-        ) = self._point_thresholding(
+        ) = self.point_thresholding(
             closest_points_filtered,
             closest_point_dsts_filtered,
             threshold=50,
             reset_reference_points_threshold=100,
         )
         # Sometimes makes it better, sometimes not, sometimes worse
-        self._reference_points_iteration(thresholded_closest_points)
+        self.reference_points_iteration(thresholded_closest_points)
 
         self.prev_closest_points = thresholded_closest_points
         self.prev_closest_point_dsts = thresholded_closest_point_dsts
@@ -557,11 +577,11 @@ class PointsProcessing(object):
             if image is not None:
                 img_cp = copy.deepcopy(image)
 
-        icp_points = self._icp_fitting(
+        icp_points = self.icp_fitting(
             self.ref_points_icp_fitting, rect_center_points, return_image=False
         )
 
-        closest_points, closest_point_dsts = self._euclidian_closest_point(
+        closest_points, closest_point_dsts = self.euclidian_closest_point(
             icp_points, rect_center_points
         )
         closest_points = self.fitted_point_filtering(icp_points, rect_center_points)
