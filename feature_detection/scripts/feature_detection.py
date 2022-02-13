@@ -70,6 +70,7 @@ class ImageFeatureProcessing(object):
         orig_img_cp = copy.deepcopy(original_image)
     
         hsv_img = cv2.cvtColor(original_image, cv2.COLOR_BGR2HSV)
+
         hsv_lower = np.array([hsv_hue_min, hsv_sat_min, hsv_val_min])
         hsv_upper = np.array([hsv_hue_max, hsv_sat_max, hsv_val_max])
 
@@ -136,7 +137,7 @@ class ImageFeatureProcessing(object):
 
         return noise_removed_img
 
-    def _contour_filtering(
+    def contour_filtering(
         self,
         contours,
         hierarchy,
@@ -160,6 +161,8 @@ class ImageFeatureProcessing(object):
             filtered_contours (array[][]): Filtered contours.
         """
         filtered_contours = []
+
+        # Returns if there are no contours
         try:
             num_of_contours = len(contours)
         except TypeError:
@@ -169,8 +172,8 @@ class ImageFeatureProcessing(object):
             for cnt_idx in range(num_of_contours):
                 cnt_hier = hierarchy[0][cnt_idx]
 
-
                 if mode == 1:
+                    # Gets contours that are of lowest hierarchical class, but can have neighbours
                     if (
                         ((cnt_hier[0] == cnt_idx + 1) or (cnt_hier[0] == -1))
                         and ((cnt_hier[1] == cnt_idx - 1) or (cnt_hier[1] == -1))
@@ -178,9 +181,12 @@ class ImageFeatureProcessing(object):
                     ):
                         cnt = contours[cnt_idx]
                         cnt_area = cv2.contourArea(cnt)
+                        
+                        # Filters out contours with less-than-predefined threshold area 
                         if cnt_area < contour_area_threshold:
                             filtered_contours.append(False)
                         else:
+                            # Filters out contours with less-than-predefined threshold perimeter
                             if len(cnt) > contour_len_threshold:
                                 filtered_contours.append(True)
                             else:
@@ -189,21 +195,15 @@ class ImageFeatureProcessing(object):
                         filtered_contours.append(False)
 
                 if mode == 2:
-                    if (
-                        len(
-                            [
-                                i
-                                for i, j in zip(cnt_hier, [-1, -1, -1, cnt_idx - 1])
-                                if i == j
-                            ]
-                        )
-                        != 4
-                    ):
+                    # Gets contours that are of lowest hierarchical class and without neighbours
+                    if (len([i for i, j in zip(cnt_hier, [-1, -1, -1, cnt_idx - 1])if i == j])!= 4):
                         cnt = contours[cnt_idx]
                         cnt_area = cv2.contourArea(cnt)
+                        # Filters out contours with less-than-predefined threshold area 
                         if cnt_area < contour_area_threshold:
                             filtered_contours.append(False)
                         else:
+                            # Filters out contours with less-than-predefined threshold perimeter
                             if len(cnt) > contour_len_threshold:
                                 filtered_contours.append(True)
                             else:
@@ -255,13 +255,16 @@ class ImageFeatureProcessing(object):
             noise_removed_image, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE
         )
 
-        cnt_fiter = self._contour_filtering(
+        cnt_filter = self.contour_filtering(
             hierarchy, contours, contour_area_threshold, mode=1
         )
         contours_array = np.array(contours)
-        contours_filtered = contours_array[cnt_fiter]
-
+        contours_filtered = contours_array[cnt_filter]
+        
+        # Container list
         using_contours = []
+
+        # Applies convex hull contour approximation if specified in the parameters
         if enable_convex_hull:
             hull_array = []
             for cnt_idx in range(len(contours_filtered)):
@@ -270,6 +273,7 @@ class ImageFeatureProcessing(object):
         else:
             using_contours = contours_filtered
 
+        # Contour centers
         centroid_data = []
         for cnt_idx in range(len(contours_filtered)):
             try:
