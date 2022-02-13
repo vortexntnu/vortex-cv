@@ -17,8 +17,10 @@ class ConfidenceMapping():
             confidence_map_masked: masked confidence data where every value above threshold is 1 and every value below threshold is 0.
         """
         confidence_map_masked = np.where(data_to_mask < threshold_value, 0, 1)
+        masked_as_cv_image = np.where(confidence_map_masked == 1 , 100, 0)
         # confidence_map_masked = np.unique(confidence_map_masked)
+
 
         # If return_map is true return the masked map
         if return_map:
-            return confidence_map_masked
+            return confidence_map_masked, masked_as_cv_image
