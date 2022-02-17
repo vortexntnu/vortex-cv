@@ -366,9 +366,9 @@ class PointsProcessing(object):
     Methods:
         icp_fitting                 : Applies iterative closest points (ICP) algorithm given a set of N reference points and a set of M points to be fitted, where N<=M.  
         point_distances             : Finds distances from every point in array A to every point in array B.
-        euclidian_closest_point     : (ECD) Brute-force algorithm to find the closest point and its euclidian distance from every point in array A to every point in array B.
+        euclidian_closest_point     : (ECD) Brute-force algorithm to find the closest point and its euclidian distance for every point in array A in comparison to every point in array B.
         duplicate_point_filter      : (DPF) Finds if there are multiple points in set A that have the same point in set B as their closest points. 
-                                      The point 'a' with the smallest distance will be left with heir actual closest point, whilst the other(s) will have their previous closest point(s).
+                                      The point 'a' with the smallest distance will be left with their actual closest point, whilst the other(s) will have their previous closest point(s).
         point_thresholding          : Binary Integral Derivative (BID) controller. Checks for point position deltas - if delta is too huge, point will take its previous step value.
                                       Gathers integral sum of position deltas over N previous steps - if the sum delta is too huge, resets the initial reference points.
         reference_points_iteration  : Iterates the reference points array with new values.
@@ -468,7 +468,17 @@ class PointsProcessing(object):
         return distance_table
 
     def euclidian_closest_point(self, point_arr1, point_arr2):
-        # Gives the closest point and the distance to the point from point a in array 1 to point b in array 2
+        """(ECD) Brute-force algorithm to find the closest point and its euclidian distance for every point in array A in comparison to every point in array B.
+
+        Params:
+            point_arr1  (A[N][2, uint8])    : Reference points.
+            point_arr2  (A[M][2, uint8])    : The set of points to which distances are going to be found.
+
+        Returns:
+            closest_points      (A[N][2, uint16])      : For index 'a' in point_arr1, closest point coordinates 'x' and 'y' picked from point_arr2.
+            closest_point_dts   (A[N, float16])        : For index 'a' in point_arr1, distances from the reference point in point_arr1 to its closest point in point_arr2.
+        """
+
         distance_table = self.point_distances(point_arr1, point_arr2)
 
         closest_point_idxes = []
@@ -489,7 +499,18 @@ class PointsProcessing(object):
         return closest_points, closest_point_dsts
 
     def duplicate_point_filter(self, closest_points, closest_point_dsts):
-        # closest_points_np = np.rint(np.array([[2, 2], [3, 3], [4, 4], [3, 3], [2, 2], [1, 1]]))
+        """(DPF) Finds if there are multiple points in set A that have the same point in set B as their closest points. 
+        The point 'a' with the smallest distance will be left with their actual closest point, whilst the other(s) will have their previous closest point(s).
+
+        Params:
+            closest_points      (A[N][2, uint16])      : For index 'a' in set of points A, closest point coordinates 'x' and 'y' picked from set of points B.
+            closest_point_dts   (A[N, float16])        : For index 'a' in set of points A, distances from the reference point in set of points A to its closest point in set of points B.
+
+        Returns:
+            closest_points      (A[N][2, uint16])      : Same struct as the param, but filtered of duplicates.
+            closest_point_dts   (A[N, float16])        : Same struct as the param, but filtered of duplicates.
+        """
+
         closest_points_np = np.rint(np.array(closest_points))
 
         # An index in indices is the same index in closest_points, and a value in indices is an index for a value in uniq_points, that is a value in closest_points with same index as indices
@@ -545,6 +566,9 @@ class PointsProcessing(object):
         threshold,
         reset_reference_points_threshold,
     ):
+        """Binary Integral Derivative (BID) controller. Checks for point position deltas - if delta is too huge, point will take its previous step value.
+        Gathers integral sum of position deltas over N previous steps - if the sum delta is too huge, resets the initial reference points.
+        """
         pts_cp = copy.deepcopy(closest_points)
         pt_dsts_cp = copy.deepcopy(closest_point_dsts)
         diff_dsts = []
