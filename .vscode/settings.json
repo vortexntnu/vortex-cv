@@ -58,5 +58,6 @@
         "optional": "cpp",
         "set": "cpp",
         "string_view": "cpp"
-    }
+    },
+    "cmake.sourceDirectory": "${workspaceFolder}/camera_calibration/scripts"
 }

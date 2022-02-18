@@ -3,7 +3,7 @@ import cv2 as cv
 import glob
 
 
-
+# Calibration file path: On Linux: /usr/local/zed/settings/
 ################ FIND CHESSBOARD CORNERS - OBJECT POINTS AND IMAGE POINTS #############################
 
 resolutions = {"FHD":(1920,1080), "2K": (2560,1440), "HD": (1280, 720), "VGA": (672, 376) }
@@ -103,6 +103,7 @@ print("Stereo calib: ", retStereo, "\n", newCameraMatrixL, "\n", distL, "\n", ne
 #print(newCameraMatrixL)
 #print(newCameraMatrixR)
 
+
 with open("/home/vortex/vortex_ws/src/Vortex_CV/camera_calibration/scripts/calibration_params.txt", "w") as f:
     f.write("[LEFT_CAM_FHD]\n")
     f.write(f"fx={newCameraMatrixL[0][0]}\n")
@@ -127,16 +128,35 @@ with open("/home/vortex/vortex_ws/src/Vortex_CV/camera_calibration/scripts/calib
     f.write(f"p2={distR[0][3]}\n")
     f.close()
 
-R = (rot - rot.transpose())/2
-print(R)
 
-rz, ry, rx = -R[0][1], R[0][2], -R[1][2]
+print("rot: ", rot)
+print("trans: ", trans)
+#v_rot = np.dot(rot, [1, 1, 1]) + trans
 
-r = np.array([rx, ry, rz])
+#print("v_rot: ", v_rot)
+
+rod = cv.Rodrigues(rot, jacobian=False)
+print("rod", rod)
+
+rect_image_left = cv.undistort(imgL, newCameraMatrixL, distL)
+
+cv.imshow("imgL", imgL)
+cv.waitKey(5000)
+
+cv.imshow("rect_image_left", rect_image_left)
+
+cv.waitKey(5000)
+
+# R = (rot - rot.transpose())/2
+# print(R)
+
+# rz, ry, rx = -R[0][1], R[0][2], -R[1][2]
+
+# r = np.array([rx, ry, rz])
 #print(np.linalg.norm(r))
 
-R = R/np.sin(np.linalg.norm(r))
-print("R: ", R)
+# R = R/np.sin(np.linalg.norm(r))
+# print("R: ", R)
 
 # [LEFT_CAM_FHD]
 # fx=1048.79517

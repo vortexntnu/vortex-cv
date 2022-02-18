@@ -9,6 +9,8 @@ include_directories(${OpenCV_INCLUDE_DIRS}) # not needed for opencv>=4.0
 # add the executable
 add_executable(pls_pls stereo_calib.cpp)
 add_executable(pls_pls_pls camera_acquisition.cpp)
+add_executable(stereo_calib2 stereo_calib2.cpp)
 
 target_link_libraries(pls_pls ${OpenCV_LIBS})
 target_link_libraries(pls_pls_pls ${OpenCV_LIBS})
+target_link_libraries(stereo_calib2 ${OpenCV_LIBS})
