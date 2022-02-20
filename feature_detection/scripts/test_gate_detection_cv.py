@@ -12,11 +12,13 @@ import matplotlib.pyplot as plt
 #     # print(new_image.shape, I.shape)
 #     return new_image
 
+print_picture = True
+
 path1 = 'feature_detection/test_image/gate_day1_medium_yaw.png'
 path2 = 'feature_detection/test_image/gate_day1_medium_yaw_second.png'
 path3 = 'feature_detection/test_image/gate_day1_medium_yaw_third.png'
 path4 = 'feature_detection/test_image/gate_day1_medium_yaw_fourth.png'
-img = cv2.imread(path4)
+img = cv2.imread(path3)
 img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 # img_contrast_selfwritten = change_contrast(img_gray,2.3,0)
@@ -25,36 +27,88 @@ img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 # rho = np.sqrt(height^2 + width^2)
 # theta = np.pi
 
-img_contrast = cv2.multiply(img_gray,2.3)
+img_contrast = cv2.multiply(img_gray,2.3) ## contrast factor should be adaptable to distance and brightness
 edges = cv2.Canny(img_contrast,50,200)
 
 ## HoughLinesP
 linesP = cv2.HoughLinesP(edges,1,np.pi/180,20,50,10)
 m = np.zeros(linesP.shape[0])
-print(m.shape, type(linesP))
+# print(linesP.shape, type(linesP))
 
-print(linesP[2][0])
-lines_ver = np.zeros((1,4,1))
-lines_hor = np.zeros((1,4,1))
+# print(linesP) #[2][0]
+
+## mix- up in the choice of the horizontal and vertical lines
+k = 0
+j = 0
+lines_ver = linesP # np.zeros((1,4,1))
+lines_hor = linesP # np.zeros((1,4,1))
 if linesP is not None:
     for i in range(0, len(linesP)):
         l = linesP[i][0]
-        ## Finding parallel lines 
         m[i] = (l[3]- l[1])/(l[2]-l[0])
-        if m[i] == 0:  ## vertical lines
+        if m[i] == 0:  ## vertical lines: visualization
             cv2.line(img, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3)
-            lines_ver[i] = np.append(lines_ver, l)
-        elif np.abs(m[i]) == np.Inf: ## horizontal lines
+        if m[i] != 0: ## vertical lines: processing
+            lines_hor = np.delete(lines_hor,k, axis= 0)
+            k -=1
+        if np.abs(m[i]) == np.Inf: ## horizontal lines: visualization
             cv2.line(img, (l[0], l[1]), (l[2], l[3]), (0,255,0), 3)
-            lines_hor.append(linesP[i][0])
-# print(m)
+        if np.abs(m[i]) != np.Inf: ## horizontal lines: processing
+            lines_ver = np.delete(lines_ver,j, axis= 0)
+            j -=1
+        k +=1
+        j +=1
+print(lines_ver)
 
-## doesn't work for 
-print(max(lines_ver[:][1]))
+## processing vertical lines
+# 1. ungefähre position der Pfeiler herausbekommen: 4 verschiedene x-positionen
+# 2. obersten punkt der vertikalen Linien ermitteln 
+# 3. obersten Punkt zum Filtern der horizontalen Linien bestimmen --> Zuverlässigkeit und Genauigkeit definieren
+# print(lines_ver, max(lines_ver[:][0][0]))
 
+## processing vertical lines
+# print(lines_ver[:,0,0])
+e = 10
+x_vertical = np.sort(lines_ver[:,0,0])
+vote = np.zeros_like(x_vertical)
+# Positionen der Pfeiler ermitteln
+for i in range(x_vertical.shape[0]):
+    for j in range(x_vertical.shape[0]):
+        if i != j:
+            # print(x_vertical[i],x_vertical[j] -e/2, x_vertical[j] +e/2)
+            if x_vertical[i] >= x_vertical[j] -e/2 and x_vertical[i] <= x_vertical[j] +e/2:
+                # print(x_vertical[i], x_vertical[j])
+                vote[i] +=1
 
+#         x_ll = min(lines_ver[:,0,0])
+#         x_rr = max(lines_ver[:,0,0])
+# print(x_vertical, x_ll, x_rr,x_vertical.shape[0])
+print(vote, x_vertical)
+# identify inidizes which are equal to zero --> should be changed to votes that are equally high instead of zero
+x_position = np.zeros((9,1))
+gr = vote[vote == 0].shape
+index = np.zeros(gr)
 
+k=0
+for i in range(vote.shape[0]):
+    if vote[i] == 0: 
+        index[k] = int(i)
+        k +=1
 
+i = 0
+for j in range(index.shape[0]-1):
+    if index[j] != index[j+1] +1:
+    
+        start = int(index[j])
+        ende = int(index[j+1])
+        print(start, ende, x_vertical[start:ende])
+        if len(x_vertical[start:ende]) > 1:
+            x_position[i] = np.mean(x_vertical[start:ende], dtype = int)
+            i +=1
+                # break
+
+print(x_position)
+## Was passiert, wenn nur ein Teil des Gates sichtbar ist? Nur linke oder nur rechte? Kann man darüber eine Aussage treffen?
 
 ## HoughLines
 # lines = cv2.HoughLines(edges,2,np.pi/180,150,1,0)
@@ -74,11 +128,18 @@ print(max(lines_ver[:][1]))
 
 # edges = cv2.Canny(img_blur,100,200)
 
+for i in range(len(x_position)):
+    if x_position[i] != 0:
+        cv2.line(img, (x_position[i], 0), (x_position[i], 1000), (255,255,0), 3)
+
 # print(edges)
-stack_edges = np.hstack((edges))
-stacked = np.hstack((img_gray, img_contrast))
-cv2.imshow('Kanten', img)
-cv2.waitKey(0)
+if print_picture:
+    stack_edges = np.hstack((edges))
+    stacked = np.hstack((img_gray, img_contrast))
+    cv2.imshow('Kanten', img)
+    cv2.waitKey(0)
+
+
 # cv2.imshow('Gate', stacked)
 # cv2.waitKey(0)
 # plt.xlim([0, img.shape[1]])
