@@ -1,4 +1,5 @@
-from numba import njit
+#from numba import njit
+import numpy as np
 from sympy import *
 from sympy.vector import CoordSys3D, SpaceOrienter
 import sympy 
@@ -35,4 +36,5 @@ def init():
     
     Jac = h.jacobian(state)
     
-    return njit(lambdify([r11, r12, r13, r21, r22, r23, r31, r32, r33, phi_lw, theta_lw, psi_lw], Jac, 'numpy'))
+    #return njit(lambdify([r11, r12, r13, r21, r22, r23, r31, r32, r33, phi_lw, theta_lw, psi_lw], Jac, 'numpy'))
+    return lambdify([r11, r12, r13, r21, r22, r23, r31, r32, r33, phi_lw, theta_lw, psi_lw], Jac, 'numpy')

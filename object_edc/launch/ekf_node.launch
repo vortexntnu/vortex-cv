@@ -14,7 +14,7 @@
       args="-d $(find object_edc)/src/visualizer.rviz" />
 
     <group if="$(eval type == 'simulator')">
-      <node name="playbag_drone" pkg="rosbag" type="play" required="true" args="--clock -l $(arg bag_drone)" /> 
+      <node name="playbag_drone" pkg="rosbag" type="play" required="true" args="--clock -l $(arg bagfile)" /> 
       <node pkg="object_edc" type="fake_gate_publisher.py" name="fake_gate"/>
 
 

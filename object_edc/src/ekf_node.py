@@ -13,6 +13,7 @@ from ekf_python2.gaussparams_py2 import MultiVarGaussian
 from ekf_python2.dynamicmodels_py2 import landmark_gate
 from ekf_python2.measurementmodels_py2 import NED_range_bearing
 from ekf_python2.ekf_py2 import EKF
+import ThreeD_orientation_model_sym
 
 #Math imports
 import numpy as np
@@ -57,17 +58,20 @@ class EKFNode:
         self.gate_prior = [0, 0] # z, roll, pitch of gate
 
         # Tuning parameters
-        self.sigma_a = np.array([0.05, 0.05, 0.05, 0.05])
-        self.sigma_z = np.array([0.5, 0.5, 0.5, 0.5])
+        self.sigma_a = np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
+        self.sigma_z = np.array([0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
 
         # Making gate model object
         self.gate_model = landmark_gate(self.sigma_a)
 
+        # The measurement Jacobian lambda
+        self.H_lam = ThreeD_orientation_model_sym.init()
+
         #Gauss prev values
-        self.x_hat0 = np.array([0, 0, 0, 0]) 
+        self.x_hat0 = np.array([0, 0, 0, 0, 0, 0]) 
         self.P_hat0 = np.diag(self.sigma_z)
         self.prev_gauss = MultiVarGaussian(self.x_hat0, self.P_hat0)
-
+        self.prev_quat = [0, 0, 0, 1]
         ################
         ###ROS stuff####
         ################
@@ -109,9 +113,9 @@ class EKFNode:
         Ts = rospy.get_time() - self.last_time
         return Ts
     
-    def ekf_function(self, pw_wc, Rot_wc, z):
+    def ekf_function(self, pw_wc, Rot_wc, Rot_cl, z):
 
-        measurement_model = NED_range_bearing(self.sigma_z, pw_wc, Rot_wc)
+        measurement_model = NED_range_bearing(self.sigma_z, pw_wc, Rot_wc, Rot_cl, self.H_lam)
 
         Ts = self.get_Ts()
 
@@ -130,7 +134,7 @@ class EKFNode:
         z = x_hat[2]
         pos = [x, y, z]
 
-        euler_angs = [self.gate_prior[0], self.gate_prior[1], x_hat[3]]
+        euler_angs = [x_hat[3], x_hat[4], x_hat[5]]
         return pos, euler_angs
 
     def transformbroadcast(self, parent_frame, p):
@@ -201,22 +205,29 @@ class EKFNode:
                                         tf_lookup_wc.transform.rotation.z,
                                         tf_lookup_wc.transform.rotation.w])
 
+        Rot_lw = tft.euler_matrix(self.prev_gauss.mean[3], self.prev_gauss.mean[4], self.prev_gauss.mean[5], "sxyz")
+
         pw_wc = np.array([tf_lookup_wc.transform.translation.x,
                           tf_lookup_wc.transform.translation.y,
                           tf_lookup_wc.transform.translation.z])
 
         Rot_wc = Rot_wc[0:3, 0:3]
-        
+        Rot_lw = Rot_lw[0:3, 0:3]
+
+        Rot_cl = np.matmul(Rot_wc, Rot_lw).T # ignore the notation for now
         
         #TODO add pose estimation capabilities to the EKF as position works now (Ivan + Kristian)
-        gamma_wc = 1 # TODO fix this to estimate gate orientation
-        z = obj_pose_position_c
-        z = np.append(z, gamma_wc)
-        
+        # For generating a measurement:
+        z_phi, z_theta, z_psi = tft.euler_from_quaternion(obj_pose_pose_c, axes='sxyz')
 
+        z = obj_pose_position_c
+        z = np.append(z, [z_phi, z_theta, z_psi])
+
+        rospy.loginfo (msg.pose.orientation.z)
         #Data from EKF
-        gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_wc, z)
+        gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_wc, Rot_cl, z)
         x_hat = gauss_est.mean
+
         ekf_position, ekf_pose = self.est_to_pose(x_hat)
         ekf_pose_quaterion = tft.quaternion_from_euler(ekf_pose[0], ekf_pose[1], ekf_pose[2])
 
