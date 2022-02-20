@@ -1,8 +1,8 @@
+
 import numpy as np
-import cv2
-
 import rospy
-
+import ros_numpy
+from sensor_msgs.msg import PointCloud2
 
 class ConfidenceMapping():
     def create_mask(self, data_to_mask, threshold_value):
@@ -25,7 +25,16 @@ class ConfidenceMapping():
         return confidence_map_masked, masked_as_cv_image
 
     def remove_nans(self, remove_from_here):
-        """Remove Nans"""
+        """
+        ***Remove Nans***\n
+        Removes all nans and infs from a numpy.ndarray.
+
+        Args:
+            remove_from_here: The nympy.ndarray to remove from
+
+        Returns:
+            nans_removed: numpy.ndarray with nans replaced by zeros and infs replaced by finite large numbers.
+        """
         nans_removed = np.nan_to_num(remove_from_here)
         return nans_removed
 
@@ -39,34 +48,31 @@ class ConfidenceMapping():
         Returns:
             confident_pointcloud: Pointcloud, only with points that have confident data.
         """
-        confident_pointcloud = confidence_mask*pointcloud_data
-        return confident_pointcloud
+        numpified_pointcloud = ros_numpy.numpify(pointcloud_data)
+        # numpified_pointcloud = np.nan_to_num(numpified_pointcloud)
+        # rospy.loginfo(np.shape(numpified_pointcloud))
+        # rospy.loginfo("Numpified type is: %s and value is: %s ", type(numpified_pointcloud[2][1]), numpified_pointcloud[2][1])
 
-    def add_mask_to_rgb(self, confidence_mask, rgb_data):
+
+        # confident_numpified_pointcloud = np.where(confidence_mask == 1, numpified_pointcloud, confidence_mask)
+        # rospy.loginfo("Numpified type is: %s and value is: %s ", type(confident_numpified_pointcloud[2][1]), confident_numpified_pointcloud[2][1])
+        # confident_pointcloud = ros_numpy.msgify(PointCloud2, confident_numpified_pointcloud)
+        # return confident_pointcloud
+
+    def add_mask_to_cv_image(self, confidence_mask, cv_image):
         """
-        Adds a confidence mask to the rgb data.
+        Adds a confidence map to a cv image. Elementwise multiplication between confidence mask and cv image. Must be same size and shape
 
         Args:
             confidence_mask: the confidence mask to apply.
+            cv_image: the cv image to apply the mask to.
 
         Returns:
-            confident_rgb: RGB image, only with points that have confident data.
-        """
-        pass
-
-    def add_mask_to_depth_data(self, confidence_mask, depth_data):
-        """
-        Adds a confidence mask to the depth data.
-
-        Args:
-            confidence_mask: the confidence mask to apply.
-
-        Returns:
-            confident_depth: Depth data, only with points that have confident data.
+            confident_cv_image: a confident representation of a cv image.
         """
 
-        depth_data = self.remove_nans(depth_data)
-        confident_depth = np.multiply(confidence_mask, depth_data)
-        return confident_depth
+        cv_image = self.remove_nans(cv_image)
+        confident_cv_image = np.multiply(confidence_mask, cv_image, dtype=np.float32)
+        return confident_cv_image
 
 

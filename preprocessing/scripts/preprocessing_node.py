@@ -3,7 +3,7 @@
 import rospy
 
 # msg types
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, PointCloud2
 from cv_bridge import CvBridge, CvBridgeError
 
 # classes
@@ -30,6 +30,14 @@ class PreprocessingNode():
         rospy.Subscriber('/zed2/zed_node/depth/depth_registered', Image, self.depth_registered_cb)
         self.confident_depthPub = rospy.Publisher('/cv/preprocessing/depth_registered', Image, queue_size= 1)
 
+        # Rectified color image
+        rospy.Subscriber('/zed2/zed_node/rgb/image_rect_color', Image, self.image_rect_color_cb)
+        self.confident_rectImagePub = rospy.Publisher('cv/preprocessing/image_rect_color', Image, queue_size= 1)
+
+        # Pointcloud
+        rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_cb)
+        self.confident_pointcloudPub = rospy.Publisher('cv/preprocessing/cloud_registered', PointCloud2, queue_size= 1)
+
     def confidence_cb(self, msg):
         """
         Gets a confidence map from camera through subscription
@@ -51,8 +59,30 @@ class PreprocessingNode():
         ros_image = self.bridge_to_image(masked_as_cv_image)
         self.maskedMapImagePub.publish(ros_image)
 
+    def pointcloud_cb(self, msg):
+        """
+        ***Callback***\n
+        Pyblishes a confident representation of the message in the topic using a confidence map.
+
+        Args:
+            msg: the message in the topic callback
+        """
+        try:
+            masked_map = self.maskedMap
+        except AttributeError:
+            return
+
+        confident_pointcloud = self.confMap.add_mask_to_pointcloud(masked_map, msg)
+        # self.confident_pointcloudPub.publish(confident_pointcloud)
+
     def depth_registered_cb(self, msg):
-        """Callback"""
+        """
+        ***Callback***\n
+        Pyblishes a confident representation of the message in the topic using a confidence map.
+
+        Args:
+            msg: the message in the topic callback
+        """
         cv_image = self.bridge_to_cv(msg)
         
         try:
@@ -60,9 +90,28 @@ class PreprocessingNode():
         except AttributeError:
             return
 
-        confident_depth = self.confMap.add_mask_to_depth_data(masked_map, cv_image)
+        confident_depth = self.confMap.add_mask_to_cv_image(masked_map, cv_image)
         ros_image = self.bridge_to_image(confident_depth)
         self.confident_depthPub.publish(ros_image)
+
+    def image_rect_color_cb(self, msg):
+        """
+        ***Callback***\n
+        Pyblishes a confident representation of the message in the topic using a confidence map.
+
+        Args:
+            msg: the message in the topic callback
+        """
+        cv_image = self.bridge_to_cv(msg)
+        
+        try:
+            masked_map = self.maskedMap
+        except AttributeError:
+            return
+
+        confident_depth = self.confMap.add_mask_to_cv_image(masked_map, cv_image)
+        ros_image = self.bridge_to_image(confident_depth)
+        self.confident_rectImagePub.publish(ros_image)
 
     def bridge_to_cv(self, image_msg, encoding = "passthrough"):
         """This function returns a cv image from a ros image"""
