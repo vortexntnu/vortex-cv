@@ -2,6 +2,92 @@ import numpy as np
 import cv2 as cv
 import glob
 
+def update_config(path, newCameraMatrixL, distL, newCameraMatrixR, distR, resolution="(1280, 720)"):
+
+    print("Using resolution: ", resolution)
+
+    resolutions = {"(2560,1440)": "LEFT_CAM_2K","(1920,1080)": "[LEFT_CAM_FHD]", "(1280, 720)":"[LEFT_CAM_HD]", "(672, 376)":"[LEFT_CAM_VGA]"}
+    print(resolutions[resolution])
+    with open(path, "r") as c:
+        config = c.readlines()
+ 
+    j = 0
+    for i in range(len(config)):
+        if config[i].strip() == resolutions[resolution]:
+            j = i
+            found = True
+
+
+    resolution_string = resolutions[resolution][10:]
+
+    if found:
+        j += 1
+        config[j] = f"fx={newCameraMatrixL[0][0]}\n"
+        j += 1
+        config[j] = f"fy={newCameraMatrixL[1][1]}\n"
+        j += 1
+        config[j] = f"cx={newCameraMatrixL[0][2]}\n"
+        j += 1
+        config[j] = f"cy={newCameraMatrixL[1][2]}\n"
+        j += 1
+
+        config[j] = f"k1={distL[0][0]}\n"
+        j += 1
+
+        config[j] = f"k2={distL[0][1]}\n"
+        j += 1
+
+        config[j] = f"k3={distL[0][4]}\n"
+        j += 1
+
+        config[j] = f"p1={distL[0][2]}\n"
+        j += 1
+
+        config[j] = f"p2={distL[0][3]}\n"
+        j += 1
+
+        config[j] = "\n"
+        j += 1
+
+        config[j] = f"[RIGHT_CAM_{resolution_string}\n"
+        j += 1
+
+        config[j] = f"fx={newCameraMatrixR[0][0]}\n"
+        j += 1
+
+        config[j] = f"fy={newCameraMatrixR[1][1]}\n"
+        j += 1
+
+        config[j] = f"cx={newCameraMatrixR[0][2]}\n"
+        j += 1
+
+        config[j] = f"cy={newCameraMatrixR[1][2]}\n"
+        j += 1
+
+        config[j] = f"k1={distR[0][0]}\n"
+        j += 1
+
+        config[j] = f"k2={distR[0][1]}\n"
+        j += 1
+
+        config[j] = f"k3={distR[0][4]}\n"
+        j += 1
+
+        config[j] = f"p1={distR[0][2]}\n"
+        j += 1
+
+        config[j] = f"p2={distR[0][3]}\n"
+        j += 1
+
+        config[j] = "\n"
+
+        with open(path, "w") as f:
+            for line in config:
+                f.write(line)
+            f.close()
+        for line in config:
+            print(line)
+
 
 # Calibration file path: On Linux: /usr/local/zed/settings/
 ################ FIND CHESSBOARD CORNERS - OBJECT POINTS AND IMAGE POINTS #############################
@@ -29,42 +115,46 @@ imgpointsL = [] # 2d points in image plane.
 imgpointsR = [] # 2d points in image plane.
 
 
-imagesLeft = glob.glob('/home/vortex/vortex_ws/src/Vortex_CV/camera_calibration/calibrationdata/zed2i_left/*.png')
-imagesRight = glob.glob('/home/vortex/vortex_ws/src/Vortex_CV/camera_calibration/calibrationdata/zed2i_right/*.png')
+imagesLeft = glob.glob('/home/vortex/cv_ws/src/Vortex_CV/camera_calibration/calibrationdata/ros_underwater_left/*.jpg')
+imagesRight = glob.glob('/home/vortex/cv_ws/src/Vortex_CV/camera_calibration/calibrationdata/ros_underwater_right/*.jpg')
+config_path = "/home/vortex/cv_ws/src/Vortex_CV/camera_calibration/scripts/SN38762967FACTORY_REAL_THIS_TIME_FU_BENJAMIN.conf"
 
-for imgLeft, imgRight in sorted(zip(imagesLeft, imagesRight)):
+for i, images in enumerate(sorted(zip(imagesLeft, imagesRight))):
+    if i%10 == 0:
+        imgLeft, imgRight = images
+        imgL = cv.imread(imgLeft)
+        frameSize = imgL.shape[:2]
+        print(frameSize)
+        # print(imgL.shape)
+        imgR = cv.imread(imgRight)
+        grayL = cv.cvtColor(imgL, cv.COLOR_BGR2GRAY)
+        grayR = cv.cvtColor(imgR, cv.COLOR_BGR2GRAY)
 
-    imgL = cv.imread(imgLeft)
-    # print(imgL.shape)
-    imgR = cv.imread(imgRight)
-    grayL = cv.cvtColor(imgL, cv.COLOR_BGR2GRAY)
-    grayR = cv.cvtColor(imgR, cv.COLOR_BGR2GRAY)
+        # Find the chess board corners
+        retL, cornersL = cv.findChessboardCorners(grayL, chessboardSize, None)
+        retR, cornersR = cv.findChessboardCorners(grayR, chessboardSize, None)
 
-    # Find the chess board corners
-    retL, cornersL = cv.findChessboardCorners(grayL, chessboardSize, None)
-    retR, cornersR = cv.findChessboardCorners(grayR, chessboardSize, None)
+        # print(retL)
+        # print(retR)
 
-    # print(retL)
-    # print(retR)
+        # If found, add object points, image points (after refining them)
+        if retL and retR == True:
+            print(imgLeft)
 
-    # If found, add object points, image points (after refining them)
-    if retL and retR == True:
-        print(imgLeft)
+            objpoints.append(objp)
 
-        objpoints.append(objp)
+            cornersL = cv.cornerSubPix(grayL, cornersL, (11,11), (-1,-1), criteria)
+            imgpointsL.append(cornersL)
 
-        cornersL = cv.cornerSubPix(grayL, cornersL, (11,11), (-1,-1), criteria)
-        imgpointsL.append(cornersL)
+            cornersR = cv.cornerSubPix(grayR, cornersR, (11,11), (-1,-1), criteria)
+            imgpointsR.append(cornersR)
 
-        cornersR = cv.cornerSubPix(grayR, cornersR, (11,11), (-1,-1), criteria)
-        imgpointsR.append(cornersR)
-
-        # Draw and display the corners
-        # cv.drawChessboardCorners(imgL, chessboardSize, cornersL, retL)
-        # cv.imshow('img left', imgL)
-        # cv.drawChessboardCorners(imgR, chessboardSize, cornersR, retR)
-        # cv.imshow('img right', imgR)
-        # cv.waitKey(1000)
+            # Draw and display the corners
+            # cv.drawChessboardCorners(imgL, chessboardSize, cornersL, retL)
+            # cv.imshow('img left', imgL)
+            # cv.drawChessboardCorners(imgR, chessboardSize, cornersR, retR)
+            # cv.imshow('img right', imgR)
+            # cv.waitKey(1000)
 
 
 cv.destroyAllWindows()
@@ -99,38 +189,13 @@ criteria_stereo= (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 # This step is performed to transformation between the two cameras and calculate Essential and Fundamenatl matrix
 retStereo, newCameraMatrixL, distL, newCameraMatrixR, distR, rot, trans, essentialMatrix, fundamentalMatrix = cv.stereoCalibrate(objpoints, imgpointsL, imgpointsR, newCameraMatrixL, distL, newCameraMatrixR, distR, grayL.shape[::-1], criteria_stereo, flags)
 
-print("Stereo calib: ", retStereo, "\n", newCameraMatrixL, "\n", distL, "\n", newCameraMatrixR, "\n", distR, "\n ROT:", rot, "\n", trans, "\n", essentialMatrix, "\n", fundamentalMatrix)
-#print(newCameraMatrixL)
-#print(newCameraMatrixR)
+# print("Stereo calib: ", retStereo, "\n", newCameraMatrixL, "\n", distL, "\n", newCameraMatrixR, "\n", distR, "\n ROT:", rot, "\n", trans, "\n", essentialMatrix, "\n", fundamentalMatrix)
+
+update_config(config_path, newCameraMatrixL, distL, newCameraMatrixR, distR, str((frameSize[1], frameSize[0])))
 
 
-with open("/home/vortex/vortex_ws/src/Vortex_CV/camera_calibration/scripts/calibration_params.txt", "w") as f:
-    f.write("[LEFT_CAM_FHD]\n")
-    f.write(f"fx={newCameraMatrixL[0][0]}\n")
-    f.write(f"fy={newCameraMatrixL[1][1]}\n")
-    f.write(f"cx={newCameraMatrixL[0][2]}\n")
-    f.write(f"cy={newCameraMatrixL[1][2]}\n")
-    f.write(f"k1={distL[0][0]}\n")
-    f.write(f"k2={distL[0][1]}\n")
-    f.write(f"k3={distL[0][4]}\n")
-    f.write(f"p1={distL[0][2]}\n")
-    f.write(f"p2={distL[0][3]}\n")
-    f.write("\n")
-    f.write("[RIGHT_CAM_FHD]\n")
-    f.write(f"fx={newCameraMatrixR[0][0]}\n")
-    f.write(f"fy={newCameraMatrixR[1][1]}\n")
-    f.write(f"cx={newCameraMatrixR[0][2]}\n")
-    f.write(f"cy={newCameraMatrixR[1][2]}\n")
-    f.write(f"k1={distR[0][0]}\n")
-    f.write(f"k2={distR[0][1]}\n")
-    f.write(f"k3={distR[0][4]}\n")
-    f.write(f"p1={distR[0][2]}\n")
-    f.write(f"p2={distR[0][3]}\n")
-    f.close()
-
-
-print("rot: ", rot)
-print("trans: ", trans)
+# print("rot: ", rot)
+# print("trans: ", trans)
 #v_rot = np.dot(rot, [1, 1, 1]) + trans
 
 #print("v_rot: ", v_rot)
@@ -139,46 +204,33 @@ rod = cv.Rodrigues(rot, jacobian=False)
 print("rod", rod)
 
 rect_image_left = cv.undistort(imgL, newCameraMatrixL, distL)
+rect_image_right = cv.undistort(imgR, newCameraMatrixR, distR)
 
-cv.imshow("imgL", imgL)
-cv.waitKey(5000)
 
-cv.imshow("rect_image_left", rect_image_left)
+# Crop:
+# x, y, w, h = roi_L
 
-cv.waitKey(5000)
+# rect_image_left = rect_image_left[y:y+h, x:x+w]
 
-# R = (rot - rot.transpose())/2
-# print(R)
+# cv.imshow("imgL", imgL)
+# cv.waitKey(5000)
 
-# rz, ry, rx = -R[0][1], R[0][2], -R[1][2]
+# cv.imwrite("imgL.jpg", imgL)
 
-# r = np.array([rx, ry, rz])
-#print(np.linalg.norm(r))
+# cv.imshow("rect_image_left", rect_image_left)
 
-# R = R/np.sin(np.linalg.norm(r))
-# print("R: ", R)
+# cv.waitKey(5000)
+# cv.imwrite("rect_image_left.jpg", rect_image_left)
 
-# [LEFT_CAM_FHD]
-# fx=1048.79517
-# fy=1033.32812
-# cx=943.372823
-# cy=538.890956
-# k1=-0.07983744
-# k2= 0.02351426
-# k3=-0.00783292
-# p1=0.00024204
-# p2=-0.00016786
 
-# [RIGHT_CAM_FHD]
-# fx=1.40242404e+02
-# fy=1.39414274e+02
-# cx=9.17294479e+01
-# cy=5.62024701e+01
-# k1=-1.26606067e-02
-# k2=-6.89068565e-03
-# k3=9.77296799e-02
-# p1=-5.73110011e-05
-# p2=-3.55594651e-04
+# cv.imshow("imgR", imgR)
+# cv.waitKey(5000)
+
+# cv.imwrite("imgR.jpg", imgR)
+
+# cv.imshow("rect_image_right.jpg", rect_image_right)
+# cv.waitKey(5000)
+# cv.imwrite("rect_image_right.jpg", rect_image_right)
 
 ########## Stereo Rectification #################################################
 
@@ -197,3 +249,5 @@ cv_file.write('stereoMapR_x',stereoMapR[0])
 cv_file.write('stereoMapR_y',stereoMapR[1])
 
 cv_file.release()
+
+
