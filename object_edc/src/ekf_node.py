@@ -198,7 +198,11 @@ class EKFNode:
 
 
         tf_lookup_wc = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5))
-
+        
+        # Assumption: this is the matrix that transforms a vector from world to camera (parent to child)
+        # New working assumption: this is actually from child to parent (camera to world)
+        # The new working assumption is the current best estimate.. kill me
+        
         #Go directly from quaternion to matrix
         Rot_wc = tft.quaternion_matrix([tf_lookup_wc.transform.rotation.x, 
                                         tf_lookup_wc.transform.rotation.y,
