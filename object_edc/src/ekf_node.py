@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-# import debugpy
-# print("Waiting for VSCode debugger...")
-# debugpy.listen(5678)
-# debugpy.wait_for_client()
+#import debugpy
+#print("Waiting for VSCode debugger...")
+#debugpy.listen(5678)
+#debugpy.wait_for_client()
 
 ##EKF imports
 #from logging import exception
@@ -11,7 +11,7 @@ from re import X
 
 from ekf_python2.gaussparams_py2 import MultiVarGaussian
 from ekf_python2.dynamicmodels_py2 import landmark_gate
-from ekf_python2.measurementmodels_py2 import NED_range_bearing
+from ekf_python2.measurementmodels_py2 import NED_linear_landmark
 from ekf_python2.ekf_py2 import EKF
 import ThreeD_orientation_model_sym
 
@@ -58,8 +58,8 @@ class EKFNode:
         self.gate_prior = [0, 0] # z, roll, pitch of gate
 
         # Tuning parameters
-        self.sigma_a = np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
-        self.sigma_z = np.array([0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
+        self.sigma_a = 1/5*np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
+        self.sigma_z = 2*np.array([0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
 
         # Making gate model object
         self.gate_model = landmark_gate(self.sigma_a)
@@ -112,10 +112,23 @@ class EKFNode:
     def get_Ts(self): # TODO inspect how well this works (Ivan)
         Ts = rospy.get_time() - self.last_time
         return Ts
+
+    def generate_noisy_measurement(self, z_noiseless):
+        
+        noise = np.array([0.05, 0.05, 0.05, 0.001, 0.001, 0.001])
+        noise_bad = np.array([1.5, 1.5, 1.5, np.pi/4, np.pi/4, np.pi/4])
+
+        a = np.random.uniform(0,1)
+        if a >= 0.075:
+            z_noised = z_noiseless + np.random.normal(0, noise)
+            return z_noised
+        else:
+            z_noised = z_noiseless + np.random.normal(0, noise_bad)
+            return z_noised
     
     def ekf_function(self, pw_wc, Rot_wc, Rot_cl, z):
 
-        measurement_model = NED_range_bearing(self.sigma_z, pw_wc, Rot_wc, Rot_cl, self.H_lam)
+        measurement_model = NED_linear_landmark(self.sigma_z, pw_wc, Rot_wc, Rot_cl, self.H_lam)
 
         Ts = self.get_Ts()
 
@@ -168,21 +181,35 @@ class EKFNode:
         rospy.loginfo("Object published: %s", object_name)
         self.transformbroadcast(self.parent_frame, p)
 
+    def transformbroadcast_camera_gate(self, parent_frame, child_frame, msg_position, msg_pose):
+        t = TransformStamped()
+        t.header.stamp = rospy.Time.now()
+        t.header.frame_id = parent_frame
+        t.child_frame_id = "object_"+str(child_frame)
+        t.transform.translation.x = msg_position[0]
+        t.transform.translation.y = msg_position[1]
+        t.transform.translation.z = msg_position[2]
+        t.transform.rotation.x =    msg_pose[0]
+        t.transform.rotation.y =    msg_pose[1]
+        t.transform.rotation.z =    msg_pose[2]
+        t.transform.rotation.w =    msg_pose[3]
+        self.__tfBroadcaster.sendTransform(t)
+
     def obj_pose_callback(self, msg):
         rospy.loginfo("Object data recieved for: %s", msg.header.frame_id)
         
         if self.using_global_fake_object == 1:
             tf_lookup_cg = self.__tfBuffer.lookup_transform(self.child_frame, self.object_frame, rospy.Time(), rospy.Duration(2))
             
-            obj_pose_position_c = np.array([tf_lookup_cg.transform.translation.x + self.n[0],
-                                            tf_lookup_cg.transform.translation.y + self.n[1],
-                                            tf_lookup_cg.transform.translation.z + self.n[2]])
+            obj_pose_position_c = np.array([tf_lookup_cg.transform.translation.x,
+                                            tf_lookup_cg.transform.translation.y,
+                                            tf_lookup_cg.transform.translation.z])
             
+            tf_lookup_wg = self.__tfBuffer.lookup_transform(self.parent_frame, self.object_frame, rospy.Time(), rospy.Duration(2))
             obj_pose_pose_c  = np.array([tf_lookup_cg.transform.rotation.x, 
                                          tf_lookup_cg.transform.rotation.y,
                                          tf_lookup_cg.transform.rotation.z,
                                          tf_lookup_cg.transform.rotation.w])
-
         else:
             #Gate in world frame for cyb pool
             obj_pose_position_c = np.array([msg.pose.position.x, 
@@ -195,6 +222,19 @@ class EKFNode:
                                         msg.pose.orientation.z,
                                         msg.pose.orientation.w])
         
+        self.transformbroadcast_camera_gate(self.child_frame, "gate_detected", obj_pose_position_c, obj_pose_pose_c)
+        tf_lookup_wg = self.__tfBuffer.lookup_transform(self.parent_frame, "object_gate_detected", rospy.Time(), rospy.Duration(2))
+        
+        obj_pose_position_wg = np.array([tf_lookup_wg.transform.translation.x, 
+                                         tf_lookup_wg.transform.translation.y, 
+                                         tf_lookup_wg.transform.translation.z])
+           
+        obj_pose_pose_wg = np.array([tf_lookup_wg.transform.rotation.x,
+                                     tf_lookup_wg.transform.rotation.y,
+                                     tf_lookup_wg.transform.rotation.z,
+                                     tf_lookup_wg.transform.rotation.w])
+        
+
 
 
         tf_lookup_wc = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5))
@@ -209,24 +249,29 @@ class EKFNode:
                                         tf_lookup_wc.transform.rotation.z,
                                         tf_lookup_wc.transform.rotation.w])
 
-        Rot_lw = tft.euler_matrix(self.prev_gauss.mean[3], self.prev_gauss.mean[4], self.prev_gauss.mean[5], "sxyz")
+        #Rot_lw = tft.euler_matrix(self.prev_gauss.mean[3], self.prev_gauss.mean[4], self.prev_gauss.mean[5], "sxyz")
+
 
         pw_wc = np.array([tf_lookup_wc.transform.translation.x,
                           tf_lookup_wc.transform.translation.y,
                           tf_lookup_wc.transform.translation.z])
 
         Rot_wc = Rot_wc[0:3, 0:3]
-        Rot_lw = Rot_lw[0:3, 0:3]
+        #Rot_lw = Rot_lw[0:3, 0:3]
+        Rot_lw = np.eye(3)
 
         Rot_cl = np.matmul(Rot_wc, Rot_lw).T # ignore the notation for now
         
         #TODO add pose estimation capabilities to the EKF as position works now (Ivan + Kristian)
         # For generating a measurement:
-        z_phi, z_theta, z_psi = tft.euler_from_quaternion(obj_pose_pose_c, axes='sxyz')
+        #obj_pose_pose_w = tft.quaternion_multiply(, obj_pose_pose_c)
+        z_phi, z_theta, z_psi = tft.euler_from_quaternion(obj_pose_pose_wg, axes='sxyz')
 
         z = obj_pose_position_c
         z = np.append(z, [z_phi, z_theta, z_psi])
 
+        z = self.generate_noisy_measurement(z)
+        
         rospy.loginfo (msg.pose.orientation.z)
         #Data from EKF
         gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_wc, Rot_cl, z)
