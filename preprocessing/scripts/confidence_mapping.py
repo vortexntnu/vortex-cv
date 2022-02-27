@@ -74,13 +74,14 @@ class ConfidenceMapping():
 
         Returns:
             confident_cv_image: a confident representation of a cv image.
+            bgra_image: a confident representation of a bgra image.
         """
         cv_image = self.remove_nans(cv_image)
         if len(np.shape(cv_image))==2:
             confident_cv_image = np.multiply(confidence_mask, cv_image, dtype=np.float32)
             return confident_cv_image
         else:
-            rgb_image = np.zeros((720, 1280, 4))
+            bgra_image = np.zeros((720, 1280, 4))
             (B, G, R, A) = cv2.split(cv_image)
 
             
@@ -89,8 +90,8 @@ class ConfidenceMapping():
             for channel in channel_list:
                 confident_channel_list.append(np.multiply(confidence_mask, channel, dtype=np.uint8))
 
-            rgb_image = cv2.merge(confident_channel_list)
-            return rgb_image
+            bgra_image = cv2.merge(confident_channel_list)
+            return bgra_image
 
 
 
