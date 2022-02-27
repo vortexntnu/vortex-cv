@@ -73,6 +73,10 @@ class PreprocessingNode():
             return
 
         confident_pointcloud = self.confMap.add_mask_to_pointcloud(masked_map, msg)
+
+        confident_pointcloud.header = msg.header
+        confident_pointcloud.height = msg.height
+        confident_pointcloud.width = msg.width
         # self.confident_pointcloudPub.publish(confident_pointcloud)
 
     def depth_registered_cb(self, msg):

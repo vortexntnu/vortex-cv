@@ -51,13 +51,42 @@ class ConfidenceMapping():
         numpified_pointcloud = ros_numpy.numpify(pointcloud_data)
         # numpified_pointcloud = np.nan_to_num(numpified_pointcloud)
         # rospy.loginfo(np.shape(numpified_pointcloud))
-        # rospy.loginfo("Numpified type is: %s and value is: %s ", type(numpified_pointcloud[2][1]), numpified_pointcloud[2][1])
 
+        # np.where(np.isnan(numpified_pointcloud), np.float32(0), np.float32(99))
+        # if np.isnan(numpified_pointcloud[2][1][0]):
+        #     rospy.loginfo("it is!! %s", numpified_pointcloud[2][1][0])
+
+        numpified_copy = numpified_pointcloud.copy()
+        numpified_copy.setflags(write = 1)
+
+        dt = np.dtype(np.void)
+
+        empty_void = np.asarray([(np.float32(0), np.float32(0), np.float32(0), np.float32(0))])
+        rospy.loginfo(type(dt))
+
+        # empty_void = (np.float32(0), np.float32(0), np.float32(0), np.float32(0))
+
+        # numpified_copy2 = np.where(confidence_mask == 1, numpified_copy, empty_void)
+
+        # numpified_copy = np.bitwise_and(confidence_mask, numpified_copy, dtype=np.float32)
+
+        # This is a substitution for the np.where func. since it can not to this particular task.
+        # for line in range(0, np.shape(numpified_pointcloud)[0]):
+        #     for col in range(0, np.shape(numpified_pointcloud)[1]):
+        #         if confidence_mask[line][col]:
+        #             for void in range(0, len(numpified_pointcloud[line][col])):
+        #                 if np.isfinite(numpified_pointcloud[line][col][void]):
+        #                     numpified_copy[line][col][void] = np.float32(0)
+        #         else:
+        #             for void in range(0, len(numpified_pointcloud[line][col])):
+        #                 numpified_copy[line][col][void] = np.float32(0)
+
+        # rospy.loginfo(numpified_copy)
 
         # confident_numpified_pointcloud = np.where(confidence_mask == 1, numpified_pointcloud, confidence_mask)
         # rospy.loginfo("Numpified type is: %s and value is: %s ", type(confident_numpified_pointcloud[2][1]), confident_numpified_pointcloud[2][1])
-        # confident_pointcloud = ros_numpy.msgify(PointCloud2, confident_numpified_pointcloud)
-        # return confident_pointcloud
+        confident_pointcloud = ros_numpy.msgify(PointCloud2, numpified_copy)
+        return confident_pointcloud
 
     def add_mask_to_cv_image(self, confidence_mask, cv_image):
         """
