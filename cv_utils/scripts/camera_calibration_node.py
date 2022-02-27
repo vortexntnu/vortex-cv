@@ -54,11 +54,18 @@ class CalibrationNode():
         self.imgpointsL = [] # 2d points in image plane.
         self.imgpointsR = [] # 2d points in image plane.
 
+        self.newCameraMatrixL = None
+        self.newCameraMatrixR = None
+        self.distL = None
+        self.distR = None
+        self.roi_L = None
+        self.roi_R = None
+
         self.zedLeftSub = rospy.Subscriber(left_img_topic, Image, self.camera_callback_left)
         self.zedRightSub = rospy.Subscriber(right_img_topic, Image, self.camera_callback_right)
 
-        self.calibLeftPub = rospy.Publisher("camera_calibration/left", String, queue_size= 10)
-        self.calibRightPub = rospy.Publisher("camera_calibration/right", String, queue_size= 10)
+        self.calibLeftPub = rospy.Publisher("camera_calibration/rectified/left", Image, queue_size= 10)
+        self.calibRightPub = rospy.Publisher("camera_calibration/rectified/right", Image, queue_size= 10)
         
         self.timerPub = rospy.Publisher('/feature_detection/fps_timer', Float32, queue_size= 1)
 
@@ -88,25 +95,28 @@ class CalibrationNode():
     
 
     def spin(self):
-        while not rospy.is_shutdown() and not self.finished:            
-            if self.cv_image_left is not None:
-                try:
-                    start = timer() # Start function timer.
+        while not rospy.is_shutdown():
+            if not self.finished:            
+                if self.cv_image_left is not None:
+                    try:
+                        start = timer() # Start function timer.
+                        
+                        # self.camera_callback_left(self.first_image_left_msg)
+                        # self.camera_callback_right(self.first_image_right_msg)
+                        self.calibrate()
+
+                        end = timer() # Stop function timer.
+                        timediff = (end - start)
+                        fps = 1 / timediff # Take reciprocal of the timediff to get runs per second. 
+                        self.timerPub.publish(fps)
                     
-                    self.camera_callback_left(self.first_image_left_msg)
-                    self.camera_callback_right(self.first_image_right_msg)
-                    self.calibrate()
+                    except Exception:
+                        print(traceback.format_exc())
+                        print(rospy.get_rostime())
 
-                    end = timer() # Stop function timer.
-                    timediff = (end - start)
-                    fps = 1 / timediff # Take reciprocal of the timediff to get runs per second. 
-                    self.timerPub.publish(fps)
-                
-                except Exception:
-                    print(traceback.format_exc())
-                    print(rospy.get_rostime())
-
-            self.ros_rate.sleep()
+                self.ros_rate.sleep()
+            else:
+                self.rectify_image()
 
     def camera_callback_left(self, img_msg):
         
@@ -160,14 +170,19 @@ class CalibrationNode():
             retL, cameraMatrixL, distL, rvecsL, tvecsL = cv.calibrateCamera(self.objpoints, self.imgpointsL, frameSize, None, None)
             heightL, widthL, channelsL = imgL.shape
             newCameraMatrixL, roi_L = cv.getOptimalNewCameraMatrix(cameraMatrixL, distL, (widthL, heightL), 1, (widthL, heightL))
-
+            
+            self.newCameraMatrixL = newCameraMatrixL
+            self.distL = distL
+            self.roi_L = roi_L
 
             #Right lens
             retR, cameraMatrixR, distR, rvecsR, tvecsR = cv.calibrateCamera(self.objpoints, self.imgpointsR, frameSize, None, None)
             heightR, widthR, channelsR = imgR.shape
             newCameraMatrixR, roi_R = cv.getOptimalNewCameraMatrix(cameraMatrixR, distR, (widthR, heightR), 1, (widthR, heightR))
-
-
+            
+            self.newCameraMatrixR = newCameraMatrixR
+            self.distR = distR
+            self.roi_R = roi_R
             ########## Stereo Vision Calibration #############################################
 
             flags = 0
@@ -267,6 +282,31 @@ class CalibrationNode():
             for key in resolutions.keys():
                 rospy.logerr(key)
                 
+
+
+    def rectify_image(self):
+        imgL = self.cv_image_left
+        imgR = self.cv_image_right
+
+        # Rectify
+        rect_image_left = cv.undistort(imgL, self.newCameraMatrixL, self.distL)
+        rect_image_right = cv.undistort(imgR, self.newCameraMatrixR, self.distR)
+
+        # Crop
+        x, y, w, h = self.roi_L
+        rect_image_left = rect_image_left[y:y+h, x:x+w]
+        rect_image_right = rect_image_right[y:y+h, x:x+w]
+
+        rect_image_left = self.bridge.cv2_to_imgmsg(rect_image_left)
+        rect_image_right = self.bridge.cv2_to_imgmsg(rect_image_right)
+
+        self.calibLeftPub.publish(rect_image_left)
+        self.calibRightPub.publish(rect_image_right)
+
+
+
+
+
 if __name__ == '__main__':
     try:
         feature_detection_node = CalibrationNode()
