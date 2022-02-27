@@ -1,4 +1,4 @@
-class ObjectDetectionNode():
+class PointcloudProcessingNode():
     """
 
     Handles tasks related to object detection
