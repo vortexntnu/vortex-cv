@@ -2,25 +2,30 @@ import numpy as np
 import cv2 as cv
 import glob
 
-def update_config(path, newCameraMatrixL, distL, newCameraMatrixR, distR, resolution="(1280, 720)"):
+def update_config(path, newCameraMatrixL, distL, newCameraMatrixR, distR, resolution):
 
     print("Using resolution: ", resolution)
 
     resolutions = {"(2560,1440)": "LEFT_CAM_2K","(1920,1080)": "[LEFT_CAM_FHD]", "(1280, 720)":"[LEFT_CAM_HD]", "(672, 376)":"[LEFT_CAM_VGA]"}
-    print(resolutions[resolution])
-    with open(path, "r") as c:
-        config = c.readlines()
- 
-    j = 0
-    for i in range(len(config)):
-        if config[i].strip() == resolutions[resolution]:
-            j = i
-            found = True
+    
+    try:
+        if (resolutions[resolution] == None):
+            print("No such resolution")
+            raise Exception("No such resolution")
 
+        print(resolutions[resolution])
+        with open(path, "r") as c:
+            config = c.readlines()
+    
+        j = 0
+        for i in range(len(config)):
+            if config[i].strip() == resolutions[resolution]:
+                j = i
+                found = True
 
-    resolution_string = resolutions[resolution][10:]
+        resolution_string = resolutions[resolution][10:]
 
-    if found:
+        if found:
         j += 1
         config[j] = f"fx={newCameraMatrixL[0][0]}\n"
         j += 1
@@ -30,52 +35,36 @@ def update_config(path, newCameraMatrixL, distL, newCameraMatrixR, distR, resolu
         j += 1
         config[j] = f"cy={newCameraMatrixL[1][2]}\n"
         j += 1
-
         config[j] = f"k1={distL[0][0]}\n"
         j += 1
-
         config[j] = f"k2={distL[0][1]}\n"
         j += 1
-
         config[j] = f"k3={distL[0][4]}\n"
         j += 1
-
         config[j] = f"p1={distL[0][2]}\n"
         j += 1
-
         config[j] = f"p2={distL[0][3]}\n"
         j += 1
-
         config[j] = "\n"
         j += 1
-
         config[j] = f"[RIGHT_CAM_{resolution_string}\n"
         j += 1
-
         config[j] = f"fx={newCameraMatrixR[0][0]}\n"
         j += 1
-
         config[j] = f"fy={newCameraMatrixR[1][1]}\n"
         j += 1
-
         config[j] = f"cx={newCameraMatrixR[0][2]}\n"
         j += 1
-
         config[j] = f"cy={newCameraMatrixR[1][2]}\n"
         j += 1
-
         config[j] = f"k1={distR[0][0]}\n"
         j += 1
-
         config[j] = f"k2={distR[0][1]}\n"
         j += 1
-
         config[j] = f"k3={distR[0][4]}\n"
         j += 1
-
         config[j] = f"p1={distR[0][2]}\n"
         j += 1
-
         config[j] = f"p2={distR[0][3]}\n"
         j += 1
 
@@ -88,14 +77,18 @@ def update_config(path, newCameraMatrixL, distL, newCameraMatrixR, distR, resolu
         for line in config:
             print(line)
 
+    except:
+        print("An error occurred. The function was given an invalid resolution")
+        print("Valid resolutions are: \n")
+        for key in resolutions.keys():
+            print(key)
 
 # Calibration file path: On Linux: /usr/local/zed/settings/
 ################ FIND CHESSBOARD CORNERS - OBJECT POINTS AND IMAGE POINTS #############################
 
 resolutions = {"FHD":(1920,1080), "2K": (2560,1440), "HD": (1280, 720), "VGA": (672, 376) }
-
 chessboardSize = (5,7)
-frameSize = resolutions["FHD"]
+#frameSize = resolutions["FHD"]
 
 
 
@@ -189,16 +182,8 @@ criteria_stereo= (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 # This step is performed to transformation between the two cameras and calculate Essential and Fundamenatl matrix
 retStereo, newCameraMatrixL, distL, newCameraMatrixR, distR, rot, trans, essentialMatrix, fundamentalMatrix = cv.stereoCalibrate(objpoints, imgpointsL, imgpointsR, newCameraMatrixL, distL, newCameraMatrixR, distR, grayL.shape[::-1], criteria_stereo, flags)
 
-# print("Stereo calib: ", retStereo, "\n", newCameraMatrixL, "\n", distL, "\n", newCameraMatrixR, "\n", distR, "\n ROT:", rot, "\n", trans, "\n", essentialMatrix, "\n", fundamentalMatrix)
 
 update_config(config_path, newCameraMatrixL, distL, newCameraMatrixR, distR, str((frameSize[1], frameSize[0])))
-
-
-# print("rot: ", rot)
-# print("trans: ", trans)
-#v_rot = np.dot(rot, [1, 1, 1]) + trans
-
-#print("v_rot: ", v_rot)
 
 rod = cv.Rodrigues(rot, jacobian=False)
 print("rod", rod)
@@ -211,26 +196,6 @@ rect_image_right = cv.undistort(imgR, newCameraMatrixR, distR)
 # x, y, w, h = roi_L
 
 # rect_image_left = rect_image_left[y:y+h, x:x+w]
-
-# cv.imshow("imgL", imgL)
-# cv.waitKey(5000)
-
-# cv.imwrite("imgL.jpg", imgL)
-
-# cv.imshow("rect_image_left", rect_image_left)
-
-# cv.waitKey(5000)
-# cv.imwrite("rect_image_left.jpg", rect_image_left)
-
-
-# cv.imshow("imgR", imgR)
-# cv.waitKey(5000)
-
-# cv.imwrite("imgR.jpg", imgR)
-
-# cv.imshow("rect_image_right.jpg", rect_image_right)
-# cv.waitKey(5000)
-# cv.imwrite("rect_image_right.jpg", rect_image_right)
 
 ########## Stereo Rectification #################################################
 
