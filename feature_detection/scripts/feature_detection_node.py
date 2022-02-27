@@ -17,6 +17,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import dynamic_reconfigure.client
 
 import numpy as np
+import cv2
 from timeit import default_timer as timer
 import traceback
 
@@ -158,33 +159,28 @@ class FeatureDetectionNode():
             if self.cv_image is not None:
                 try:
                     start = timer() # Start function timer.
+                    
+                    imger = cv2.cvtColor(self.cv_image, cv2.COLOR_BGRA2RGBA)
+                    Z = imger.reshape((-1,3))
+                    # convert to np.float32
+                    Z = np.float32(Z)
+                    # define criteria, number of clusters(K) and apply kmeans()
+                    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+                    K = 8
+                    ret,label,center=cv2.kmeans(Z,K,None,criteria,10,cv2.KMEANS_RANDOM_CENTERS)
 
-                    bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, self.current_object, self.hsv_params, self.noise_rm_params)
-                    pt_arr_msg = self.build_point_array_msg(points_in_rects, self.current_object, self.image_shape[0], self.image_shape[1])
-                    self.RectPointsPub.publish(pt_arr_msg)
-                    
-                    self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_validation_img)
-                    self.cv_image_publisher(self.noiseRmPub, self.feat_detection.nr_img, msg_encoding="mono8")
-                    self.cv_image_publisher(self.i2rcpPub, self.feat_detection.i2rcp_image_blank)
-                    self.cv_image_publisher(self.shapePub, self.feat_detection.rect_flt_img)
-                    self.cv_image_publisher(self.linesPub, self.feat_detection.line_fitting_img)
-                    self.cv_image_publisher(self.BBoxPub, self.feat_detection.bbox_img)
-                    self.cv_image_publisher(self.pointAreasPub, self.feat_detection.pointed_rects_img)
+                    # Now convert back into uint8, and make original image
+                    center = np.uint8(center)
+                    res = center[label.flatten()]
+                    res2 = res.reshape((imger.shape))
 
-                    if bbox_points:
-                        bboxes_msg = self.build_bounding_boxes_msg(bbox_points, self.current_object)
-                        self.BBoxPointsPub.publish(bboxes_msg)
-                    
-                        self.prev_bboxes_msg = bboxes_msg
-                    
-                    else:
-                        rospy.logwarn("Bounding Box wasnt found... keep on spinning...")
-                        self.BBoxPointsPub.publish(self.prev_bboxes_msg)
-                    
+                    self.cv_image_publisher(self.linesPub, res2, "bgra8")
+
                     end = timer() # Stop function timer.
                     timediff = (end - start)
                     fps = 1 / timediff # Take reciprocal of the timediff to get runs per second. 
                     self.timerPub.publish(fps)
+
                 
                 except Exception, e:
                     rospy.logwarn(traceback.format_exc())
