@@ -29,6 +29,8 @@ from read_yaml_config import read_yaml_file
 from time import sleep
 import copy
 
+from test_gate_detection_cv import HoughMajingo
+
 class FeatureDetectionNode():
     """Handles tasks related to feature detection
     """
@@ -184,31 +186,18 @@ class FeatureDetectionNode():
                 try:
                     start = timer() # Start function timer.
 
-                    cv_img_lines, canny_lines, _, = self.hough_transform_manifold()
-                    self.cv_image_publisher(self.linesPub, canny_lines, msg_encoding="bgr8")
+                    cv2_image = cv2.convertScaleAbs(self.cv_image, alpha=self.alpha, beta=self.beta)
+                    lookUpTable = np.empty((1,256), np.uint8)
+                    for i in range(256):
+                        lookUpTable[0,i] = np.clip(pow(i / 255.0, self.gamma) * 255.0, 0, 255)
+                    res = cv2.LUT(cv2_image, lookUpTable)
+                    self.cv_image_publisher(self.hsvCheckPub, res)
 
-                    # bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, self.current_object, self.hsv_params, self.noise_rm_params)
-                    # pt_arr_msg = self.build_point_array_msg(points_in_rects, self.current_object, self.image_shape[0], self.image_shape[1])
-                    # self.RectPointsPub.publish(pt_arr_msg)
-                    
-                    # self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_validation_img)
-                    # self.cv_image_publisher(self.noiseRmPub, self.feat_detection.nr_img, msg_encoding="mono8")
-                    # self.cv_image_publisher(self.i2rcpPub, self.feat_detection.i2rcp_image_blank)
-                    # self.cv_image_publisher(self.shapePub, self.feat_detection.rect_flt_img)
-                    # self.cv_image_publisher(self.linesPub, self.feat_detection.line_fitting_img)
-                    # self.cv_image_publisher(self.BBoxPub, self.feat_detection.bbox_img)
-                    # self.cv_image_publisher(self.pointAreasPub, self.feat_detection.pointed_rects_img)
+                    bb_arr, hough_img, edges = HoughMajingo.main(res, self.canny_threshold1, self.canny_threshold2)
+                    self.cv_image_publisher(self.linesPub, hough_img, "bgr8")
+                    self.cv_image_publisher(self.i2rcpPub, edges, "8UC1")
 
-                    # if bbox_points:
-                    #     bboxes_msg = self.build_bounding_boxes_msg(bbox_points, self.current_object)
-                    #     self.BBoxPointsPub.publish(bboxes_msg)
-                    
-                    #     self.prev_bboxes_msg = bboxes_msg
-                    
-                    # else:
-                    #     rospy.logwarn("Bounding Box wasnt found... keep on spinning...")
-                    #     self.BBoxPointsPub.publish(self.prev_bboxes_msg)
-                    
+
                     end = timer() # Stop function timer.
                     timediff = (end - start)
                     fps = 1 / timediff # Take reciprocal of the timediff to get runs per second. 
@@ -272,9 +261,9 @@ class FeatureDetectionNode():
         self.hsv_params[4] = config.hsv_val_min
         self.hsv_params[5] = config.hsv_val_max
 
-        self.ksize1 = config.ksize1
-        self.ksize2 = config.ksize2
-        self.sigma = config.sigma
+        self.alpha = config.ksize1
+        self.beta = config.ksize2
+        self.gamma = config.sigma
 
         self.thresholding_blocksize = config.blocksize
         self.thresholding_C = config.C
