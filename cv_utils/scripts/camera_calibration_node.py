@@ -42,8 +42,8 @@ class CalibrationNode():
 
         self.image_counter = 0
 
-        #Change this in yaml?
-        self.config_path = "/home/vortex/vortex_ws/src/Vortex_CV/camera_calibration/scripts/SN38762967FACTORY_REAL_THIS_TIME_FU_BENJAMIN.conf"
+        self.config_path = rospy.get_param("/config_path")
+        #self.config_path = "/home/vortex/vortex_ws/src/Vortex_CV/camera_calibration/scripts/SN38762967FACTORY_REAL_THIS_TIME_FU_BENJAMIN.conf"
 
         self.objp = np.zeros((self.chessboardSize[0] * self.chessboardSize[1], 3), np.float32)
         self.objp[:,:2] = np.mgrid[0:self.chessboardSize[0],0:self.chessboardSize[1]].T.reshape(-1,2)
@@ -124,13 +124,6 @@ class CalibrationNode():
                 rospy.logerr("CvBridge Error: {0}".format(e))
 
     def calibrate(self):
-
-        # LEFT SIDE
-                
-        # termination criteria
-        # criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-        # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
-
 
         imgL = self.cv_image_left
         frameSize = imgL.shape[:2]
@@ -269,7 +262,7 @@ class CalibrationNode():
             rospy.loginfo("Config file has been saved in: " + self.config_path)
 
         except:
-            rospy.logerr("An error occurred. The function was given an invalid resolution")
+            rospy.logerr("An error occurred")
             rospy.logerr("Valid resolutions are:")
             for key in resolutions.keys():
                 rospy.logerr(key)
