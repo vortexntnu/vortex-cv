@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>camera_calibration</name>
+  <name>vortex_calibration</name>
   <version>0.0.0</version>
   <description>The camera_calibration package</description>
 

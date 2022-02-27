@@ -26,56 +26,56 @@ def update_config(path, newCameraMatrixL, distL, newCameraMatrixR, distR, resolu
         resolution_string = resolutions[resolution][10:]
 
         if found:
-        j += 1
-        config[j] = f"fx={newCameraMatrixL[0][0]}\n"
-        j += 1
-        config[j] = f"fy={newCameraMatrixL[1][1]}\n"
-        j += 1
-        config[j] = f"cx={newCameraMatrixL[0][2]}\n"
-        j += 1
-        config[j] = f"cy={newCameraMatrixL[1][2]}\n"
-        j += 1
-        config[j] = f"k1={distL[0][0]}\n"
-        j += 1
-        config[j] = f"k2={distL[0][1]}\n"
-        j += 1
-        config[j] = f"k3={distL[0][4]}\n"
-        j += 1
-        config[j] = f"p1={distL[0][2]}\n"
-        j += 1
-        config[j] = f"p2={distL[0][3]}\n"
-        j += 1
-        config[j] = "\n"
-        j += 1
-        config[j] = f"[RIGHT_CAM_{resolution_string}\n"
-        j += 1
-        config[j] = f"fx={newCameraMatrixR[0][0]}\n"
-        j += 1
-        config[j] = f"fy={newCameraMatrixR[1][1]}\n"
-        j += 1
-        config[j] = f"cx={newCameraMatrixR[0][2]}\n"
-        j += 1
-        config[j] = f"cy={newCameraMatrixR[1][2]}\n"
-        j += 1
-        config[j] = f"k1={distR[0][0]}\n"
-        j += 1
-        config[j] = f"k2={distR[0][1]}\n"
-        j += 1
-        config[j] = f"k3={distR[0][4]}\n"
-        j += 1
-        config[j] = f"p1={distR[0][2]}\n"
-        j += 1
-        config[j] = f"p2={distR[0][3]}\n"
-        j += 1
+            j += 1
+            config[j] = f"fx={newCameraMatrixL[0][0]}\n"
+            j += 1
+            config[j] = f"fy={newCameraMatrixL[1][1]}\n"
+            j += 1
+            config[j] = f"cx={newCameraMatrixL[0][2]}\n"
+            j += 1
+            config[j] = f"cy={newCameraMatrixL[1][2]}\n"
+            j += 1
+            config[j] = f"k1={distL[0][0]}\n"
+            j += 1
+            config[j] = f"k2={distL[0][1]}\n"
+            j += 1
+            config[j] = f"k3={distL[0][4]}\n"
+            j += 1
+            config[j] = f"p1={distL[0][2]}\n"
+            j += 1
+            config[j] = f"p2={distL[0][3]}\n"
+            j += 1
+            config[j] = "\n"
+            j += 1
+            config[j] = f"[RIGHT_CAM_{resolution_string}\n"
+            j += 1
+            config[j] = f"fx={newCameraMatrixR[0][0]}\n"
+            j += 1
+            config[j] = f"fy={newCameraMatrixR[1][1]}\n"
+            j += 1
+            config[j] = f"cx={newCameraMatrixR[0][2]}\n"
+            j += 1
+            config[j] = f"cy={newCameraMatrixR[1][2]}\n"
+            j += 1
+            config[j] = f"k1={distR[0][0]}\n"
+            j += 1
+            config[j] = f"k2={distR[0][1]}\n"
+            j += 1
+            config[j] = f"k3={distR[0][4]}\n"
+            j += 1
+            config[j] = f"p1={distR[0][2]}\n"
+            j += 1
+            config[j] = f"p2={distR[0][3]}\n"
+            j += 1
 
-        config[j] = "\n"
+            config[j] = "\n"
 
-        with open(path, "w") as f:
+            with open(path, "w") as f:
+                for line in config:
+                    f.write(line)
+                f.close()
             for line in config:
-                f.write(line)
-            f.close()
-        for line in config:
-            print(line)
+                print(line)
 
     except:
         print("An error occurred. The function was given an invalid resolution")

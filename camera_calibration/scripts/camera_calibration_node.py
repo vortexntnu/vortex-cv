@@ -5,6 +5,7 @@
 # debugpy.listen(5678)
 # debugpy.wait_for_client()
 
+from re import T
 import rospy
 
 from sensor_msgs.msg import Image
@@ -28,6 +29,8 @@ class CalibrationNode():
     def __init__(self):
         rospy.init_node('camera_calibration_node')
 
+        self.finished = False
+
         self.ros_rate = rospy.Rate(1.0)
         # self.zedSub                 = rospy.Subscriber(image_topic, Image, self.camera_callback)
 
@@ -40,7 +43,7 @@ class CalibrationNode():
         self.image_counter = 0
 
         #Change this in yaml?
-        self.config_path = "/home/vortex/cv_ws/src/Vortex_CV/camera_calibration/scripts/SN38762967FACTORY_REAL_THIS_TIME_FU_BENJAMIN.conf"
+        self.config_path = "/home/vortex/vortex_ws/src/Vortex_CV/camera_calibration/scripts/SN38762967FACTORY_REAL_THIS_TIME_FU_BENJAMIN.conf"
 
         self.objp = np.zeros((self.chessboardSize[0] * self.chessboardSize[1], 3), np.float32)
         self.objp[:,:2] = np.mgrid[0:self.chessboardSize[0],0:self.chessboardSize[1]].T.reshape(-1,2)
@@ -57,26 +60,26 @@ class CalibrationNode():
         self.calibLeftPub = rospy.Publisher("camera_calibration/left", String, queue_size= 10)
         self.calibRightPub = rospy.Publisher("camera_calibration/right", String, queue_size= 10)
         
-        self.timerPub               = rospy.Publisher('/feature_detection/fps_timer', Float32, queue_size= 1)
+        self.timerPub = rospy.Publisher('/feature_detection/fps_timer', Float32, queue_size= 1)
 
         self.bridge = CvBridge()
 
         # First initialization of image shape
-        first_image_left_msg = rospy.wait_for_message(left_img_topic, Image)
-        first_image_right_msg = rospy.wait_for_message(right_img_topic, Image)
+        self.first_image_left_msg = rospy.wait_for_message(left_img_topic, Image)
+        self.first_image_right_msg = rospy.wait_for_message(right_img_topic, Image)
 
 
         try:
-            self.cv_image_left = self.bridge.imgmsg_to_cv2(first_image_left_msg, "passthrough")
+            self.cv_image_left = self.bridge.imgmsg_to_cv2(self.first_image_left_msg, "passthrough")
             self.image_shape_left = self.cv_image_left.shape
-        except CvBridgeError, e:
+        except CvBridgeError:
             self.image_shape_left = (720, 1280, 4)
 
 
         try:
-            self.cv_image_right = self.bridge.imgmsg_to_cv2(first_image_right_msg, "passthrough")
+            self.cv_image_right = self.bridge.imgmsg_to_cv2(self.first_image_right_msg, "passthrough")
             self.image_shape_right = self.cv_image_right.shape
-        except CvBridgeError, e:
+        except CvBridgeError:
             self.image_shape_right = (720, 1280, 4)
 
         
@@ -85,14 +88,13 @@ class CalibrationNode():
     
 
     def spin(self):
-        while not rospy.is_shutdown():            
-            if self.cv_image is not None:
+        while not rospy.is_shutdown() and not self.finished:            
+            if self.cv_image_left is not None:
                 try:
                     start = timer() # Start function timer.
                     
-
-                    self.camera_callback_left()
-                    self.camera_callback_right()
+                    self.camera_callback_left(self.first_image_left_msg)
+                    self.camera_callback_right(self.first_image_right_msg)
                     self.calibrate()
 
                     end = timer() # Stop function timer.
@@ -100,7 +102,7 @@ class CalibrationNode():
                     fps = 1 / timediff # Take reciprocal of the timediff to get runs per second. 
                     self.timerPub.publish(fps)
                 
-                except Exception, e:
+                except Exception:
                     print(traceback.format_exc())
                     print(rospy.get_rostime())
 
@@ -110,7 +112,7 @@ class CalibrationNode():
         
         try:
             self.cv_image_left = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
-        except CvBridgeError, e:
+        except CvBridgeError as e:
             rospy.logerr("CvBridge Error: {0}".format(e))
 
 
@@ -118,7 +120,7 @@ class CalibrationNode():
 
             try:
                 self.cv_image_right = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
-            except CvBridgeError, e:
+            except CvBridgeError as e:
                 rospy.logerr("CvBridge Error: {0}".format(e))
 
     def calibrate(self):
@@ -132,6 +134,8 @@ class CalibrationNode():
 
         imgL = self.cv_image_left
         frameSize = imgL.shape[:2]
+        rospy.loginfo(frameSize)
+
 
         imgR = self.cv_image_right
         grayL = cv.cvtColor(imgL, cv.COLOR_BGR2GRAY)
@@ -142,7 +146,6 @@ class CalibrationNode():
         retR, cornersR = cv.findChessboardCorners(grayR, self.chessboardSize, None)
 
         if retL and retR == True:
-            print(imgLeft)
 
             self.objpoints.append(self.objp)
 
@@ -153,9 +156,11 @@ class CalibrationNode():
             self.imgpointsR.append(cornersR)
 
             self.image_counter += 1
+            rospy.loginfo("Counter: " + str(self.image_counter))
 
         ############## CALIBRATION #######################################################
-        if image_counter == 50:
+        if self.image_counter == 50:
+            rospy.loginfo("Starting calibrating...")
         #  image_counter = 0
 
         # Left lens
@@ -175,96 +180,100 @@ class CalibrationNode():
             flags = 0
             flags |= cv.CALIB_FIX_INTRINSIC
 
-            retStereo, newCameraMatrixL, distL, newCameraMatrixR, distR, rot, trans, essentialMatrix, \
-            fundamentalMatrix = cv.stereoCalibrate(self.objpoints, self.imgpointsL, self.imgpointsR, newCameraMatrixL, \
-            distL, newCameraMatrixR, distR, grayL.shape[::-1], self.criteria, flags)
+            retStereo, newCameraMatrixL, distL, newCameraMatrixR, distR, rot, trans, essentialMatrix, fundamentalMatrix = cv.stereoCalibrate(self.objpoints, self.imgpointsL, self.imgpointsR, newCameraMatrixL, distL, newCameraMatrixR, distR, grayL.shape[::-1], criteria=self.criteria, flags=flags)
             
+            rospy.loginfo("Updating config file...")
+            self.update_config(newCameraMatrixL, distL, newCameraMatrixR, distR, str((frameSize[1], frameSize[0])))
 
-            self.update_config(newCameraMatrixL, distL, newCameraMatrixR, distR, (widthR, heightR)):
-
-        self.calibPub.publish(left_calib_string)
+        #self.calibPub.publish(left_calib_string)
 
 
     def update_config(self, newCameraMatrixL, distL, newCameraMatrixR, distR, resolution):
 
-    #print("Using resolution: ", resolution)
-    resolutions = {"(2560,1440)": "LEFT_CAM_2K","(1920,1080)": "[LEFT_CAM_FHD]", "(1280, 720)":"[LEFT_CAM_HD]", "(672, 376)":"[LEFT_CAM_VGA]"}
-    
-    try:
-        if (resolutions[resolution] == None):
-            print("No such resolution")
-            raise Exception("No such resolution")
+        #print("Using resolution: ", resolution)
+        resolutions = {"(2560,1440)": "LEFT_CAM_2K","(1920,1080)": "[LEFT_CAM_FHD]", "(1280, 720)":"[LEFT_CAM_HD]", "(672, 376)":"[LEFT_CAM_VGA]"}
+        
+        try:
+            # if (resolutions[resolution] == None):
+            #     print("No such resolution")
+            #     raise Exception("No such resolution")
 
-        print(resolutions[resolution])
-        with open(self.config_path, "r") as c:
-            config = c.readlines()
-    
-        j = 0
-        for i in range(len(config)):
-            if config[i].strip() == resolutions[resolution]:
-                j = i
-                found = True
+            rospy.loginfo(resolutions[resolution])
+            with open(self.config_path, "r") as c:
+                config = c.readlines()
+        
+            j = 0
+            for i in range(len(config)):
+                if config[i].strip() == resolutions[resolution]:
+                    j = i
+                    found = True
 
-        resolution_string = resolutions[resolution][10:]
+            resolution_string = resolutions[resolution][10:]
 
-        if found:
-            j += 1
-            config[j] = f"fx={newCameraMatrixL[0][0]}\n"
-            j += 1
-            config[j] = f"fy={newCameraMatrixL[1][1]}\n"
-            j += 1
-            config[j] = f"cx={newCameraMatrixL[0][2]}\n"
-            j += 1
-            config[j] = f"cy={newCameraMatrixL[1][2]}\n"
-            j += 1
-            config[j] = f"k1={distL[0][0]}\n"
-            j += 1
-            config[j] = f"k2={distL[0][1]}\n"
-            j += 1
-            config[j] = f"k3={distL[0][4]}\n"
-            j += 1
-            config[j] = f"p1={distL[0][2]}\n"
-            j += 1
-            config[j] = f"p2={distL[0][3]}\n"
-            j += 1
-            config[j] = "\n"
-            j += 1
-            config[j] = f"[RIGHT_CAM_{resolution_string}\n"
-            j += 1
-            config[j] = f"fx={newCameraMatrixR[0][0]}\n"
-            j += 1
-            config[j] = f"fy={newCameraMatrixR[1][1]}\n"
-            j += 1
-            config[j] = f"cx={newCameraMatrixR[0][2]}\n"
-            j += 1
-            config[j] = f"cy={newCameraMatrixR[1][2]}\n"
-            j += 1
-            config[j] = f"k1={distR[0][0]}\n"
-            j += 1
-            config[j] = f"k2={distR[0][1]}\n"
-            j += 1
-            config[j] = f"k3={distR[0][4]}\n"
-            j += 1
-            config[j] = f"p1={distR[0][2]}\n"
-            j += 1
-            config[j] = f"p2={distR[0][3]}\n"
-            j += 1
+            if found:
+                j += 1
+                config[j] = "fx={}\n".format(newCameraMatrixL[0][0])
+                j += 1
+                config[j] = "fy={}\n".format(newCameraMatrixL[1][1])
+                j += 1
+                config[j] = "cx={}\n".format(newCameraMatrixL[0][2])
+                j += 1
+                config[j] = "cy={}\n".format(newCameraMatrixL[1][2])
+                j += 1
+                config[j] = "k1={}\n".format(distL[0][0])
+                j += 1
+                config[j] = "k2={}\n".format(distL[0][1])
+                j += 1
+                config[j] = "k3={}\n".format(distL[0][4])
+                j += 1
+                config[j] = "p1={}\n".format(distL[0][2])
+                j += 1
+                config[j] = "p2={}\n".format(distL[0][3])
+                j += 1
+                config[j] = "\n"
+                j += 1
+                config[j] = "[RIGHT_CAM_{}\n".format(resolution_string)
+                j += 1
+                config[j] = "fx={}\n".format(newCameraMatrixR[0][0])
+                j += 1
+                config[j] = "fy={}\n".format(newCameraMatrixR[1][1])
+                j += 1
+                config[j] = "cx={}\n".format(newCameraMatrixR[0][2])
+                j += 1
+                config[j] = "cy={}\n".format(newCameraMatrixR[1][2])
+                j += 1
+                config[j] = "k1={}\n".format(distR[0][0])
+                j += 1
+                config[j] = "k2={}\n".format(distR[0][1])
+                j += 1
+                config[j] = "k3={}\n".format(distR[0][4])
+                j += 1
+                config[j] = "p1={}\n".format(distR[0][2])
+                j += 1
+                config[j] = "p2={}\n".format(distR[0][3])
+                j += 1
+                config[j] = "\n"
+                #REMOVE THIS
+                print("It works")
+                
 
-            config[j] = "\n"
-
-        with open(self.config_path, "w") as f:
+            with open(self.config_path, "w") as f:
+                for line in config:
+                    f.write(line)
+                f.close()
             for line in config:
-                f.write(line)
-            f.close()
-        for line in config:
-            print(line)
+                print(line)
 
-    except:
-        print("An error occurred. The function was given an invalid resolution")
-        print("Valid resolutions are: \n")
-        for key in resolutions.keys():
-            print(key)
-            
+            self.finished = True
+
+            rospy.loginfo("Config file has been saved in: " + self.config_path)
+
+        except:
+            rospy.logerr("An error occurred. The function was given an invalid resolution")
+            rospy.logerr("Valid resolutions are:")
+            for key in resolutions.keys():
+                rospy.logerr(key)
+                
 if __name__ == '__main__':
     try:
         feature_detection_node = CalibrationNode()
