@@ -32,7 +32,7 @@ class PreprocessingNode():
 
         # Rectified color image
         rospy.Subscriber('/zed2/zed_node/rgb/image_rect_color', Image, self.image_rect_color_cb)
-        self.confident_rectImagePub = rospy.Publisher('cv/preprocessing/image_rect_color', Image, queue_size= 1)
+        self.confident_rectImagePub = rospy.Publisher('cv/preprocessing/image_rect_color_filtered', Image, queue_size= 1)
 
         # Pointcloud
         rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_cb)
@@ -53,7 +53,7 @@ class PreprocessingNode():
         cv_image = self.bridge_to_cv(msg)
         
         # Make the masked map and store it in a class variable
-        self.maskedMap, masked_as_cv_image = self.confMap.create_mask(cv_image, 30)
+        self.maskedMap, masked_as_cv_image = self.confMap.create_mask(cv_image, 5)
 
         # Bridge image data from cv_image to Image data
         ros_image = self.bridge_to_image(masked_as_cv_image)
@@ -77,7 +77,7 @@ class PreprocessingNode():
         confident_pointcloud.header = msg.header
         confident_pointcloud.height = msg.height
         confident_pointcloud.width = msg.width
-        # self.confident_pointcloudPub.publish(confident_pointcloud)
+        self.confident_pointcloudPub.publish(confident_pointcloud)
 
     def depth_registered_cb(self, msg):
         """
@@ -114,7 +114,7 @@ class PreprocessingNode():
             return
 
         confident_depth = self.confMap.add_mask_to_cv_image(masked_map, cv_image)
-        ros_image = self.bridge_to_image(confident_depth)
+        ros_image = self.bridge_to_image(confident_depth, "bgra8")
         self.confident_rectImagePub.publish(ros_image)
 
     def bridge_to_cv(self, image_msg, encoding = "passthrough"):

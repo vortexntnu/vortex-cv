@@ -1,5 +1,6 @@
 
 import numpy as np
+import cv2
 import rospy
 import ros_numpy
 from sensor_msgs.msg import PointCloud2
@@ -19,7 +20,7 @@ class ConfidenceMapping():
             masked_as_cv_image: The masked map as a cv_image
         """
         data_to_mask = self.remove_nans(data_to_mask)
-        confidence_map_masked = np.where(data_to_mask <= threshold_value, 0, 1)
+        confidence_map_masked = np.where(data_to_mask <= threshold_value, np.uint8(0), np.uint8(1))
         masked_as_cv_image = np.where(data_to_mask <= threshold_value, np.float32(0) , np.float32(100))
 
         return confidence_map_masked, masked_as_cv_image
@@ -49,42 +50,17 @@ class ConfidenceMapping():
             confident_pointcloud: Pointcloud, only with points that have confident data.
         """
         numpified_pointcloud = ros_numpy.numpify(pointcloud_data)
-        # numpified_pointcloud = np.nan_to_num(numpified_pointcloud)
-        # rospy.loginfo(np.shape(numpified_pointcloud))
 
-        # np.where(np.isnan(numpified_pointcloud), np.float32(0), np.float32(99))
-        # if np.isnan(numpified_pointcloud[2][1][0]):
-        #     rospy.loginfo("it is!! %s", numpified_pointcloud[2][1][0])
+        numpified_copy = numpified_pointcloud.copy() # Create a copy of the message so it can be overwritten
+        numpified_copy.setflags(write = 1) # Set copy as writable
 
-        numpified_copy = numpified_pointcloud.copy()
-        numpified_copy.setflags(write = 1)
+        # Create an empty void to be inserted where the confidence is 0 in confidence_mask
+        empty_void = numpified_copy[20][20]
+        for i in range(0, len(empty_void)):
+            empty_void[i] = np.float32(0)
 
-        dt = np.dtype(np.void)
+        numpified_copy = np.where(confidence_mask == 1, numpified_copy, empty_void)
 
-        empty_void = np.asarray([(np.float32(0), np.float32(0), np.float32(0), np.float32(0))])
-        rospy.loginfo(type(dt))
-
-        # empty_void = (np.float32(0), np.float32(0), np.float32(0), np.float32(0))
-
-        # numpified_copy2 = np.where(confidence_mask == 1, numpified_copy, empty_void)
-
-        # numpified_copy = np.bitwise_and(confidence_mask, numpified_copy, dtype=np.float32)
-
-        # This is a substitution for the np.where func. since it can not to this particular task.
-        # for line in range(0, np.shape(numpified_pointcloud)[0]):
-        #     for col in range(0, np.shape(numpified_pointcloud)[1]):
-        #         if confidence_mask[line][col]:
-        #             for void in range(0, len(numpified_pointcloud[line][col])):
-        #                 if np.isfinite(numpified_pointcloud[line][col][void]):
-        #                     numpified_copy[line][col][void] = np.float32(0)
-        #         else:
-        #             for void in range(0, len(numpified_pointcloud[line][col])):
-        #                 numpified_copy[line][col][void] = np.float32(0)
-
-        # rospy.loginfo(numpified_copy)
-
-        # confident_numpified_pointcloud = np.where(confidence_mask == 1, numpified_pointcloud, confidence_mask)
-        # rospy.loginfo("Numpified type is: %s and value is: %s ", type(confident_numpified_pointcloud[2][1]), confident_numpified_pointcloud[2][1])
         confident_pointcloud = ros_numpy.msgify(PointCloud2, numpified_copy)
         return confident_pointcloud
 
@@ -99,9 +75,22 @@ class ConfidenceMapping():
         Returns:
             confident_cv_image: a confident representation of a cv image.
         """
-
         cv_image = self.remove_nans(cv_image)
-        confident_cv_image = np.multiply(confidence_mask, cv_image, dtype=np.float32)
-        return confident_cv_image
+        if len(np.shape(cv_image))==2:
+            confident_cv_image = np.multiply(confidence_mask, cv_image, dtype=np.float32)
+            return confident_cv_image
+        else:
+            rgb_image = np.zeros((720, 1280, 4))
+            (B, G, R, A) = cv2.split(cv_image)
+
+            
+            channel_list = np.array([B, G, R, A], dtype=np.uint8)
+            confident_channel_list = []
+            for channel in channel_list:
+                confident_channel_list.append(np.multiply(confidence_mask, channel, dtype=np.uint8))
+
+            rgb_image = cv2.merge(confident_channel_list)
+            return rgb_image
+
 
 
