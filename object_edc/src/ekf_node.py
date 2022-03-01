@@ -11,7 +11,7 @@ from re import X
 
 from ekf_python2.gaussparams_py2 import MultiVarGaussian
 from ekf_python2.dynamicmodels_py2 import landmark_gate
-from ekf_python2.measurementmodels_py2 import NED_range_bearing
+from ekf_python2.measurementmodels_py2 import measurement_linear_landmark
 from ekf_python2.ekf_py2 import EKF
 
 #Math imports
@@ -49,17 +49,19 @@ class EKFNode:
         ##################
 
         # Geometric parameters
-        self.gate_prior = [0, 0] # z, roll, pitch of gate
+        #self.gate_prior = [0, 0] # z, roll, pitch of gate
 
         # Tuning parameters
-        self.sigma_a = np.array([0.05, 0.05, 0.05, 0.05])
-        self.sigma_z = np.array([0.5, 0.5, 0.5, 0.5])
+        self.sigma_a = 1/5*np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
+        self.sigma_z = 2*np.array([0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
 
         # Making gate model object
-        self.gate_model = landmark_gate(self.sigma_a)
+        self.landmark_model = landmark_gate(self.sigma_a)
+        self.sensor_model = measurement_linear_landmark(self.sigma_z)
+        self.my_ekf = EKF(self.landmark_model, self.sensor_model)
 
         #Gauss prev values
-        self.x_hat0 = np.array([0, 0, 0, 0]) 
+        self.x_hat0 = np.array([0, 0, 0, 0, 0, 0]) 
         self.P_hat0 = np.diag(self.sigma_z)
         self.prev_gauss = MultiVarGaussian(self.x_hat0, self.P_hat0)
 
@@ -100,22 +102,18 @@ class EKFNode:
         ##Init end##
         ############
 
-    def get_Ts(self): # TODO inspect how well this works (Ivan)
+    def get_Ts(self):
         Ts = rospy.get_time() - self.last_time
         return Ts
     
-    def ekf_function(self, pw_wc, Rot_wc, z):
-
-        measurement_model = NED_range_bearing(self.sigma_z, pw_wc, Rot_wc)
+    def ekf_function(self, z):
 
         Ts = self.get_Ts()
 
-        my_ekf = EKF(self.gate_model, measurement_model)
-
-        gauss_x_pred, gauss_z_pred, gauss_est = my_ekf.step_with_info(self.prev_gauss, z, Ts)
+        gauss_x_pred, gauss_z_pred, gauss_est = self.my_ekf.step_with_info(self.prev_gauss, z, Ts)
         
         self.last_time = rospy.get_time()
-        self.prev_gauss = gauss_est # instantiate last estimate and time
+        self.prev_gauss = gauss_est
 
         return gauss_x_pred, gauss_z_pred, gauss_est
 
@@ -125,7 +123,7 @@ class EKFNode:
         z = x_hat[2]
         pos = [x, y, z]
 
-        euler_angs = [self.gate_prior[0], self.gate_prior[1], x_hat[3]]
+        euler_angs = [x_hat[3], x_hat[4], x_hat[5]]
         return pos, euler_angs
 
     def transformbroadcast(self, parent_frame, p):
@@ -163,42 +161,30 @@ class EKFNode:
     def obj_pose_callback(self, msg):
         rospy.loginfo("Object data recieved for: %s", msg.header.frame_id)
 
-        #Gate in world frame for cyb pool
-        obj_pose_position_c = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
-        #Go directly from quaternion to matrix
-        obj_pose_pose_c = np.array([msg.pose.orientation.x,
+        # Gate in world frame for cyb pool
+        obj_pose_position_wg = np.array([msg.pose.position.x, 
+                                        msg.pose.position.y, 
+                                        msg.pose.position.z])
+
+        obj_pose_pose_wg = np.array([msg.pose.orientation.x,
                                     msg.pose.orientation.y,
                                     msg.pose.orientation.z,
                                     msg.pose.orientation.w])
- 
 
-        tf_lookup_wc = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5.0))
+        # Prepare measurement vector
+        z_phi, z_theta, z_psi = tft.euler_from_quaternion(obj_pose_pose_wg, axes='sxyz')
 
-        Rot_wc = tft.quaternion_matrix([tf_lookup_wc.transform.rotation.x, 
-                                        tf_lookup_wc.transform.rotation.y,
-                                        tf_lookup_wc.transform.rotation.z,
-                                        tf_lookup_wc.transform.rotation.w])
-
-        pw_wc = np.array([tf_lookup_wc.transform.translation.x,
-                          tf_lookup_wc.transform.translation.y,
-                          tf_lookup_wc.transform.translation.z])
-
-        Rot_wc = Rot_wc[0:3, 0:3]
+        z = obj_pose_position_wg
+        z = np.append(z, [z_phi, z_theta, z_psi])
         
-        
-        #TODO add pose estimation capabilities to the EKF as position works now (Ivan + Kristian)
-        gamma_wc = 1 # TODO fix this to estimate gate orientation
-        z = obj_pose_position_c
-        z = np.append(z, gamma_wc)
-        
-
-        #Data from EKF
-        gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(pw_wc, Rot_wc, z)
+        # Call EKF step and format the data
+        gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(z)
         x_hat = gauss_est.mean
+
         ekf_position, ekf_pose = self.est_to_pose(x_hat)
         ekf_pose_quaterion = tft.quaternion_from_euler(ekf_pose[0], ekf_pose[1], ekf_pose[2])
 
-        #Publish data and transform the data
+        # Publish data
         self.publish_gate(msg.header.frame_id ,ekf_position, ekf_pose_quaterion)
 
 
