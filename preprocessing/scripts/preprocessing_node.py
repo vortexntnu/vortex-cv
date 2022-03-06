@@ -14,7 +14,7 @@ class PreprocessingNode():
     Class to handle operations related to the preprocessing node. \n
     This includes:
         - Confidence map --> masked confidence map
-        - and so on
+        - and so on !!!!!!!!!!!!!! So on is kind of unspecific
     """
     def __init__(self):
         rospy.init_node('preprocessing_node')
@@ -53,7 +53,7 @@ class PreprocessingNode():
         cv_image = self.bridge_to_cv(msg)
         
         # Make the masked map and store it in a class variable
-        self.maskedMap, masked_as_cv_image = self.confMap.create_mask(cv_image, 5)
+        self.maskedMap, masked_as_cv_image = self.confMap.create_mask(cv_image, 3)
 
         # Bridge image data from cv_image to Image data
         ros_image = self.bridge_to_image(masked_as_cv_image)
@@ -82,7 +82,7 @@ class PreprocessingNode():
     def depth_registered_cb(self, msg):
         """
         ***Callback***\n
-        Pyblishes a confident representation of the message in the topic using a confidence map.
+        Pyblishes a confident representation of the message in the topic using a confidence map. !!!!!!!!!!!!!! Publishes instead pyblishes
 
         Args:
             msg: the message in the topic callback
@@ -119,6 +119,7 @@ class PreprocessingNode():
 
     def bridge_to_cv(self, image_msg, encoding = "passthrough"):
         """This function returns a cv image from a ros image"""
+        # !!!!!!!!!!!!!! comments on arguments are missing
         # Bridge image data from Image to cv_image data
         image_transformed = None
         try:
@@ -129,6 +130,7 @@ class PreprocessingNode():
 
     def bridge_to_image(self, cv_image_msg, encoding = "passthrough"):
         """This function returns a ros image from a cv image"""
+        # comments on arguments are missing
         # Bridge image data from CV image to Image data
         image_transformed = None
         try:
