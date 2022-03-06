@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import rospy
+import tf
 
 # Import msg types
 from cv_msgs.msg import PointArray
@@ -64,11 +65,6 @@ class PointcloudProcessingNode():
         assert isinstance(msg_data, PointCloud2) # This may be the wrong place to put this
         self.pointcloud_data = msg_data
 
-        # Test
-        # point_list = [(100,122),(101,130),(99,128),(102,125)]
-        # orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_point_list(point_list, self.pointcloud_data)
-        # self.send_position_orientation_data(self.pointcloud_data.header, positiondata, orientationdata, "objectID")
-
 
 
     def send_position_orientation_data(self, headerdata, positiondata, orientationdata, name):
@@ -124,6 +120,9 @@ class PointcloudProcessingNode():
             Topic:
                 /pointcloud_processing/object_pose/name where name is your input
         """
+        # Transformation
+        
+
         posePub = rospy.Publisher('/pointcloud_processing/object_pose_rviz/' + name, PoseStamped, queue_size= 1)
         p_msg = PoseStamped()
         # Format header
