@@ -1,9 +1,10 @@
 
 import numpy as np
 import cv2
-import rospy
-import ros_numpy
 from sensor_msgs.msg import PointCloud2
+
+
+import ros_numpy
 
 class ConfidenceMapping():
     def create_mask(self, data_to_mask, threshold_value):
@@ -13,7 +14,7 @@ class ConfidenceMapping():
 
         Args:
             data_to_mask: the raw confidence map data
-            threshold_value: the value to set the threshold. Should be between 0 and 254  !!!!!!!!!!!!!! 255 instead of 254
+            threshold_value: the value to set the threshold. Should be between 0 and 255
 
         Returns:
             confidence_map_masked: masked confidence data where every value above threshold is 1 and every value below threshold is 0.
@@ -31,7 +32,7 @@ class ConfidenceMapping():
         Removes all nans and infs from a numpy.ndarray.
 
         Args:
-            remove_from_here: The nympy.ndarray to remove from !!!!!!!!!!!!!! numpy instead of nympy
+            remove_from_here: The numpy.ndarray to remove from
 
         Returns:
             nans_removed: numpy.ndarray with nans replaced by zeros and infs replaced by finite large numbers.
@@ -45,7 +46,7 @@ class ConfidenceMapping():
 
         Args:
             confidence_mask: the confidence mask to apply.
-            !!!!!!!!!!!!!! argument pointcloud_data is missing
+            pointcloud_data: the pointcloud data to add mask to
 
         Returns:
             confident_pointcloud: Pointcloud, only with points that have confident data.
@@ -67,14 +68,16 @@ class ConfidenceMapping():
 
     def add_mask_to_cv_image(self, confidence_mask, cv_image):
         """
-        Adds a confidence map to a cv image. Elementwise multiplication between confidence mask and cv image. Must be same size and shape
+        Adds a confidence map to a cv image. Elementwise multiplication between confidence mask and cv image.
+        Can be run on Images with multiple layers ie. a bgra image or a regular single layer image.
 
         Args:
             confidence_mask: the confidence mask to apply.
             cv_image: the cv image to apply the mask to.
 
-        Returns: !!!!!!!!!!!!!! Should there be a note that the output is either or? 
-            confident_cv_image: a confident representation of a cv image.
+        Returns:
+            confident_cv_image: a confident representation of a cv image.\n
+            or\n
             bgra_image: a confident representation of a bgra image.
         """
         cv_image = self.remove_nans(cv_image)

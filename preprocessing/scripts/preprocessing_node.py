@@ -14,7 +14,9 @@ class PreprocessingNode():
     Class to handle operations related to the preprocessing node. \n
     This includes:
         - Confidence map --> masked confidence map
-        - and so on !!!!!!!!!!!!!! So on is kind of unspecific
+        - depth_registered --> confident depth_registered
+        - image_rect_color_filtered --> confident image_rect_color_filtered
+        - cloud_registered --> confident cloud_registered
     """
     def __init__(self):
         rospy.init_node('preprocessing_node')
@@ -118,8 +120,16 @@ class PreprocessingNode():
         self.confident_rectImagePub.publish(ros_image)
 
     def bridge_to_cv(self, image_msg, encoding = "passthrough"):
-        """This function returns a cv image from a ros image"""
-        # !!!!!!!!!!!!!! comments on arguments are missing
+        """
+        This function returns a cv image from a ros image
+        
+        Args:
+            image_msg: the image to convert to cv
+            encoding: type of encoding to be used
+
+        Returns:
+            image_transformed: ros image converted to cv_image
+        """
         # Bridge image data from Image to cv_image data
         image_transformed = None
         try:
@@ -129,8 +139,16 @@ class PreprocessingNode():
         return image_transformed
 
     def bridge_to_image(self, cv_image_msg, encoding = "passthrough"):
-        """This function returns a ros image from a cv image"""
-        # comments on arguments are missing
+        """
+        This function returns a ros image from a cv image
+        
+        Args:
+            cv_image_msg: the cv_image to convert to ros image
+            encoding: type of encoding to be used
+
+        Returns:
+            image_transformed: cv_image converted to ros image
+        """
         # Bridge image data from CV image to Image data
         image_transformed = None
         try:
