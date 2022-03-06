@@ -186,15 +186,19 @@ class FeatureDetectionNode():
                 try:
                     start = timer() # Start function timer.
 
-                    cv2_image = cv2.convertScaleAbs(self.cv_image, alpha=self.alpha, beta=self.beta)
-                    lookUpTable = np.empty((1,256), np.uint8)
-                    for i in range(256):
-                        lookUpTable[0,i] = np.clip(pow(i / 255.0, self.gamma) * 255.0, 0, 255)
-                    res = cv2.LUT(cv2_image, lookUpTable)
-                    self.cv_image_publisher(self.hsvCheckPub, res)
+                    # cv2_image = cv2.convertScaleAbs(self.cv_image, alpha=self.alpha, beta=self.beta)
+                    # lookUpTable = np.empty((1,256), np.uint8)
+                    # for i in range(256):
+                    #     lookUpTable[0,i] = np.clip(pow(i / 255.0, self.gamma) * 255.0, 0, 255)
+                    # res = cv2.LUT(cv2_image, lookUpTable)
+                    # self.cv_image_publisher(self.hsvCheckPub, res)
+                    t1 = 50
+                    t2 = 150
+                    img_gray = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2GRAY)
+                    img_erosion2 = cv2.bilateralFilter(img_gray,self.sigma,self.ksize1,self.ksize2) # cv2.GaussianBlur(img_gray,(5,5),0) #img_gray # cv2.erode(img_dilation2, kernel, iterations=1) 
 
-                    bb_arr, hough_img, edges = HoughMajingo.main(res, self.canny_threshold1, self.canny_threshold2)
-                    self.cv_image_publisher(self.linesPub, hough_img, "bgr8")
+                    bb_arr, hough_img, edges, img = HoughMajingo.main(img_erosion2, self.canny_threshold1, self.canny_threshold2)   # self.canny_threshold1, self.canny_threshold2
+                    self.cv_image_publisher(self.linesPub, hough_img, "8UC1") 
                     self.cv_image_publisher(self.i2rcpPub, edges, "8UC1")
 
 
@@ -261,9 +265,9 @@ class FeatureDetectionNode():
         self.hsv_params[4] = config.hsv_val_min
         self.hsv_params[5] = config.hsv_val_max
 
-        self.alpha = config.ksize1
-        self.beta = config.ksize2
-        self.gamma = config.sigma
+        self.ksize1 = config.ksize1
+        self.ksize2 = config.ksize2
+        self.sigma = config.sigma
 
         self.thresholding_blocksize = config.blocksize
         self.thresholding_C = config.C

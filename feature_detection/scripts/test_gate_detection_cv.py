@@ -194,28 +194,25 @@ class HoughMajingo:
                 cv2.waitKey(0)
     @staticmethod
     def main(orig_img, t1, t2):
-        img = deepcopy(orig_img)
-        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        img_gray = deepcopy(orig_img)
         
-
         ## Preprocessing
         # Noise filtering
         kernel = np.ones((5,5), np.uint8)  
-        img_dilation = cv2.dilate(img_gray, kernel, iterations=1)  
-        img_erosion = cv2.erode(img_dilation, kernel, iterations=1)  
-        img_dilation2 = cv2.dilate(img_erosion, kernel, iterations=1) 
-        img_erosion2 = cv2.erode(img_dilation2, kernel, iterations=1) 
+        # # img_dilation = cv2.dilate(img_gray, kernel, iterations=1)  
+        # # img_erosion = cv2.erode(img_dilation, kernel, iterations=1)  
+        # # img_dilation2 = cv2.dilate(img_erosion, kernel, iterations=1) 
 
-        img_contrast = cv2.multiply(img_erosion2,2.3) ## contrast factor should be adaptable to distance and brightness
+        img_contrast = cv2.multiply(img_gray,1) ## contrast factor should be adaptable to distance and brightness
         edges = cv2.Canny(img_contrast,t1,t2)
-        img_gray = cv2.cvtColor(img_gray, cv2.COLOR_GRAY2RGB)
+        # img_gray = cv2.cvtColor(img_gray, cv2.COLOR_GRAY2RGB)
 
         # img_contrast2 = cv2.multiply(img_dilation2,2.3) ## contrast factor should be adaptable to distance and brightness
         # edges2 = cv2.Canny(img_contrast2,50,200)
 
 
         ## HoughLinesP
-        linesP = cv2.HoughLinesP(edges,1,np.pi/180,50,minLineLength=50,maxLineGap=10)
+        linesP = cv2.HoughLinesP(edges,1,np.pi/180,30,minLineLength=20,maxLineGap=10)
         m = np.zeros(linesP.shape[0]) ## replace this with orientation of the drone
 
         ## Orientation based Filtering 
@@ -227,7 +224,7 @@ class HoughMajingo:
             for line_idx in range(0, len(linesP)):
                 line = linesP[line_idx][0]
                 m[line_idx] = (line[3]- line[1]) / (line[2]-line[0])
-                print((line[3]- line[1]) / (0))
+                # print((line[3]- line[1]) / (0))
                 # print(m[line_idx])
                 # if m[line_idx] == 0:  ## horizontal lines: visualization
                 #     cv2.line(img_gray, (line[0], line[1]), (line[2], line[3]), (0,0,255), 3)
@@ -279,4 +276,4 @@ class HoughMajingo:
                 cv2.line(img_gray, (line_hor[0], line_hor[1]), (line_hor[2], line_hor[3]), (255,255,0), 4)
                 # cv2.line(img, (pos_hor[i], 0), (pos_hor[i], 1000), (255,255,0), 3)
 
-        return bb_ver, img_gray, edges
+        return bb_ver, img_gray, edges,img_contrast
