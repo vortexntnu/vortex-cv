@@ -31,7 +31,7 @@ class CalibrationNode():
 
         self.finished = False
 
-        self.ros_rate = rospy.Rate(1.0)
+        self.ros_rate = rospy.Rate(3.0)
         # self.zedSub                 = rospy.Subscriber(image_topic, Image, self.camera_callback)
 
         left_img_topic = "/zed2/zed_node/left_raw/image_raw_color"
@@ -42,8 +42,10 @@ class CalibrationNode():
 
         self.image_counter = 0
 
-        self.config_path = rospy.get_param("/config_path")
-        #self.config_path = "/home/vortex/vortex_ws/src/Vortex_CV/camera_calibration/scripts/SN38762967FACTORY_REAL_THIS_TIME_FU_BENJAMIN.conf"
+        self.load_config_path = rospy.get_param("/load_config_path")
+        self.save_config_path = rospy.get_param("/save_config_path")
+
+        #self.load_config_path = "/home/vortex/vortex_ws/src/Vortex_CV/camera_calibration/scripts/SN38762967FACTORY_REAL_THIS_TIME_FU_BENJAMIN.conf"
 
         self.objp = np.zeros((self.chessboardSize[0] * self.chessboardSize[1], 3), np.float32)
         self.objp[:,:2] = np.mgrid[0:self.chessboardSize[0],0:self.chessboardSize[1]].T.reshape(-1,2)
@@ -137,7 +139,7 @@ class CalibrationNode():
 
         imgL = self.cv_image_left
         frameSize = imgL.shape[:2]
-        rospy.loginfo(frameSize)
+        rospy.loginfo("Imagesize: " + str(frameSize))
 
 
         imgR = self.cv_image_right
@@ -207,7 +209,7 @@ class CalibrationNode():
             #     raise Exception("No such resolution")
 
             rospy.loginfo(resolutions[resolution])
-            with open(self.config_path, "r") as c:
+            with open(self.load_config_path, "r") as c:
                 config = c.readlines()
         
             j = 0
@@ -265,7 +267,7 @@ class CalibrationNode():
                 print("It works")
                 
 
-            with open(self.config_path, "w") as f:
+            with open(self.save_config_path, "w") as f:
                 for line in config:
                     f.write(line)
                 f.close()
@@ -274,7 +276,7 @@ class CalibrationNode():
 
             self.finished = True
 
-            rospy.loginfo("Config file has been saved in: " + self.config_path)
+            rospy.loginfo("Config file has been saved in: " + self.save_config_path)
 
         except:
             rospy.logerr("An error occurred")
