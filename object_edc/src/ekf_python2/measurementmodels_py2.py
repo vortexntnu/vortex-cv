@@ -158,7 +158,7 @@ class measurement_linear_landmark(MeasurementModel):
     def R(self, x):
         """Calculate the measurement covariance matrix at x in sensor_state."""
 
-        n = np.shape(self.sigma_z)
+        n = np.shape(self.sigma_z)[0]
         R = (self.sigma_z**2) * np.eye(n)
 
         return R
