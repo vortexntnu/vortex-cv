@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 
 import rospy
-import tf
+import tf2_geometry_msgs.tf2_geometry_msgs
+import tf2_ros
 
 # Import msg types
 from cv_msgs.msg import PointArray
 from geometry_msgs.msg import PointStamped, PoseStamped
 from vortex_msgs.msg import ObjectPosition
 from sensor_msgs.msg import PointCloud2
+from nav_msgs.msg import Odometry
 
 # Import classes
 from pointcloud_mapping import PointCloudMapping
@@ -28,11 +30,12 @@ class PointcloudProcessingNode():
         else:
             self.pointcloudSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_camera_cb)
 
-        self.feat_detSub = rospy.Subscriber('/feature_detection/object_points', PointArray, self.feat_det_cb)
-        
+        self.feat_detSub = rospy.Subscriber('/feature_detection/object_points', PointArray, self.feat_det_cb)     
 
         # Defining classes
         self.pointcloud_mapper = PointCloudMapping()
+        self.pose_transformer = tf2_geometry_msgs.tf2_geometry_msgs
+        self._tfBuffer = tf2_ros.Buffer()
 
     def feat_det_cb(self, msg):
         """
@@ -52,7 +55,7 @@ class PointcloudProcessingNode():
 
         # Calls function to find object centre and orientation
         orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_point_list(point_list, self.pointcloud_data)
-        self.send_position_orientation_data(headerdata, positiondata, orientationdata, objectID)
+        self.send_pose_message(headerdata, positiondata, orientationdata, objectID)
 
     def pointcloud_camera_cb(self, msg_data):
         """
@@ -65,23 +68,38 @@ class PointcloudProcessingNode():
         assert isinstance(msg_data, PointCloud2) # This may be the wrong place to put this
         self.pointcloud_data = msg_data
 
-
-
-    def send_position_orientation_data(self, headerdata, positiondata, orientationdata, name):
+    def send_pose_in_world(self, position_data, quaternion_data, name):
         """
-        Call to send position and orientation data for other nodes
+        Transform a pose from zed2_left_camera_frame to a pose in odom, before publishing it as a pose.
 
         Args:
-            headerdata: header you want to send with (frame)
-            positiondata: [x, y, z] floats
-            orientationdata: [x, y, z, w] floats
-            name: name of detected object. String
+            position_data: position data describing the position of the pose
+            quaternion_data: the quaternion data describing the orientation of the pose
+            name: identifyer for the detected object
         """
-        if orientationdata:
-            self.send_pose_message(headerdata, positiondata, orientationdata, name)
-            self.send_ObjectPosition_message(headerdata, positiondata, orientationdata, name)
+        parent_frame = "odom"
+        child_frame = "zed2_left_camera_frame"
+        tf_lookup_world_to_camera = self._tfBuffer.lookup_transform(parent_frame, child_frame, rospy.Time(), rospy.Duration(5))
 
+        posePub = rospy.Publisher("pointcloud_processing/object_pose/" + name, PoseStamped, queue_size=1)
 
+        # Pose generation
+        pose_msg_camera = PoseStamped()
+        # Format header
+        pose_msg_camera.header.frame_id = child_frame
+        pose_msg_camera.header.stamp = rospy.get_rostime()
+
+        # Build pose
+        pose_msg_camera.pose.position.x = position_data[0]
+        pose_msg_camera.pose.position.y = position_data[1]
+        pose_msg_camera.pose.position.z = position_data[2]
+        pose_msg_camera.pose.orientation.x = 1
+        pose_msg_camera.pose.orientation.y = quaternion_data[2]
+        pose_msg_camera.pose.orientation.z = 1
+        pose_msg_camera.pose.orientation.w = 1
+
+        pose_msg_odom = self.pose_transformer.do_transform_pose(pose_msg_camera, tf_lookup_world_to_camera)
+        posePub.publish(pose_msg_odom)
 
     def send_pointStamped_message(self, headerdata, position, name):
         """
@@ -120,9 +138,6 @@ class PointcloudProcessingNode():
             Topic:
                 /pointcloud_processing/object_pose/name where name is your input
         """
-        # Transformation
-        
-
         posePub = rospy.Publisher('/pointcloud_processing/object_pose_rviz/' + name, PoseStamped, queue_size= 1)
         p_msg = PoseStamped()
         # Format header
@@ -138,34 +153,6 @@ class PointcloudProcessingNode():
         p_msg.pose.orientation.z = 1
         p_msg.pose.orientation.w = 1
         posePub.publish(p_msg)
-
-    def send_ObjectPosition_message(self, headerdata, position_data, quaternion_data, name):
-        """
-        Publishes a PoseStamped as a topic under /pointcloud_processing/object_pose
-
-        Args:
-            headerdata: Headerdata to be used as a header will not be created in this function
-            position_data: A position xyz in the form [x, y, z] where xyz are floats
-            quaternion_data: A quaternion wxyz in the form [w, x, y, z]
-            name: string name to be given to the point published, must not contain special characters.
-
-        Returns:
-            Topic:
-                /pointcloud_processing/object_pose/name where name is your input
-        """
-        objposePub = rospy.Publisher('/pointcloud_processing/object_pose/' + name, ObjectPosition, queue_size= 1)
-        p_msg = ObjectPosition()
-        p_msg.objectID = name
-
-        # Build pose
-        p_msg.objectPose.pose.position.x = position_data[0]
-        p_msg.objectPose.pose.position.y = position_data[1]
-        p_msg.objectPose.pose.position.z = position_data[2]
-        p_msg.objectPose.pose.orientation.x = 1
-        p_msg.objectPose.pose.orientation.y = quaternion_data[2]
-        p_msg.objectPose.pose.orientation.z = 1
-        p_msg.objectPose.pose.orientation.w = 1
-        objposePub.publish(p_msg)
 
 if __name__ == '__main__':
     node = PointcloudProcessingNode()
