@@ -4,14 +4,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 from copy import deepcopy
 
+
+# feature detection based on hough transform
 class HoughMajingo:
 
     @staticmethod
     def lines_coord(lines,set,e):
         '''
         args: 
-            lines: set of lines
-            set: look for horizontal or vertical lines
+            lines:  set of lines
+            set:    look for horizontal or vertical lines
+            e:      margin between lines that are recognized as one
+
+        return:
+            rect_list:  returns starting and end point of detected line that satisfy the margin
+            x_position: returns the mean of the "position" of the line 
+                        -> vertical line: x_position, horizontal line: y_position
         '''
         # set = 0: vertical lines
         # set = 1: horizontal lines
@@ -42,8 +50,6 @@ class HoughMajingo:
                     rect_list[j,0,ver] = int(y_pos_min)
                     rect_list[j,0,set+2] = int(x_pos_mean)
                     rect_list[j,0,ver+2] = int(y_pos_max)
-
-                    
                     j +=1
                 else:
                     k += 1
@@ -51,6 +57,13 @@ class HoughMajingo:
 
     @staticmethod
     def cut_zeros(list):
+        '''
+        deletes "empty" entries of the list (instead of line zero vector)
+        arg:
+            list: list of lines with "empty" entries
+        return:
+            list: list of lines 
+        '''
         beispiel = np.zeros((1,4))
         k=0
         original_list = list
@@ -64,12 +77,15 @@ class HoughMajingo:
     @staticmethod
     def connect_lines2bb(lines,set):
         '''
+        Two neighbouring lines detected form a bounding box
+
         args: 
-            lines: set of lines
-            set: look for horizontal or vertical lines
+            lines:  set of lines
+            set:    look for horizontal (set=1) or vertical lines (set=0)
+        return: 
+            bb_corner_pair: two lines that form a bounding box
+                    format: left line [x_low, y_low, x_high, y_high], right line [x_low, y_low, x_high, y_high]
         '''
-        # set = 0: vertical lines (the coordinate that is the same)
-        # set = 1: horizontal lines
 
         ## aufgrund des Sortierens der Linien im Vorhinein ist die Berechnung der Distanz zu benachbarten Linien ausreichend
 
@@ -80,13 +96,13 @@ class HoughMajingo:
 
 
         dis = np.zeros((line_1.shape[0],1))
-        for i in range(len(line_1)): #zip(range(len(line_1)),range(len(line_2)))
+        for i in range(len(line_1)):
             dis[i] = line_2[i,0,set] -line_1[i,0,set]
         # print(dis)
         # print(len(line_1))
         bb_corner_pair = []
         platzhalter = np.zeros((1,1,8))
-        j =0
+        # j =0
         for i in range(len(dis)):
             # print(len(dis)-1,i)
             if i < len(dis)-1 and dis[i] < dis[i+1]:
@@ -106,104 +122,62 @@ class HoughMajingo:
                 # print(bb_corner_pair)
             
         return bb_corner_pair
-    
-    @staticmethod
-    def main_offline():
-        print_picture = False
 
-        path1 = 'feature_detection/test_image/gate_day1_medium_yaw.png'
-        path2 = 'feature_detection/test_image/gate_day1_medium_yaw_second.png'
-        path3 = 'feature_detection/test_image/gate_day1_medium_yaw_third.png'
-        path4 = 'feature_detection/test_image/gate_day1_medium_yaw_fourth.png'
-        path= [path1, path2, path3, path4]
-        for i in range(1): # 4 for all pictures
-            
-            img = cv2.imread(path[i])
-            img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    def centroid(list_bb):
+        '''
+        Calculates the centroid of the bounding boxes 
+        arg: 
+            list_bb: list of bounding box entries
+                     one bounding box entry consists of one row vector
+                        left line [x_low, y_low, x_high, y_high], right line [x_low, y_low, x_high, y_high]
+        return: 
+            centroid_list: centroid of each bounding box entry
+        '''
+        centroid_list = []
+        cent_array = np.zeros((2))
+        for i in range(len(list_bb)):
+            bb = list_bb[i]  # row vector of eight entries: 
+            if len(bb) == 8:
+                diag_line_1_x = bb[6]- bb[0]
+                diag_line_1_y = bb[7]- bb[1]
+                diag_line_2_x = bb[5]- bb[2]
+                diag_line_2_y = bb[4]- bb[3]
 
-            ## Preprocessing
-            # Noise filtering
-            kernel = np.ones((4,4), np.uint8)  
-            img_dilation = cv2.dilate(img_gray, kernel, iterations=1)  
-            img_erosion = cv2.erode(img_dilation, kernel, iterations=1)  
-            img_dilation2 = cv2.dilate(img_erosion, kernel, iterations=1) 
+                centroid_x = 0.5*(diag_line_1_x + diag_line_2_x)
+                centroid_y = 0.5*(diag_line_1_y + diag_line_2_y)
+                cent_array[0] = centroid_x
+                cent_array[1] = centroid_y
 
-            img_contrast = cv2.multiply(img_erosion,2.3) ## contrast factor should be adaptable to distance and brightness
-            edges = cv2.Canny(img_contrast,50,200)
+                centroid_list.append(cent_array)
+        
+        return centroid_list
 
-            # img_contrast2 = cv2.multiply(img_dilation2,2.3) ## contrast factor should be adaptable to distance and brightness
-            # edges2 = cv2.Canny(img_contrast2,50,200)
-
-
-            ## HoughLinesP
-            linesP = cv2.HoughLinesP(edges,1,np.pi/180,20,50,10)
-            m = np.zeros(linesP.shape[0]) ## replace this with orientation of the drone
-
-            ## Orientation based Filtering 
-            k = 0
-            j = 0
-            lines_ver = linesP
-            lines_hor = linesP 
-            if linesP is not None:
-                for i in range(0, len(linesP)):
-                    l = linesP[i][0]
-                    m[i] = (l[3]- l[1])/(l[2]-l[0])
-                    if m[i] == 0:  ## vertical lines: visualization
-                        cv2.line(img, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3)
-                    if m[i] != 0: ## vertical lines: processing
-                        lines_hor = np.delete(lines_hor,k, axis= 0)
-                        k -=1
-                    if np.abs(m[i]) == np.Inf: ## horizontal lines: visualization
-                        cv2.line(img, (l[0], l[1]), (l[2], l[3]), (0,255,0), 3)
-                    if np.abs(m[i]) != np.Inf: ## horizontal lines: processing
-                        lines_ver = np.delete(lines_ver,j, axis= 0)
-                        j -=1
-                    k +=1
-                    j +=1
-
-            ## processing vertical and horizontal lines
-            rect_list_ver, x_position = lines_coord(lines_ver, 0,8)
-            rect_list_hor, pos_hor = lines_coord(lines_hor, 1, 5)
-
-            ## cut zeros from lists!!!
-            rect_list_ver_new = cut_zeros(rect_list_ver)
-            rect_list_hor_new = cut_zeros(rect_list_hor)
-
-            ## correlating lines and getting corner points from bounding box
-            bb_ver = connect_lines2bb(rect_list_ver_new, 0)
-            print(bb_ver)
-
-            ## Visualization
-            for i in range(len(x_position)):
-                if x_position[i] != 0:
-                    line_ver = rect_list_ver[i,0,:]
-                    cv2.line(img, (line_ver[0], line_ver[1]), (line_ver[2], line_ver[3]), (255,0,255), 3)
-                    # cv2.line(img, (x_position[i], 0), (x_position[i], 1000), (255,255,0), 3)
-            
-            for i in range(len(pos_hor)):
-                if pos_hor[i] != 0:
-                    line_hor = rect_list_hor[i,0,:]
-                    # print(line_hor)
-                    cv2.line(img, (line_hor[0], line_hor[1]), (line_hor[2], line_hor[3]), (255,255,0), 4)
-                    # cv2.line(img, (pos_hor[i], 0), (pos_hor[i], 1000), (255,255,0), 3)
-
-            if print_picture:
-                # stack_edges = np.hstack((edges,edges2))
-                stacked = np.hstack((img_gray, img_contrast))
-                cv2.imshow('Kanten', img)
-                cv2.waitKey(0)
     @staticmethod
     def main(orig_img, t1, t2):
+        '''
+        Applying hough transform on the image and postprocess the results to get bounding boxes from the detected object
+        arg: 
+            orig_img: image in gray scale
+            t1: lower threshold for canny edge detector
+            t2: upper threshold for canny edge detector
+        return: 
+            bb: list of bounding boxes
+            center: list of centroids; list consists of arrays with x and y entries belonging to the bounding box of same index
+            img_gray: original image with drawn bounding boxes
+            edges: image of edges --> delete, just for testing purposes
+            img_contrast: contrasted image --> delete, just for testing purposes, preprocessing is done somewhere else
+        '''
         img_gray = deepcopy(orig_img)
         
-        ## Preprocessing
+        ## Preprocessing is done somewhere else now
         # Noise filtering
-        kernel = np.ones((5,5), np.uint8)  
+        # kernel = np.ones((5,5), np.uint8)  
         # # img_dilation = cv2.dilate(img_gray, kernel, iterations=1)  
         # # img_erosion = cv2.erode(img_dilation, kernel, iterations=1)  
         # # img_dilation2 = cv2.dilate(img_erosion, kernel, iterations=1) 
 
         img_contrast = cv2.multiply(img_gray,1) ## contrast factor should be adaptable to distance and brightness
+        ## Preprocessing: Edge detection 
         edges = cv2.Canny(img_contrast,t1,t2)
         # img_gray = cv2.cvtColor(img_gray, cv2.COLOR_GRAY2RGB)
 
@@ -213,9 +187,9 @@ class HoughMajingo:
 
         ## HoughLinesP
         linesP = cv2.HoughLinesP(edges,1,np.pi/180,30,minLineLength=20,maxLineGap=10)
-        m = np.zeros(linesP.shape[0]) ## replace this with orientation of the drone
 
         ## Orientation based Filtering 
+        # m = np.zeros(linesP.shape[0]) ## replace this with orientation of the drone
         k = 0
         j = 0
         lines_ver = linesP
@@ -223,23 +197,20 @@ class HoughMajingo:
         if linesP is not None:
             for line_idx in range(0, len(linesP)):
                 line = linesP[line_idx][0]
-                m[line_idx] = (line[3]- line[1]) / (line[2]-line[0])
+                # m[line_idx] = (line[3]- line[1]) / (line[2]-line[0]) --> not needed anymore, new solution should be validated
                 # print((line[3]- line[1]) / (0))
                 # print(m[line_idx])
-                # if m[line_idx] == 0:  ## horizontal lines: visualization
-                #     cv2.line(img_gray, (line[0], line[1]), (line[2], line[3]), (0,0,255), 3)
                 if (line[3]- line[1]) != 0:  #m[line_idx] != 0: ## horizontal lines: processing
                     lines_hor = np.delete(lines_hor,k, axis= 0)
                     k -=1
-                # if np.abs(m[line_idx]) == np.Inf: ## vertical lines: visualization
-                #     cv2.line(img_gray, (line[0], line[1]), (line[2], line[3]), (0,255,0), 3)
-                if (line[2]-line[0]) != 0: # (line[2]-line[0]) > 10^(-20) and (line[2]-line[0]) < -10^(-20):   #(line[2]-line[0]) != 0: #np.abs(m[line_idx]) != np.Inf: ## vertical lines: processing
+                if (line[2]-line[0]) != 0: # (line[2]-line[0]) < 10^(-20) and (line[2]-line[0]) > -10^(-20):   #(line[2]-line[0]) != 0: #np.abs(m[line_idx]) != np.Inf: ## vertical lines: processing
                     lines_ver = np.delete(lines_ver,j, axis= 0)
                     j -=1
     
                 k +=1
                 j +=1
-        # print(lines_ver,m)
+        
+        ## Visualization of detected hough lines
         for i in range(len(lines_hor)):
             line_hor = lines_hor[i,0,:]
             cv2.line(img_gray, (line_hor[0], line_hor[1]), (line_hor[2], line_hor[3]), (0,0,255), 3)
@@ -250,30 +221,53 @@ class HoughMajingo:
         
 
         ## processing vertical and horizontal lines
-        rect_list_ver, x_position = HoughMajingo.lines_coord(lines_ver, 0, 6)
+        rect_list_ver, pos_ver = HoughMajingo.lines_coord(lines_ver, 0, 6)
         rect_list_hor, pos_hor = HoughMajingo.lines_coord(lines_hor, 1, 5)
 
-        ## cut zeros from lists!!!
+        ## cut zeros from lists
         rect_list_ver_new = HoughMajingo.cut_zeros(rect_list_ver)
         rect_list_hor_new = HoughMajingo.cut_zeros(rect_list_hor)
 
-        ## correlating lines and getting corner points from bounding box
+        ## correlating lines and getting corner points from bounding box --> both should be outputted
         bb_ver = HoughMajingo.connect_lines2bb(rect_list_ver_new, 0)
-        # print(bb_ver)
+        bb_hor = HoughMajingo.connect_lines2bb(rect_list_hor_new, 0)
+        bb = []
+        bb.append(bb_ver)
+        bb.append(bb_hor)
+        center = HoughMajingo.centroid(bb)
 
+        # print(bb, center)
         
-        ## Visualization
-        for line_idx in range(len(x_position)):
-            if x_position[line_idx] != 0:
+        ## instead of gate/ feature detection component detection should be used if gate couldn't be detected
+        ## for component detection the distance from drone to object has to be below a specific value
+        # if len(bb_ver) == 0 and len(bb_hor) == 0:
+        if len(bb) == 0 :
+            ### Check if distance to line is big --> if z of position of detected line > 8:
+            ### Component is outputed 
+            bb.append(rect_list_ver)
+            bb.append(rect_list_hor)
+        
+        ####### Visualization of postprocessed hough lines
+        # Visualization of vertical lines
+        for line_idx in range(len(pos_ver)):
+            if pos_ver[line_idx] != 0:
                 line_ver = rect_list_ver[line_idx,0,:]
                 cv2.line(img_gray, (line_ver[0], line_ver[1]), (line_ver[2], line_ver[3]), (255,0,255), 3)
-                # cv2.line(img, (x_position[i], 0), (x_position[i], 1000), (255,255,0), 3)
+                # cv2.line(img, (pos_ver[i], 0), (pos_ver[i], 1000), (255,255,0), 3)
         
+        # Visualization of horizontal lines
         for line_idx in range(len(pos_hor)):
             if pos_hor[line_idx] != 0:
                 line_hor = rect_list_hor[line_idx,0,:]
-                # print(line_hor)
                 cv2.line(img_gray, (line_hor[0], line_hor[1]), (line_hor[2], line_hor[3]), (255,255,0), 4)
-                # cv2.line(img, (pos_hor[i], 0), (pos_hor[i], 1000), (255,255,0), 3)
 
-        return bb_ver, img_gray, edges,img_contrast
+        # Visualization of bounding boxes
+        for line_idx in range(len(bb)):
+            line_hor = bb[line_idx,0,:]
+            # print(line_hor)
+            cv2.line(img_gray, (line_hor[0], line_hor[1]), (line_hor[2], line_hor[3]), (255,255,255), 4)
+            cv2.line(img_gray, (line_hor[0], line_hor[1]), (line_hor[4], line_hor[5]), (255,255,255), 4)
+            cv2.line(img_gray, (line_hor[2], line_hor[3]), (line_hor[6], line_hor[7]), (255,255,255), 4)
+            cv2.line(img_gray, (line_hor[4], line_hor[5]), (line_hor[6], line_hor[7]), (255,255,255), 4)
+
+        return bb, center, img_gray, edges, img_contrast
