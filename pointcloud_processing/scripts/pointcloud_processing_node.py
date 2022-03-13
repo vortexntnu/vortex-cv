@@ -7,6 +7,7 @@ import tf2_ros
 # Import msg types
 from cv_msgs.msg import PointArray
 from geometry_msgs.msg import PointStamped, PoseStamped
+from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
 from vortex_msgs.msg import ObjectPosition
 from sensor_msgs.msg import PointCloud2
 from nav_msgs.msg import Odometry
@@ -28,9 +29,10 @@ class PointcloudProcessingNode():
         if self.use_reduced_pc:
             self.pointcloud_reducedSub = rospy.Subscriber('/pointcloud_downsize/output', PointCloud2, self.pointcloud_camera_cb)
         else:
-            self.pointcloudSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_camera_cb)
+            self.pointcloudSub = rospy.Subscriber('/zed2i/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_camera_cb, queue_size=1)
 
-        self.feat_detSub = rospy.Subscriber('/feature_detection/object_points', PointArray, self.feat_det_cb)     
+        self.feat_detSub = rospy.Subscriber('/feature_detection/object_points', PointArray, self.feat_det_cb)
+        self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.bbox_cb, queue_size=1)
 
         # Defining classes
         self.pointcloud_mapper = PointCloudMapping()
@@ -57,6 +59,27 @@ class PointcloudProcessingNode():
         orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_point_list(point_list, self.pointcloud_data)
         self.send_pose_message(headerdata, positiondata, orientationdata, objectID)
 
+    def bbox_cb(self, msg):
+        """
+        Callback if a message from darknet ros node is recieved. Will read through a PointArray message and add each point to a new list.
+        It will use this pointlist to get orientation- and positiondata for the detected object, and send this to a remote filter.
+        Args:
+            msg: The message recieved from feature_detection_node. It should be a PointArray message.
+        """
+        headerdata = msg.header
+        objectID = msg.bounding_boxes[0].Class
+
+        bbox = [msg.bounding_boxes[0].xmin,
+                msg.bounding_boxes[0].xmax,
+                msg.bounding_boxes[0].ymin,
+                msg.bounding_boxes[0].ymax]
+
+        # Calls function to find object centre and orientation
+        orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_xy_area(bbox, self.pointcloud_data)
+        self.send_pose_in_world(positiondata, orientationdata, objectID)
+
+        rospy.loginfo(positiondata)
+
     def pointcloud_camera_cb(self, msg_data):
         """
         Callback for pointcloud message. Checks to see if message is correct type
@@ -78,7 +101,7 @@ class PointcloudProcessingNode():
             name: identifyer for the detected object
         """
         parent_frame = "odom"
-        child_frame = "zed2_left_camera_frame"
+        child_frame = "zed2i_left_camera_frame"
         tf_lookup_world_to_camera = self._tfBuffer.lookup_transform(parent_frame, child_frame, rospy.Time(), rospy.Duration(5))
 
         posePub = rospy.Publisher("pointcloud_processing/object_pose/" + name, PoseStamped, queue_size=1)
