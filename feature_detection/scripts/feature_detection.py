@@ -1108,6 +1108,18 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
         self.detection = False
 
     def feature_detection(self, original_image, hsv_params, noise_removal_params):
+        """Feature detection pipeline.
+        Applies HSV (colour) filter, morphism of canny image, contour fitting and filtering, shape fitting, I2RCP, and rectangle filtering.
+
+        Params:
+            original_image          (cv::Mat)               : BGRA image.
+            hsv_params              (array-like[6, uint8])  : HSV params. See 'hsv_processor' function.
+            noise_removal_params    (array-like[9, float32]): Noise removal and morpism params. See 'noise_removal_processor' function.
+
+        Returns:
+            relevant_rects  (A[M][4][2, uint32]): Array of filtered rectangles.
+            points_in_rects (A[N][2, uint32])   : An array of 2D points.
+        """
         _, hsv_mask, hsv_validation_img = self.hsv_processor(original_image, *hsv_params)
         self.hsv_validation_img = hsv_validation_img
 
@@ -1132,6 +1144,21 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
     def bounding_box_processor(
         self, all_points_in_rects, label_name, return_image=False, image=None
     ):
+        """Generates a rectangular bounding box with a label.
+
+        Params:
+            all_points_in_rects (A[N][2, uint32])   : An array of 2D points.
+            label_name          (string)            : Name of the detected object.
+            return_image        (bool)              : {default=True} False to return only the point data.
+                                                      If param 'image' is none - returns a blanked image with drawn bounding box.
+                                                      If param 'image' is an image - returns both drawn blanked and passed images.
+            image               (cv::Mat)           : An image on which to draw bounding box.
+        Returns:
+                            bbox_area   (float32)           : Area of the bounding box region in the image.
+                            bbox_points (A[4][2, uint32])   : An array of 4 2D points which indicate the bounding box corners.
+        {return_image=True} blank_image (cv::Mat)           : Blank image with drawn bounding box.
+        {image != None}     image       (cv::Mat)           : Passed image with drawn bounding box.
+        """
         if return_image:
             blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
             if image is not None:
@@ -1187,6 +1214,19 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
     def classification(
         self, original_image, label_name, hsv_params, noise_removal_params
     ):
+        """Classifies an object in accordance to given label name and line fitting.
+        Params:
+            original_image          (cv::Mat)               : BGRA image.
+            label_name              (string)                : Name of the detected object.
+            hsv_params              (array-like[6, uint8])  : HSV params. See 'hsv_processor' function.
+            noise_removal_params    (array-like[9, float32]): Noise removal and morpism params. See 'noise_removal_processor' function.
+
+        Returns:
+            bbox_area       (float32)           : Area of the bounding box region in the image.
+            bbox_points     (A[4][2, uint32])   : An array of 4 2D points which indicate the bounding box corners.
+            points_in_rects (A[N][2, uint32])   : An array of 2D points.
+            detection       (bool)              : Returns True when an object is classified.
+        """
 
         relevant_rects, points_in_rects = self.feature_detection(original_image, hsv_params, noise_removal_params)
         
