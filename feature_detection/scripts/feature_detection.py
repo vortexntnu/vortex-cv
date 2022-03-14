@@ -568,21 +568,36 @@ class PointsProcessing(object):
     ):
         """Binary Integral Derivative (BID) controller. Checks for point position deltas - if delta is too huge, point will take its previous step value.
         Gathers integral sum of position deltas over N previous steps - if the sum delta is too huge, resets the initial reference points.
+        
+        Params:
+            closest_points                      (A[N][2, uint16])   : For index 'a' in set of points A, closest point coordinates 'x' and 'y' picked from set of points B.
+            closest_point_dts                   (A[N, float16])     : For index 'a' in set of points A, distances from the reference point in set of points A to its closest point in set of points B.
+            threshold                           (float32)           : Max travel difference for a point, at which it won't be updated and keep its prev position.
+            reset_reference_points_threshold    (float32)           : Max sum of travel diffs, at which point the reference points for the I2C will be reset.
+
+        Returns:
+            pts_cp      (A[N][2, uint16])      : Same struct as the closest_points, but processed.
+            pt_dsts_cp  (A[N, float16])        : Same struct as the closest_point_dts, but processed.
+            diff_dsts   (A[N, float16])        : Travel distnace deltas for each closest point.
         """
         pts_cp = copy.deepcopy(closest_points)
         pt_dsts_cp = copy.deepcopy(closest_point_dsts)
+
         diff_dsts = []
         for i in range(len(self.prev_closest_point_dsts)):
             closest_pt_dst = pt_dsts_cp[i]
             prev_closest_pt_dst = self.prev_closest_point_dsts[i]
 
+            # Calculate travel ditance deltas
             diff_prev_current_dst = abs(prev_closest_pt_dst - closest_pt_dst)
             diff_dsts.append(diff_prev_current_dst)
 
+            # Delta thresholding
             if diff_prev_current_dst > threshold:
                 pts_cp[i] = self.prev_closest_points[i]
                 pt_dsts_cp[i] = self.prev_closest_point_dsts[i]
 
+            # Checks if the ref points should be reset
             integral_check = (
                 sum(self.integral_diff_values_arr) // self.integral_diff_values_arr_len
             )
@@ -598,9 +613,23 @@ class PointsProcessing(object):
         return pts_cp, pt_dsts_cp, diff_dsts
 
     def reference_points_iteration(self, closest_points):
+        """Iterates the reference points member attribute array with new values.
+
+        Params:
+            closest_points (A[N][2, uint16]): For index 'a' in set of points A, closest point coordinates 'x' and 'y' picked from set of points B.
+        """
         self.ref_points_icp_fitting = np.array(closest_points, dtype=int)
 
     def fitted_point_filtering(self, point_arr1, point_arr2):
+        """(FPF) Wrapper function for ECD, DPF, and BID. Delays the closest points and distances by one step.
+
+        Params:
+            point_arr1  (A[N][2, uint8]): Reference points.
+            point_arr2  (A[M][2, uint8]): The set of points on which the reference points are going to be fitted.
+
+        Returns:
+            thresholded_closest_points (A[N][2, uint16]): Fitted points array.
+        """
         closest_points, closest_point_dsts = self.euclidian_closest_point(
             point_arr1, point_arr2
         )
@@ -629,6 +658,22 @@ class PointsProcessing(object):
         return thresholded_closest_points
 
     def i2rcp(self, rect_center_points, return_image=False, image=None):
+        """Intra-Iterative Recursive Closest Point (I2RCP) - an algorithm for optimal point fitting using ICP as the base, but also applying ECD, DPF, and BID serially.
+        The algo: I2RCP := ICP -> ECD -> DPF -> BID -> ref. pts. iteration -> delay (z^-1) -||> loop (ICP)
+
+        Params:
+            rect_center_points  (A[N][2, uint16])   : Set of points on which the reference points going to be fitted.
+            return_image        (bool)              : {default=True} False to return only point data.
+                                                      If param 'image' is none - returns a blanked image with drawn point data.
+                                                      If param 'image' is an image - returns both drawn blanked and passed images.
+            image               (cv::Mat)           : An image on which to draw the processed points.
+   
+
+        Returns:
+            closest_points                  (array[][]) : I2RCP fitted point array.
+            {return_image=True} blank_image (cv::Mat)   : Blank image with drawn points.
+            {image is not None} orig_img_cp (cv::Mat)   : Passed image with drawn points.
+        """
         if return_image:
             blank_image = np.zeros(shape=self.points_processing_image_shape, dtype=np.uint8)
             if image is not None:
@@ -658,6 +703,9 @@ class PointsProcessing(object):
             return closest_points
 
     def points_processing_reset(self):
+        """Resets the current reference points to the base (initial) reference points.
+        Affects only member attributes.
+        """
         self.ref_points_icp_fitting = self.ref_points_icp_fitting_base
         self.prev_closest_points = []
         self.prev_closest_point_dsts = []
