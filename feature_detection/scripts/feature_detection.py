@@ -924,12 +924,20 @@ class ShapeProcessing(object):
             rect (A[4][2, uint32]): An array of 4 points which defines a rectangle.
 
         Returns:
-            blank_image_corners (cv::Mat)           : A 2D matrix with fitted corners and blank background.
-            corner_point_arr    (A[N][2, uint32])   : An array of 2D points in the image that mark the coordinates of the corners.
+            contour (A[N][2, uint32]): A contour of the recatngle in the form of a vector of points.
         """
         return np.array(rect).reshape((-1, 1, 2)).astype(np.int32)
 
     def does_ctr_contain_point(self, ctr, point):
+        """Check if a point is contained within the boundaries of a contour.
+
+        Params:
+            ctr     (A[N][2, uint32])       : A contour in the form of a vector of points.
+            point   (array-like[2, uint32]) : A 2D point.
+        
+        Returns:
+                    (bool)                  : Returns True if the point is within the contour.
+        """
         indicator = cv2.pointPolygonTest(ctr, tuple(point), measureDist=False)
         if indicator >= 0:
             return True
@@ -937,6 +945,15 @@ class ShapeProcessing(object):
             return False
 
     def get_relevant_rects(self, point_arr, rect_arr):
+        """Return rectangles which have atleast one point within their boundaries.
+
+        Params:
+            point_arr   (A[N][2, uint32])   : An array of 2D points.
+            rect_arr    (A[M][4][2, uint32]): An array of 4 2D points, each of which define a rectangle.
+        
+        Returns:
+            relevant_rects (A[M][4][2, uint32]): Array of filtered rectangles.
+        """
         relevant_rects = []
         for rect in rect_arr:
             ctr = self.get_contour_from_rect(rect)
@@ -948,9 +965,23 @@ class ShapeProcessing(object):
         return relevant_rects
 
     def get_all_points_in_rects(
-        self, rects, return_per_rect=False, return_image=False, image=None, decimation_lvl=100
+        self, rects, decimation_lvl=100, return_per_rect=False, return_image=False, image=None
     ):
-        # Possible for rectangle-wise point extraction in this fnc (mv np.zeros blank img to rect in rects loop)
+        """Return all of the point coordinates within boundaries of rectangles. Can return element-wise decimated coordinate array.
+
+        Params:
+            rects           (A[M][4][2, uint32]): An array of 4 2D points, each of which define a rectangle.
+            return_per_rect (bool)              : {default=False} If set to True, returns one array per rectangle, instead of a single array.
+            decimation_lvl  (uint32)            : {default=100} Reduces the size of the point array by doing element-wise decimation.
+            return_image    (bool)              : {default=True} False to return only the point data.
+                                                  If param 'image' is none - returns a blanked image with drawn point data.
+                                                  If param 'image' is an image - returns both drawn blanked and passed images.
+            image           (cv::Mat)           : An image on which to draw points.
+        Returns:
+                            px_arr      (A[N][2, uint32])   : An array of 2D points.
+        {return_image=True} blank_image (cv::Mat)           : Blank image with drawn points.
+        {image != None}     image       (cv::Mat)           : Passed image with drawn points.
+        """
         if return_image:
             if image is not None:
                 orig_img_cp = copy.deepcopy(image)
@@ -958,10 +989,6 @@ class ShapeProcessing(object):
         blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
         rects_arr_shape = np.shape(rects)
         num_of_rects = rects_arr_shape[0]
-
-        # points_in_rects = []
-        # for i in range(num_of_rects):
-        #     points_in_rects.append([])
 
         if not return_per_rect:
             for rect in rects:
@@ -1014,6 +1041,22 @@ class ShapeProcessing(object):
     def rect_filtering(
         self, i2rcp_points, fitted_boxes, return_rectangles_separately=False, return_image=False, image=None
     ):
+        """Return areas of the rectangles which atleast one of the points in a point set A.
+
+        Params:
+            i2rcp_points                    (A[N][2, uint32])   : A set of I2RCP fitted points.
+            fitted_boxes                    (A[M][4][2, uint32]): An array of 4 2D points, each of which define a rectangle.
+            return_rectangles_separately    (bool)              : {default=False} If set to True, returns one array per rectangle, instead of a single array.
+            return_image                    (bool)              : {default=True} False to return only the point data.
+                                                                  If param 'image' is none - returns a blanked image with drawn point data.
+                                                                  If param 'image' is an image - returns both drawn blanked and passed images.
+            image                           (cv::Mat)           : An image on which to draw points.
+        Returns:
+                            relevant_rects  (A[M][4][2, uint32]): Array of filtered rectangles.
+                            points_in_rects (A[N][2, uint32])   : An array of 2D points.
+        {return_image=True} blank_image     (cv::Mat)           : Blank image with drawn points.
+        {image != None}     image           (cv::Mat)           : Passed image with drawn points.
+        """
         if return_image:
             blank_image = np.zeros(shape=self.shape_processing_image_shape, dtype=np.uint8)
             if image is not None:
