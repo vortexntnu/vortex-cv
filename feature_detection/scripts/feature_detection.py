@@ -721,16 +721,19 @@ class ShapeProcessing(object):
         """Fit least area rectangles onto contours.
 
         Params:
-            contours                (array[][]) : Contours that are to be fitted with the last area rectangles.
-            ratio_threshold         (uint16)    : Ratio threshold between longest and shortest rectangle sides.
-                                                  Rectangles below this ratio threshold are removed.
-            image                   (cv::Mat)   : An image on which to draw fitted shapes.
+            contours        (array[][]) : Contours that are to be fitted with the last area rectangles.
+            ratio_threshold (uint16)    : Ratio threshold between longest and shortest rectangle sides.
+                                          Rectangles below this ratio threshold are removed.
+            return_image    (bool)      : {default=True} False to return only the shape data.
+                                          If param 'image' is none - returns a blanked image with drawn shape data.
+                                          If param 'image' is an image - returns both drawn blanked and passed images.
+            image           (cv::Mat)   : An image on which to draw fitted shapes.
 
         Returns:
                             fitted_boxes    (array[][4])    : Contour-fitted and filtered rectangles.
                             centroid_arr    (array[][2])    : Array of center points in each fitted rectangle.
-        {return_image=True} blank_image     (cv::Mat)       : Blank image with drawn contours.
-        {image != None}     image           (cv::Mat)       : Passed image with drawn contours.
+        {return_image=True} blank_image     (cv::Mat)       : Blank image with drawn rectangles.
+        {image != None}     image           (cv::Mat)       : Passed image with drawn rectangles.
         """
         if return_image:
             blank_image = np.zeros(shape=self.shape_processing_image_shape, dtype=np.uint8)
@@ -739,7 +742,7 @@ class ShapeProcessing(object):
 
         fitted_boxes = []
 
-        # Had to change to iterate the first element of contours.....
+        # Iterate over the contours
         for cnt in contours[0]:
             rect = cv2.minAreaRect(cnt)
 
@@ -781,49 +784,26 @@ class ShapeProcessing(object):
         else:
             return fitted_boxes, centroid_arr
 
-    def convex_fitting(
-        self,
-        contours,
-        convex_contours,
-        area_diff_threshold,
-        return_image=False,
-        image=None,
-    ):
-        if return_image:
-            blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
-            if image is not None:
-                img_cp = copy.deepcopy(image)
-
-        convexes_filtered = []
-        for cnt_idx in range(len(contours)):
-            cnt = contours[cnt_idx]
-            cvx = convex_contours[cnt_idx]
-
-            cvx_area = cv2.contourArea(cvx)
-            cnt_area = cv2.contourArea(cnt)
-            diff_area = cvx_area - cnt_area
-
-            if diff_area < (cnt_area * area_diff_threshold):
-                convexes_filtered.append(cvx)
-                if return_image:
-                    cv2.drawContours(
-                        blank_image, convex_contours, cnt_idx, (0, 255, 0), 2
-                    )
-                    if image is not None:
-                        cv2.drawContours(
-                            img_cp, convex_contours, cnt_idx, (0, 255, 0), 2
-                        )
-        if return_image:
-            if image is not None:
-                return img_cp, blank_image, convexes_filtered
-            else:
-                return blank_image, convexes_filtered
-        else:
-            return convexes_filtered
-
     def line_fitting(
         self, contours, angle_threshold=50, return_image=False, image=None
     ):
+        """Fit lines onto countours thru their centers going alongside moment direction.
+
+        Params:
+            contours        (array[][]) : Contours that are to be fitted with the last area rectangles.
+            angle_threshold (uint16)    : {default=50} Max angle (deg) between a line and the horizon.
+                                          Lines above this threshold are filtered out.
+            return_image    (bool)      : {default=True} False to return only the line data.
+                                          If param 'image' is none - returns a blanked image with drawn line data.
+                                          If param 'image' is an image - returns both drawn blanked and passed images.
+            image           (cv::Mat)   : An image on which to draw fitted lines.
+
+        Returns:
+                            parallel_line_count (uint8)         : Number of fitted lines.
+                            theta_arr           (float32)       : Array of fitted line angles (deg).
+        {return_image=True} blank_image         (cv::Mat)       : Blank image with drawn lines.
+        {image != None}     image               (cv::Mat)       : Passed image with drawn lines.
+        """
         if return_image:
             blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
             if image is not None:
@@ -884,7 +864,15 @@ class ShapeProcessing(object):
             return theta_arr, parallell_line_count
 
     def corner_detection(self, line_fitted_img):
-        """WIP"""
+        """Fit corners onto a line fitted image with blank background.
+
+        Params:
+            line_fitted_img (cv::Mat): A 2D matrix with drawn lines in a distinct colour and zeroed background.
+
+        Returns:
+            blank_image_corners (cv::Mat)           : A 2D matrix with fitted corners and blank background.
+            corner_point_arr    (A[N][2, uint32])   : An array of 2D points in the image that mark the coordinates of the corners.
+        """
         line_fitted_img_cp = copy.deepcopy(line_fitted_img)
         # blur_line_fitted_img = cv2.GaussianBlur(line_fitted_img_cp, (5, 19), 5.2)
 
@@ -930,6 +918,15 @@ class ShapeProcessing(object):
         return blank_image_corners, corner_point_arr
 
     def get_contour_from_rect(self, rect):
+        """Reshape a rectangle which is defined by 4 corners into a contour.
+
+        Params:
+            rect (A[4][2, uint32]): An array of 4 points which defines a rectangle.
+
+        Returns:
+            blank_image_corners (cv::Mat)           : A 2D matrix with fitted corners and blank background.
+            corner_point_arr    (A[N][2, uint32])   : An array of 2D points in the image that mark the coordinates of the corners.
+        """
         return np.array(rect).reshape((-1, 1, 2)).astype(np.int32)
 
     def does_ctr_contain_point(self, ctr, point):
