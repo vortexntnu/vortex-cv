@@ -34,8 +34,8 @@ class CalibrationNode():
         self.ros_rate = rospy.Rate(3.0)
         # self.zedSub                 = rospy.Subscriber(image_topic, Image, self.camera_callback)
 
-        left_img_topic = "/zed2/zed_node/left_raw/image_raw_color"
-        right_img_topic = "/zed2/zed_node/right_raw/image_raw_color"
+        left_img_topic = rospy.get_param("/left_img_topic")
+        right_img_topic = rospy.get_param("/right_img_topic")
 
         self.chessboardSize = (5,7)
         self.criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
@@ -102,9 +102,6 @@ class CalibrationNode():
                 if self.cv_image_left is not None:
                     try:
                         start = timer() # Start function timer.
-                        
-                        # self.camera_callback_left(self.first_image_left_msg)
-                        # self.camera_callback_right(self.first_image_right_msg)
                         self.calibrate()
 
                         end = timer() # Stop function timer.
@@ -168,7 +165,7 @@ class CalibrationNode():
             rospy.loginfo("Starting calibrating...")
         #  image_counter = 0
 
-        # Left lens
+            # Left lens
             retL, cameraMatrixL, distL, rvecsL, tvecsL = cv.calibrateCamera(self.objpoints, self.imgpointsL, frameSize, None, None)
             heightL, widthL, channelsL = imgL.shape
             newCameraMatrixL, roi_L = cv.getOptimalNewCameraMatrix(cameraMatrixL, distL, (widthL, heightL), 1, (widthL, heightL))
@@ -199,14 +196,24 @@ class CalibrationNode():
 
 
     def update_config(self, newCameraMatrixL, distL, newCameraMatrixR, distR, resolution):
+        """
+        Creates a new config file, based on the camera matrix and distance matrix for each lens,
+        as well as the camera resolution used for the images.
 
-        #print("Using resolution: ", resolution)
+        :param newCameraMatrixL: camera matrix for the left image
+        :param distL: distance matrix for the left image
+        :param newCameraMatrixR: camera matrix for the right image
+        :param distR: distance matrix for the right image
+        :param resolution: resolution of the images used in calibration. Accepted resolutions are:
+        (2560,1440), (1920,1080), (1280, 720) and (672, 376)
+        :return: no value, creates a config file in the specified path from camera_calibration.yaml
+        :rtype: none
+        """
+
+
         resolutions = {"(2560,1440)": "LEFT_CAM_2K","(1920,1080)": "[LEFT_CAM_FHD]", "(1280, 720)":"[LEFT_CAM_HD]", "(672, 376)":"[LEFT_CAM_VGA]"}
         
         try:
-            # if (resolutions[resolution] == None):
-            #     print("No such resolution")
-            #     raise Exception("No such resolution")
 
             rospy.loginfo(resolutions[resolution])
             with open(self.load_config_path, "r") as c:
@@ -287,6 +294,13 @@ class CalibrationNode():
 
 
     def rectify_image(self):
+        
+        """
+        Rectifies the given images from ROS with the calibrated parameters.
+        Does not currently work as intended.
+        """
+
+
         imgL = self.cv_image_left
         imgR = self.cv_image_right
 
