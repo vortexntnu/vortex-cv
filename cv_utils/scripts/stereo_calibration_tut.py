@@ -88,9 +88,6 @@ def update_config(path, newCameraMatrixL, distL, newCameraMatrixR, distR, resolu
 
 resolutions = {"FHD":(1920,1080), "2K": (2560,1440), "HD": (1280, 720), "VGA": (672, 376) }
 chessboardSize = (5,7)
-#frameSize = resolutions["FHD"]
-
-
 
 # termination criteria
 criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
@@ -194,7 +191,6 @@ rect_image_right = cv.undistort(imgR, newCameraMatrixR, distR)
 
 # Crop:
 # x, y, w, h = roi_L
-
 # rect_image_left = rect_image_left[y:y+h, x:x+w]
 
 ########## Stereo Rectification #################################################
