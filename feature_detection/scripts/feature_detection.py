@@ -805,7 +805,7 @@ class ShapeProcessing(object):
         return relevant_rects
 
     def get_all_points_in_rects(
-        self, rects, return_per_rect=False, return_image=False, image=None
+        self, rects, return_per_rect=False, return_image=False, image=None, decimation_lvl=100
     ):
         # Possible for rectangle-wise point extraction in this fnc (mv np.zeros blank img to rect in rects loop)
         if return_image:
@@ -856,12 +856,15 @@ class ShapeProcessing(object):
                 blank_image = cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY)
                 tmp_px_arr = np.argwhere(tmp_blank_image == 255)
                 px_arr.append(tmp_px_arr)
+        
+        if decimation_lvl is not None:
+            decimated_px_arr = px_arr[::decimation_lvl].copy()
 
         if return_image:
             if image is not None:
-                return orig_img_cp, blank_image, px_arr
+                return orig_img_cp, blank_image, decimated_px_arr
             else:
-                return blank_image, px_arr
+                return blank_image, decimated_px_arr
         else:
             return px_arr
 
@@ -921,24 +924,39 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
     def feature_detection(self, original_image, hsv_params, noise_removal_params):
         _, hsv_mask, hsv_validation_img = self.hsv_processor(original_image, *hsv_params)
         self.hsv_validation_img = hsv_validation_img
+        
+        try:
+            nr_img = self.noise_removal_processor(hsv_mask, *noise_removal_params)
+            self.nr_img = nr_img
+        except Exception:
+            pass
 
-        nr_img = self.noise_removal_processor(hsv_mask, *noise_removal_params)
-        self.nr_img = nr_img
+        try:
+            using_cnts = self.contour_processing(nr_img, 300, return_image=False)
+        except Exception:
+            pass
+        
+        try:
+            shape_img, _, fitted_boxes, centroid_arr = self.shape_fitting(using_cnts, 5, return_image=True, image=original_image)
+            self.shape_img = shape_img
+        except Exception:
+            pass
 
-        using_cnts = self.contour_processing(nr_img, 300, return_image=False)
+        try:
+            i2rcp_image_blank, i2rcp_points = self.i2rcp(centroid_arr, return_image=True, image=None)
+            self.i2rcp_image_blank = i2rcp_image_blank
+        except Exception:
+            pass
 
-        shape_img, _, fitted_boxes, centroid_arr = self.shape_fitting(using_cnts, 5, return_image=True, image=original_image)
-        self.shape_img = shape_img
+        # Changed returns to obj vars
+        try:
+            rect_flt_img, _, self.relevant_rects, self.points_in_rects = self.rect_filtering(i2rcp_points, fitted_boxes, return_rectangles_separately=False, return_image=True, image=original_image)
+            self.rect_flt_img = rect_flt_img
+            self.pointed_rects_img = self.pointed_rects_img
+        except Exception:
+            pass
 
-        i2rcp_image_blank, i2rcp_points = self.i2rcp(centroid_arr, return_image=True, image=None)
-        self.i2rcp_image_blank = i2rcp_image_blank
-
-        rect_flt_img, _, relevant_rects, points_in_rects = self.rect_filtering(i2rcp_points, fitted_boxes, return_rectangles_separately=False, return_image=True, image=original_image)
-        self.rect_flt_img = rect_flt_img
-
-        self.pointed_rects_img = self.pointed_rects_img
-
-        return relevant_rects, points_in_rects
+        return self.relevant_rects, self.points_in_rects
 
     def bounding_box_processor(
         self, all_points_in_rects, label_name, return_image=False, image=None
@@ -999,21 +1017,26 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
         self, original_image, label_name, hsv_params, noise_removal_params
     ):
 
-        relevant_rects, points_in_rects = self.feature_detection(original_image, hsv_params, noise_removal_params)
+        try:
+            self.relevant_rects, self.points_in_rects = self.feature_detection(original_image, hsv_params, noise_removal_params)
+        except Exception:
+            pass
         
-        line_fitting_img, _, theta_arr, parallell_line_count = self.line_fitting(relevant_rects, angle_threshold=50, return_image=True, image=original_image)
-        self.line_fitting_img = line_fitting_img
-        
-        # Error handling
-        bbox_points = []
-        bbox_area = 0
+        try:
+            line_fitting_img, _, theta_arr, self.parallell_line_count = self.line_fitting(self.relevant_rects, angle_threshold=50, return_image=True, image=original_image)
+            self.line_fitting_img = line_fitting_img
+        except Exception:
+            pass
 
-        detection = False
-        if parallell_line_count > 1:
-            detection = True
-            bbox_img, _, bbox_points, bbox_area = self.bounding_box_processor(
-                points_in_rects, label_name, return_image=True, image=original_image)
 
-            self.bbox_img = bbox_img
-        self.detection = detection
-        return bbox_points, bbox_area, points_in_rects, detection
+        try:
+            detection = False
+            if self.parallell_line_count > 1:
+                detection = True
+                self.bbox_img, _, self.bbox_points, self.bbox_area = self.bounding_box_processor(
+                    self.points_in_rects, label_name, return_image=True, image=original_image)
+
+            self.detection = detection
+        except Exception:
+            pass
+        return self.bbox_points, self.bbox_area, self.points_in_rects, self.detection
