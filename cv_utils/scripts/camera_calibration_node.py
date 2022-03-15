@@ -5,16 +5,11 @@
 # debugpy.listen(5678)
 # debugpy.wait_for_client()
 
-from re import T
 import rospy
 
 from sensor_msgs.msg import Image
-from std_msgs.msg import Float32, Empty, String
-from cv_msgs.msg import BBox
-from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
-
+from std_msgs.msg import Float32
 from cv_bridge import CvBridge, CvBridgeError
-import dynamic_reconfigure.client
 
 import numpy as np
 from timeit import default_timer as timer
@@ -23,7 +18,7 @@ import traceback
 import cv2 as cv
 
 class CalibrationNode():
-    """Handles tasks related to feature detection
+    """Node for calibrating zed2/zed2i camera with ROS. Creates a config file, with the calibrated paramaters.
     """
 
     def __init__(self):
