@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Boundingbox processing node -->
+    <node name="boundingbox_processing_node"    pkg="boundingbox_processing"     type="boundingbox_processing_node.py"    output="screen"/>
+    <node name="feature"    pkg="boundingbox_processing"     type="boundingbox_processing_node.py"    output="screen"/>
+</launch>
