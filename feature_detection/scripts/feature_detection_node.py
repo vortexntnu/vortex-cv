@@ -23,6 +23,8 @@ import traceback
 # feature detection library
 from feature_detection import FeatureDetection
 from read_yaml_config import read_yaml_file
+import cv2 as cv
+from copy import deepcopy
 
 from time import sleep
 
@@ -159,8 +161,16 @@ class FeatureDetectionNode():
                 try:
                     start = timer() # Start function timer.
 
+                    cv2_image = cv.convertScaleAbs(self.cv_image, alpha=2.1, beta=0.1)
+                    lookUpTable = np.empty((1,256), np.uint8)
+                    for i in range(256):
+                        lookUpTable[0,i] = np.clip(pow(i / 255.0, 9.8) * 255.0, 0, 255)
+                    res = cv.LUT(cv2_image, lookUpTable)
+
+                    res_not = cv.bitwise_not(res)
+
                     try:
-                        bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, self.current_object, self.hsv_params, self.noise_rm_params)
+                        bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(res_not, self.current_object, self.hsv_params, self.noise_rm_params)
                         pt_arr_msg = self.build_point_array_msg(points_in_rects, self.current_object, self.image_shape[0], self.image_shape[1])
                         self.RectPointsPub.publish(pt_arr_msg)
 
