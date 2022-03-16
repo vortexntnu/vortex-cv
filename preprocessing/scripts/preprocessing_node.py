@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
+# ROS deps
 import rospy
+import message_filters
 
 # msg types
 from sensor_msgs.msg import Image, PointCloud2
@@ -20,25 +22,31 @@ class PreprocessingNode():
     """
     def __init__(self):
         rospy.init_node('preprocessing_node')
+        self.ros_rate = rospy.Rate(60.0)
 
         self.bridge = CvBridge()
         self.confMap = ConfidenceMapping()
 
         # Confidence map
-        rospy.Subscriber('/zed2/zed_node/confidence/confidence_map', Image, self.confidence_cb)
+        rospy.Subscriber('/zed2i/zed_node/confidence/confidence_map', Image, self.confidence_cb)
         self.maskedMapImagePub = rospy.Publisher('/cv/preprocessing/confidence_map_masked', Image, queue_size= 1)
 
         # Depth Registered
-        rospy.Subscriber('/zed2/zed_node/depth/depth_registered', Image, self.depth_registered_cb)
+        rospy.Subscriber('/zed2i/zed_node/depth/depth_registered', Image, self.depth_registered_cb)
         self.confident_depthPub = rospy.Publisher('/cv/preprocessing/depth_registered', Image, queue_size= 1)
 
         # Rectified color image
-        rospy.Subscriber('/zed2/zed_node/rgb/image_rect_color', Image, self.image_rect_color_cb)
+        rospy.Subscriber('/zed2i/zed_node/rgb/image_rect_color', Image, self.image_rect_color_cb)
         self.confident_rectImagePub = rospy.Publisher('cv/preprocessing/image_rect_color_filtered', Image, queue_size= 1)
 
         # Pointcloud
-        rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_cb)
+        rospy.Subscriber('/zed2i/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_cb)
         self.confident_pointcloudPub = rospy.Publisher('cv/preprocessing/cloud_registered', PointCloud2, queue_size= 1)
+
+        rospy.wait_for_message('/zed2i/zed_node/confidence/confidence_map', Image)
+        rospy.wait_for_message('/zed2i/zed_node/depth/depth_registered', Image)
+        rospy.wait_for_message('/zed2i/zed_node/rgb/image_rect_color', Image)
+        rospy.wait_for_message('/zed2i/zed_node/point_cloud/cloud_registered', PointCloud2)
 
     def confidence_cb(self, msg):
         """
@@ -52,14 +60,7 @@ class PreprocessingNode():
             msg: confidence map message from camera. Type: Image message.
         """
         # Bridge image data from Image to cv_image data
-        cv_image = self.bridge_to_cv(msg)
-        
-        # Make the masked map and store it in a class variable
-        self.maskedMap, masked_as_cv_image = self.confMap.create_mask(cv_image, 3)
-
-        # Bridge image data from cv_image to Image data
-        ros_image = self.bridge_to_image(masked_as_cv_image)
-        self.maskedMapImagePub.publish(ros_image)
+        self.cfd_cv = self.bridge_to_cv(msg)
 
     def pointcloud_cb(self, msg):
         """
@@ -69,17 +70,7 @@ class PreprocessingNode():
         Args:
             msg: the message in the topic callback
         """
-        try:
-            masked_map = self.maskedMap
-        except AttributeError:
-            return
-
-        confident_pointcloud = self.confMap.add_mask_to_pointcloud(masked_map, msg)
-
-        confident_pointcloud.header = msg.header
-        confident_pointcloud.height = msg.height
-        confident_pointcloud.width = msg.width
-        self.confident_pointcloudPub.publish(confident_pointcloud)
+        self.pointcloud_msg = msg
 
     def depth_registered_cb(self, msg):
         """
@@ -89,16 +80,7 @@ class PreprocessingNode():
         Args:
             msg: the message in the topic callback
         """
-        cv_image = self.bridge_to_cv(msg)
-        
-        try:
-            masked_map = self.maskedMap
-        except AttributeError:
-            return
-
-        confident_depth = self.confMap.add_mask_to_cv_image(masked_map, cv_image)
-        ros_image = self.bridge_to_image(confident_depth)
-        self.confident_depthPub.publish(ros_image)
+        self.dpth_cv = self.bridge_to_cv(msg)
 
     def image_rect_color_cb(self, msg):
         """
@@ -108,16 +90,8 @@ class PreprocessingNode():
         Args:
             msg: the message in the topic callback
         """
-        cv_image = self.bridge_to_cv(msg)
-        
-        try:
-            masked_map = self.maskedMap
-        except AttributeError:
-            return
+        self.rgb_cv = self.bridge_to_cv(msg)
 
-        confident_depth = self.confMap.add_mask_to_cv_image(masked_map, cv_image)
-        ros_image = self.bridge_to_image(confident_depth, "bgra8")
-        self.confident_rectImagePub.publish(ros_image)
 
     def bridge_to_cv(self, image_msg, encoding = "passthrough"):
         """
@@ -156,10 +130,43 @@ class PreprocessingNode():
         except CvBridgeError as e:
             rospy.logerr("CvBridge Error: {0}".format(e))
         return image_transformed
-        
+
+    def ros_image_publisher(self, publisher, cv_image, msg_encoding="passthrough"):
+        """
+        Takes a cv::Mat image object, converts it into a ROS Image message type, and publishes it using the specified publisher.
+        """
+        ros_image = self.bridge_to_image(cv_image, encoding=msg_encoding)
+        publisher.publish(ros_image)
+    
+    def spin(self):
+        while not rospy.is_shutdown():
+            # Make the masked map and store it in a spin variable
+            masked_map, masked_as_cv_image = self.confMap.create_mask(self.cfd_cv, 3)
+            # Bridge image data from cv_image to Image data
+            self.ros_image_publisher(self.maskedMapImagePub, masked_as_cv_image)
+
+            # Pointcloud masking
+            confident_pointcloud = self.confMap.add_mask_to_pointcloud(masked_map, self.pointcloud_msg)
+            confident_pointcloud.header = self.pointcloud_msg.header
+            confident_pointcloud.height = self.pointcloud_msg.height
+            confident_pointcloud.width = self.pointcloud_msg.width
+            self.confident_pointcloudPub.publish(confident_pointcloud)
+
+            # Depth masking
+            confident_depth = self.confMap.add_mask_to_cv_image(masked_map, self.dpth_cv)
+            self.ros_image_publisher(self.confident_depthPub, confident_depth)
+
+            # RGB masking
+            masked_rgb = self.confMap.add_mask_to_cv_image(masked_map, self.rgb_cv)
+            self.ros_image_publisher(self.confident_rectImagePub, masked_rgb, "bgra8")
+
+            rospy.loginfo("akfsnl")
+            self.ros_rate.sleep()
+
+            
 
 if __name__ == '__main__':
     node = PreprocessingNode()
 
     while not rospy.is_shutdown():
-        rospy.spin()
+        node.spin()
