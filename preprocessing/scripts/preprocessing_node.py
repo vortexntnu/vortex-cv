@@ -23,30 +23,32 @@ class PreprocessingNode():
     def __init__(self):
         rospy.init_node('preprocessing_node')
         self.ros_rate = rospy.Rate(60.0)
+        
+        camera_ns = "/zed2i/zed_node"
 
         self.bridge = CvBridge()
         self.confMap = ConfidenceMapping()
 
         # Confidence map
-        rospy.Subscriber('/zed2i/zed_node/confidence/confidence_map', Image, self.confidence_cb)
+        rospy.Subscriber(camera_ns + '/confidence/confidence_map', Image, self.confidence_cb)
         self.maskedMapImagePub = rospy.Publisher('/cv/preprocessing/confidence_map_masked', Image, queue_size= 1)
 
         # Depth Registered
-        rospy.Subscriber('/zed2i/zed_node/depth/depth_registered', Image, self.depth_registered_cb)
+        rospy.Subscriber(camera_ns + '/depth/depth_registered', Image, self.depth_registered_cb)
         self.confident_depthPub = rospy.Publisher('/cv/preprocessing/depth_registered', Image, queue_size= 1)
 
         # Rectified color image
-        rospy.Subscriber('/zed2i/zed_node/rgb/image_rect_color', Image, self.image_rect_color_cb)
+        rospy.Subscriber(camera_ns + '/rgb/image_rect_color', Image, self.image_rect_color_cb)
         self.confident_rectImagePub = rospy.Publisher('cv/preprocessing/image_rect_color_filtered', Image, queue_size= 1)
 
         # Pointcloud
-        rospy.Subscriber('/zed2i/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_cb)
+        rospy.Subscriber(camera_ns + '/point_cloud/cloud_registered', PointCloud2, self.pointcloud_cb)
         self.confident_pointcloudPub = rospy.Publisher('cv/preprocessing/cloud_registered', PointCloud2, queue_size= 1)
 
-        rospy.wait_for_message('/zed2i/zed_node/confidence/confidence_map', Image)
-        rospy.wait_for_message('/zed2i/zed_node/depth/depth_registered', Image)
-        rospy.wait_for_message('/zed2i/zed_node/rgb/image_rect_color', Image)
-        rospy.wait_for_message('/zed2i/zed_node/point_cloud/cloud_registered', PointCloud2)
+        rospy.wait_for_message(camera_ns + '/confidence/confidence_map', Image)
+        rospy.wait_for_message(camera_ns + '/depth/depth_registered', Image)
+        rospy.wait_for_message(camera_ns + '/rgb/image_rect_color', Image)
+        rospy.wait_for_message(camera_ns + '/point_cloud/cloud_registered', PointCloud2)
 
     def confidence_cb(self, msg):
         """
