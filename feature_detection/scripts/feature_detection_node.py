@@ -159,9 +159,13 @@ class FeatureDetectionNode():
                 try:
                     start = timer() # Start function timer.
 
-                    bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, self.current_object, self.hsv_params, self.noise_rm_params)
-                    pt_arr_msg = self.build_point_array_msg(points_in_rects, self.current_object, self.image_shape[0], self.image_shape[1])
-                    self.RectPointsPub.publish(pt_arr_msg)
+                    try:
+                        bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, self.current_object, self.hsv_params, self.noise_rm_params)
+                        pt_arr_msg = self.build_point_array_msg(points_in_rects, self.current_object, self.image_shape[0], self.image_shape[1])
+                        self.RectPointsPub.publish(pt_arr_msg)
+
+                    except TypeError:
+                        pass
                     
                     self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_validation_img)
                     self.cv_image_publisher(self.noiseRmPub, self.feat_detection.nr_img, msg_encoding="mono8")
