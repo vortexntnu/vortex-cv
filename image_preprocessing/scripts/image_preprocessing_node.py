@@ -15,6 +15,9 @@ import dynamic_reconfigure.client
 from ImagePreprocessing import ImagePreprocessing
 from read_yaml_config import read_yaml_file
 
+import numpy as np
+import cv2 as cv
+
 class ImagePreprocessingNode():
     """Performs image preprocessing (duh...)
     """
@@ -52,7 +55,16 @@ class ImagePreprocessingNode():
         except CvBridgeError, e:
             rospy.logerr("CvBridge Error: {0}".format(e))
 
-        
+        clahe_img = self.image_preprocessing.CLAHE(self.cv_image)
+        clahe_img = clahe_img.round().astype(np.uint8)
+        self.cv_image_publisher(self.CLAHEPub, clahe_img, "bgra8")
+
+        _, _, R, _ = cv.split(self.cv_image)
+        clahe_r_channel = self.image_preprocessing.CLAHE(R)
+        self.cv_image_publisher(self.single_CLAHEPub, clahe_r_channel, "mono8")
+
+        gw_img = self.image_preprocessing.gray_world(cv.cvtColor(self.cv_image, cv.COLOR_BGRA2BGR))
+        self.cv_image_publisher(self.GWPub, gw_img, "bgr8")
     
     def load_obj_config(self, config_path):
         params = read_yaml_file(config_path)

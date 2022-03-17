@@ -36,7 +36,7 @@ class ImagePreprocessing:
 
     def SVD_compression(self, img, r):
         U, S, VT = np.linalg.svd(img)
-        return U[:,:r] @ np.diag(S)[:r, :r] @ VT [:r, :]
+        return np.matmul(np.matmul(U[:,:r], np.diag(S)[:r, :r]), VT [:r, :])
     
     def central_difference(self, I, diff):
         """
