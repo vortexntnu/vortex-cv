@@ -51,3 +51,20 @@ https://github.com/vortexntnu/Vortex-AUV/wiki/Object-detection
 $ source devel/setup.bash
 $ roslaunch vision_launch vision_launch.launch
 ```
+Launch order with feature detection:
+roscore
+rosbag with pointcloud data
+image preprocessing
+preprocessing
+feature detection
+rosrun rqt_reconfigure rqt_reconfigure
+load detection_params_w_img_pre_processing.yaml into rqt_reconfigure
+pointcloud processing 
+ekf_node
+
+Launch order with darknet:
+roscore
+zed_wrapper
+darknet_ros
+pointcloud processing 
+ekf_node
