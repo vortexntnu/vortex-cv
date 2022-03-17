@@ -24,7 +24,7 @@ class PreprocessingNode():
         rospy.init_node('preprocessing_node')
         self.ros_rate = rospy.Rate(60.0)
         
-        camera_ns = "/zed2/zed_node"
+        camera_ns = "/zed2i/zed_node"
 
         self.bridge = CvBridge()
         self.confMap = ConfidenceMapping()

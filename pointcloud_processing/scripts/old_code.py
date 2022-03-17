@@ -5,7 +5,7 @@ class PointcloudProcessingNode():
     """
     def __init__(self):
         
-        # self.pcSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_cb)
+        # self.pcSub = rospy.Subscriber('/zed2i/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_cb)
         # self.pointcloudRedSub = rospy.Subscriber('/object_detection/output', PointCloud2, self.pointcloud_downsampled_cb)
         # self.landmarkPub = rospy.Publisher('/object_detection/object_positions_in',ObjectPosition, queue_size= 1)
         pass

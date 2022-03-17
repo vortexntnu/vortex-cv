@@ -106,7 +106,7 @@ class ImagePreprocessingNode():
 
 if __name__ == '__main__':
     try:
-        image_preprocessing_node = ImagePreprocessingNode(image_topic='/zed2/zed_node/rgb/image_rect_color')
+        image_preprocessing_node = ImagePreprocessingNode(image_topic='/zed2i/zed_node/rgb/image_rect_color')
         # rospy.spin()
         image_preprocessing_node.spin()
 

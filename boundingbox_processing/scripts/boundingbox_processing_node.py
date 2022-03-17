@@ -23,7 +23,7 @@ class BoundingBoxProcessingNode():
 
     def __init__(self):
         rospy.init_node('boundingbox_processing_node')
-        self.pointcloudSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_camera_cb)
+        self.pointcloudSub = rospy.Subscriber('/zed2i/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_camera_cb)
         self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.darknet_cb)
 
         # # subscriber and publisher for limiting pointcloud to bounding box

@@ -4,6 +4,7 @@
     -->
 
     <!--Input args-->
+    <!-- <param name ="/use_sim_time" value="true"/> -->
     <arg name="type" default="real"/> 
     <arg name="bagfile" default="$(env HOME)/vortex_ws/src/Vortex-CV/object_edc/bagfiles/lite_gate_medium_sway_backwards_qual.bag" />
 
@@ -17,14 +18,16 @@
 
       <node pkg="tf2_ros" type="static_transform_publisher" name="odom_to_qualsys_odom" args="0 0 0 0 0 0 map mocap" output="screen" />
       <node pkg="tf2_ros" type="static_transform_publisher" name="qualsys_base_link_to_camera_center" args="0.3175 0 0.10 0 -0.296706 -0.0087266 Body_1 auv/camerafront_link" output="screen" />
+
+      <node name="rviz" pkg="rviz" type="rviz" required="true" args="-d $(find object_edc)/src/visualizer.rviz" />
     </group>
     
     <group if="$(eval type == 'real')"> 
-      <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_camera_center" args="0.3175 0 0.10 0 -0.296706 -0.0087266 base_link zed2_camera_center" />
+      <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_camera_center" args="0.3175 0 0.10 0 -0.296706 -0.0087266 base_link zed2i_camera_center" />
+      
     </group>
     
-    <node name="rviz" pkg="rviz" type="rviz" required="true"
-      args="-d $(find object_edc)/src/visualizer.rviz" />
+    
     <node pkg="object_edc" type="ekf_node.py" name="ekf_vision" output="screen"/>
 
   </launch>

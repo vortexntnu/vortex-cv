@@ -2,8 +2,6 @@
 <launch>
     <!-- Confidence thresholding node -->
     <node name="preprocessing_node"    pkg="preprocessing"     type="preprocessing_node.py"    output="screen"/>
-    <node name="republish" type="republish" pkg="image_transport" output="screen" args="compressed in:=/zed2/zed_node/rgb/image_rect_color raw out:=/zed2/zed_node/rgb/image_rect_color" />
 
-
-    <node pkg="tf2_ros" type="static_transform_publisher" name="detection" args="0 0 0 0 0 0 zed2_left_camera_frame detection" />
+    <node pkg="tf2_ros" type="static_transform_publisher" name="detection" args="0 0 0 0 0 0 zed2i_left_camera_frame detection" />
 </launch>
