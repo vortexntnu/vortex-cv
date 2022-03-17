@@ -21,14 +21,15 @@ By BenG @ Vortex NTNU, 2022
 
 
 class ImageFeatureProcessing(object):
-    """Various functions for processing of (matrix-like) image data.
+    """Methods for processing of (matrix-like) image data.
+    The methods here serve a variety of purposes such as colour filtering, binary data processing, and contour extraction.
     Needs instantiation with a (matrix) shape of the image that going to be manipulated.
 
     Params:
         image_shape (array-like [3]): Shape of the relevant image - height, width, channels.
     
     Attributes:
-        image_shape (array-like [3]): Same as the param. Is passed down to sub-classes.
+        image_shape (array-like [3]): Same as in the parameters. Is passed down to sub-classes.
 
     Methods:
         hsv_processor:              Takes a raw image and applies Hue-Saturation-Value filtering
@@ -108,7 +109,7 @@ class ImageFeatureProcessing(object):
             dilation_iterations             (uint8)     : The times to serially apply the dilation method.
 
         Returns:
-            morphised_image (cv2::Mat): Passed HSV image with morphised features using blur, thresholding, erosion, dilation.
+            morphised_image (cv::Mat): Passed HSV image with morphised features using blur, thresholding, erosion, dilation.
         """
         hsv_mask_cp = copy.deepcopy(hsv_mask)
 
@@ -131,11 +132,11 @@ class ImageFeatureProcessing(object):
         erosion_img = cv2.erode(
             thr_img, erosion_dilation_kernel, iterations=erosion_iterations
         )
-        noise_removed_img = cv2.dilate(
+        morphised_image = cv2.dilate(
             erosion_img, erosion_dilation_kernel, iterations=dilation_iterations
         )
 
-        return noise_removed_img
+        return morphised_image
 
     def contour_filtering(
         self,
@@ -152,7 +153,7 @@ class ImageFeatureProcessing(object):
             hierarchy               (array[][]) : Hierarchy of the contours parameter. Must be of 'cv2.RETR_CCOMP' type.
             contour_area_threshold  (uint16)    : Threshold for filtering based on inside-of-contour area.
                                                   Contours with lower area than the argument will be removed.
-            contour_len_threshold   (uint16)    : Threshold for filtering based on length of a contour.
+            contour_len_threshold   (uint16)    : {default=20} Threshold for filtering based on length of a contour.
             mode                    (uint8)     : {default=1} Mode for hierarchical filtering.
                                                   Mode 1 leaves only the contours that do not have any hierarchical children.
                                                   Mode 2 leaves the contours that do not have any hierarchical children or neighbours.
@@ -231,25 +232,25 @@ class ImageFeatureProcessing(object):
             noise_removed_image     (cv::Mat)   : A mono8 (8UC1) pre-processed image with morphised edges.
             contour_area_threshold  (uint16)    : Threshold for filtering based on inside-of-contour area.
                                                   Contours with lower area than the argument will be removed.
-            enable_convex_hull      (bool)      : Enable convex hull contour approximation method.
+            enable_convex_hull      (bool)      : {default=False} Enable convex hull contour approximation method.
             return_image            (bool)      : {default=True} False to return only contour data.
                                                   If param 'image' is none - returns a blanked image with drawn contour data.
                                                   If param 'image' is an image - returns both drawn blanked and passed images.
-            image                   (cv::Mat)   : An image on which to draw processed contours.
-            show_centers            (bool)      : Draw contour centers in the returned image(s).
-            show_areas              (bool)      : Draw contour areas in the returned image(s).
+            image                   (cv::Mat)   : {default=None} An image on which to draw processed contours.
+            show_centers            (bool)      : {default=True} Draw contour centers in the returned image(s).
+            show_areas              (bool)      : {default=False} Draw contour areas in the returned image(s).
 
         Returns:
-                                contours    (array[][]) : Processed and filtered contours.
+                                contour_arr (array[][]) : Processed and filtered contours.
             {return_image=True} blank_image (cv::Mat)   : Blank image with drawn contours.
-            {image is not None} image       (cv::Mat)   : Passed image with drawn contours.
+            {image is not None} img_cp      (cv::Mat)   : Passed image with drawn contours.
         """
 
         if return_image:
             blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
 
             if image is not None:
-                orig_img_cp = copy.deepcopy(image)
+                img_cp = copy.deepcopy(image)
 
         contours, hierarchy = cv2.findContours(
             noise_removed_image, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE
@@ -262,24 +263,24 @@ class ImageFeatureProcessing(object):
         contours_filtered = contours_array[cnt_filter]
         
         # Container list
-        using_contours = []
+        contour_arr = []
 
         # Applies convex hull contour approximation if specified in the parameters
         if enable_convex_hull:
             hull_array = []
             for cnt_idx in range(len(contours_filtered)):
                 hull_array.append(cv2.convexHull(contours_filtered[cnt_idx], False))
-            using_contours = hull_array
+            contour_arr = hull_array
         else:
-            using_contours = contours_filtered
+            contour_arr = contours_filtered
 
         # Contour centers
         centroid_data = []
         for cnt_idx in range(len(contours_filtered)):
             try:
-                cnt = using_contours[0][cnt_idx]
+                cnt = contour_arr[0][cnt_idx]
             except Exception:
-                cnt = using_contours[cnt_idx]
+                cnt = contour_arr[cnt_idx]
             cnt_moments = cv2.moments(cnt)
 
             try:
@@ -292,9 +293,9 @@ class ImageFeatureProcessing(object):
             if return_image:
                 if image is not None:
                     cv2.drawContours(
-                        orig_img_cp, using_contours, cnt_idx, (255, 0, 0), 2
+                        img_cp, contour_arr, cnt_idx, (255, 0, 0), 2
                     )
-                cv2.drawContours(blank_image, using_contours, cnt_idx, (255, 0, 0), 2)
+                cv2.drawContours(blank_image, contour_arr, cnt_idx, (255, 0, 0), 2)
 
             centroid_data.append((centroid_center_x, centroid_center_y, cnt_area))
             cnt_area_str = str(centroid_data[cnt_idx][2])
@@ -309,7 +310,7 @@ class ImageFeatureProcessing(object):
                 )
                 if image is not None:
                     cv2.circle(
-                        orig_img_cp,
+                        img_cp,
                         (centroid_data[cnt_idx][0], centroid_data[cnt_idx][1]),
                         2,
                         (0, 255, 0),
@@ -328,7 +329,7 @@ class ImageFeatureProcessing(object):
                 )
                 if image is not None:
                     cv2.putText(
-                        orig_img_cp,
+                        img_cp,
                         cnt_area_str,
                         (centroid_data[cnt_idx][0], centroid_data[cnt_idx][1]),
                         cv2.FONT_HERSHEY_SIMPLEX,
@@ -339,15 +340,16 @@ class ImageFeatureProcessing(object):
 
         if return_image:
             if image is not None:
-                return orig_img_cp, blank_image, using_contours
+                return img_cp, blank_image, contour_arr
             else:
-                return blank_image, using_contours
+                return blank_image, contour_arr
         else:
-            return using_contours
+            return contour_arr
 
 
 class PointsProcessing(object):
-    """Functions for processing, filtering, fitting, and otherwise manipulating of 2D point-type data.
+    """Methods for processing, filtering, fitting, and otherwise manipulating of 2D point-type data.
+    The main purpose of this class is to provide point-based detection and classification algorithms for a 2D environment.
 
     Params:
         len_of_integral_binary_resetter (uint8)             : {default=5} Number of steps in the binary integral reference point resetter.
@@ -409,13 +411,13 @@ class PointsProcessing(object):
         Returns:
                                 icp_points  (array[][]) : Processed and fitted points.
             {return_image=True} blank_image (cv::Mat)   : Blank image with drawn points.
-            {image is not None} orig_img_cp (cv::Mat)   : Passed image with drawn points.
+            {image is not None} img_cp      (cv::Mat)   : Passed image with drawn points.
         """
 
         if return_image:
             blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
             if image is not None:
-                orig_img_cp = copy.deepcopy(image)
+                img_cp = copy.deepcopy(image)
 
         _, icp_points = icp.icp(points_set, ref_points, verbose=False)
         # points_int = np.rint(icp_points)
@@ -426,12 +428,12 @@ class PointsProcessing(object):
 
                 if image is not None:
                     cv2.circle(
-                        orig_img_cp, (int(pnt[0]), int(pnt[1])), 2, (0, 255, 0), 2
+                        img_cp, (int(pnt[0]), int(pnt[1])), 2, (0, 255, 0), 2
                     )
 
         if return_image:
             if image is not None:
-                return orig_img_cp, blank_image, icp_points
+                return img_cp, blank_image, icp_points
             else:
                 return blank_image, icp_points
         else:
@@ -572,7 +574,7 @@ class PointsProcessing(object):
         Params:
             closest_points                      (A[N][2, uint16])   : For index 'a' in set of points A, closest point coordinates 'x' and 'y' picked from set of points B.
             closest_point_dts                   (A[N, float16])     : For index 'a' in set of points A, distances from the reference point in set of points A to its closest point in set of points B.
-            threshold                           (float32)           : Max travel difference for a point, at which it won't be updated and keep its prev position.
+            threshold                           (uint32)            : The value at which the derivative-term filter disregards change in point coordinates.
             reset_reference_points_threshold    (float32)           : Max sum of travel diffs, at which point the reference points for the I2C will be reset.
 
         Returns:
@@ -672,7 +674,7 @@ class PointsProcessing(object):
         Returns:
             closest_points                  (array[][]) : I2RCP fitted point array.
             {return_image=True} blank_image (cv::Mat)   : Blank image with drawn points.
-            {image is not None} orig_img_cp (cv::Mat)   : Passed image with drawn points.
+            {image is not None} img_cp      (cv::Mat)   : Passed image with drawn points.
         """
         if return_image:
             blank_image = np.zeros(shape=self.points_processing_image_shape, dtype=np.uint8)
@@ -733,12 +735,12 @@ class ShapeProcessing(object):
                             fitted_boxes    (array[][4])    : Contour-fitted and filtered rectangles.
                             centroid_arr    (array[][2])    : Array of center points in each fitted rectangle.
         {return_image=True} blank_image     (cv::Mat)       : Blank image with drawn rectangles.
-        {image != None}     image           (cv::Mat)       : Passed image with drawn rectangles.
+        {image != None}     img_cp          (cv::Mat)       : Passed image with drawn rectangles.
         """
         if return_image:
             blank_image = np.zeros(shape=self.shape_processing_image_shape, dtype=np.uint8)
             if image is not None:
-                orig_img_cp = copy.deepcopy(image)
+                img_cp = copy.deepcopy(image)
 
         fitted_boxes = []
 
@@ -763,7 +765,7 @@ class ShapeProcessing(object):
                 if return_image:
                     cv2.drawContours(blank_image, [box], 0, (0, 0, 255), 2)
                     if image is not None:
-                        cv2.drawContours(orig_img_cp, [box], 0, (0, 0, 255), 2)
+                        cv2.drawContours(img_cp, [box], 0, (0, 0, 255), 2)
 
         centroid_arr = np.empty([len(fitted_boxes), 2], dtype=int)
 
@@ -778,7 +780,7 @@ class ShapeProcessing(object):
         
         if return_image:
             if image is not None:
-                return orig_img_cp, blank_image, fitted_boxes, centroid_arr
+                return img_cp, blank_image, fitted_boxes, centroid_arr
             else:
                 return blank_image, fitted_boxes, centroid_arr
         else:
@@ -802,7 +804,7 @@ class ShapeProcessing(object):
                             parallel_line_count (uint8)         : Number of fitted lines.
                             theta_arr           (float32)       : Array of fitted line angles (deg).
         {return_image=True} blank_image         (cv::Mat)       : Blank image with drawn lines.
-        {image != None}     image               (cv::Mat)       : Passed image with drawn lines.
+        {image != None}     img_cp              (cv::Mat)       : Passed image with drawn lines.
         """
         if return_image:
             blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
@@ -980,11 +982,11 @@ class ShapeProcessing(object):
         Returns:
                             px_arr      (A[N][2, uint32])   : An array of 2D points.
         {return_image=True} blank_image (cv::Mat)           : Blank image with drawn points.
-        {image != None}     image       (cv::Mat)           : Passed image with drawn points.
+        {image != None}     img_cp      (cv::Mat)           : Passed image with drawn points.
         """
         if return_image:
             if image is not None:
-                orig_img_cp = copy.deepcopy(image)
+                img_cp = copy.deepcopy(image)
 
         blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
         rects_arr_shape = np.shape(rects)
@@ -999,7 +1001,7 @@ class ShapeProcessing(object):
                 )
                 if return_image and (image is not None):
                     cv2.drawContours(
-                        orig_img_cp, [ctr], 0, (255, 255, 255), thickness=cv2.FILLED
+                        img_cp, [ctr], 0, (255, 255, 255), thickness=cv2.FILLED
                     )
 
             blank_image = cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY)
@@ -1019,7 +1021,7 @@ class ShapeProcessing(object):
                 )
                 if return_image and (image != None):
                     cv2.drawContours(
-                        orig_img_cp, [ctr], 0, (255, 255, 255), thickness=cv2.FILLED
+                        img_cp, [ctr], 0, (255, 255, 255), thickness=cv2.FILLED
                     )
 
                 tmp_blank_image = cv2.cvtColor(tmp_blank_image, cv2.COLOR_BGR2GRAY)
@@ -1032,7 +1034,7 @@ class ShapeProcessing(object):
 
         if return_image:
             if image is not None:
-                return orig_img_cp, blank_image, decimated_px_arr
+                return img_cp, blank_image, decimated_px_arr
             else:
                 return blank_image, decimated_px_arr
         else:
@@ -1055,7 +1057,7 @@ class ShapeProcessing(object):
                             relevant_rects  (A[M][4][2, uint32]): Array of filtered rectangles.
                             points_in_rects (A[N][2, uint32])   : An array of 2D points.
         {return_image=True} blank_image     (cv::Mat)           : Blank image with drawn points.
-        {image != None}     image           (cv::Mat)           : Passed image with drawn points.
+        {image != None}     img_cp          (cv::Mat)           : Passed image with drawn points.
         """
         if return_image:
             blank_image = np.zeros(shape=self.shape_processing_image_shape, dtype=np.uint8)
@@ -1157,7 +1159,7 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
                             bbox_area   (float32)           : Area of the bounding box region in the image.
                             bbox_points (A[4][2, uint32])   : An array of 4 2D points which indicate the bounding box corners.
         {return_image=True} blank_image (cv::Mat)           : Blank image with drawn bounding box.
-        {image != None}     image       (cv::Mat)           : Passed image with drawn bounding box.
+        {image != None}     img_cp      (cv::Mat)           : Passed image with drawn bounding box.
         """
         if return_image:
             blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
