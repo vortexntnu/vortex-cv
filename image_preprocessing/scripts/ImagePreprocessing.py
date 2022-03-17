@@ -3,7 +3,7 @@ import cv2 as cv
 import numpy as np
 from scipy import ndimage
 
-class img_preprocesser:
+class ImagePreprocessing:
 
     """
     config is an array of True/False values which determine how the image will be pre-processed
