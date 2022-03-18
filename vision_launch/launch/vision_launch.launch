@@ -1,9 +1,39 @@
 <?xml version="1.0"?>
 <launch>
+
+    <arg name="type" default="simulator"/> 
+    <arg name="use_bag" default="false"/> 
+    <arg name="bagfile" default="$(env HOME)/bagfiles/MCLAB/day2/cv_ekf/gate_medium_pitch.bag" />
+
+
+    <group if="$(eval type == 'simulator')">
+      <param name ="/use_sim_time" value="true"/>
+
+      <group if="$(eval use_bag == 'true')">
+        <node name="rosbag_play" pkg="rosbag" type="play" required="true" args="--clock -l $(arg bagfile)" />
+      </group>
+
+    </group>
+    
+    <!-- Connects base_link and zed2_camera_center with updated tranform, TODO: remove this tf when bags has updated tf-->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_camera_center" args="0.3175 0 0.10 0 -0.296706 -0.0087266 base_link zed2_camera_center" />
+
+    <!-- Image preprocesing node -->
+    <include file="$(find image_preprocessing)/launch/image_preprocessing.launch"/>
+
     <!-- Feature detection node -->
     <include file="$(find feature_detection)/launch/feature_detection_node.launch"/>
 
     <!-- Pointcloud processing node -->
     <include file="$(find pointcloud_processing)/launch/pointcloud_processing_node.launch"/>
+
+    <!-- V-KF node -->
+    <include file="$(find object_edc)/launch/ekf_node.launch"/>
+
+    <!-- Rviz node -->
+    <node name="rviz" pkg="rviz" type="rviz" required="false" args="-d $(find vision_launch)/rviz/visualizer.rviz"/>
+
+    <!-- rqt_image_view -->
+    <node name="rqt_image_view" pkg="rqt_image_view" type="rqt_image_view"/>
 
 </launch>
