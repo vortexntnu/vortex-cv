@@ -65,11 +65,14 @@ class PointcloudProcessingNode():
             point_list.append((point.y, point.x)) # TODO: change back from y, x to x, y as it is supposed to be the latter
 
         # Calls function to find object centre and orientation
-        orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_point_list(point_list, self.pointcloud_data)
+        #orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_point_list(point_list, self.pointcloud_data)
+        orientationdata, positiondata = self.pointcloud_mapper.SVD_object_orientation_from_point_list(point_list, self.pointcloud_data)
         self.send_pose_in_world(positiondata, orientationdata)
         self.send_ObjectPose_message(headerdata, positiondata, orientationdata)
 
         self.prev_object_name = self.object_name
+
+
 
     def bbox_cb(self, msg):
         """
@@ -130,13 +133,22 @@ class PointcloudProcessingNode():
         pose_msg_camera.header.stamp = rospy.get_rostime()
 
         # Build pose
+        #pose_msg_camera.pose.position.x = position_data[0]
+        #pose_msg_camera.pose.position.y = position_data[1]
+        #pose_msg_camera.pose.position.z = position_data[2]
+        #pose_msg_camera.pose.orientation.x = 1
+        #pose_msg_camera.pose.orientation.y = quaternion_data[2]
+        #pose_msg_camera.pose.orientation.z = 1
+        #pose_msg_camera.pose.orientation.w = 1
+
         pose_msg_camera.pose.position.x = position_data[0]
         pose_msg_camera.pose.position.y = position_data[1]
         pose_msg_camera.pose.position.z = position_data[2]
-        pose_msg_camera.pose.orientation.x = 1
+        pose_msg_camera.pose.orientation.x = quaternion_data[1]
         pose_msg_camera.pose.orientation.y = quaternion_data[2]
-        pose_msg_camera.pose.orientation.z = 1
-        pose_msg_camera.pose.orientation.w = 1
+        pose_msg_camera.pose.orientation.z = quaternion_data[3]
+        pose_msg_camera.pose.orientation.w = quaternion_data[0]
+
 
         pose_msg_odom = self.pose_transformer.do_transform_pose(pose_msg_camera, tf_lookup_world_to_camera)
         self.posePub.publish(pose_msg_odom)

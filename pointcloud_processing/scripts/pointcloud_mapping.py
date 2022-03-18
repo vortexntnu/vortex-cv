@@ -6,6 +6,8 @@ import math
 from sensor_msgs import point_cloud2
 from sensor_msgs.msg import PointCloud2
 
+import tf.transformations as tft
+
 class PointCloudMapping():
     """
     Class used for various tasks surrounding pointcloud mappng
@@ -89,6 +91,30 @@ class PointCloudMapping():
         orientationdata, positiondata = self.points_to_plane(new_point_list)
         return orientationdata, positiondata
 
+    def SVD_object_orientation_from_point_list(self, point_list, pointcloud_data):
+        """
+        Uses known points to find object and its orientation
+        
+        Args:
+            point_list: list of points as tuples [(x,y),(x,y)]
+            pointcloud_data: poiintcloud data extracted from camera
+        
+        Returns:
+            orientationdata = [x, y, z, w] \n
+            positiondata = [x, y, z]
+        """
+        assert isinstance(pointcloud_data, PointCloud2)
+        new_point_list = []
+        for point in point_list:
+            pt_gen = point_cloud2.read_points(pointcloud_data, skip_nans=True, uvs=[[point[0],point[1]]])
+            for pt in pt_gen:
+                # new_point_list.append(pt)
+                new_point_list.append([pt[0], pt[1], pt[2]])
+        
+        orientationdata, positiondata = self.plane_with_SVD(new_point_list)
+        return orientationdata, positiondata
+
+
     def points_to_plane(self, points_list):
         """
         Function will give you an estimated plane from points in a 3D plane
@@ -107,7 +133,11 @@ class PointCloudMapping():
             xs.append(point[0])
             ys.append(point[1])
             zs.append(point[2])
-
+            
+        # IVAN: a smoother way of extracting the points?
+        #xs = points_list[:,0]
+        #ys = points_list[:,1]
+        #zs = points_list[:,2]
 
         # do fit
         tmp_A = []
@@ -131,6 +161,30 @@ class PointCloudMapping():
         middle_point = self.get_middle_point(points_list)
 
         return vectordata, middle_point
+
+    def plane_with_SVD(self, X):
+        """
+        Creates a plane position and orientation basis through Singluar Value Decomposition (SVD) of the pointcloud data
+
+        Args:
+            X: a M x 3 matrix of pointcloud data, M points with their x, y, z coordinate
+                X = [x1, y1, z1]
+                    [.   .    .]
+
+                        ...
+
+                    [xM, yM, zM]
+        Returns:
+            Rot: a 3x3 orthonormal basis (rotation matrix)
+            pos: the average x, y, z position of the pointcloud data
+
+        """
+        _, _, PT = np.linalg.svd(X)
+        Rot = PT.T
+        pos = np.average(X,0)
+        quat = tft.quaternion_from_matrix(Rot)
+
+        return quat, pos
 
     def get_middle_point(self, points_list):
         """
