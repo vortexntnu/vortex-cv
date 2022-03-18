@@ -241,7 +241,7 @@ class HoughMajingo:
 
 
         ## correlating lines and getting corner points from bounding box --> both should be outputted
-        distanz = 100
+        distanz = 50
         if len(rect_list_ver_new) >1:
             bb_ver = HoughMajingo.connect_lines2bb(rect_list_ver_new, 0, distanz)
         else:
