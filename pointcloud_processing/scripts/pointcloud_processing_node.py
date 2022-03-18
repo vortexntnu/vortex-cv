@@ -1,5 +1,12 @@
 #!/usr/bin/env python
 
+# import debugpy
+# print("Waiting for VSCode debugger...")
+# debugpy.listen(5678)
+# debugpy.wait_for_client()
+
+import numpy as np
+
 import rospy
 import tf2_geometry_msgs.tf2_geometry_msgs
 import tf2_ros
@@ -32,7 +39,7 @@ class PointcloudProcessingNode():
         else:
             self.pointcloudSub = rospy.Subscriber('/zed2i/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_camera_cb, queue_size=1)
 
-        self.feat_detSub = rospy.Subscriber('/feature_detection/object_points', PointArray, self.feat_det_cb, queue_size= 1)
+        # self.feat_detSub = rospy.Subscriber('/feature_detection/object_points', PointArray, self.feat_det_cb, queue_size= 1)
         self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.bbox_cb, queue_size=1)
         # self.bboxSub = rospy.Subscriber('/feature_detection/detection_bboxasdasdasdasdasd', BoundingBoxes, self.bbox_cb, queue_size=1)
 
@@ -140,7 +147,8 @@ class PointcloudProcessingNode():
         #pose_msg_camera.pose.orientation.y = quaternion_data[2]
         #pose_msg_camera.pose.orientation.z = 1
         #pose_msg_camera.pose.orientation.w = 1
-
+        # # quaternion_data = np.array([1, 1, quaternion_data[2], 1])
+        # # quaternion_data = quaternion_data / np.linalg.norm(quaternion_data)
         pose_msg_camera.pose.position.x = position_data[0]
         pose_msg_camera.pose.position.y = position_data[1]
         pose_msg_camera.pose.position.z = position_data[2]
@@ -241,7 +249,8 @@ class PointcloudProcessingNode():
         #p_msg.objectPose.pose.orientation.z = 1
         #p_msg.objectPose.pose.orientation.w = 1
         #self.objposePub.publish(p_msg)
-
+        # # quaternion_data = np.array([1, 1, quaternion_data[2], 1])
+        # # quaternion_data = quaternion_data / np.linalg.norm(quaternion_data)
         p_msg.objectPose.pose.position.x = position_data[0]
         p_msg.objectPose.pose.position.y = position_data[1]
         p_msg.objectPose.pose.position.z = position_data[2]
@@ -250,8 +259,8 @@ class PointcloudProcessingNode():
         p_msg.objectPose.pose.orientation.z = quaternion_data[3]
         p_msg.objectPose.pose.orientation.w = quaternion_data[0]
 
-        p_msg = self.pose_transformer.do_transform_pose(p_msg, tf_lookup_world_to_camera)
-        self.posePub.publish(p_msg)
+        p_msg.objectPose = self.pose_transformer.do_transform_pose(p_msg.objectPose, tf_lookup_world_to_camera)
+        self.objposePub.publish(p_msg)
 
         #self.objposePub.publish(p_msg)
 

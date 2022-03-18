@@ -40,7 +40,7 @@ class PointCloudMapping():
                 for pt in pt_gen:
                     point_list.append([pt[0], pt[1], pt[2]])
 
-        orientationdata, positiondata = self.points_to_plane(point_list)
+        orientationdata, positiondata = self.plane_with_SVD(point_list)
         return orientationdata, positiondata
 
     def object_position_from_xy_point(self, x_pixel, y_pixel, pointcloud_data):
@@ -179,10 +179,12 @@ class PointCloudMapping():
             pos: the average x, y, z position of the pointcloud data
 
         """
+        Rot_homo = np.eye(4)
         _, _, PT = np.linalg.svd(X)
         Rot = PT.T
+        Rot_homo[:3,:3] = Rot
         pos = np.average(X,0)
-        quat = tft.quaternion_from_matrix(Rot)
+        quat = tft.quaternion_from_matrix(Rot_homo)
 
         return quat, pos
 
