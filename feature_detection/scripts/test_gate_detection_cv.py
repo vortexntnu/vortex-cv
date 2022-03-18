@@ -64,7 +64,7 @@ class HoughMajingo:
         return:
             list: list of lines 
         '''
-        beispiel = np.zeros((1,4))
+        beispiel = np.zeros((1,4), dtype=np.uint8)
         k=0
         original_list = list
         for i in range(len(original_list)):
@@ -75,7 +75,7 @@ class HoughMajingo:
         return list
 
     @staticmethod
-    def connect_lines2bb(lines,set):
+    def connect_lines2bb(lines,set, distanz):
         '''
         Two neighbouring lines detected form a bounding box
 
@@ -91,17 +91,19 @@ class HoughMajingo:
 
         # calculating distance between lines 
         # initialize the line vector
+        
         line_1 = lines[:-1,:,:]
         line_2 = lines[1:,:,:]
 
 
+        # print("Connect lines 2bb",lines, line_1, line_2)
         dis = np.zeros((line_1.shape[0],1))
-        for i in range(len(line_1)):
-            dis[i] = line_2[i,0,set] -line_1[i,0,set]
+        for j in range(len(line_1)):
+            dis[j] = line_2[j,0,set] -line_1[j,0,set]
         # print(dis)
         # print(len(line_1))
         bb_corner_pair = []
-        platzhalter = np.zeros((1,1,8))
+        platzhalter = np.zeros((1,1,8), dtype=int)
         # j =0
         for i in range(len(dis)):
             # print(len(dis)-1,i)
@@ -111,15 +113,20 @@ class HoughMajingo:
                 platzhalter[0,0,:4] = line_1[i,0,:]
                 platzhalter[0,0,4:] = line_2[i,0,:]
                 bb_corner_pair.append(platzhalter)
-                platzhalter = np.zeros((1,1,8))
-                # print(bb_corner_pair)
+                # print("BB corner pair",bb_corner_pair, line_1[i,0,:], line_2[i,0,:], platzhalter)
+                platzhalter = np.zeros((1,1,8), dtype=int)
             elif i == len(dis)-1 and dis[i] < dis[i-1]:
-                print(line_1[i,0,:])
+                # print(line_1[i,0,:])
                 # last pair of lines belong together
                 platzhalter[0,0,:4] = line_1[i,0,:]
                 platzhalter[0,0,4:] = line_2[i,0,:]
                 bb_corner_pair.append(platzhalter)
-                # print(bb_corner_pair)
+                # print("BB corner pair",bb_corner_pair, line_1[i,0,:], line_2[i,0,:], platzhalter)
+            if len(dis) == 1 and dis < distanz: 
+                platzhalter[0,0,:4] = line_1[i,0,:]
+                platzhalter[0,0,4:] = line_2[i,0,:]
+                bb_corner_pair.append(platzhalter)
+                # print("BB corner pair",bb_corner_pair, line_1[i,0,:], line_2[i,0,:], "Platzhalter",platzhalter)
             
         return bb_corner_pair
 
@@ -205,47 +212,76 @@ class HoughMajingo:
                     k -=1
                 if (line[2]-line[0]) != 0: # (line[2]-line[0]) < 10^(-20) and (line[2]-line[0]) > -10^(-20):   #(line[2]-line[0]) != 0: #np.abs(m[line_idx]) != np.Inf: ## vertical lines: processing
                     lines_ver = np.delete(lines_ver,j, axis= 0)
+                    # print(line)
                     j -=1
     
                 k +=1
                 j +=1
         
         ## Visualization of detected hough lines
-        for i in range(len(lines_hor)):
-            line_hor = lines_hor[i,0,:]
-            cv2.line(img_gray, (line_hor[0], line_hor[1]), (line_hor[2], line_hor[3]), (0,0,255), 3)
+        if lines_hor is not None:
+            for i in range(len(lines_hor)):
+                line_hor = lines_hor[i,0,:]
+                cv2.line(img_gray, (line_hor[0], line_hor[1]), (line_hor[2], line_hor[3]), (0,0,255), 3)
         
-        for i in range(len(lines_ver)):
-            line_ver = lines_ver[i,0,:]
-            cv2.line(img_gray, (line_ver[0], line_ver[1]), (line_ver[2], line_ver[3]), (0,255,0), 3)
+        if lines_ver is not None:
+            for i in range(len(lines_ver)):
+                line_ver = lines_ver[i,0,:]
+                cv2.line(img_gray, (line_ver[0], line_ver[1]), (line_ver[2], line_ver[3]), (0,255,0), 3)
         
 
         ## processing vertical and horizontal lines
-        rect_list_ver, pos_ver = HoughMajingo.lines_coord(lines_ver, 0, 6)
+        # print(lines_ver, len(lines_ver))
+        rect_list_ver, pos_ver = HoughMajingo.lines_coord(lines_ver, 0, 5)
         rect_list_hor, pos_hor = HoughMajingo.lines_coord(lines_hor, 1, 5)
 
         ## cut zeros from lists
         rect_list_ver_new = HoughMajingo.cut_zeros(rect_list_ver)
         rect_list_hor_new = HoughMajingo.cut_zeros(rect_list_hor)
 
+
         ## correlating lines and getting corner points from bounding box --> both should be outputted
-        bb_ver = HoughMajingo.connect_lines2bb(rect_list_ver_new, 0)
-        bb_hor = HoughMajingo.connect_lines2bb(rect_list_hor_new, 0)
+        distanz = 100
+        if len(rect_list_ver_new) >1:
+            bb_ver = HoughMajingo.connect_lines2bb(rect_list_ver_new, 0, distanz)
+        else:
+            bb_ver = None
+        if len(rect_list_hor_new) >1:
+            # print(len(rect_list_hor_new))
+            bb_hor = HoughMajingo.connect_lines2bb(rect_list_hor_new, 0, distanz)
+        else:
+            bb_hor = None
         bb = []
-        bb.append(bb_ver)
-        bb.append(bb_hor)
-        center = HoughMajingo.centroid(bb)
+
+        if bb_ver is not None:
+            bb.append(bb_ver)
+            # print("Ver was added", bb_ver)
+
+        if bb_hor is not None:
+            bb.append(bb_hor)
+            # print("Hor was added", bb_hor)
+        
+        # print(len(bb))
+        # center = HoughMajingo.centroid(bb)
+        center = 1
 
         # print(bb, center)
+        # if rect_list_ver_new is not []:
+        #     print("I am empty")
+        #     print(len(rect_list_ver_new))
         
         ## instead of gate/ feature detection component detection should be used if gate couldn't be detected
         ## for component detection the distance from drone to object has to be below a specific value
         # if len(bb_ver) == 0 and len(bb_hor) == 0:
-        if len(bb) == 0 :
-            ### Check if distance to line is big --> if z of position of detected line > 8:
-            ### Component is outputed 
-            bb.append(rect_list_ver)
-            bb.append(rect_list_hor)
+        # if len(bb) == 0 :
+        #     ### Check if distance to line is big --> if z of position of detected line > 8:
+        #     ### Component is outputed 
+        #     if len(rect_list_ver_new) != 0:
+        #         print("Something is attached vertical")
+        #         bb.append(rect_list_ver_new)
+        #     if len(rect_list_hor_new) != 0:
+        #         print("Something is attached horizontal")
+        #         bb.append(rect_list_hor_new)
         
         ####### Visualization of postprocessed hough lines
         # Visualization of vertical lines
@@ -262,12 +298,19 @@ class HoughMajingo:
                 cv2.line(img_gray, (line_hor[0], line_hor[1]), (line_hor[2], line_hor[3]), (255,255,0), 4)
 
         # Visualization of bounding boxes
-        for line_idx in range(len(bb)):
-            line_hor = bb[line_idx,0,:]
-            # print(line_hor)
-            cv2.line(img_gray, (line_hor[0], line_hor[1]), (line_hor[2], line_hor[3]), (255,255,255), 4)
-            cv2.line(img_gray, (line_hor[0], line_hor[1]), (line_hor[4], line_hor[5]), (255,255,255), 4)
-            cv2.line(img_gray, (line_hor[2], line_hor[3]), (line_hor[6], line_hor[7]), (255,255,255), 4)
-            cv2.line(img_gray, (line_hor[4], line_hor[5]), (line_hor[6], line_hor[7]), (255,255,255), 4)
+        if len(bb) !=0:
+            for line_idx in range(len(bb)):
+                # print(line_idx)
+                line = bb[line_idx][0] # [line_idx,0,:]
+                line_hor = line[0,:]
+                # print(line_hor)
+                # print(len(line_hor))
+                
+                if len(line_hor) != 0:
+                    # print(type(line_hor), len(line_hor), line_hor[0,0])
+                    cv2.line(img_gray, (line_hor[0,0], line_hor[0,1]), (line_hor[0,2], line_hor[0,3]), (255,255,255), 4)
+                    cv2.line(img_gray, (line_hor[0,0], line_hor[0,1]), (line_hor[0,4], line_hor[0,5]), (255,255,255), 4)
+                    cv2.line(img_gray, (line_hor[0,2], line_hor[0,3]), (line_hor[0,6], line_hor[0,7]), (255,255,255), 4)
+                    cv2.line(img_gray, (line_hor[0,4], line_hor[0,5]), (line_hor[0,6], line_hor[0,7]), (255,255,255), 4)
 
         return bb, center, img_gray, edges, img_contrast

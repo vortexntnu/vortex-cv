@@ -197,12 +197,14 @@ class FeatureDetectionNode():
                     img_gray = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2GRAY)
                     img_erosion2 = cv2.bilateralFilter(img_gray,self.sigma,self.ksize1,self.ksize2) # cv2.GaussianBlur(img_gray,(5,5),0) #img_gray # cv2.erode(img_dilation2, kernel, iterations=1) 
 
-                    bb_arr, center, hough_img, edges, img = HoughMajingo.main(img_erosion2, self.canny_threshold1, self.canny_threshold2)   # self.canny_threshold1, self.canny_threshold2
+                    bb_arr, center, hough_img, edges, img = HoughMajingo.main(img_erosion2, t1, t2)   # self.canny_threshold1, self.canny_threshold2
                     self.cv_image_publisher(self.linesPub, hough_img, "8UC1") 
                     self.cv_image_publisher(self.i2rcpPub, edges, "8UC1")
-
-                    rospy.loginfo("Now detecting: bounding box %s", bb_arr)
-                    rospy.loginfo("Now detecting: centroid %s", center)
+                    
+                    # print(len(bb_arr))
+                    if len(bb_arr) != 0:
+                        rospy.loginfo("Now detecting: bounding box %s", bb_arr)
+                    # rospy.loginfo("Now detecting: centroid %s", center)
 
                     end = timer() # Stop function timer.
                     timediff = (end - start)
