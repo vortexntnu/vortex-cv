@@ -221,6 +221,10 @@ class PointcloudProcessingNode():
                 /pointcloud_processing/object_pose/name where name is your input
         """
 
+        parent_frame = "odom"
+        child_frame = "zed2i_left_camera_frame"
+        
+        tf_lookup_world_to_camera = self._tfBuffer.lookup_transform(parent_frame, child_frame, rospy.Time.now(), rospy.Duration(5))
         # if self.prev_object_name != self.object_name:
         # objposePub = rospy.Publisher('/pointcloud_processing/object_pose/' + self.object_name, ObjectPosition, queue_size= 1)
         p_msg = ObjectPosition()
@@ -229,14 +233,27 @@ class PointcloudProcessingNode():
         # Build pose
         p_msg.objectPose.header = headerdata
 
+        #p_msg.objectPose.pose.position.x = position_data[0]
+        #p_msg.objectPose.pose.position.y = position_data[1]
+        #p_msg.objectPose.pose.position.z = position_data[2]
+        #p_msg.objectPose.pose.orientation.x = 1
+        #p_msg.objectPose.pose.orientation.y = quaternion_data[2]
+        #p_msg.objectPose.pose.orientation.z = 1
+        #p_msg.objectPose.pose.orientation.w = 1
+        #self.objposePub.publish(p_msg)
+
         p_msg.objectPose.pose.position.x = position_data[0]
         p_msg.objectPose.pose.position.y = position_data[1]
         p_msg.objectPose.pose.position.z = position_data[2]
-        p_msg.objectPose.pose.orientation.x = 1
+        p_msg.objectPose.pose.orientation.x = quaternion_data[1]
         p_msg.objectPose.pose.orientation.y = quaternion_data[2]
-        p_msg.objectPose.pose.orientation.z = 1
-        p_msg.objectPose.pose.orientation.w = 1
-        self.objposePub.publish(p_msg)
+        p_msg.objectPose.pose.orientation.z = quaternion_data[3]
+        p_msg.objectPose.pose.orientation.w = quaternion_data[0]
+
+        p_msg = self.pose_transformer.do_transform_pose(p_msg, tf_lookup_world_to_camera)
+        self.posePub.publish(p_msg)
+
+        #self.objposePub.publish(p_msg)
 
 if __name__ == '__main__':
     node = PointcloudProcessingNode()
