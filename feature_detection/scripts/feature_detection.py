@@ -1037,6 +1037,13 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
                     self.points_in_rects, label_name, return_image=True, image=original_image)
 
             self.detection = detection
+<<<<<<< HEAD
         except Exception:
             pass
         return self.bbox_points, self.bbox_area, self.points_in_rects, self.detection
+=======
+            return self.bbox_points, self.bbox_area, self.points_in_rects, self.detection
+
+        except Exception:
+            pass
+>>>>>>> feature/image_preprocessing

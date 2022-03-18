@@ -41,7 +41,7 @@ class PointCloudMapping():
         orientationdata, positiondata = self.points_to_plane(point_list)
         return orientationdata, positiondata
 
-    def get_pointcloud_position_of_xy_point(self, x_pixel, y_pixel, pointcloud_data):
+    def object_position_from_xy_point(self, x_pixel, y_pixel, pointcloud_data):
         """
         Reads the point cloud data from a given x, y coordinate
 
@@ -65,38 +65,6 @@ class PointCloudMapping():
 
         x, y, z = self.pointcloud_x, self.pointcloud_y, self.pointcloud_z
         return [x, y, z]
-
-    def object_orientation_from_poincloud(self, pointcloud_data, threshold):
-        """
-        Uses pointcloud data to find closest flat object and its orientation in regards to pointcloud_data frame
-        
-        Args:
-            pointcloud_data: poiintcloud data extracted from camera
-            threshold: maximum distance of expected object dimensions as float cm.mm. Ex: if height is bigger than width input height
-
-        Returns:
-            orientationdata = [x, y, z, w]
-            positiondata = [x, y, z]
-        """
-        # TODO: Rethink using this function
-        assert isinstance(pointcloud_data, PointCloud2)
-        generated_pointcloud_list = []
-        closest_point = 200.00
-        pt_gen = point_cloud2.read_points(pointcloud_data, skip_nans=True)
-        for pt in pt_gen:
-            tmp_list = list(pt)
-            tmp_list = tmp_list[:3]
-            if (abs(pt[2]) < closest_point) and (abs(pt[2]) > 0.2):
-                closest_point = abs(pt[2])
-            generated_pointcloud_list.append(tmp_list)
-
-        object_point_list = []
-        for point in generated_pointcloud_list:
-            if abs(point[2]) <= (threshold + closest_point):
-                object_point_list.append(point)
-        
-        orientationdata, positiondata = self.points_to_plane(object_point_list)
-        return orientationdata, positiondata
 
     def object_orientation_from_point_list(self, point_list, pointcloud_data):
         """
@@ -166,13 +134,13 @@ class PointCloudMapping():
 
     def get_middle_point(self, points_list):
         """
-        Creates a middle point of n given points
+        Creates a middle point of n given points. n is the amount of points in points_list
 
         Args:
             points_list: list of points to get the middlepoint of. Must be on the form [[x1,y1,z1],[x2,y2,z2]] or [(x1,y1,z1),(x2,y2,z2)], contents must be floats.
 
         Returns:
-            middle_point: cord as a list of points [x, y, z]
+            middle_point: coordinates as a list of points [x, y, z]
         """
         x_sum = 0.0
         y_sum = 0.0
