@@ -26,7 +26,7 @@ class CalibrationNode():
 
         self.finished = False
 
-        self.ros_rate = rospy.Rate(3.0)
+        self.ros_rate = rospy.Rate(4.0)
         # self.zedSub                 = rospy.Subscriber(image_topic, Image, self.camera_callback)
 
         left_img_topic = rospy.get_param("/left_img_topic")
@@ -37,8 +37,13 @@ class CalibrationNode():
 
         self.image_counter = 0
 
-        self.load_config_path = rospy.get_param("/load_config_path")
-        self.save_config_path = rospy.get_param("/save_config_path")
+        # self.load_config_path = rospy.get_param("/load_config_path")
+        # self.save_config_path = rospy.get_param("/save_config_path")
+
+        self.load_config_path = "/home/vortex/vortex_ws/src/Vortex-CV/cv_utils/params/SN26293016.conf"
+        self.save_config_path = "/home/vortex/vortex_ws/src/Vortex-CV/cv_utils/params/SN26293016CALIBRATED.conf"
+
+        # rospy.loginfo("LOAD PATH: ", self.load_config_path)
 
         #self.load_config_path = "/home/vortex/vortex_ws/src/Vortex_CV/camera_calibration/scripts/SN38762967FACTORY_REAL_THIS_TIME_FU_BENJAMIN.conf"
 
@@ -109,8 +114,6 @@ class CalibrationNode():
                         print(rospy.get_rostime())
 
                 self.ros_rate.sleep()
-            else:
-                self.rectify_image()
 
     def camera_callback_left(self, img_msg):
         
@@ -186,6 +189,7 @@ class CalibrationNode():
             
             rospy.loginfo("Updating config file...")
             self.update_config(newCameraMatrixL, distL, newCameraMatrixR, distR, str((frameSize[1], frameSize[0])))
+            self.finished = True
 
         #self.calibPub.publish(left_calib_string)
 
@@ -210,7 +214,8 @@ class CalibrationNode():
         
         try:
 
-            rospy.loginfo(resolutions[resolution])
+            #rospy.loginfo(resolutions[resolution])
+            rospy.loginfo("Trying to load: ", self.load_config_path)
             with open(self.load_config_path, "r") as c:
                 config = c.readlines()
         
