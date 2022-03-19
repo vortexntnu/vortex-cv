@@ -92,6 +92,7 @@ class PointcloudProcessingNode():
                 msg.bounding_boxes[0].ymax]
 
         # Calls function to find object centre and orientation
+        #orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_xy_area(bbox, self.pointcloud_data)
         orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_xy_area(bbox, self.pointcloud_data)
         self.send_pose_in_world(positiondata, orientationdata)
         self.send_ObjectPose_message(headerdata, positiondata, orientationdata)
@@ -250,8 +251,8 @@ class PointcloudProcessingNode():
         p_msg.objectPose.pose.orientation.z = quaternion_data[3]
         p_msg.objectPose.pose.orientation.w = quaternion_data[0]
 
-        p_msg = self.pose_transformer.do_transform_pose(p_msg, tf_lookup_world_to_camera)
-        self.posePub.publish(p_msg)
+        p_msg.objectPose = self.pose_transformer.do_transform_pose(p_msg.objectPose, tf_lookup_world_to_camera)
+        self.objposePub.publish(p_msg)
 
         #self.objposePub.publish(p_msg)
 
