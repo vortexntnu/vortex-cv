@@ -44,7 +44,7 @@ class CalibrationNode():
 
         self.objp = np.zeros((self.chessboardSize[0] * self.chessboardSize[1], 3), np.float32)
         self.objp[:,:2] = np.mgrid[0:self.chessboardSize[0],0:self.chessboardSize[1]].T.reshape(-1,2)
-        self.objp *= 108 # Chessboard width
+        self.objp *= 101 # Chessboard width
 
         # Arrays to store object points and image points from all the images.
         self.objpoints = [] # 3d point in real world space
