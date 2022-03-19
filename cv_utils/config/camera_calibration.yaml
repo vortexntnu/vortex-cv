@@ -1,4 +1,4 @@
-load_config_path: "/home/vortex/vortex_ws/src/Vortex_CV/cv_utils/data/SN38762967FACTORY.conf"
-save_config_path: "/home/vortex/vortex_ws/src/Vortex_CV/cv_utils/data/SN38762967CALIBRATED.conf"
+load_config_path: "/home/vortex/vortex_ws/src/Vortex-CV/cv_utils/params/SN26293016.conf"
+save_config_path: "/home/vortex/vortex_ws/src/Vortex-CV/cv_utils/params/SN26293016CALIBRATED.conf"
 left_img_topic: "/zed2/zed_node/left_raw/image_raw_color"
 right_img_topic: "/zed2/zed_node/right_raw/image_raw_color"
