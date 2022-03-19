@@ -26,23 +26,23 @@ class PreprocessingNode():
 
 
         # RCFA_detection
-        rospy.Subscriber('/cv/image_preprocessing/GW', Image, self.orange_boi, queue_size=1)
+        rospy.Subscriber('/cv/image_preprocessing/GW', Image, self.image_rect_color_cb, queue_size=1)
         self.rcfa_pub = rospy.Publisher('/cv/preprocessing/rcfa_detection',Bool , queue_size= 1)###In order to publish bool value
 
-        self.x_plot = np.linspace(0, 255., num=256)
-        self.fig_plot = plt.figure()
-        self.ax_plot = self.fig_plot.add_subplot(1, 1, 1)
+        # self.x_plot = np.linspace(0, 255., num=256)
+        # self.fig_plot = plt.figure()
+        # self.ax_plot = self.fig_plot.add_subplot(1, 1, 1)
 
-        self.line_plot, = self.ax_plot.plot([], lw=3)
+        # self.line_plot, = self.ax_plot.plot([], lw=3)
 
-        self.ax_plot.set_xlim(self.x_plot.min(), self.x_plot.max())
-        self.ax_plot.set_ylim([0, 100000])
+        # self.ax_plot.set_xlim(self.x_plot.min(), self.x_plot.max())
+        # self.ax_plot.set_ylim([0, 100000])
 
-        self.fig_plot.canvas.draw()   # note that the first draw comes before setting data 
+        # self.fig_plot.canvas.draw()   # note that the first draw comes before setting data 
 
-        self.ax2background = self.fig_plot.canvas.copy_from_bbox(self.ax_plot.bbox)
+        # self.ax2background = self.fig_plot.canvas.copy_from_bbox(self.ax_plot.bbox)
 
-        plt.show(block=True)
+        # plt.show(block=True)
     
     
     def orange_boi(self, msg):
@@ -138,10 +138,9 @@ class PreprocessingNode():
 
 
         difference  = max-mean
-
-        if (difference>20000):
+        rospy.loginfo(difference)
+        if (difference>11000):
             rospy.loginfo("GATE DETECTED")
-            rospy.loginfo(difference)
             gateDetection = True
             self.rcfa_pub.publish(gateDetection) #Publishes gateDetection 
 
@@ -161,21 +160,21 @@ class PreprocessingNode():
         
         
         
-        self.line_plot.set_data(self.x_plot, hist_full)
-        # restore background
-        self.fig_plot.canvas.restore_region(self.ax2background)
+        # self.line_plot.set_data(self.x_plot, hist_full)
+        # # restore background
+        # self.fig_plot.canvas.restore_region(self.ax2background)
 
-        # redraw just the points
-        self.ax_plot.draw_artist(self.line_plot)
+        # # redraw just the points
+        # self.ax_plot.draw_artist(self.line_plot)
 
-        # fill in the axes rectangle
-        self.fig_plot.canvas.blit(self.ax_plot.bbox)
+        # # fill in the axes rectangle
+        # self.fig_plot.canvas.blit(self.ax_plot.bbox)
 
-        # in this post http://bastibe.de/2013-05-30-speeding-up-matplotlib.html
-        # it is mentionned that blit causes strong memory leakage. 
-        # however, I did not observe that.
+        # # in this post http://bastibe.de/2013-05-30-speeding-up-matplotlib.html
+        # # it is mentionned that blit causes strong memory leakage. 
+        # # however, I did not observe that.
 
-        self.fig_plot.canvas.flush_events()
+        # self.fig_plot.canvas.flush_events()
 
     def bridge_to_cv(self, image_msg, encoding = "passthrough"):
         """This function returns a cv image from a ros image"""
