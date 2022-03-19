@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-# import debugpy
-# print("Waiting for VSCode debugger...")
-# debugpy.listen(5678)
-# debugpy.wait_for_client()
+#import debugpy
+#print("Waiting for VSCode debugger...")
+#debugpy.listen(5678)
+#debugpy.wait_for_client()
 
 ##EKF imports
 #from logging import exception
@@ -45,7 +45,7 @@ class EKFNode:
 
         #Subscribe topic
         object_topic_subscribe = "/pointcloud_processing/object_pose/spy"
-        mission_topic_subscribe = "cool_autonomous_mission"
+        mission_topic_subscribe = "/cool_autonomous_mission" # TODO FIXXXX
 
         
         ##################
@@ -196,7 +196,7 @@ class EKFNode:
         z = obj_pose_position_wg
         z = np.append(z, [z_phi, z_theta, z_psi])
         
-        if self.prev_gauss.mean == self.x_hat0:
+        if sorted(self.prev_gauss.mean) == sorted(self.x_hat0):
             self.prev_gauss = MultiVarGaussian(z, self.P_hat0)
             self.last_time = rospy.get_time()
             return None
