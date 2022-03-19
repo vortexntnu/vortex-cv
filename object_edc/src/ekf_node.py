@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-# import debugpy
-# print("Waiting for VSCode debugger...")
-# debugpy.listen(5678)
-# debugpy.wait_for_client()
+#import debugpy
+#print("Waiting for VSCode debugger...")
+#debugpy.listen(5678)
+#debugpy.wait_for_client()
 
 ##EKF imports
 #from logging import exception
@@ -19,6 +19,7 @@ import numpy as np
 
 #ROS imports
 import rospy
+from std_msgs.msg import String
 from vortex_msgs.msg import ObjectPosition
 from geometry_msgs.msg import PoseStamped, TransformStamped
 import tf.transformations as tft
@@ -40,12 +41,15 @@ class EKFNode:
         self.child_frame = 'zed2i_left_camera_frame'
         self.object_frame = ""
 
+        self.current_object = ""
+
         #Subscribe topic
         object_topic_subscribe = "/pointcloud_processing/object_pose/spy"
+        mission_topic_subscribe = "/cool_autonomous_mission" # TODO FIXXXX
 
         
         ##################
-        ####EKF stuff####
+        ####EKF stuff#####
         ##################
 
         # Geometric parameters
@@ -76,6 +80,9 @@ class EKFNode:
         now = rospy.get_rostime()
         rospy.loginfo("Current time %i %i", now.secs, now.nsecs)
 
+        # Subscribe to mission topic
+        self.mission_topic = self.current_object + "_execute"
+        self.mission_topic_sub = rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
         # Subscriber to gate pose and orientation 
         self.object_pose_sub = rospy.Subscriber(object_topic_subscribe, ObjectPosition, self.obj_pose_callback, queue_size=1)
       
@@ -101,6 +108,9 @@ class EKFNode:
         ############
         ##Init end##
         ############
+
+    def update_mission(self, mission):
+        self.mission_topic = mission.data
 
     def get_Ts(self):
         Ts = rospy.get_time() - self.last_time
@@ -159,7 +169,16 @@ class EKFNode:
         self.transformbroadcast(self.parent_frame, p)
 
     def obj_pose_callback(self, msg):
+
         rospy.loginfo("Object data recieved for: %s", msg.objectID)
+        self.current_object = msg.objectID
+    
+        if self.mission_topic == self.current_object + "_execute":
+            rospy.loginfo("Mission status: %s", self.mission_topic)
+            self.prev_gauss = MultiVarGaussian(self.x_hat0, self.P_hat0)
+            self.last_time = rospy.get_time()
+            return None
+        
 
         # Gate in world frame for cyb pool
         obj_pose_position_wg = np.array([msg.objectPose.pose.position.x, 
@@ -177,6 +196,11 @@ class EKFNode:
         z = obj_pose_position_wg
         z = np.append(z, [z_phi, z_theta, z_psi])
         
+        if sorted(self.prev_gauss.mean) == sorted(self.x_hat0):
+            self.prev_gauss = MultiVarGaussian(z, self.P_hat0)
+            self.last_time = rospy.get_time()
+            return None
+
         # Call EKF step and format the data
         gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(z)
         x_hat = gauss_est.mean

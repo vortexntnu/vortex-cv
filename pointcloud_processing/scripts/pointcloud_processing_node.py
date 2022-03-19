@@ -99,6 +99,7 @@ class PointcloudProcessingNode():
                 msg.bounding_boxes[0].ymax]
 
         # Calls function to find object centre and orientation
+        #orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_xy_area(bbox, self.pointcloud_data)
         orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_xy_area(bbox, self.pointcloud_data)
         self.send_pose_in_world(positiondata, orientationdata)
         self.send_ObjectPose_message(headerdata, positiondata, orientationdata)
