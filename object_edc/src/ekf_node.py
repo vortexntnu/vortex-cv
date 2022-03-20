@@ -38,16 +38,16 @@ class EKFNode:
 
         #Frame names, e.g. "odom" and "cam"
         self.parent_frame = 'odom' 
-        self.child_frame = 'zed2i_left_camera_frame'
+        self.child_frame = 'zed2_left_camera_frame'
         self.object_frame = ""
 
         self.current_object = ""
 
         #Subscribe topic
         object_topic_subscribe = "/pointcloud_processing/object_pose/spy"
-        mission_topic_subscribe = "/cool_autonomous_mission" # TODO FIXXXX
+        mission_topic_subscribe = "/fsm/state" # TODO FIXXXX
 
-        
+
         ##################
         ####EKF stuff#####
         ##################
@@ -56,7 +56,7 @@ class EKFNode:
         #self.gate_prior = [0, 0] # z, roll, pitch of gate
 
         # Tuning parameters
-        self.sigma_a = 1/5*np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
+        self.sigma_a = 3/5*np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
         self.sigma_z = 2*np.array([0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
 
         # Making gate model object
@@ -65,8 +65,8 @@ class EKFNode:
         self.my_ekf = EKF(self.landmark_model, self.sensor_model)
 
         #Gauss prev values
-        self.x_hat0 = np.array([0, 0, 0, 0, 0, 0]) 
-        self.P_hat0 = np.diag(self.sigma_z)
+        self.x_hat0 = np.array([0, 0, 0, 0, 0, 0])
+        self.P_hat0 = np.diag(3*self.sigma_z)
         self.prev_gauss = MultiVarGaussian(self.x_hat0, self.P_hat0)
 
         ################

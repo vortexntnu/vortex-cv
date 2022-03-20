@@ -139,7 +139,7 @@ class PreprocessingNode():
 
         difference  = max-mean
         rospy.loginfo(difference)
-        if (difference>11000):
+        if (difference>30000):
             rospy.loginfo("GATE DETECTED")
             gateDetection = True
             self.rcfa_pub.publish(gateDetection) #Publishes gateDetection 

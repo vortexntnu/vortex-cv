@@ -37,10 +37,10 @@ class PointcloudProcessingNode():
         if self.use_reduced_pc:
             self.pointcloud_reducedSub = rospy.Subscriber('/pointcloud_downsize/output', PointCloud2, self.pointcloud_camera_cb)
         else:
-            self.pointcloudSub = rospy.Subscriber('/zed2i/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_camera_cb, queue_size=1)
+            self.pointcloudSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_camera_cb, queue_size=1)
 
-        # self.feat_detSub = rospy.Subscriber('/feature_detection/object_points', PointArray, self.feat_det_cb, queue_size= 1)
-        self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.bbox_cb, queue_size=1)
+        self.feat_detSub = rospy.Subscriber('/feature_detection/object_points', PointArray, self.feat_det_cb, queue_size= 1)
+        # self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.bbox_cb, queue_size=1)
         # self.bboxSub = rospy.Subscriber('/feature_detection/detection_bboxasdasdasdasdasd', BoundingBoxes, self.bbox_cb, queue_size=1)
 
         self.objposePub = rospy.Publisher("/pointcloud_processing/object_pose/spy", ObjectPosition, queue_size=1)
@@ -127,7 +127,7 @@ class PointcloudProcessingNode():
             name: identifyer for the detected object
         """
         parent_frame = "odom"
-        child_frame = "zed2i_left_camera_frame"
+        child_frame = "zed2_left_camera_frame"
         
         tf_lookup_world_to_camera = self._tfBuffer.lookup_transform(parent_frame, child_frame, rospy.Time.now(), rospy.Duration(5))
 
@@ -137,7 +137,7 @@ class PointcloudProcessingNode():
         # Pose generation
         pose_msg_camera = PoseStamped()
         # Format header
-        pose_msg_camera.header.frame_id = "zed2i_left_camera_frame"
+        pose_msg_camera.header.frame_id = "zed2_left_camera_frame"
         pose_msg_camera.header.stamp = rospy.get_rostime()
 
         # Build pose
@@ -231,7 +231,7 @@ class PointcloudProcessingNode():
         """
 
         parent_frame = "odom"
-        child_frame = "zed2i_left_camera_frame"
+        child_frame = "zed2_left_camera_frame"
         
         tf_lookup_world_to_camera = self._tfBuffer.lookup_transform(parent_frame, child_frame, rospy.Time.now(), rospy.Duration(5))
         # if self.prev_object_name != self.object_name:
