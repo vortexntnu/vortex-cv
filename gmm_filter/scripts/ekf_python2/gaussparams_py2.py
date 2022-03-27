@@ -38,7 +38,7 @@ class MultiVarGaussian:
     def ndim(self):
         return self.mean.shape[0]
 
-    def mahalanobis_distance(self, x):
+    def mahalanobis_distance_sq(self, x):
         """Calculate the mahalanobis distance between self and x.
 
         This is also known as the quadratic form of the Gaussian.

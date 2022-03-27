@@ -25,6 +25,9 @@ from geometry_msgs.msg import PoseStamped, TransformStamped
 import tf.transformations as tft
 import tf2_ros
 
+# GMF imports
+from scipy.stats import chi2
+
 class GMMFNode:
     
 
@@ -46,6 +49,14 @@ class GMMFNode:
         #Subscribe topic
         object_topic_subscribe = "/pointcloud_processing/object_pose/spy"
         mission_topic_subscribe = "/fsm/state"
+
+        ##################
+        #### GMF stuff####
+        ##################
+        ndim = 6
+        gate_percentile = 0.99
+
+        self.gate_size_sq = chi2.ppf(gate_percentile, ndim)
 
 
         ##################
@@ -114,42 +125,52 @@ class GMMFNode:
         Predicts y from x
         returns a multivariate gaussian
         """
-        Q_n = self.Q * Ts
+        #Q_n = self.Q * Ts
         predicted_states = []
 
         for i in range(self.active_hypotheses_count):
             x_pred = prev_states[i].mean
-            P_pred = prev_states[i].cov + Q_n
-            predicted_states.append(MultiVarGaussian(x_pred, P_pred))
+            #P_pred = prev_states[i].cov + Q_n
+            predicted_states.append(x_pred)
         return predicted_states
         
     def predict_measurements(self, states_pred):
         
         predicted_measurements = []
         for i in range(self.active_hypotheses_count):
-            z_pred = states_pred[i].mean
-            S = states_pred[i].cov + self.R
+            z_pred = states_pred[i]
+            #S = states_pred[i].cov + self.R
 
-            predicted_measurements.append(MultiVarGaussian(z_pred, S))
-
+            #predicted_measurements.append(MultiVarGaussian(z_pred, S))
+            predicted_measurements.append(z_pred)
+        
         return predicted_measurements
 
 
-    def gate_hypotheses(self, z, predicted_measurements):
+    def gate_hypotheses(self, z, predicted_zs):
+        
+        """
+        Inputs: z - MultiVar Gaussian of measurement
+                predicted_zs - array of predicted measurement locations
 
+        Outputs: hypothesis indices associated with measurement
+        """
         gated_hypotheses = []
         
-        z_mean = z.mean
 
-        for i in range(N):
-            error = z_mean - self.predicted_measurements[i].mean
-            mahalanobis_distance = np.matmul(error.T, nla.solve(self.active_filters[0].cov + self.R, error))
+        for i in range(self.avtive_hypotheses_count - 1):
 
-            if mahalanobis_distance <= self.gate_sq:
-                gated_hypotheses.append(i+1)
-                m_distances.append(mahalanobis_distance)
+            mahalanobis_distance = z.mahalanobis_distance_sq(predicted_zs[i])
 
-        return gated_hypotheses, m_distances
+            if mahalanobis_distance <= self.gate_size_sq:
+                gated_hypotheses.append(i)
+                #m_distances.append(mahalanobis_distance)
+
+        return gated_hypotheses
+    
+    def associate_hypothesis(self, gated_hypotheses):
+        bruh = 1
+        ## TODO
 
     def update_mission(self, mission):
         self.mission_topic = mission.data

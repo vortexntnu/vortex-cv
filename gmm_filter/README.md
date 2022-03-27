@@ -27,7 +27,8 @@ pip install dataclasses
 
 
 
-Work-flow pseudocode for the algorithm:
+## Work-flow pseudocode for the algorithm:
+###ToDo: change this pseudocode for a flow-chart
 
 global (self) variables:
 
