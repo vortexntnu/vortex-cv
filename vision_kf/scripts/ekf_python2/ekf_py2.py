@@ -83,7 +83,7 @@ class EKF:
         S = np.matmul(H, np.matmul(P, H.T)) + R
 
         # Fcking stupid, clean up later...
-        z = [z[0][0], z[0][1], z[0][2], z[1]]
+        #z = [z[0][0], z[0][1], z[0][2], z[1]]
         inov = z - z_pred
         #W = P @ H.T @ np.linalg.inv(S)
         W = np.matmul(P, np.matmul(H.T, np.linalg.inv(S)))
