@@ -2,22 +2,25 @@ name: Run automated formatting
 
 on: [pull_request, push]
 
+defaults:
+  run:
+    shell: bash
+
 env:
-  PYTHON_DIR: './Python/'
-  TEENSY_DIR: './cpp/teensy/'
+  PYTHON_DIR: './'
 
 jobs:
   run-formatting:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
 
     steps:
       - name: Setup Python
         uses: actions/setup-python@v2
         with:
-          python-version: 2.7
+          python-version: 3.8
 
       - name: Install dependencies
-        run: pip install black flake8 isort
+        run: pip install black[python2] flake8 isort
 
       - name: Checkout Git repository
         uses: actions/checkout@v3
