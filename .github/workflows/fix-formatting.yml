@@ -19,12 +19,6 @@ jobs:
         with:
           python-version: 3.8
 
-
-      - name: Setup Python2
-        uses: actions/setup-python@v3
-        with:
-          python-version: 2.7
-
       - name: Install dependencies
         run: pip install black[python2] flake8 isort
 
