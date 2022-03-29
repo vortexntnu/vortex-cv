@@ -7,7 +7,7 @@ defaults:
     shell: bash
 
 env:
-  PYTHON_DIR: './'
+  PYTHON_DIR: './feature_detection/'
 
 jobs:
   run-formatting:
