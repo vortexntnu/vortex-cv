@@ -147,15 +147,15 @@ class GMMFNode:
         return predicted_measurements
 
 
-    def gate_hypotheses(self, z, predicted_zs):
+    def gate_and_associate(self, z, predicted_zs):
         
         """
         Inputs: z - MultiVar Gaussian of measurement
                 predicted_zs - array of predicted measurement locations
 
-        Outputs: hypothesis indices associated with measurement
+        Outputs: hypothesis indices gated with measurement
         """
-        gated_hypotheses = []
+        gated_inds = []
         
 
         for i in range(self.avtive_hypotheses_count - 1):
@@ -163,14 +163,40 @@ class GMMFNode:
             mahalanobis_distance = z.mahalanobis_distance_sq(predicted_zs[i])
 
             if mahalanobis_distance <= self.gate_size_sq:
-                gated_hypotheses.append(i)
+                gated_inds.append(i)
                 #m_distances.append(mahalanobis_distance)
-
+        gated_hypotheses = 
         return gated_hypotheses
     
-    def associate_hypothesis(self, gated_hypotheses):
-        bruh = 1
-        ## TODO
+    def update_associated(self, gated_hypotheses, z):
+        
+        """
+        Inputs: gated_hypotheses - a list of indices of the active hypotheses which have been gated. 
+
+        3 valid cases for the logic here:
+            a) 1 associated hypothesis: perform a KF update with the measurement
+            b) more than 1 associated hypothesis: perform a mixture reduction on associated hypotheses and update with reduced mixture
+            c) 0 associated hypotheses: initiate a hypothesis with the mean of the measurement and sensor coviariance matrix
+
+        """
+        if len(gated_hypotheses) == 1:
+            ass_ind = gated_hypotheses[0]
+            self.active_hypotheses[ass_ind] = self.ekf_function(z, self.active_hypotheses[ass_ind])
+            self.gmm_weights[ass_ind + 1] = self.gmm_weights[ass_ind + 1] + self.boost_prob
+            self.gmm_weights = self.gmm_weights / sum(self.gmm_weights)
+
+        elif len(gated_hypotheses) > 1:
+            ass_hypotheses = []
+            ass_weights = []
+            for ass_ind in range(len(gated_hypotheses)):
+                ass_hypotheses = [self.active_hypotheses[ass_ind] for ass_ind in gated_hypotheses]
+                ass_weights = [self.gmm_weights[ass_ind] for ass_ind in gated_hypotheses]
+                #TODO PICK UP FROM HERE!
+                
+            reduced_hypothesis = self.mixture_reduction(ass_hypotheses) # TODO: write mixture_reduction
+            
+        else:
+            ass_inds = 1
 
     def update_mission(self, mission):
         self.mission_topic = mission.data

@@ -32,8 +32,12 @@ pip install dataclasses
 
 global (self) variables:
 
+    boost_prob: the probability boost a hypothesis gets by getting associated to a measurement. This is a tuning parameter.
+    
     gmm_weights: list of length N containing the probabilities of hypotheses:
         gmm_weights = [w_H0, w_H1, ... , w_HN-1]
+    
+    active_hypotheses: list of MultiVarGauss which are the active hypotheses
 
     active_hypotheses_count: the number of hypotheses which are not the null hypothesis
         active_hypotheses_count = len(gmm_weights) - 1
