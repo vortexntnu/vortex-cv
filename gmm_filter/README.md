@@ -42,13 +42,13 @@ global (self) variables:
     
     null_gauss: a hypothesis at the origin, published when the null hypothesis is the leading one.
 
-    gmm_weights: list of length N containing the probabilities of hypotheses:
-        gmm_weights = [w_H0, w_H1, ... , w_HN-1]
+    gmf_weights: list of length N containing the probabilities of hypotheses:
+        gmf_weights = [w_H0, w_H1, ... , w_HN-1]
     
     active_hypotheses: list of MultiVarGauss which are the active hypotheses
 
     active_hypotheses_count: the number of hypotheses which are not the null hypothesis
-        active_hypotheses_count = len(gmm_weights) - 1
+        active_hypotheses_count = len(gmf_weights) - 1
     
 
 0) Measurement comes in

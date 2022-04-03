@@ -47,22 +47,36 @@ class GMMFNode:
         self.object_frame = ""
 
         self.current_object = ""
-        
+
         #Subscribe topic
+        # TODO: this is just like object_edc, which was used on pool test, but why?? Is everything a spy??
         object_topic_subscribe = "/pointcloud_processing/object_pose/spy"
         mission_topic_subscribe = "/fsm/state"
 
         ##################
-        #### GMF stuff####
+        #### GMF stuff ###
         ##################
-        ndim = 6
+
+
+        # Tuning Parameters for the GMF scheme:
+        self.init_prob = 0.2
+        self.boost_prob = 0.1
+        self.termination_criterion = 0.95
+        self.survival_threshold = 0.05
         gate_percentile = 0.99
 
+        # Measurement gate
+        ndim = 6
         self.gate_size_sq = chi2.ppf(gate_percentile, ndim)
+
+        # Weights and hypothesis init
+        self.gmf_weights = [1]
+        self.active_hypotheses = []
+        self.active_hypotheses_count = 0
 
 
         ##################
-        ####EKF stuff#####
+        ###  EKF stuff ###
         ##################
 
         # Geometric parameters
@@ -80,7 +94,7 @@ class GMMFNode:
         #Gauss prev values
         self.x_hat0 = np.array([0, 0, 0, 0, 0, 0])
         self.P_hat0 = np.diag(3*self.sigma_z)
-        self.prev_gauss = MultiVarGaussian(self.x_hat0, self.P_hat0)
+        self.null_gauss = MultiVarGaussian(self.x_hat0, self.P_hat0)
 
         ################
         ###ROS stuff####
@@ -94,10 +108,11 @@ class GMMFNode:
         rospy.loginfo("Current time %i %i", now.secs, now.nsecs)
 
         # Subscribe to mission topic
+        # TODO: figure out what we do here with Tarek and Finn
         self.mission_topic = self.current_object + "_execute"
         self.mission_topic_sub = rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
         # Subscriber to gate pose and orientation 
-        self.object_pose_sub = rospy.Subscriber(object_topic_subscribe, ObjectPosition, self.obj_pose_callback, queue_size=1)
+        self.object_pose_sub = rospy.Subscriber(object_topic_subscribe, ObjectPosition, self.gmf_callback, queue_size=1)
       
         # Publisher to autonomous
         self.gate_pose_pub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
@@ -156,7 +171,7 @@ class GMMFNode:
     def predict_states(self):
         """
         Predicts y from x
-        returns a multivariate gaussian
+        returns a list of predicted means
         """
         predicted_states = np.empty((self.active_hypotheses_count))
 
@@ -192,7 +207,7 @@ class GMMFNode:
 
         g = len(gated_inds)
         gated_hypotheses = [self.active_hypotheses[gated_inds[j]] for j in range(g)]
-        gated_weights = np.array([self.gmm_weights[gated_inds[k]] for k in range(g)])
+        gated_weights = np.array([self.gmf_weights[gated_inds[k]] for k in range(g)])
 
         
         return gated_hypotheses, gated_weights, gated_inds
@@ -213,7 +228,7 @@ class GMMFNode:
             ass_ind = gated_inds
             self.active_hypotheses[ass_ind] = self.kf_function(z, self.active_hypotheses[ass_ind])
 
-            self.gmm_weights[ass_ind + 1] = self.gmm_weights[ass_ind + 1] + self.boost_prob
+            self.gmf_weights[ass_ind + 1] = self.gmf_weights[ass_ind + 1] + self.boost_prob
             
         elif len(gated_hypotheses) > 1:
             
@@ -225,27 +240,27 @@ class GMMFNode:
 
             # Remove the gated hypotheses from the list, replace with reduced associated hypothesis. normalize
             for ind in sorted(gated_inds, reverse = True): 
-                del self.gmm_weights[ind]
+                del self.gmf_weights[ind]
                 del self.active_hypotheses[ind]
             
 
             self.active_hypotheses.append(upd_hypothesis)
-            self.gmm_weights.append(ass_weight)
+            self.gmf_weights.append(ass_weight)
             
         else:
             ass_hypothesis = z
             ass_weight = self.init_wight
 
             self.active_hypotheses.append(ass_weight)
-            self.gmm_weights.append(ass_weight)
+            self.gmf_weights.append(ass_weight)
         
-        self.gmm_weights = self.gmm_weights / sum(self.gmm_weights)
+        self.gmf_weights = self.gmf_weights / sum(self.gmf_weights)
         self.active_hypotheses_count = len(self.active_hypotheses)
     
     def gmf_eval(self):
         """
         Look at active hypotheses weights and perform the following logic:
-            1) If any weights above termination_criterion --> return a bool to Terminate GMF scheme
+            1) If any weights above termination_criterion --> return a bool to terminate GMF scheme
             2) If any weights under the survival_treshold --> terminate these hypotheses, normalize weights
         
         Returns:    termination_bool - True if termination criterion is reached
@@ -254,17 +269,17 @@ class GMMFNode:
         termination_bool = False
 
         for i in range(self.active_hypothesis_count):
-            if self.gmm_weights[i] >= self.termination_criterion and i != 0:
+            if self.gmf_weights[i] >= self.termination_criterion and i != 0:
                 self.termination_bool = True
 
-            if self.gmm_weights[i] <= self.survival_threshold and i != 0:
-                del self.gmm_weights[i]
+            if self.gmf_weights[i] <= self.survival_threshold and i != 0:
+                del self.gmf_weights[i]
                 del self.active_hypotheses[i-1]
 
-        self.gmm_weights = self.gmm_weights / sum(self.gmm_weights)
+        self.gmf_weights = self.gmf_weights / sum(self.gmf_weights)
         self.active_hypotheses_count = len(self.active_hypotheses)
 
-        best_ind = self.gmm_weights.index(max(self.gmm_weights))
+        best_ind = self.gmf_weights.index(max(self.gmf_weights))
         
         return termination_bool, best_ind
         
@@ -330,7 +345,7 @@ class GMMFNode:
         rospy.loginfo("Object published: %s", objectID)
         self.transformbroadcast(self.parent_frame, p)
 
-    def obj_pose_callback(self, msg):
+    def gmf_callback(self, msg):
 
         rospy.loginfo("Object data recieved for: %s", msg.objectID)
         self.current_object = msg.objectID
@@ -360,11 +375,15 @@ class GMMFNode:
         z = np.append(z, [z_phi, z_theta, z_psi])
         z_gauss = MultiVarGaussian(z, self.R)
         
-        # Figure this out later, initialization stuff
-        #if sorted(self.prev_gauss.mean) == sorted(self.x_hat0):
-        #    self.prev_gauss = MultiVarGaussian(z, self.P_hat0)
-        #    self.last_time = rospy.get_time()
-        #    return None
+        # Initialize with first measurement
+        if len(self.active_hypotheses) == 0:
+            self.active_hypotheses.append(z_gauss)
+
+            self.gmf_weights.append(self.init_prob)
+            self.gmf_weights = self.gmf_weights / sum(self.gmf_weights)
+            
+            self.last_time = rospy.get_time()
+            return None
 
         pred_states = self.predict_states()
         pred_zs = self.predict_measurements(pred_states)
