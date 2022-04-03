@@ -37,15 +37,17 @@ class GMMFNode:
         ########################################
 
         #Name of the node
-        node_name = "ekf_vision"
+        node_name = "gmf"
 
         #Frame names, e.g. "odom" and "cam"
+
+        ## TODO: fix after talk with Finn and Tarek
         self.parent_frame = 'odom' 
         self.child_frame = 'zed2_left_camera_frame'
         self.object_frame = ""
 
         self.current_object = ""
-
+        
         #Subscribe topic
         object_topic_subscribe = "/pointcloud_processing/object_pose/spy"
         mission_topic_subscribe = "/fsm/state"
@@ -120,37 +122,59 @@ class GMMFNode:
         ##Init end##
         ############
 
-    def predict_states(self, prev_states, Ts):
+    def reduce_mixture(self, gated_hypotheses, gated_weights):
+        """
+        Reduces a Gaussian Mixture to a single Gaussian
+
+        Inputs:     gated_hypotheses - a list of MultiVarGauss who have been gateded with the measurement
+                    gated_weights - a list of the corresponding weights which have been gated to the measurement
+        
+        Outputs:    reduced_hypothesis - a MultiVarGaussian
+
+        """
+
+        M = len(gated_weights)
+
+        reduced_mean = 0
+        cov_internal = np.zeros(np.shape(gated_hypotheses[0].cov))
+        cov_external = np.zeros(np.shape(gated_hypotheses[0].cov))
+
+        for i in range(M):
+            reduced_mean += gated_hypotheses[i].mean * gated_weights[i]
+
+        for i in range(M):
+            weight_n = gated_weights[i]
+            diff = np.array(gated_hypotheses[i].mean - reduced_mean)
+
+            cov_internal += weight_n*gated_hypotheses[i].cov
+            cov_external = weight_n * np.matmul(diff, diff.T)
+
+        reduced_cov = cov_internal + cov_external
+
+        return MultiVarGaussian(reduced_mean, reduced_cov)
+
+    def predict_states(self):
         """
         Predicts y from x
         returns a multivariate gaussian
         """
-        #Q_n = self.Q * Ts
-        predicted_states = []
+        predicted_states = np.empty((self.active_hypotheses_count))
 
         for i in range(self.active_hypotheses_count):
-            x_pred = prev_states[i].mean
-            #P_pred = prev_states[i].cov + Q_n
-            predicted_states.append(x_pred)
+            predicted_states[i] = self.active_hypotheses.mean
         return predicted_states
         
     def predict_measurements(self, states_pred):
         
-        predicted_measurements = []
-        for i in range(self.active_hypotheses_count):
-            z_pred = states_pred[i]
-            #S = states_pred[i].cov + self.R
-
-            #predicted_measurements.append(MultiVarGaussian(z_pred, S))
-            predicted_measurements.append(z_pred)
+        predicted_measurements = states_pred
         
         return predicted_measurements
 
 
-    def gate_and_associate(self, z, predicted_zs):
+    def gate_hypotheses(self, z, predicted_zs):
         
         """
-        Inputs: z - MultiVar Gaussian of measurement
+        Inputs: z - MultiVarGauss of measurement
                 predicted_zs - array of predicted measurement locations
 
         Outputs: hypothesis indices gated with measurement
@@ -165,13 +189,19 @@ class GMMFNode:
             if mahalanobis_distance <= self.gate_size_sq:
                 gated_inds.append(i)
                 #m_distances.append(mahalanobis_distance)
-        gated_hypotheses = 
-        return gated_hypotheses
+
+        g = len(gated_inds)
+        gated_hypotheses = [self.active_hypotheses[gated_inds[j]] for j in range(g)]
+        gated_weights = np.array([self.gmm_weights[gated_inds[k]] for k in range(g)])
+
+        
+        return gated_hypotheses, gated_weights, gated_inds
     
-    def update_associated(self, gated_hypotheses, z):
+    
+    def associate_and_update(self, gated_hypotheses, gated_weights, gated_inds, z):
         
         """
-        Inputs: gated_hypotheses - a list of indices of the active hypotheses which have been gated. 
+        Inputs: gated_hypotheses - a list of MultiVarGauss of the active hypotheses which have been gated. 
 
         3 valid cases for the logic here:
             a) 1 associated hypothesis: perform a KF update with the measurement
@@ -180,24 +210,65 @@ class GMMFNode:
 
         """
         if len(gated_hypotheses) == 1:
-            ass_ind = gated_hypotheses[0]
-            self.active_hypotheses[ass_ind] = self.ekf_function(z, self.active_hypotheses[ass_ind])
-            self.gmm_weights[ass_ind + 1] = self.gmm_weights[ass_ind + 1] + self.boost_prob
-            self.gmm_weights = self.gmm_weights / sum(self.gmm_weights)
+            ass_ind = gated_inds
+            self.active_hypotheses[ass_ind] = self.kf_function(z, self.active_hypotheses[ass_ind])
 
+            self.gmm_weights[ass_ind + 1] = self.gmm_weights[ass_ind + 1] + self.boost_prob
+            
         elif len(gated_hypotheses) > 1:
-            ass_hypotheses = []
-            ass_weights = []
-            for ass_ind in range(len(gated_hypotheses)):
-                ass_hypotheses = [self.active_hypotheses[ass_ind] for ass_ind in gated_hypotheses]
-                ass_weights = [self.gmm_weights[ass_ind] for ass_ind in gated_hypotheses]
-                #TODO PICK UP FROM HERE!
-                
-            reduced_hypothesis = self.mixture_reduction(ass_hypotheses) # TODO: write mixture_reduction
+            
+            # Perform mixture reduction on gated hypotheses to produce associated hypothesis. Sum weights, boost
+            ass_weight = np.sum(gated_weights)
+            ass_weight += self.boost_prob
+            ass_hypothesis = self.reduce_mixture(gated_hypotheses, gated_weights)
+            _, _, upd_hypothesis = self.kf_function(z, ass_hypothesis)
+
+            # Remove the gated hypotheses from the list, replace with reduced associated hypothesis. normalize
+            for ind in sorted(gated_inds, reverse = True): 
+                del self.gmm_weights[ind]
+                del self.active_hypotheses[ind]
+            
+
+            self.active_hypotheses.append(upd_hypothesis)
+            self.gmm_weights.append(ass_weight)
             
         else:
-            ass_inds = 1
+            ass_hypothesis = z
+            ass_weight = self.init_wight
 
+            self.active_hypotheses.append(ass_weight)
+            self.gmm_weights.append(ass_weight)
+        
+        self.gmm_weights = self.gmm_weights / sum(self.gmm_weights)
+        self.active_hypotheses_count = len(self.active_hypotheses)
+    
+    def gmf_eval(self):
+        """
+        Look at active hypotheses weights and perform the following logic:
+            1) If any weights above termination_criterion --> return a bool to Terminate GMF scheme
+            2) If any weights under the survival_treshold --> terminate these hypotheses, normalize weights
+        
+        Returns:    termination_bool - True if termination criterion is reached
+                    best_ind - index at highest weight value of active hypotheses
+        """
+        termination_bool = False
+
+        for i in range(self.active_hypothesis_count):
+            if self.gmm_weights[i] >= self.termination_criterion and i != 0:
+                self.termination_bool = True
+
+            if self.gmm_weights[i] <= self.survival_threshold and i != 0:
+                del self.gmm_weights[i]
+                del self.active_hypotheses[i-1]
+
+        self.gmm_weights = self.gmm_weights / sum(self.gmm_weights)
+        self.active_hypotheses_count = len(self.active_hypotheses)
+
+        best_ind = self.gmm_weights.index(max(self.gmm_weights))
+        
+        return termination_bool, best_ind
+        
+                
     def update_mission(self, mission):
         self.mission_topic = mission.data
 
@@ -205,14 +276,13 @@ class GMMFNode:
         Ts = rospy.get_time() - self.last_time
         return Ts
     
-    def ekf_function(self, z):
+    def kf_function(self, z, ass_hypothesis):
 
         Ts = self.get_Ts()
 
-        gauss_x_pred, gauss_z_pred, gauss_est = self.my_ekf.step_with_info(self.prev_gauss, z, Ts)
+        gauss_x_pred, gauss_z_pred, gauss_est = self.my_ekf.step_with_info(ass_hypothesis, z, Ts)
         
         self.last_time = rospy.get_time()
-        self.prev_gauss = gauss_est
 
         return gauss_x_pred, gauss_z_pred, gauss_est
 
@@ -240,18 +310,21 @@ class GMMFNode:
         self.__tfBroadcaster.sendTransform(t)
 
 
-    def publish_gate(self, objectID, ekf_position, ekf_pose_quaterion):
+    def publish_function(self, objectID, best_position, best_pose_quaterion, termination_boolean):
+
+        ## TODO: Figure out how to publish the termination boolean
+        ## TODO: WITH FINN AND TAREK: figure out what we are going to publish here, and then implement it.
         p = ObjectPosition()
         #p.pose.header[]
         p.objectID = objectID
         p.objectPose.header = "object_" + str(objectID)
-        p.objectPose.pose.position.x = ekf_position[0]
-        p.objectPose.pose.position.y = ekf_position[1]
-        p.objectPose.pose.position.z = ekf_position[2]
-        p.objectPose.pose.orientation.x = ekf_pose_quaterion[0]
-        p.objectPose.pose.orientation.y = ekf_pose_quaterion[1]
-        p.objectPose.pose.orientation.z = ekf_pose_quaterion[2]
-        p.objectPose.pose.orientation.w = ekf_pose_quaterion[3]
+        p.objectPose.pose.position.x = best_position[0]
+        p.objectPose.pose.position.y = best_position[1]
+        p.objectPose.pose.position.z = best_position[2]
+        p.objectPose.pose.orientation.x = best_pose_quaterion[0]
+        p.objectPose.pose.orientation.y = best_pose_quaterion[1]
+        p.objectPose.pose.orientation.z = best_pose_quaterion[2]
+        p.objectPose.pose.orientation.w = best_pose_quaterion[3]
         
         self.gate_pose_pub.publish(p)
         rospy.loginfo("Object published: %s", objectID)
@@ -261,15 +334,16 @@ class GMMFNode:
 
         rospy.loginfo("Object data recieved for: %s", msg.objectID)
         self.current_object = msg.objectID
-    
-        if self.mission_topic == self.current_object + "_execute":
-            rospy.loginfo("Mission status: %s", self.mission_topic)
-            self.prev_gauss = MultiVarGaussian(self.x_hat0, self.P_hat0)
-            self.last_time = rospy.get_time()
-            return None
+        
+        # Figure this out later
+        #if self.mission_topic == self.current_object + "_execute":
+        #    rospy.loginfo("Mission status: %s", self.mission_topic)
+        #    self.prev_gauss = MultiVarGaussian(self.x_hat0, self.P_hat0)
+        #    self.last_time = rospy.get_time()
+        #    return None
         
 
-        # Gate in world frame for cyb pool
+        # Extract measurement of object from message
         obj_pose_position_wg = np.array([msg.objectPose.pose.position.x, 
                                          msg.objectPose.pose.position.y, 
                                          msg.objectPose.pose.position.z])
@@ -292,17 +366,26 @@ class GMMFNode:
         #    self.last_time = rospy.get_time()
         #    return None
 
-        gated_inds, m_distences = self.gate_hypotheses(self.active_hypotheses, z)
+        pred_states = self.predict_states()
+        pred_zs = self.predict_measurements(pred_states)
 
-        # Call EKF step and format the data
-        gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(z)
-        x_hat = gauss_est.mean
+        gated_hypotheses, gated_weights, gated_inds = self.gate_hypotheses(z_gauss, pred_zs)
 
-        ekf_position, ekf_pose = self.est_to_pose(x_hat)
-        ekf_pose_quaterion = tft.quaternion_from_euler(ekf_pose[0], ekf_pose[1], ekf_pose[2])
+        self.associate_and_update(gated_hypotheses, gated_weights, gated_inds)
+        self.gmf_eval()
 
-        # Publish data
-        self.publish_gate(msg.objectID, ekf_position, ekf_pose_quaterion)
+        termination_bool, best_ind = self.gmf_eval()
+
+        if best_ind == 0:
+            best_hypothesis = self.null_gauss
+        else:
+            best_hypothesis = self.active_hypotheses[best_ind - 1]
+
+        x_hat_best = best_hypothesis.mean
+        best_position, best_pose = self.est_to_pose(x_hat_best)
+        best_pose_quaternion = tft.quaternion_from_euler(best_pose[0], best_pose[1], best_pose[2])
+        
+        self.publish_function(msg.objectID, best_position, best_pose_quaternion, termination_bool)
 
 
 if __name__ == '__main__':

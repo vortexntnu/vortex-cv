@@ -33,7 +33,15 @@ pip install dataclasses
 global (self) variables:
 
     boost_prob: the probability boost a hypothesis gets by getting associated to a measurement. This is a tuning parameter.
+
+    init_prob: the probability a new filter/hypothesis is initialized with. This is a tuning parameter
+
+    termination_criterion: a weight threshold for terminating the entire procedure. A hypothesis which has obtained weight above this threshold is considered to have won out, and we lock the gate position in that area. This is a tuning parameter.
+
+    survival_threshold: a weight threshold for which the hypothesis is considered dead. A hypothesis which was obtained weight under this thrreshold is terminated.
     
+    null_gauss: a hypothesis at the origin, published when the null hypothesis is the leading one.
+
     gmm_weights: list of length N containing the probabilities of hypotheses:
         gmm_weights = [w_H0, w_H1, ... , w_HN-1]
     
