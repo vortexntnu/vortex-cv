@@ -28,6 +28,6 @@
     </group>
     
     
-    <node pkg="vision_kf" type="vkf_node.py" name="vision_kf" output="screen"/>
+    <node pkg="gmf" type="gmf_node.py" name="gmf_node" output="screen"/>
 
   </launch>

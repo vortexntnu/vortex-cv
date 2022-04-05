@@ -28,7 +28,7 @@ import tf2_ros
 # GMF imports
 from scipy.stats import chi2
 
-class GMMFNode:
+class GMFNode:
     
 
     def __init__(self):
@@ -410,7 +410,7 @@ class GMMFNode:
 if __name__ == '__main__':
     while not rospy.is_shutdown():     
         try:
-            gmm_filter = GMMFNode()
+            gm_filter = GMFNode()
             rospy.spin()
         except rospy.ROSInterruptException:
             pass
