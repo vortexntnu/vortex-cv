@@ -54,7 +54,6 @@ class EKF:
 
         x_pred = self.dynamic_model.f(x_prev, Ts)
 
-        #P_pred = F @ P_prev @ F.T + Q
         P_pred = np.matmul(F, np.matmul(P_prev, F.T)) + Q
 
         state_pred_gauss = MultiVarGaussian(x_pred, P_pred)
@@ -72,26 +71,17 @@ class EKF:
 
         n = len(x_pred)
 
-        #if measurement_gauss is None:
-            #measurement_gauss = self.predict_measurement(state_pred_gauss)
-
         H = self.sensor_model.H(x_pred)
         R = self.sensor_model.R(x_pred)
 
         z_pred = self.sensor_model.h(x_pred)
-        #S = H @ P @ H.T + R
         S = np.matmul(H, np.matmul(P, H.T)) + R
 
-        # Fcking stupid, clean up later...
-        #z = [z[0][0], z[0][1], z[0][2], z[1]]
         inov = z - z_pred
-        #W = P @ H.T @ np.linalg.inv(S)
         W = np.matmul(P, np.matmul(H.T, np.linalg.inv(S)))
 
-        #x_upd = x_pred + W @ inov
+        
         x_upd = x_pred + np.matmul(W, inov)
-
-        #P_upd = (np.eye(n) -W @ H)@ P
         P_upd = np.matmul((np.eye(n) -np.matmul(W, H)) , P)
 
         measure_pred_gauss = MultiVarGaussian(z_pred, S)

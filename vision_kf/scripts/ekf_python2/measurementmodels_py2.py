@@ -31,46 +31,6 @@ class MeasurementModel:
         """
         raise NotImplementedError
 
-
-#@dataclass
-#class CartesianPosition2D(MeasurementModel):
-#    sigma_z: float
-#
-#    def h(self, x: ndarray) -> ndarray:
-#        """Calculate the noise free measurement location at x in sensor_state.
-#        """
-#
-#        # TODO replace this with your own code
-#        first_row = [1, 0, 0, 0]
-#        second_row = [0, 1, 0, 0]
-#
-#        H = np.array([first_row, second_row])
-#        x_h = H @ x
-#
-#        return x_h
-#
-#    def H(self, x: ndarray) -> ndarray:
-#        """Calculate the measurement Jacobian matrix at x in sensor_state."""
-#
-#        # TODO replace this with your own code
-#        first_row = [1, 0, 0, 0]
-#        second_row = [0, 1, 0, 0]
-#
-#        H = np.array([first_row, second_row])
-#
-#        return H
-#
-#    def R(self, x: ndarray) -> ndarray:
-#        """Calculate the measurement covariance matrix at x in sensor_state."""
-#
-#        # TODO replace this with your own code
-#        identity = np.array([[1, 0], [0, 1]])
-#        R = (self.sigma_z**2) * identity
-#
-#        return R
-
-
-
 class NED_range_bearing(MeasurementModel):
 
     def __init__(self, 
@@ -81,7 +41,7 @@ class NED_range_bearing(MeasurementModel):
         self.sigma_z = sigma_sensor
         self.p_wb = pos 
         self.Rot_wb = Rot
-        # TODO Change this to be more general
+        
     
     def h(self, x):
         """Predict measurement through the non-linear vector field h given the

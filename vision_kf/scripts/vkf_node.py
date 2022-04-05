@@ -25,7 +25,7 @@ from geometry_msgs.msg import PoseStamped, TransformStamped
 import tf.transformations as tft
 import tf2_ros
 
-class EKFNode:
+class VKFNode:
     
 
     def __init__(self):
@@ -51,9 +51,6 @@ class EKFNode:
         ##################
         ####EKF stuff#####
         ##################
-
-        # Geometric parameters
-        #self.gate_prior = [0, 0] # z, roll, pitch of gate
 
         # Tuning parameters
         self.sigma_a = 3/5*np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
@@ -83,6 +80,7 @@ class EKFNode:
         # Subscribe to mission topic
         self.mission_topic = self.current_object + "_execute"
         self.mission_topic_sub = rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
+        
         # Subscriber to gate pose and orientation 
         self.object_pose_sub = rospy.Subscriber(object_topic_subscribe, ObjectPosition, self.obj_pose_callback, queue_size=1)
       
@@ -90,7 +88,7 @@ class EKFNode:
         self.gate_pose_pub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
 
         #TF stuff
-        self.__tfBuffer = tf2_ros.Buffer() # TODO Add a tf buffer length? tf2_ros.Buffer(rospy.Duration(1200.0)) (Kristian)
+        self.__tfBuffer = tf2_ros.Buffer()
         self.__listener = tf2_ros.TransformListener(self.__tfBuffer)
         self.__tfBroadcaster = tf2_ros.TransformBroadcaster()
 
@@ -151,7 +149,7 @@ class EKFNode:
         self.__tfBroadcaster.sendTransform(t)
 
 
-    def publish_gate(self, objectID, ekf_position, ekf_pose_quaterion):
+    def publish_object(self, objectID, ekf_position, ekf_pose_quaterion):
         p = ObjectPosition()
         #p.pose.header[]
         p.objectID = objectID
@@ -202,20 +200,20 @@ class EKFNode:
             return None
 
         # Call EKF step and format the data
-        gauss_x_pred, gauss_z_pred, gauss_est = self.ekf_function(z)
+        _, _, gauss_est = self.ekf_function(z)
         x_hat = gauss_est.mean
 
         ekf_position, ekf_pose = self.est_to_pose(x_hat)
         ekf_pose_quaterion = tft.quaternion_from_euler(ekf_pose[0], ekf_pose[1], ekf_pose[2])
 
         # Publish data
-        self.publish_gate(msg.objectID, ekf_position, ekf_pose_quaterion)
+        self.publish_object(msg.objectID, ekf_position, ekf_pose_quaterion)
 
 
 if __name__ == '__main__':
     while not rospy.is_shutdown():     
         try:
-            ekf_vision = EKFNode()
+            ekf_vision = VKFNode()
             rospy.spin()
         except rospy.ROSInterruptException:
             pass

@@ -4,7 +4,6 @@ from numpy import ndarray
 import scipy.linalg as la
 from gaussparams_py2 import MultiVarGaussian
 from config import DEBUG
-#from typing import Sequence
 
 
 def get_NIS(z_pred_gauss, z):
@@ -105,5 +104,4 @@ def get_ANEES(x_upd_gauss_data,
 
 # def get_RMSE(x_upd_gauss_data: Sequence[MultiVarGaussian],
 #              x _gt_data: Sequence[ndarray]):
-
 #              #TODO

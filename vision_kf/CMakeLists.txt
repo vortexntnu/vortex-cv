@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(object_edc)
+project(vision_kf)
 
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
