@@ -96,7 +96,7 @@ class HoughMajingo:
         line_2 = lines[1:,:,:]
 
 
-        # print("Connect lines 2bb",lines, line_1, line_2)
+        # print("Connect lines 2bb", line_1, line_2, set)
         dis = np.zeros((line_1.shape[0],1))
         for j in range(len(line_1)):
             dis[j] = line_2[j,0,set] -line_1[j,0,set]
@@ -108,20 +108,22 @@ class HoughMajingo:
         for i in range(len(dis)):
             # print(len(dis)-1,i)
             if i < len(dis)-1 and dis[i] < dis[i+1]:
-                # first pair of lines belong together
-                # print(line_1[i,0,:],line_2[i,0,:])
-                platzhalter[0,0,:4] = line_1[i,0,:]
-                platzhalter[0,0,4:] = line_2[i,0,:]
-                bb_corner_pair.append(platzhalter)
-                # print("BB corner pair",bb_corner_pair, line_1[i,0,:], line_2[i,0,:], platzhalter)
-                platzhalter = np.zeros((1,1,8), dtype=int)
+                if dis[i] < distanz:
+                    # first pair of lines belong together
+                    # print(line_1[i,0,:],line_2[i,0,:])
+                    platzhalter[0,0,:4] = line_1[i,0,:]
+                    platzhalter[0,0,4:] = line_2[i,0,:]
+                    bb_corner_pair.append(platzhalter)
+                    # print("BB corner pair",bb_corner_pair, line_1[i,0,:], line_2[i,0,:], platzhalter)
+                    platzhalter = np.zeros((1,1,8), dtype=int)
             elif i == len(dis)-1 and dis[i] < dis[i-1]:
-                # print(line_1[i,0,:])
-                # last pair of lines belong together
-                platzhalter[0,0,:4] = line_1[i,0,:]
-                platzhalter[0,0,4:] = line_2[i,0,:]
-                bb_corner_pair.append(platzhalter)
-                # print("BB corner pair",bb_corner_pair, line_1[i,0,:], line_2[i,0,:], platzhalter)
+                if dis[i] < distanz:
+                    # print(line_1[i,0,:])
+                    # last pair of lines belong together
+                    platzhalter[0,0,:4] = line_1[i,0,:]
+                    platzhalter[0,0,4:] = line_2[i,0,:]
+                    bb_corner_pair.append(platzhalter)
+                    # print("BB corner pair",bb_corner_pair, line_1[i,0,:], line_2[i,0,:], platzhalter)
             if len(dis) == 1 and dis < distanz: 
                 platzhalter[0,0,:4] = line_1[i,0,:]
                 platzhalter[0,0,4:] = line_2[i,0,:]
@@ -130,7 +132,7 @@ class HoughMajingo:
             
         return bb_corner_pair
 
-    def centroid(list_bb):
+    def centroid(self, list_bb):
         '''
         Calculates the centroid of the bounding boxes 
         arg: 
@@ -143,12 +145,27 @@ class HoughMajingo:
         centroid_list = []
         cent_array = np.zeros((2))
         for i in range(len(list_bb)):
-            bb = list_bb[i]  # row vector of eight entries: 
-            if len(bb) == 8:
-                diag_line_1_x = bb[6]- bb[0]
-                diag_line_1_y = bb[7]- bb[1]
-                diag_line_2_x = bb[5]- bb[2]
-                diag_line_2_y = bb[4]- bb[3]
+            # cnt_moments = cv2.moments(i)
+
+            # try:
+            #     centroid_center_x = int(cnt_moments["m10"] / cnt_moments["m00"])
+            #     centroid_center_y = int(cnt_moments["m01"] / cnt_moments["m00"])
+            # except ZeroDivisionError:
+            #     return
+            # centroid_list.append((centroid_center_x, centroid_center_y))
+
+            if np.size(list_bb) == 8:
+                # print(i, np.size(list_bb), list_bb)
+                bb_neu = list_bb[i][0]  # row vector of eight entries: 
+                # print(bb_neu)
+                bb = bb_neu[0,:]
+            # if np.size(bb) == 8:
+                
+                print('I am in the calculation',np.size(bb),bb)
+                diag_line_1_x = abs(bb[0][6]- bb[0][0])
+                diag_line_1_y = abs(bb[0][7]- bb[0][1])
+                diag_line_2_x = abs(bb[0][5]- bb[0][2])
+                diag_line_2_y = abs(bb[0][4]- bb[0][3])
 
                 centroid_x = 0.5*(diag_line_1_x + diag_line_2_x)
                 centroid_y = 0.5*(diag_line_1_y + diag_line_2_y)
@@ -156,6 +173,8 @@ class HoughMajingo:
                 cent_array[1] = centroid_y
 
                 centroid_list.append(cent_array)
+        # print('Centroids',centroid_list)
+
         
         return centroid_list
 
@@ -175,7 +194,7 @@ class HoughMajingo:
             img_contrast: contrasted image --> delete, just for testing purposes, preprocessing is done somewhere else
         '''
         img_gray = deepcopy(orig_img)
-        
+        visual_lines = False
         ## Preprocessing is done somewhere else now
         # Noise filtering
         # kernel = np.ones((5,5), np.uint8)  
@@ -218,16 +237,17 @@ class HoughMajingo:
                 k +=1
                 j +=1
         
-        ## Visualization of detected hough lines
-        if lines_hor is not None:
-            for i in range(len(lines_hor)):
-                line_hor = lines_hor[i,0,:]
-                cv2.line(img_gray, (line_hor[0], line_hor[1]), (line_hor[2], line_hor[3]), (0,0,255), 3)
-        
-        if lines_ver is not None:
-            for i in range(len(lines_ver)):
-                line_ver = lines_ver[i,0,:]
-                cv2.line(img_gray, (line_ver[0], line_ver[1]), (line_ver[2], line_ver[3]), (0,255,0), 3)
+        if visual_lines:
+            ## Visualization of detected hough lines
+            if lines_hor is not None:
+                for i in range(len(lines_hor)):
+                    line_hor = lines_hor[i,0,:]
+                    cv2.line(img_gray, (line_hor[0], line_hor[1]), (line_hor[2], line_hor[3]), (0,0,255), 3)
+            
+            if lines_ver is not None:
+                for i in range(len(lines_ver)):
+                    line_ver = lines_ver[i,0,:]
+                    cv2.line(img_gray, (line_ver[0], line_ver[1]), (line_ver[2], line_ver[3]), (0,255,0), 3)
         
 
         ## processing vertical and horizontal lines
@@ -241,31 +261,38 @@ class HoughMajingo:
 
 
         ## correlating lines and getting corner points from bounding box --> both should be outputted
-        distanz = 50
+        distanz = 35
         if len(rect_list_ver_new) >1:
             bb_ver = HoughMajingo.connect_lines2bb(rect_list_ver_new, 0, distanz)
         else:
             bb_ver = None
         if len(rect_list_hor_new) >1:
             # print(len(rect_list_hor_new))
-            bb_hor = HoughMajingo.connect_lines2bb(rect_list_hor_new, 0, distanz)
+            bb_hor = HoughMajingo.connect_lines2bb(rect_list_hor_new, 1, distanz)
         else:
             bb_hor = None
         bb = []
-
+        bbound = False
         if bb_ver is not None:
             bb.append(bb_ver)
+            bbound = True
             # print("Ver was added", bb_ver)
 
         if bb_hor is not None:
             bb.append(bb_hor)
+            bbound = True
             # print("Hor was added", bb_hor)
         
+        Hough = HoughMajingo()
         # print(len(bb))
-        # center = HoughMajingo.centroid(bb)
-        center = 1
+        if bbound == True:
+            center = Hough.centroid(bb)
+            print(bb, center)
+        else: 
+            center = None
+        # center = 1
 
-        # print(bb, center)
+        
         # if rect_list_ver_new is not []:
         #     print("I am empty")
         #     print(len(rect_list_ver_new))
@@ -285,20 +312,21 @@ class HoughMajingo:
         
         ####### Visualization of postprocessed hough lines
         # Visualization of vertical lines
-        for line_idx in range(len(pos_ver)):
-            if pos_ver[line_idx] != 0:
-                line_ver = rect_list_ver[line_idx,0,:]
-                cv2.line(img_gray, (line_ver[0], line_ver[1]), (line_ver[2], line_ver[3]), (255,0,255), 3)
-                # cv2.line(img, (pos_ver[i], 0), (pos_ver[i], 1000), (255,255,0), 3)
-        
-        # Visualization of horizontal lines
-        for line_idx in range(len(pos_hor)):
-            if pos_hor[line_idx] != 0:
-                line_hor = rect_list_hor[line_idx,0,:]
-                cv2.line(img_gray, (line_hor[0], line_hor[1]), (line_hor[2], line_hor[3]), (255,255,0), 4)
+        if visual_lines:
+            for line_idx in range(len(pos_ver)):
+                if pos_ver[line_idx] != 0:
+                    line_ver = rect_list_ver[line_idx,0,:]
+                    cv2.line(img_gray, (line_ver[0], line_ver[1]), (line_ver[2], line_ver[3]), (255,0,255), 3)
+                    # cv2.line(img, (pos_ver[i], 0), (pos_ver[i], 1000), (255,255,0), 3)
+            
+            # Visualization of horizontal lines
+            for line_idx in range(len(pos_hor)):
+                if pos_hor[line_idx] != 0:
+                    line_hor = rect_list_hor[line_idx,0,:]
+                    cv2.line(img_gray, (line_hor[0], line_hor[1]), (line_hor[2], line_hor[3]), (255,255,0), 4)
 
         # Visualization of bounding boxes
-        if len(bb) !=0:
+        if np.size(bb) == 8: # len(bb) !=0:
             for line_idx in range(len(bb)):
                 # print(line_idx)
                 line = bb[line_idx][0] # [line_idx,0,:]
@@ -312,5 +340,10 @@ class HoughMajingo:
                     cv2.line(img_gray, (line_hor[0,0], line_hor[0,1]), (line_hor[0,4], line_hor[0,5]), (255,255,255), 4)
                     cv2.line(img_gray, (line_hor[0,2], line_hor[0,3]), (line_hor[0,6], line_hor[0,7]), (255,255,255), 4)
                     cv2.line(img_gray, (line_hor[0,4], line_hor[0,5]), (line_hor[0,6], line_hor[0,7]), (255,255,255), 4)
-
-        return bb, center, img_gray, edges, img_contrast
+        
+        # print(len(center), center)
+        if center is not None:
+            for cent_idx in range(len(center)):
+                # print(center[cent_idx][0])
+                cv2.circle(img_gray, (int(center[cent_idx][0]),int(center[cent_idx][1])), radius=3, color=(0, 0, 255), thickness=-1)
+            return bb, center, img_gray, edges, img_contrast

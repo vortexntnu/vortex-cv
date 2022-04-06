@@ -194,17 +194,16 @@ class FeatureDetectionNode():
                     # self.cv_image_publisher(self.hsvCheckPub, res)
                     t1 = 50
                     t2 = 150
-                    img_gray = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2GRAY)
-                    img_erosion2 = cv2.bilateralFilter(img_gray,self.sigma,self.ksize1,self.ksize2) # cv2.GaussianBlur(img_gray,(5,5),0) #img_gray # cv2.erode(img_dilation2, kernel, iterations=1) 
+                    cv_img_cp = copy.deepcopy(self.cv_image)
+                    cropped_image = cv_img_cp[5:720, 0:1280]
 
-                    bb_arr, center, hough_img, edges, img = HoughMajingo.main(img_erosion2, t1, t2)   # self.canny_threshold1, self.canny_threshold2
-                    self.cv_image_publisher(self.linesPub, hough_img, "8UC1") 
+                    bb_arr, center, hough_img, edges, img = HoughMajingo.main(cropped_image, t1, t2)   # self.canny_threshold1, self.canny_threshold2, self.cv_image
+                    self.cv_image_publisher(self.linesPub, hough_img) 
                     self.cv_image_publisher(self.i2rcpPub, edges, "8UC1")
                     
-                    # print(len(bb_arr))
-                    if len(bb_arr) != 0:
-                        rospy.loginfo("Now detecting: bounding box %s", bb_arr)
-                    # rospy.loginfo("Now detecting: centroid %s", center)
+                    # if len(bb_arr) != 0:
+                    #     rospy.loginfo("Now detecting: bounding box %s", bb_arr)
+                    #     rospy.loginfo( center)
 
                     end = timer() # Stop function timer.
                     timediff = (end - start)
@@ -285,7 +284,7 @@ class FeatureDetectionNode():
 
 if __name__ == '__main__':
     try:
-        feature_detection_node = FeatureDetectionNode(image_topic='/zed2/zed_node/rgb/image_rect_color')
+        feature_detection_node = FeatureDetectionNode(image_topic='/cv/image_preprocessing/CLAHE')  # /cv/image_preprocessing/CLAHE  /zed2/zed_node/rgb/image_rect_color
         # rospy.spin()
         feature_detection_node.spin()
 
