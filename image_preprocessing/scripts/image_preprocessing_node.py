@@ -31,6 +31,13 @@ class ImagePreprocessingNode():
         self.single_CLAHEPub        = rospy.Publisher('/cv/image_preprocessing/CLAHE_single', Image, queue_size= 1)
         self.GWPub                  = rospy.Publisher('/cv/image_preprocessing/GW', Image, queue_size= 1)
         
+        # TODO: test this
+        self.CSLICPub               = rospy.Publisher('/cv/image_preprocessing/CSLIC', Image, queue_size= 1)
+        # Parameters for the SLIC segmentation method:
+        self.slic_n_seg = 200
+        self.slic_compactness = 5
+
+
         self.bridge = CvBridge()
         self.image_preprocessing = ImagePreprocessing(2, 8)
         
@@ -65,6 +72,10 @@ class ImagePreprocessingNode():
 
         gw_img = self.image_preprocessing.gray_world(cv.cvtColor(self.cv_image, cv.COLOR_BGRA2BGR))
         self.cv_image_publisher(self.GWPub, gw_img, "bgr8")
+
+        # TODO: test this
+        colour_slic_img = self.image_preprocessing.slic_colour_segmentation(self.cv_image, self.slic_n_seg, self.slic_compactness)
+        self.cv_image_publisher(self.CSLICPub, colour_slic_img, "bgr8")
     
     def load_obj_config(self, config_path):
         params = read_yaml_file(config_path)
@@ -102,7 +113,6 @@ class ImagePreprocessingNode():
         self.dilation_iterations = config.dilation_iterations
 
         self.noise_rm_params = [self.ksize1, self.ksize2, self.sigma, self.thresholding_blocksize, self.thresholding_C, self.erosion_dilation_ksize, self.erosion_iterations, self.dilation_iterations]
-
 
 if __name__ == '__main__':
     try:
