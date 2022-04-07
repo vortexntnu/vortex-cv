@@ -234,7 +234,7 @@ class ImageFeatureProcessing(object):
                                                   Contours with lower area than the argument will be removed.
             enable_convex_hull      (bool)      : {default=False} Enable convex hull contour approximation method.
             return_image            (bool)      : {default=True} False to return only contour data.
-                                                  If param 'image' is none - returns a blanked image with drawn contour data.
+                                                  If param 'image' is None - returns a blanked image with drawn contour data.
                                                   If param 'image' is an image - returns both drawn blanked and passed images.
             image                   (cv::Mat)   : {default=None} An image on which to draw processed contours.
             show_centers            (bool)      : {default=True} Draw contour centers in the returned image(s).
@@ -359,7 +359,7 @@ class PointsProcessing(object):
         points_processing_image_shape   (array-like [3])                            : Shape of the image to be drawn with point visualization - height, width, channels.
         integral_diff_values_arr        (A[len_of_integral_binary_resetter, uint16]): List of delta distances between delta times used for the binary integral resetter.
         integral_diff_values_arr_len    (uint8)                                     : Member variable copy of the 'len_of_integral_binary_resetter' parameter.
-        prev_closest_points             (A[len(icp_ref_points)][2, uint8])          : List of closest points from the previous timestep with length N according to how man.
+        prev_closest_points             (A[len(icp_ref_points)][2, uint8])          : List of closest points from the previous timestep with length N according to how many reference points there are.
         prev_closest_points_dsts        (A[len(icp_ref_points)][float16])           : List of closest point distances from the previous timestep.
         ref_points_icp_fitting_base     (A[N][2, uint16])                           : Member variable copy of the 'icp_ref_points' parameter. This variable stays static for the duration of the runtime.
                                                                                       Is used as a fallback reference using the binary integral resetter.
@@ -376,11 +376,11 @@ class PointsProcessing(object):
         reference_points_iteration  : Iterates the reference points array with new values.
         fitted_point_filtering      : (FPF) Wrapper function for ECD, DPF, and BID. Delays the closest points and distances by one step.
         i2rcp                       : Intra-Iterative Recursive Closest Point (I2RCP) - an algorithm for optimal point fitting using ICP as the base, but also applying ECD, DPF, and BID serially.
-                                      The algo: I2RCP := ICP -> ECD -> DPF -> BID -> ref. pts. iteration -> delay (z^-1) -> loop (ICP)
+                                      The algorithm: I2RCP := ICP -> ECD -> DPF -> BID -> ref. pts. iteration -> delay (z^-1) -> loop (ICP)
         points_processing_reset     : Resets the current reference points to the base (initial) reference points.
     """
     def __init__(self, len_of_integral_binary_resetter=5, icp_ref_points=None, *args, **kwargs):
-        self.points_processing_image_shape = (720, 1280, 4) # Only used for drawing data on image.
+        self.points_processing_image_shape = (720, 1280, 4) # Only used for drawing data on image. Gets adaptively overwritten by init argument from FeatureDetection class.
         self.integral_diff_values_arr = []
         self.integral_diff_values_arr_len = len_of_integral_binary_resetter
 
@@ -403,8 +403,8 @@ class PointsProcessing(object):
         Params:
             ref_points      (A[N][2, uint8])    : Reference points to be fitted to the points' set.
             points_set      (A[M][2, uint8])    : A set of points on which the reference points will be fitted (N <= M).
-            return_image    (bool)              : {default=True} False to return only point data.
-                                                  If param 'image' is none - returns a blanked image with drawn point data.
+            return_image    (bool)              : {default=False} False to return only point data.
+                                                  If param 'image' is None - returns a blanked image with drawn point data.
                                                   If param 'image' is an image - returns both drawn blanked and passed images.
             image           (cv::Mat)           : An image on which to draw the processed points.
 
@@ -440,10 +440,9 @@ class PointsProcessing(object):
             return icp_points
 
     def point_distances(self, point_arr1, point_arr2):
-        """Finds distances from every point in array A to every point in array B.
-        Find distance from every reference point (array 1) to every point in array 2
+        """Find distance from every reference point (array 1) to every point in array 2.
         Stores values in table formatted by: array A of len(array_1),
-        where every elem in A is array B of len(array_2) of distances from point idxed in A according to array 1 to point idxed in B according to array 2.
+        where every element is array B of len(array_2. Elements in arr B are distances from point indexed in A according to array 1 to a point indexed in B according to array 2.
 
         Params:
             point_arr1  (A[N][2, uint8])    : Reference points.
@@ -575,12 +574,12 @@ class PointsProcessing(object):
             closest_points                      (A[N][2, uint16])   : For index 'a' in set of points A, closest point coordinates 'x' and 'y' picked from set of points B.
             closest_point_dts                   (A[N, float16])     : For index 'a' in set of points A, distances from the reference point in set of points A to its closest point in set of points B.
             threshold                           (uint32)            : The value at which the derivative-term filter disregards change in point coordinates.
-            reset_reference_points_threshold    (float32)           : Max sum of travel diffs, at which point the reference points for the I2C will be reset.
+            reset_reference_points_threshold    (float32)           : Max sum of travel differences, at which point the reference points for the I2C will be reset.
 
         Returns:
             pts_cp      (A[N][2, uint16])      : Same struct as the closest_points, but processed.
             pt_dsts_cp  (A[N, float16])        : Same struct as the closest_point_dts, but processed.
-            diff_dsts   (A[N, float16])        : Travel distnace deltas for each closest point.
+            diff_dsts   (A[N, float16])        : Travel distance deltas for each closest point.
         """
         pts_cp = copy.deepcopy(closest_points)
         pt_dsts_cp = copy.deepcopy(closest_point_dsts)
@@ -618,7 +617,7 @@ class PointsProcessing(object):
         """Iterates the reference points member attribute array with new values.
 
         Params:
-            closest_points (A[N][2, uint16]): For index 'a' in set of points A, closest point coordinates 'x' and 'y' picked from set of points B.
+            closest_points (A[N][2, uint16]): Should be in the format of: for index 'a' in set of points A, closest point coordinates 'x' and 'y' picked from set of points B.
         """
         self.ref_points_icp_fitting = np.array(closest_points, dtype=int)
 
@@ -651,7 +650,7 @@ class PointsProcessing(object):
             threshold=50,
             reset_reference_points_threshold=100,
         )
-        # Sometimes makes it better, sometimes not, sometimes worse
+
         self.reference_points_iteration(thresholded_closest_points)
 
         self.prev_closest_points = thresholded_closest_points
@@ -661,12 +660,12 @@ class PointsProcessing(object):
 
     def i2rcp(self, rect_center_points, return_image=False, image=None):
         """Intra-Iterative Recursive Closest Point (I2RCP) - an algorithm for optimal point fitting using ICP as the base, but also applying ECD, DPF, and BID serially.
-        The algo: I2RCP := ICP -> ECD -> DPF -> BID -> ref. pts. iteration -> delay (z^-1) -||> loop (ICP)
+        The algorithm: I2RCP := ICP -> ECD -> DPF -> BID -> ref. pts. iteration -> delay (z^-1) -||> loop (ICP)
 
         Params:
             rect_center_points  (A[N][2, uint16])   : Set of points on which the reference points going to be fitted.
-            return_image        (bool)              : {default=True} False to return only point data.
-                                                      If param 'image' is none - returns a blanked image with drawn point data.
+            return_image        (bool)              : {default=False} False to return only point data.
+                                                      If param 'image' is None - returns a blanked image with drawn point data.
                                                       If param 'image' is an image - returns both drawn blanked and passed images.
             image               (cv::Mat)           : An image on which to draw the processed points.
    
@@ -715,6 +714,18 @@ class PointsProcessing(object):
 
 
 class ShapeProcessing(object):
+    """Processing of 2D shapes and contours in the form of array-like objects. 
+
+    Methods:
+        shape_fitting           : Fit least area rectangles onto contours.
+        line_fitting            : Fit lines onto countours through their centers going alongside moment direction.
+        corner_detection        : Fit corners onto a line fitted image with blank background.
+        get_contour_from_rect   : Reshape a rectangle which is defined by 4 corners into a contour.
+        does_ctr_contain_point  : Check if a point is contained within the boundaries of a contour.
+        get_relevant_rects      : Return rectangles which have at least one point from the parameter array within their boundaries.
+        get_all_points_in_rects : Return all of the point coordinates within boundaries of rectangles. Can return element-wise decimated coordinate array.
+        rect_filtering          : Return pixel values of contained within the rectangles which encompass at least one of the points in the parameter point array.
+    """
     def __init__(self, *args, **kwargs):
         self.shape_processing_image_shape = (720, 1280, 4)
         super(ShapeProcessing, self).__init__(*args, **kwargs)
@@ -726,8 +737,8 @@ class ShapeProcessing(object):
             contours        (array[][]) : Contours that are to be fitted with the last area rectangles.
             ratio_threshold (uint16)    : Ratio threshold between longest and shortest rectangle sides.
                                           Rectangles below this ratio threshold are removed.
-            return_image    (bool)      : {default=True} False to return only the shape data.
-                                          If param 'image' is none - returns a blanked image with drawn shape data.
+            return_image    (bool)      : {default=False} False to return only the shape data.
+                                          If param 'image' is None - returns a blanked image with drawn shape data.
                                           If param 'image' is an image - returns both drawn blanked and passed images.
             image           (cv::Mat)   : An image on which to draw fitted shapes.
 
@@ -789,14 +800,14 @@ class ShapeProcessing(object):
     def line_fitting(
         self, contours, angle_threshold=50, return_image=False, image=None
     ):
-        """Fit lines onto countours thru their centers going alongside moment direction.
+        """Fit lines onto countours through their centers going alongside moment direction.
 
         Params:
-            contours        (array[][]) : Contours that are to be fitted with the last area rectangles.
-            angle_threshold (uint16)    : {default=50} Max angle (deg) between a line and the horizon.
+            contours        (array[][]) : Contours that are to be fitted with the least area rectangles.
+            angle_threshold (uint16)    : {default=50} Max angle (deg) between a line and the image frame horizontally.
                                           Lines above this threshold are filtered out.
-            return_image    (bool)      : {default=True} False to return only the line data.
-                                          If param 'image' is none - returns a blanked image with drawn line data.
+            return_image    (bool)      : {default=False} False to return only the line data.
+                                          If param 'image' is None - returns a blanked image with drawn line data.
                                           If param 'image' is an image - returns both drawn blanked and passed images.
             image           (cv::Mat)   : An image on which to draw fitted lines.
 
@@ -947,7 +958,7 @@ class ShapeProcessing(object):
             return False
 
     def get_relevant_rects(self, point_arr, rect_arr):
-        """Return rectangles which have atleast one point within their boundaries.
+        """Return rectangles which have at least one point from the parameter array within their boundaries.
 
         Params:
             point_arr   (A[N][2, uint32])   : An array of 2D points.
@@ -973,10 +984,10 @@ class ShapeProcessing(object):
 
         Params:
             rects           (A[M][4][2, uint32]): An array of 4 2D points, each of which define a rectangle.
-            return_per_rect (bool)              : {default=False} If set to True, returns one array per rectangle, instead of a single array.
             decimation_lvl  (uint32)            : {default=100} Reduces the size of the point array by doing element-wise decimation.
-            return_image    (bool)              : {default=True} False to return only the point data.
-                                                  If param 'image' is none - returns a blanked image with drawn point data.
+            return_per_rect (bool)              : {default=False} If set to True, returns one array per rectangle, instead of a single array.
+            return_image    (bool)              : {default=False} False to return only the point data.
+                                                  If param 'image' is None - returns a blanked image with drawn point data.
                                                   If param 'image' is an image - returns both drawn blanked and passed images.
             image           (cv::Mat)           : An image on which to draw points.
         Returns:
@@ -1043,14 +1054,14 @@ class ShapeProcessing(object):
     def rect_filtering(
         self, i2rcp_points, fitted_boxes, return_rectangles_separately=False, return_image=False, image=None
     ):
-        """Return areas of the rectangles which atleast one of the points in a point set A.
+        """Return pixel values of contained within the rectangles which encompass at least one of the points in the parameter point array.
 
         Params:
             i2rcp_points                    (A[N][2, uint32])   : A set of I2RCP fitted points.
             fitted_boxes                    (A[M][4][2, uint32]): An array of 4 2D points, each of which define a rectangle.
             return_rectangles_separately    (bool)              : {default=False} If set to True, returns one array per rectangle, instead of a single array.
-            return_image                    (bool)              : {default=True} False to return only the point data.
-                                                                  If param 'image' is none - returns a blanked image with drawn point data.
+            return_image                    (bool)              : {default=False} False to return only the point data.
+                                                                  If param 'image' is None - returns a blanked image with drawn point data.
                                                                   If param 'image' is an image - returns both drawn blanked and passed images.
             image                           (cv::Mat)           : An image on which to draw points.
         Returns:
@@ -1090,7 +1101,7 @@ class ShapeProcessing(object):
 
 
 class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing):
-    """Algorithms for feature-processing-based object detection."""
+    """Algorithms for feature-processing-based object detection and classification."""
 
     def __init__(self, image_shape, len_of_integral_binary_resetter=5, icp_ref_points=None):
         super(FeatureDetection, self).__init__(image_shape=image_shape, len_of_integral_binary_resetter=len_of_integral_binary_resetter, icp_ref_points=icp_ref_points)
@@ -1151,8 +1162,8 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
         Params:
             all_points_in_rects (A[N][2, uint32])   : An array of 2D points.
             label_name          (string)            : Name of the detected object.
-            return_image        (bool)              : {default=True} False to return only the point data.
-                                                      If param 'image' is none - returns a blanked image with drawn bounding box.
+            return_image        (bool)              : {default=False} False to return only the point data.
+                                                      If param 'image' is None - returns a blanked image with drawn bounding box.
                                                       If param 'image' is an image - returns both drawn blanked and passed images.
             image               (cv::Mat)           : An image on which to draw bounding box.
         Returns:
