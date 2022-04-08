@@ -1,5 +1,17 @@
 #include "udfc_wrapper_node/udfc_wrapper_node.hpp"
 
+
+//DIstortian params for testing
+using namespace std;
+float fx{700.819};
+float fy{700.819};
+float cx{665.465};
+float cy=cx/2;
+float k1{-0.174318};
+float k2{0.0261121};
+cv::InputArray CamMat = ((fx,0,cx),(0,fy,cy),(0,0,1));
+cv::InputArray dist = NULL;//((k1,k2,0),(k1,k2,0),(k1,k2,0));
+
 UDFCWrapperNode::UDFCWrapperNode(ros::NodeHandle nh)
 {
     image_raw_topic = "udfc/wrapper/camera_raw";
@@ -21,8 +33,10 @@ void UDFCWrapperNode::getCVImage()
     while (true){
         cap >> _cv_image;
         toImageRaw(_cv_image);
-        // cv::imshow("Display window", _cv_image);
-        // cv::waitKey(25);
+        //cv::Mat dst = _cv_image.clone();
+        //cv::undistort(_cv_image,dst,NULL,NULL);
+       // cv::imshow("Display window", dst);
+       // cv::waitKey(0);
     }
     cv::destroyAllWindows();
 }
@@ -39,7 +53,7 @@ void UDFCWrapperNode::toImageRaw(cv::Mat cv_image)
 }
 
 void UDFCWrapperNode::toImageRect(cv::Mat cv_image)
-{
+{   
     header.seq = counter_rect;
     counter_rect += 1;
     header.stamp = ros::Time::now();
