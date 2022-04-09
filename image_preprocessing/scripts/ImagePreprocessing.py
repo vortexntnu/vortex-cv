@@ -10,7 +10,7 @@ class ImagePreprocessing:
 
     """
     A Vortex NTNU Image Preprocessing implementation. Contains methods for pre-processing image data.
-    
+
     Args: 
         clahe_cliplim: histogram clip-limit (tunable parameter) for the CLAHE method
         clahe_tilesize: size of the square kernels (tunable parameter) used when computing CLAHE
@@ -192,7 +192,6 @@ class ImagePreprocessing:
             contour_segmented_img: an image with contours drawn where superpixel clusters were identified
 
         """
-        
         img_segments = slic(img, num_segments, compactness=segment_compactness)
         contour_segmented_img = mark_boundaries(img, img_segments).astype("float32")
         
