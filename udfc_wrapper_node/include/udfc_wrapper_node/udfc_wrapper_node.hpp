@@ -8,6 +8,12 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
+const float fx=700.819;
+const float fy=700.819;
+const float cx=665.465;
+const float cy=371.953;
+const float k1=-0.6;
+const float k2=1;
 
 
 class UDFCWrapperNode
@@ -23,17 +29,25 @@ private:
     std::string camera_frame;
     cv_bridge::CvImage img_bridge;
     cv::Mat _cv_image;
-    int _camera_id = 1;
+    int _camera_id = 0;
     int counter_raw = 0;
     int counter_rect = 0;
-
-    
+   
     
     void getCVImage();
     void toImageRaw(cv::Mat cv_image);
     void toImageRect(cv::Mat cv_image);
+    
+    
 public:
     UDFCWrapperNode(ros::NodeHandle nh);
+    std::vector<double> calibrationParams{fx,fy,cx,cy,k1,k2};
+    cv::Matx33f CameraMatrix;
+    std::vector<double> distortionCoefficents;
+
+    void getDistortionCoefficents();
+    void getCameraMatrix();
+   // void readFromFile();
 
     // Temp
 };
