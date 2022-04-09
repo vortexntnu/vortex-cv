@@ -22,10 +22,18 @@ find_package(gSLICr REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(CUDA REQUIRED)
 
+
+# ==================================><<>
 find_path(gSLICr_INCLUDE_DIRS gSLICr.h PATHS /home/vortex/gSLICr/gSLICr_Lib)
 if(NOT gSLICr_INCLUDE_DIRS)
   message(FATAL_ERROR "Can't find folder containing gSLICr.h")
 endif()
+
+# find_path(gSLICrEngines_INCLUDE_DIRS gSLICr_core_engine.h PATHS /home/vortex/gSLICr/gSLICr_Lib/engines)
+# if(NOT gSLICrEngines_INCLUDE_DIRS)
+#   message(FATAL_ERROR "Can't find folder containing gSLICr_core_engine.h")
+# endif()
+# ==================================><<>
 
 # find_file(GssKrb gssapi_krb5.h PATHS ${GssApiIncludes} NO_DEFAULT_PATH)
 # if(NOT GssKrb)
@@ -136,6 +144,7 @@ include_directories(
   ${OpenCV_INCLUDE_DIRS}
   ${gSLICr_INCLUDE_DIRS}
   ${CUDA_INCLUDE_DIRS}
+  # ${gSLICrEngines_INCLUDE_DIRS}
 
 )
 
@@ -165,7 +174,8 @@ add_executable(${PROJECT_NAME}_node src/SLIC_node.cpp)
 target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
   ${Opencv_LIBS}
-  ${gSLICr_lib}
+  ${CUDA_LIBRARY}
+  /usr/local/lib/libgSLICr_lib.a
 )
 
 #############

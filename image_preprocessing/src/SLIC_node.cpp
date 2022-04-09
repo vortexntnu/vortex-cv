@@ -1,8 +1,6 @@
 #include "SLIC_node/SLIC_node.hpp"
 
 #include <opencv2/opencv.hpp>
-#include <gSLICr.h>
-#include "engines/gSLICr_core_engine.h"
 
 
 SLICNode::SLICNode(ros::NodeHandle *nh) : m_nh(nh)
@@ -24,15 +22,15 @@ SLICNode::SLICNode(ros::NodeHandle *nh) : m_nh(nh)
 	my_settings.seg_method = gSLICr::GIVEN_SIZE; // or gSLICr::GIVEN_NUM for given number
 	my_settings.do_enforce_connectivity = true; // whether or not run the enforce connectivity step
     
-    // gSLICr_engine = new gSLICr::engines::core_engine(my_settings);
+    ROS_INFO("SIZE X %d", my_settings.img_size.x);
+
+    gSLICr_engine = new gSLICr::engines::core_engine(my_settings);
     // in_img = new gSLICr::UChar4Image(my_settings.img_size, true, true);
     // out_img = new gSLICr::UChar4Image(my_settings.img_size, true, true);
 
     // cv::Size s(my_settings.img_size.x, my_settings.img_size.y);
 	// cv::Mat oldFrame, frame;
 	// cv::Mat boundry_draw_frame; boundry_draw_frame.create(s, CV_8UC3);
-
-
 }
 
 void SLICNode::image_cb(const sensor_msgs::Image::ConstPtr& msg)
