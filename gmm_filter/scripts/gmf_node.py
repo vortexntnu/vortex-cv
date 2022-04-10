@@ -42,6 +42,8 @@ class GMFNode:
         #Frame names, e.g. "odom" and "cam"
 
         ## TODO: fix after talk with Finn and Tarek
+        # Don't think there is much to fix here tbh
+
         self.parent_frame = 'odom' 
         self.child_frame = 'zed2_left_camera_frame'
         self.object_frame = ""
@@ -327,8 +329,7 @@ class GMFNode:
 
     def publish_function(self, objectID, best_position, best_pose_quaterion, termination_boolean):
 
-        ## TODO: Figure out how to publish the termination boolean
-        ## TODO: WITH FINN AND TAREK: figure out what we are going to publish here, and then implement it.
+        
         p = ObjectPosition()
         #p.pose.header[]
         p.objectID = objectID
@@ -336,10 +337,15 @@ class GMFNode:
         p.objectPose.pose.position.x = best_position[0]
         p.objectPose.pose.position.y = best_position[1]
         p.objectPose.pose.position.z = best_position[2]
+        
         p.objectPose.pose.orientation.x = best_pose_quaterion[0]
         p.objectPose.pose.orientation.y = best_pose_quaterion[1]
         p.objectPose.pose.orientation.z = best_pose_quaterion[2]
         p.objectPose.pose.orientation.w = best_pose_quaterion[3]
+
+        p.isDetected = termination_boolean
+        p.estimateConverged = False
+        p.estimateFucked = False
         
         self.gate_pose_pub.publish(p)
         rospy.loginfo("Object published: %s", objectID)
