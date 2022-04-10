@@ -139,6 +139,32 @@ class GMFNode:
         ##Init end##
         ############
 
+    def update_mission(self, mission):
+        self.mission_topic = mission.data
+
+    def get_Ts(self):
+        Ts = rospy.get_time() - self.last_time
+        return Ts
+    
+    def kf_function(self, z, ass_hypothesis):
+
+        Ts = self.get_Ts()
+
+        gauss_x_pred, gauss_z_pred, gauss_est = self.my_ekf.step_with_info(ass_hypothesis, z, Ts)
+        
+        self.last_time = rospy.get_time()
+
+        return gauss_x_pred, gauss_z_pred, gauss_est
+
+    def est_to_pose(self, x_hat):
+        x = x_hat[0]
+        y = x_hat[1]
+        z = x_hat[2]
+        pos = [x, y, z]
+
+        euler_angs = [x_hat[3], x_hat[4], x_hat[5]]
+        return pos, euler_angs
+
     def reduce_mixture(self, gated_hypotheses, gated_weights):
         """
         Reduces a Gaussian Mixture to a single Gaussian
@@ -285,33 +311,6 @@ class GMFNode:
         
         return termination_bool, best_ind
         
-                
-    def update_mission(self, mission):
-        self.mission_topic = mission.data
-
-    def get_Ts(self):
-        Ts = rospy.get_time() - self.last_time
-        return Ts
-    
-    def kf_function(self, z, ass_hypothesis):
-
-        Ts = self.get_Ts()
-
-        gauss_x_pred, gauss_z_pred, gauss_est = self.my_ekf.step_with_info(ass_hypothesis, z, Ts)
-        
-        self.last_time = rospy.get_time()
-
-        return gauss_x_pred, gauss_z_pred, gauss_est
-
-    def est_to_pose(self, x_hat):
-        x = x_hat[0]
-        y = x_hat[1]
-        z = x_hat[2]
-        pos = [x, y, z]
-
-        euler_angs = [x_hat[3], x_hat[4], x_hat[5]]
-        return pos, euler_angs
-
     def transformbroadcast(self, parent_frame, p):
         t = TransformStamped()
         t.header.stamp = rospy.Time.now()
