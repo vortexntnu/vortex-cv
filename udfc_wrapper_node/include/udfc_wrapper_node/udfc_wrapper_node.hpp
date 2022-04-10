@@ -8,6 +8,8 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
+
+//Example parameters
 const float fx=700.819;
 const float fy=700.819;
 const float cx=665.465;

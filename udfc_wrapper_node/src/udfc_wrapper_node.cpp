@@ -4,7 +4,7 @@
 
 
 
-void readFromFile(){ //Cannot open the file. Think it is cmakelist stuffs fault.
+void readFromFile(){ //Cannot open the file. Think it is cmakelist fault.
     std::fstream newfile;
     std::vector<double> calibParams{};
     
@@ -84,10 +84,11 @@ void UDFCWrapperNode::getCVImage()
     while (true){
         cap >> _cv_image;
         toImageRaw(_cv_image);
-        cv::Mat dst = _cv_image.clone();
-        cv::undistort(_cv_image,dst,CameraMatrix,distortionCoefficents);
-        cv::imshow("Display window", dst);
-        cv::waitKey(25);
+        toImageRect(_cv_image);
+       // cv::Mat dst = _cv_image.clone();
+       // cv::undistort(_cv_image,dst,CameraMatrix,distortionCoefficents);
+       // cv::imshow("Display window", dst);
+       // cv::waitKey(25);
     }
     cv::destroyAllWindows();
 }
