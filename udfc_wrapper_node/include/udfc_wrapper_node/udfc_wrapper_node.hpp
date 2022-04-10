@@ -10,12 +10,7 @@
 #include <opencv2/highgui/highgui.hpp>
 
 //Example parameters
-const float fx=700.819;
-const float fy=700.819;
-const float cx=665.465;
-const float cy=371.953;
-const float k1=-0.6;
-const float k2=1;
+
 
 
 class UDFCWrapperNode
@@ -35,7 +30,8 @@ private:
     int counter_raw = 0;
     int counter_rect = 0;
 
-    std::vector<double> calibrationParams{fx,fy,cx,cy,k1,k2};
+   
+
     cv::Matx33f CameraMatrix;
     std::vector<double> distortionCoefficents;
    
@@ -47,7 +43,17 @@ private:
     void getCameraMatrix();
     
 public:
+    float fx;
+    float fy;
+    float cx;
+    float cy;
+    float k1;
+    float k2;
+
     UDFCWrapperNode(ros::NodeHandle nh);
+    std::vector<double> calibrationParams{fx,fy,cx,cy,k1,k2};
+    std::vector<std::string> paramNames{"fx","fy","cx","cy","k1","k2"};
+
 
     // Temp
 };

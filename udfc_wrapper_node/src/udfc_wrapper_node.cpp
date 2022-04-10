@@ -1,34 +1,10 @@
+
 #include "udfc_wrapper_node/udfc_wrapper_node.hpp"
 #include <opencv2/core/matx.hpp>
-#include <iostream>
 
 
 
-void readFromFile(){ //Cannot open the file. Think it is cmakelist fault.
-    std::fstream newfile;
-    std::vector<double> calibParams{};
-    
-    std::cout<<("Start loop")<<std::endl;
-    newfile.open("1.txt",std::ios::in); //open a file to perform read operation using file object
-    if(newfile.is_open()==false){
-    std::cout<<("Could not open file.")<<std::endl; 
-    }
-    while(newfile.is_open()){ //checking whether the file is open
-      std::string line;
-    
-      if(newfile.eof()){
-        newfile.close();
-        break;}
-      newfile >> line;
-      if((line != "[1080p]")&&(line.size()!=0)){
-      line.erase(0,3);
-      calibParams.push_back(stof(line));
-      
-      }
-}
-calibParams.pop_back();
 
-}
 
 void UDFCWrapperNode::getCameraMatrix(){
 // This function turns the calibration parameters into a camera matrix.
@@ -59,6 +35,10 @@ void UDFCWrapperNode::getDistortionCoefficents(){
 
 UDFCWrapperNode::UDFCWrapperNode(ros::NodeHandle nh)
 {   
+    for(int i=0; i < paramNames.size();i++){
+        nh.getParam(paramNames[i], calibrationParams[i]);
+       
+    }
     getCameraMatrix(); //Gives us the camera matrix.
     getDistortionCoefficents(); // Gives us the Distortion coeff.
 
