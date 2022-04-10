@@ -7,13 +7,15 @@ project(udfc_wrapper_node)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS
+find_package(catkin REQUIRED COMPONENTS 
   cv_bridge
   image_transport
   roscpp
   sensor_msgs
   std_msgs
+  
 )
+find_package(OpenCV REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -106,9 +108,9 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
  INCLUDE_DIRS include
- LIBRARIES udfc_wrapper_node
+#  LIBRARIES udfc_wrapper_node
  CATKIN_DEPENDS cv_bridge image_transport roscpp sensor_msgs std_msgs
- DEPENDS system_lib
+ DEPENDS OpenCV
 )
 
 ###########
@@ -120,6 +122,8 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS} 
+
 )
 
 ## Declare a C++ library
@@ -139,8 +143,6 @@ add_executable(${PROJECT_NAME}_node
   src/udfc_wrapper_node.cpp
 )
 
-find_package(OpenCV)
-include_directories(${OpenCV_INCLUDE_DIRS})
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
