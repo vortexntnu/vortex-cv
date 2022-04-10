@@ -34,22 +34,20 @@ private:
     int _camera_id = 0;
     int counter_raw = 0;
     int counter_rect = 0;
-   
-    
-    void getCVImage();
-    void toImageRaw(cv::Mat cv_image);
-    void toImageRect(cv::Mat cv_image);
-    
-    
-public:
-    UDFCWrapperNode(ros::NodeHandle nh);
+
     std::vector<double> calibrationParams{fx,fy,cx,cy,k1,k2};
     cv::Matx33f CameraMatrix;
     std::vector<double> distortionCoefficents;
+   
+    void getCVImage();
+    void toImageRaw(cv::Mat cv_image);
+    void toImageRect(cv::Mat cv_image);
 
     void getDistortionCoefficents();
     void getCameraMatrix();
-   // void readFromFile();
+    
+public:
+    UDFCWrapperNode(ros::NodeHandle nh);
 
     // Temp
 };
