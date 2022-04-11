@@ -6,17 +6,15 @@
 #debugpy.wait_for_client()
 
 ##EKF imports
-#from logging import exception
 from re import X
 
 from ekf_python2.gaussparams_py2 import MultiVarGaussian
-from ekf_python2.dynamicmodels_py2 import landmark_gate
+from ekf_python2.dynamicmodels_py2 import landmark_pose_world
 from ekf_python2.measurementmodels_py2 import measurement_linear_landmark
 from ekf_python2.ekf_py2 import EKF
 
 #Math imports
 import numpy as np
-from gmm_filter.scripts.ekf_python2.dynamicmodels_py2 import landmark_pose_world
 
 #ROS imports
 import rospy
@@ -67,6 +65,11 @@ class GMFNode:
         self.termination_criterion = 0.95
         self.survival_threshold = 0.05
         gate_percentile = 0.99
+        self.max_nr_hypotheses = 25
+        # TODO: find a good number for these by looking at how many iterrations it takes to get that low
+        self.covariance_norm_convergence = 1e-6
+        self.max_kf_iterrations = 30
+
 
         # Measurement gate
         ndim = 6
@@ -77,9 +80,12 @@ class GMFNode:
         self.gmf_weights = [1]
         self.active_hypotheses = []
         self.active_hypotheses_count = 0
+        self.nr_of_kf_updates = 0
 
         # Initialize GMF termination bool, which is isDetected bool for Autonomous
         self.termination_bool = False
+        self.estimateConverged = False
+        self.estimateFucked = False
 
         ##################
         ###  EKF stuff ###
@@ -217,7 +223,8 @@ class GMFNode:
 
 
     def gate_hypotheses(self, z, predicted_zs):
-        
+        # TODO: read through carefully and follow logic
+
         """
         Inputs: z - MultiVarGauss of measurement
                 predicted_zs - array of predicted measurement locations
@@ -244,6 +251,7 @@ class GMFNode:
     
     
     def associate_and_update(self, gated_hypotheses, gated_weights, gated_inds, z):
+        # TODO: read through carefully and follow logic
         
         """
         Inputs: gated_hypotheses - a list of MultiVarGauss of the active hypotheses which have been gated. 
@@ -289,6 +297,7 @@ class GMFNode:
         self.active_hypotheses_count = len(self.active_hypotheses)
     
     def gmf_eval(self):
+        # TODO: test logic
         """
         Look at active hypotheses weights and perform the following logic:
             1) If any weights above termination_criterion --> return a bool to terminate GMF scheme
@@ -305,13 +314,66 @@ class GMFNode:
             if self.gmf_weights[i] <= self.survival_threshold and i != 0:
                 del self.gmf_weights[i]
                 del self.active_hypotheses[i-1]
+        
+        if len(self.active_hypotheses) >= self.max_nr_hypotheses:
+            # Find the smallest 15 values, sum them up and add them to the null hypothesis
+
+            hypotheses_weights = self.gmf_weights.copy()
+            hypotheses_weights.pop(0)
+
+            termination_mask = np.argpartition(hypotheses_weights, 15)
+            termination_weights = hypotheses_weights[termination_mask]
+            new_null_weight = self.gmf_weights(0) + sum(termination_weights)
+
+            termination_weights.pop(termination_mask)
+            termination_weights.prepend(new_null_weight)
+            self.gmf_weights = termination_weights
 
         self.gmf_weights = self.gmf_weights / sum(self.gmf_weights)
         self.active_hypotheses_count = len(self.active_hypotheses)
 
         self.best_ind = self.gmf_weights.index(max(self.gmf_weights))
     
+    
+    def gmf_reset(self):
+        """
+        Resets the GMF variables to what they are in the init function. This happens on transition from converge to search or from execute
+        to search.
+
+        """
+        # Reset variables
+        self.best_ind = 0
+        self.gmf_weights = [1]
+        self.active_hypotheses = []
+        self.active_hypotheses_count = 0
+        self.nr_of_kf_updates = 0
         
+        # Reset booleans
+        self.termination_bool = False
+        self.estimateConverged = False
+        self.estimateFucked = False
+
+    def evaluate_filter_convergence(self, objectID):
+        # TODO: test logic
+        """
+        Computes the Frobenious norm of the covariance matrix and checks if it is under the filter convergence criterion. Updates the
+        convergenceFucked boolean accordingly and publishes.
+        """
+        Fnorm_P = np.linalg.norm(self.best_hypothesis.cov, "fro")
+        self.nr_of_kf_updates = self.nr_of_kf_updates + 1
+        
+        if Fnorm_P <= self.covariance_norm_convergence:
+            # We tell Autonomous to execute
+            self.estimateConverged = True
+            self.publish_function(objectID)
+
+        elif self.nr_of_kf_updates > self.max_kf_iterrations:
+            # We tell Autonomous to go back to search
+            self.estimateFucked = True
+            self.publish_function(objectID)
+        else:
+            pass
+
     def transformbroadcast(self, parent_frame, p):
         t = TransformStamped()
         t.header.stamp = rospy.Time.now()
@@ -353,18 +415,9 @@ class GMFNode:
         self.gate_pose_pub.publish(p)
         rospy.loginfo("Object published: %s", objectID)
         self.transformbroadcast(self.parent_frame, p)
-
-    def gmf_reset(self):
-        """
-        Resets the GMF variables to what they are in the init function. This happens for example when a new object is considered.
-        """
-        self.best_ind = 0
-        self.gmf_weights = [1]
-        self.active_hypotheses = []
-        self.active_hypotheses_count = 0
-        self.termination_bool = False
-
+        
     def gmf_callback(self, msg):
+        # TODO: read through carefully and follow logic
 
         rospy.loginfo("Object data recieved for: %s", msg.objectID)
         self.old_object = self.current_object.copy()
@@ -409,13 +462,16 @@ class GMFNode:
         elif old_action is "execute" and current_action is "search":
             self.gmf_reset()
             return None
+        else:
+            pass
 
-        # On convergence, update only the best result and publish that
+        # Upon GMF convergence, update only the best result and publish that
         if self.termination_bool:
             _, _, self.best_hypothesis = self.kf_function(z, self.x_hat_best)
             self.publish_function(msg.ObjectID)
             self.mission_topic_old = self.mission_topic.copy()
             rospy.loginfo("GMF converged at an estimate with nr of active hypotheses: %s", self.active_hypotheses_count)
+            self.evaluate_filter_convergence(msg.objectID)
             return None
 
         # Initialize with first measurement
