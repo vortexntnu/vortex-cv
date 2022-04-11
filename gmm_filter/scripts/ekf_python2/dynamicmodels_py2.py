@@ -112,7 +112,7 @@ class DynamicModel:
 #
 #        return Q
 
-class landmark_gate(DynamicModel):
+class landmark_pose_world(DynamicModel):
     """
     Dynamic model for a landmark. Landmarks are assumed time invariant.
     """

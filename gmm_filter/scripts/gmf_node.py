@@ -16,6 +16,7 @@ from ekf_python2.ekf_py2 import EKF
 
 #Math imports
 import numpy as np
+from gmm_filter.scripts.ekf_python2.dynamicmodels_py2 import landmark_pose_world
 
 #ROS imports
 import rospy
@@ -72,31 +73,30 @@ class GMFNode:
         self.gate_size_sq = chi2.ppf(gate_percentile, ndim)
 
         # Weights and hypothesis init
+        self.best_ind = 0
         self.gmf_weights = [1]
         self.active_hypotheses = []
         self.active_hypotheses_count = 0
 
+        # Initialize GMF termination bool, which is isDetected bool for Autonomous
+        self.termination_bool = False
 
         ##################
         ###  EKF stuff ###
         ##################
 
-        # Geometric parameters
-        #self.gate_prior = [0, 0] # z, roll, pitch of gate
-
         # Tuning parameters
-        self.sigma_a = 3/5*np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
+        self.sigma_a = 0*np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
         self.sigma_z = 2*np.array([0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
 
-        # Making gate model object
-        self.landmark_model = landmark_gate(self.sigma_a)
+        # Making filtering objects: dynamic model, measurement model and ekf
+        self.landmark_model = landmark_pose_world(self.sigma_a)
         self.sensor_model = measurement_linear_landmark(self.sigma_z)
         self.my_ekf = EKF(self.landmark_model, self.sensor_model)
 
-        #Gauss prev values
-        self.x_hat0 = np.array([0, 0, 0, 0, 0, 0])
-        self.P_hat0 = np.diag(3*self.sigma_z)
-        self.null_gauss = MultiVarGaussian(self.x_hat0, self.P_hat0)
+        # Initialization covariance for a new hypothesis
+        init_vars = np.ones((6,))
+        self.P_hat0 = 100 * np.diag(init_vars)
 
         ################
         ###ROS stuff####
@@ -111,12 +111,14 @@ class GMFNode:
 
         # Subscribe to mission topic
         # TODO: figure out what we do here with Tarek and Finn
-        self.mission_topic = self.current_object + "_execute"
+        # We always start in _search state. This will later be updated from first measurement arrival
+        self.mission_topic = self.current_object + "_search"
         self.mission_topic_sub = rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
+
         # Subscriber to gate pose and orientation 
         self.object_pose_sub = rospy.Subscriber(object_topic_subscribe, ObjectPosition, self.gmf_callback, queue_size=1)
       
-        # Publisher to autonomous
+        # Publisher to Autonomous
         self.gate_pose_pub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
 
         #TF stuff
@@ -276,10 +278,11 @@ class GMFNode:
             self.gmf_weights.append(ass_weight)
             
         else:
-            ass_hypothesis = z
+            # In case of no gated hypotheses initiate a new KF with mean of measurement
+            ass_hypothesis = MultiVarGaussian(z.mean, self.P_hat0)
             ass_weight = self.init_wight
 
-            self.active_hypotheses.append(ass_weight)
+            self.active_hypotheses.append(ass_hypothesis)
             self.gmf_weights.append(ass_weight)
         
         self.gmf_weights = self.gmf_weights / sum(self.gmf_weights)
@@ -294,7 +297,6 @@ class GMFNode:
         Returns:    termination_bool - True if termination criterion is reached
                     best_ind - index at highest weight value of active hypotheses
         """
-        termination_bool = False
 
         for i in range(self.active_hypothesis_count):
             if self.gmf_weights[i] >= self.termination_criterion and i != 0:
@@ -307,9 +309,8 @@ class GMFNode:
         self.gmf_weights = self.gmf_weights / sum(self.gmf_weights)
         self.active_hypotheses_count = len(self.active_hypotheses)
 
-        best_ind = self.gmf_weights.index(max(self.gmf_weights))
-        
-        return termination_bool, best_ind
+        self.best_ind = self.gmf_weights.index(max(self.gmf_weights))
+    
         
     def transformbroadcast(self, parent_frame, p):
         t = TransformStamped()
@@ -326,8 +327,11 @@ class GMFNode:
         self.__tfBroadcaster.sendTransform(t)
 
 
-    def publish_function(self, objectID, best_position, best_pose_quaterion, termination_boolean):
-
+    def publish_function(self, objectID):
+        
+        x_hat_best = self.best_hypothesis.mean
+        best_position, best_pose = self.est_to_pose(x_hat_best)
+        best_pose_quaternion = tft.quaternion_from_euler(best_pose[0], best_pose[1], best_pose[2])
         
         p = ObjectPosition()
         #p.pose.header[]
@@ -337,12 +341,12 @@ class GMFNode:
         p.objectPose.pose.position.y = best_position[1]
         p.objectPose.pose.position.z = best_position[2]
         
-        p.objectPose.pose.orientation.x = best_pose_quaterion[0]
-        p.objectPose.pose.orientation.y = best_pose_quaterion[1]
-        p.objectPose.pose.orientation.z = best_pose_quaterion[2]
-        p.objectPose.pose.orientation.w = best_pose_quaterion[3]
+        p.objectPose.pose.orientation.x = best_pose_quaternion[0]
+        p.objectPose.pose.orientation.y = best_pose_quaternion[1]
+        p.objectPose.pose.orientation.z = best_pose_quaternion[2]
+        p.objectPose.pose.orientation.w = best_pose_quaternion[3]
 
-        p.isDetected = termination_boolean
+        p.isDetected = self.termination_boolean
         p.estimateConverged = False
         p.estimateFucked = False
         
@@ -350,11 +354,23 @@ class GMFNode:
         rospy.loginfo("Object published: %s", objectID)
         self.transformbroadcast(self.parent_frame, p)
 
+    def gmf_reset(self):
+        """
+        Resets the GMF variables to what they are in the init function. This happens for example when a new object is considered.
+        """
+        self.best_ind = 0
+        self.gmf_weights = [1]
+        self.active_hypotheses = []
+        self.active_hypotheses_count = 0
+        self.termination_bool = False
+
     def gmf_callback(self, msg):
 
         rospy.loginfo("Object data recieved for: %s", msg.objectID)
+        self.old_object = self.current_object.copy()
         self.current_object = msg.objectID
         
+
         # Figure this out later
         #if self.mission_topic == self.current_object + "_execute":
         #    rospy.loginfo("Mission status: %s", self.mission_topic)
@@ -380,6 +396,28 @@ class GMFNode:
         z = np.append(z, [z_phi, z_theta, z_psi])
         z_gauss = MultiVarGaussian(z, self.R)
         
+        # In the case of failed convergence validation from the VKF, we will go from current_object + "converge" to current_object + "search"
+        current_action = self.mission_topic.split("_")[1]
+        old_action = self.mission_topic_old.split("_")[1]
+        
+        # Reset GMF on going from converge back to search
+        if old_action is "converge" and current_action is "search":
+            self.gmf_reset()
+            return None
+
+        # Reset GMF on going from either execute or converge to search
+        elif old_action is "execute" and current_action is "search":
+            self.gmf_reset()
+            return None
+
+        # On convergence, update only the best result and publish that
+        if self.termination_bool:
+            _, _, self.best_hypothesis = self.kf_function(z, self.x_hat_best)
+            self.publish_function(msg.ObjectID)
+            self.mission_topic_old = self.mission_topic.copy()
+            rospy.loginfo("GMF converged at an estimate with nr of active hypotheses: %s", self.active_hypotheses_count)
+            return None
+
         # Initialize with first measurement
         if len(self.active_hypotheses) == 0:
             self.active_hypotheses.append(z_gauss)
@@ -398,18 +436,13 @@ class GMFNode:
         self.associate_and_update(gated_hypotheses, gated_weights, gated_inds)
         self.gmf_eval()
 
-        termination_bool, best_ind = self.gmf_eval()
-
-        if best_ind == 0:
-            best_hypothesis = self.null_gauss
+        if self.best_ind == 0:
+            return None
         else:
-            best_hypothesis = self.active_hypotheses[best_ind - 1]
+            self.best_hypothesis = self.active_hypotheses[self.best_ind - 1]
 
-        x_hat_best = best_hypothesis.mean
-        best_position, best_pose = self.est_to_pose(x_hat_best)
-        best_pose_quaternion = tft.quaternion_from_euler(best_pose[0], best_pose[1], best_pose[2])
-        
-        self.publish_function(msg.objectID, best_position, best_pose_quaternion, termination_bool)
+        self.publish_function(msg.objectID)
+        self.mission_topic_old = self.mission_topic.copy()
 
 
 if __name__ == '__main__':
