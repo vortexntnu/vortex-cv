@@ -14,7 +14,14 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 ## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
+#find_package(Boost REQUIRED COMPONENTS system)
+
+# Find CUDA enabled OpenCV build on Xavier
+if( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64" )
+  find_package(OpenCV 4.2.0 EXACT REQUIRED PATHS /media/vortex/SD_CARD/opencv-420/opencv-4.2.0/build_aarch64_cuda/)
+else()
+  find_package(OpenCV)
+endif()
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
