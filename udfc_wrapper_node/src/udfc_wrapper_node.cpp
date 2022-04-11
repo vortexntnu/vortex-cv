@@ -35,10 +35,14 @@ void UDFCWrapperNode::getDistortionCoefficents(){
 
 UDFCWrapperNode::UDFCWrapperNode(ros::NodeHandle nh)
 {   
-    for(int i=0; i < paramNames.size();i++){
-        nh.getParam(paramNames[i], calibrationParams[i]);
+    //Getting rosparams
+    nh.getParam("camera_id", _camera_id); //Setting camera_id
+    for(int i=0; i < paramNames.size();i++){  
+        nh.getParam(paramNames[i], calibrationParams[i]);//Getting calibration params
        
     }
+   
+    
     getCameraMatrix(); //Gives us the camera matrix.
     getDistortionCoefficents(); // Gives us the Distortion coeff.
 

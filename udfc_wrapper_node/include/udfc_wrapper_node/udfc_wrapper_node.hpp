@@ -26,7 +26,6 @@ private:
     std::string camera_frame;
     cv_bridge::CvImage img_bridge;
     cv::Mat _cv_image;
-    int _camera_id = 0;
     int counter_raw = 0;
     int counter_rect = 0;
 
@@ -49,6 +48,8 @@ public:
     float cy;
     float k1;
     float k2;
+    int _camera_id;
+
 
     UDFCWrapperNode(ros::NodeHandle nh);
     std::vector<double> calibrationParams{fx,fy,cx,cy,k1,k2};
