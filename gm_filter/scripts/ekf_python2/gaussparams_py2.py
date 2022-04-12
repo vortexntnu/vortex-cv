@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from statistics import mean
-from turtle import shape
+#from turtle import shape
 import numpy as np
 from numpy import linalg as nla, ndarray
 
