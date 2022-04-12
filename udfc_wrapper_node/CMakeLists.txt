@@ -15,7 +15,13 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   
 )
-find_package(OpenCV REQUIRED)
+
+# Find CUDA enabled OpenCV build on Xavier
+if( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64" )
+  find_package(OpenCV 4.5.1 REQUIRED)
+else()
+  find_package(OpenCV)
+endif()
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)

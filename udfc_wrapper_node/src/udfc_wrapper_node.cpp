@@ -1,10 +1,5 @@
-
 #include "udfc_wrapper_node/udfc_wrapper_node.hpp"
 #include <opencv2/core/matx.hpp>
-
-
-
-
 
 void UDFCWrapperNode::getCameraMatrix(){
 // This function turns the calibration parameters into a camera matrix.
@@ -37,12 +32,14 @@ UDFCWrapperNode::UDFCWrapperNode(ros::NodeHandle nh)
 {   
     //Getting rosparams
     nh.getParam("camera_id", _camera_id); //Setting camera_id
+    nh.getParam("pipeline_id", _pipeline_id);
     for(int i=0; i < paramNames.size();i++){  
         nh.getParam(paramNames[i], calibrationParams[i]);//Getting calibration params
        
     }
-   
-    
+
+    image_pipeline_prefix = "v4l2src device=/dev/video";
+
     getCameraMatrix(); //Gives us the camera matrix.
     getDistortionCoefficents(); // Gives us the Distortion coeff.
 
@@ -57,11 +54,27 @@ UDFCWrapperNode::UDFCWrapperNode(ros::NodeHandle nh)
 
 void UDFCWrapperNode::getCVImage()
 {   
-    cv::VideoCapture cap(_camera_id);
-    if (!cap.isOpened())
-    {
-        std::cout << "cannot open camera"; // Needs to be changed to work with ROS
+    if (_pipeline_id == 0) {
+        image_pipeline = image_pipeline_prefix + std::to_string(_camera_id) + " ! video/x-raw, format=YUY2 ! videoconvert ! video/x-raw, format=BGR ! appsink drop=1";
     }
+    else if (_pipeline_id == 1) {
+        image_pipeline = image_pipeline_prefix + std::to_string(_camera_id) + " ! video/x-raw, format=YUY2 ! nvvidconv ! video/x-raw(memory:NVMM) ! nvvidconv ! video/x-raw, format=BGRx ! videoconvert ! video/x-raw, format=BGR ! appsink drop=1";
+    }
+    else if (_pipeline_id == 2) {
+        image_pipeline = image_pipeline_prefix + std::to_string(_camera_id) + " ! image/jpeg, format=MJPG ! nvv4l2decoder mjpeg=1 ! nvvidconv ! video/x-raw,format=BGRx ! videoconvert ! video/x-raw,format=BGR ! appsink drop=1";
+    }
+    else {
+        image_pipeline = image_pipeline_prefix + std::to_string(_camera_id) + " ! video/x-raw, format=YUY2 ! videoconvert ! video/x-raw, format=BGR ! appsink drop=1";
+    }
+
+    cv::VideoCapture cap(image_pipeline, cv::CAP_GSTREAMER);
+
+    while (!cap.isOpened())
+    {
+        ros::Duration(1.0).sleep();  // Sleep for one second
+        ROS_WARN("Cannot start the UDFC! Retrying..."); // Needs to be changed to work with ROS
+    }
+    ROS_INFO("The UDFC has started successfully!");
     while (ros::ok()){ //Will stop running when Ctrl + c is pressed in terminal.
         cap >> _cv_image;
         toImageRaw(_cv_image);

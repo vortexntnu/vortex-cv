@@ -1,11 +1,14 @@
 
-#Calibartion parameters:
+# Calibartion parameters:
 fx: 700.819
 fy: 700.819
 cx: 665.465
 cy: 371.953
 k1: -0.1
 k2: 0.2
-#Camera id to set image stream:
+
+# Camera id to set image stream:
 camera_id: 0
 
+# Image pipeline to get the stream:
+pipeline_id: 2
