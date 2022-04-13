@@ -18,17 +18,23 @@ class UDFCWrapperNode
 private:
     ros::Publisher ros_image_raw_publisher;
     ros::Publisher ros_image_rect_publisher;
+    
     std_msgs::Header header;
     sensor_msgs::Image ros_image_raw;
     sensor_msgs::Image ros_image_rect;
+    
     std::string image_raw_topic;
     std::string image_rect_topic;
     std::string camera_frame;
+    
+    std::string image_pipeline_prefix;
+    std::string image_pipeline;
+    
     cv_bridge::CvImage img_bridge;
     cv::Mat _cv_image;
+    
     int counter_raw = 0;
     int counter_rect = 0;
-
    
 
     cv::Matx33f CameraMatrix;
@@ -49,6 +55,7 @@ public:
     float k1;
     float k2;
     int _camera_id;
+    int _pipeline_id;
 
 
     UDFCWrapperNode(ros::NodeHandle nh);
