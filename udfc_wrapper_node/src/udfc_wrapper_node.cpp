@@ -85,7 +85,16 @@ void UDFCWrapperNode::toImageRect(cv::Mat cv_image)
 {   
     //The function takes in a cv image, rectifies it, and converts it into a ros image and publishes it.
     cv::Mat dst = _cv_image.clone(); //Makes a copy of the cv-image.
-    cv::undistort(_cv_image,dst,CameraMatrix,distortionCoefficents); //Undistorts the cloned image.
+    auto s = cv_image.size(); //This is the size of the input image
+    cv::Rect a{};
+    cv::Rect * rectPointer = &a;
+    cv::undistort(_cv_image,dst,CameraMatrix,distortionCoefficents);
+    auto s1 = dst.size(); // This is the size of the rectified image
+
+    cv::getOptimalNewCameraMatrix(CameraMatrix, distortionCoefficents, s, 1,s1,rectPointer,false);
+
+    dst = dst(*rectPointer); //This crops the image according to the roi found from the function above
+
     header.seq = counter_rect;
     counter_rect += 1;
     header.stamp = ros::Time::now();
