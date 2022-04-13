@@ -197,7 +197,7 @@ class FeatureDetectionNode():
                     cv_img_cp = copy.deepcopy(self.cv_image)
                     cropped_image = cv_img_cp[5:720, 0:1280]
 
-                    bb_arr, center, hough_img, edges, img = HoughMajingo.main(cropped_image, t1, t2)   # self.canny_threshold1, self.canny_threshold2, self.cv_image
+                    bb_arr, center, hough_img, edges = HoughMajingo.main(cropped_image, t1, t2)   # self.canny_threshold1, self.canny_threshold2, self.cv_image
                     self.cv_image_publisher(self.linesPub, hough_img) 
                     self.cv_image_publisher(self.i2rcpPub, edges, "8UC1")
                     
