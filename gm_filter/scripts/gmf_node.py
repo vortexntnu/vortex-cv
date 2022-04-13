@@ -6,6 +6,7 @@
 #debugpy.wait_for_client()
 
 ##EKF imports
+from ast import Mult
 from re import X
 
 from ekf_python2.gaussparams_py2 import MultiVarGaussian
@@ -77,7 +78,7 @@ class GMFNode:
 
         # Weights and hypothesis init
         self.best_ind = 0
-        self.gmf_weights = [1]
+        self.gmf_weights = np.array([1])
         self.active_hypotheses = []
         self.active_hypotheses_count = 0
         self.nr_of_kf_updates = 0
@@ -174,6 +175,7 @@ class GMFNode:
         return pos, euler_angs
 
     def reduce_mixture(self, gated_hypotheses, gated_weights):
+        # Tested, works
         """
         Reduces a Gaussian Mixture to a single Gaussian
 
@@ -209,7 +211,7 @@ class GMFNode:
         Predicts y from x
         returns a list of predicted means
         """
-        predicted_states = np.empty((self.active_hypotheses_count))
+        predicted_states = np.empty((self.active_hypotheses_count,))
 
         for i in range(self.active_hypotheses_count):
             predicted_states[i] = self.active_hypotheses.mean
@@ -222,8 +224,8 @@ class GMFNode:
         return predicted_measurements
 
 
-    def gate_hypotheses(self, z, predicted_zs):
-        # TODO: read through carefully and follow logic
+    def gate_hypotheses(self, z_gauss, predicted_zs):
+        # Tested, works
 
         """
         Inputs: z - MultiVarGauss of measurement
@@ -232,39 +234,44 @@ class GMFNode:
         Outputs: hypothesis indices gated with measurement
         """
         gated_inds = []
-        
 
-        for i in range(self.avtive_hypotheses_count - 1):
 
-            mahalanobis_distance = z.mahalanobis_distance_sq(predicted_zs[i])
-
+        for i in range(self.active_hypotheses_count):
+            mahalanobis_distance = z_gauss.mahalanobis_distance_sq(predicted_zs[i])
             if mahalanobis_distance <= self.gate_size_sq:
                 gated_inds.append(i)
                 #m_distances.append(mahalanobis_distance)
-
         g = len(gated_inds)
         gated_hypotheses = [self.active_hypotheses[gated_inds[j]] for j in range(g)]
-        gated_weights = np.array([self.gmf_weights[gated_inds[k]] for k in range(g)])
-
+        gated_weights = np.array([self.gmf_weights[gated_inds[k] + 1] for k in range(g)])
         
         return gated_hypotheses, gated_weights, gated_inds
     
     
     def associate_and_update(self, gated_hypotheses, gated_weights, gated_inds, z):
-        # TODO: read through carefully and follow logic
+        # Tested, works
         
         """
-        Inputs: gated_hypotheses - a list of MultiVarGauss of the active hypotheses which have been gated. 
+        Inputs: 
+            gated_hypotheses: a list of MultiVarGauss of the active hypotheses which have been gated.
+            gated_weights: a list of weights associated to the active hypotheses gated
+            gated_inds: a list of indices in the self.active_hypotheses variable which have been gated.
+                        Notice this is NOT indices in the gmf_weights (that is, nothing here has anythin
+                        to do with the null hypothesis)
+
+        Performs logic to associate and update the active hypotheses and their weights.
 
         3 valid cases for the logic here:
-            a) 1 associated hypothesis: perform a KF update with the measurement
-            b) more than 1 associated hypothesis: perform a mixture reduction on associated hypotheses and update with reduced mixture
-            c) 0 associated hypotheses: initiate a hypothesis with the mean of the measurement and sensor coviariance matrix
-
+            a) 1 gated hypothesis: associate to that hypothesis and perform a KF update with the measurement
+            b) more than 1 gated hypotheses: perform a mixture reduction on gated hypotheses associate and 
+            update with reduced mixture.
+            c) 0 associated hypotheses: initiate a hypothesis with the mean of the measurement and P_hat0 cov
+            matrix
         """
         if len(gated_hypotheses) == 1:
-            ass_ind = gated_inds
-            self.active_hypotheses[ass_ind] = self.kf_function(z, self.active_hypotheses[ass_ind])
+            ass_ind = gated_inds[0]
+            _, _, upd_hypothesis = self.kf_function(z, self.active_hypotheses[ass_ind])
+            self.active_hypotheses[ass_ind] = upd_hypothesis
 
             self.gmf_weights[ass_ind + 1] = self.gmf_weights[ass_ind + 1] + self.boost_prob
             
@@ -278,61 +285,78 @@ class GMFNode:
 
             # Remove the gated hypotheses from the list, replace with reduced associated hypothesis. normalize
             for ind in sorted(gated_inds, reverse = True): 
-                del self.gmf_weights[ind]
+                self.gmf_weights = np.delete(self.gmf_weights, ind + 1)
                 del self.active_hypotheses[ind]
             
-
             self.active_hypotheses.append(upd_hypothesis)
-            self.gmf_weights.append(ass_weight)
+            self.gmf_weights = np.append(self.gmf_weights, ass_weight)
+
             
         else:
             # In case of no gated hypotheses initiate a new KF with mean of measurement
-            ass_hypothesis = MultiVarGaussian(z.mean, self.P_hat0)
-            ass_weight = self.init_wight
+            ass_hypothesis = MultiVarGaussian(z, self.P_hat0)
+            ass_weight = self.init_prob
 
             self.active_hypotheses.append(ass_hypothesis)
-            self.gmf_weights.append(ass_weight)
+            self.gmf_weights = np.append(self.gmf_weights, ass_weight)
         
         self.gmf_weights = self.gmf_weights / sum(self.gmf_weights)
         self.active_hypotheses_count = len(self.active_hypotheses)
-    
+
     def gmf_eval(self):
-        # TODO: test logic
+        # Tested, works
         """
         Look at active hypotheses weights and perform the following logic:
+            0) If there are no active hypotheses --> exit this function
             1) If any weights above termination_criterion --> return a bool to terminate GMF scheme
             2) If any weights under the survival_treshold --> terminate these hypotheses, normalize weights
         
         Returns:    termination_bool - True if termination criterion is reached
                     best_ind - index at highest weight value of active hypotheses
         """
+        nr_remove = 15
 
-        for i in range(self.active_hypothesis_count):
+        if self.active_hypotheses_count == 0:
+            self.gmf_weights = self.gmf_weights / sum(self.gmf_weights)
+            return None
+
+        remove_inds = []
+        for i in range(len(self.gmf_weights)):
             if self.gmf_weights[i] >= self.termination_criterion and i != 0:
                 self.termination_bool = True
 
             if self.gmf_weights[i] <= self.survival_threshold and i != 0:
-                del self.gmf_weights[i]
-                del self.active_hypotheses[i-1]
+                remove_inds.append(i)
+                
         
+        for remove_ind in sorted(remove_inds, reverse=True):
+            self.gmf_weights = np.delete(self.gmf_weights, remove_ind)
+            del self.active_hypotheses[remove_ind - 1]
+
         if len(self.active_hypotheses) >= self.max_nr_hypotheses:
             # Find the smallest 15 values, sum them up and add them to the null hypothesis
 
             hypotheses_weights = self.gmf_weights.copy()
-            hypotheses_weights.pop(0)
+            hypotheses_weights = np.delete(hypotheses_weights, 0)
 
-            termination_mask = np.argpartition(hypotheses_weights, 15)
-            termination_weights = hypotheses_weights[termination_mask]
-            new_null_weight = self.gmf_weights(0) + sum(termination_weights)
+            k_smallest_inds = np.argpartition(hypotheses_weights, nr_remove)
+            termination_weights = hypotheses_weights[k_smallest_inds[:nr_remove]]
+            new_null_weight = self.gmf_weights[0] + sum(termination_weights)
 
-            termination_weights.pop(termination_mask)
-            termination_weights.prepend(new_null_weight)
+            termination_weights = np.delete(hypotheses_weights, k_smallest_inds[:nr_remove])
+            termination_weights = np.concatenate(([new_null_weight], termination_weights))
             self.gmf_weights = termination_weights
+            
 
         self.gmf_weights = self.gmf_weights / sum(self.gmf_weights)
         self.active_hypotheses_count = len(self.active_hypotheses)
 
-        self.best_ind = self.gmf_weights.index(max(self.gmf_weights))
+        self.best_ind = np.argmax(self.gmf_weights)
+
+        rospy.loginfo("Number of active hypotheses is now: %s", self.active_hypotheses)
+        rospy.loginfo("Highest probability for a hypothesis is: %s", np.max(self.gmf_weights))
+        rospy.loginfo("Most likely hypothesis is: %s", self.best_ind)
+    
     
     
     def gmf_reset(self):
@@ -343,7 +367,7 @@ class GMFNode:
         """
         # Reset variables
         self.best_ind = 0
-        self.gmf_weights = [1]
+        self.gmf_weights = np.array([1])
         self.active_hypotheses = []
         self.active_hypotheses_count = 0
         self.nr_of_kf_updates = 0
@@ -354,7 +378,7 @@ class GMFNode:
         self.estimateFucked = False
 
     def evaluate_filter_convergence(self, objectID):
-        # TODO: test logic
+        # Not tested, but should work :D
         """
         Computes the Frobenious norm of the covariance matrix and checks if it is under the filter convergence criterion. Updates the
         convergenceFucked boolean accordingly and publishes.
@@ -362,15 +386,18 @@ class GMFNode:
         Fnorm_P = np.linalg.norm(self.best_hypothesis.cov, "fro")
         self.nr_of_kf_updates = self.nr_of_kf_updates + 1
         
+        # TODO: simulate what it takes for the F norm to reach certain values
         if Fnorm_P <= self.covariance_norm_convergence:
             # We tell Autonomous to execute
             self.estimateConverged = True
             self.publish_function(objectID)
+            return None
 
-        elif self.nr_of_kf_updates > self.max_kf_iterrations:
+        elif self.nr_of_kf_updates >= self.max_kf_iterrations:
             # We tell Autonomous to go back to search
             self.estimateFucked = True
             self.publish_function(objectID)
+            return None
         else:
             pass
 
@@ -419,7 +446,8 @@ class GMFNode:
     def gmf_callback(self, msg):
         # TODO: read through carefully and follow logic
 
-        rospy.loginfo("Object data recieved for: %s", msg.objectID)
+        #rospy.loginfo("Object data recieved for: %s", msg.objectID)
+        # Should not need if fsm works well: 
         self.old_object = self.current_object.copy()
         self.current_object = msg.objectID
         
@@ -454,20 +482,22 @@ class GMFNode:
         old_action = self.mission_topic_old.split("_")[1]
         
         # Reset GMF on going from converge back to search
-        if old_action is "converge" and current_action is "search":
+        if old_action == "converge" and current_action == "search":
             self.gmf_reset()
+            self.mission_topic_old = self.mission_topic.copy()
             return None
 
         # Reset GMF on going from either execute or converge to search
-        elif old_action is "execute" and current_action is "search":
+        elif old_action == "execute" and current_action == "search":
             self.gmf_reset()
+            self.mission_topic_old = self.mission_topic.copy()
             return None
         else:
             pass
 
         # Upon GMF convergence, update only the best result and publish that
         if self.termination_bool:
-            _, _, self.best_hypothesis = self.kf_function(z, self.x_hat_best)
+            _, _, self.best_hypothesis = self.kf_function(z, self.best_hypothesis)
             self.publish_function(msg.ObjectID)
             self.mission_topic_old = self.mission_topic.copy()
             rospy.loginfo("GMF converged at an estimate with nr of active hypotheses: %s", self.active_hypotheses_count)
@@ -476,11 +506,12 @@ class GMFNode:
 
         # Initialize with first measurement
         if len(self.active_hypotheses) == 0:
-            self.active_hypotheses.append(z_gauss)
+            self.active_hypotheses.append(MultiVarGaussian(z_gauss.mean, self.P_hat0))
 
-            self.gmf_weights.append(self.init_prob)
+            self.gmf_weights = np.append(self.gmf_weights, self.init_prob)
             self.gmf_weights = self.gmf_weights / sum(self.gmf_weights)
-            
+            self.active_hypotheses_count = len(self.active_hypotheses)
+
             self.last_time = rospy.get_time()
             return None
 
@@ -489,7 +520,7 @@ class GMFNode:
 
         gated_hypotheses, gated_weights, gated_inds = self.gate_hypotheses(z_gauss, pred_zs)
 
-        self.associate_and_update(gated_hypotheses, gated_weights, gated_inds)
+        self.associate_and_update(gated_hypotheses, gated_weights, gated_inds, z)
         self.gmf_eval()
 
         if self.best_ind == 0:
