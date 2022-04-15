@@ -32,6 +32,12 @@ private:
     
     cv_bridge::CvImage img_bridge;
     cv::Mat _cv_image;
+
+    cv::Size s;
+    cv::Size s1;
+    cv::Rect a{};
+    cv::Rect *rectPointer = &a;
+    bool initFlag = 0;
     
     int counter_raw = 0;
     int counter_rect = 0;

@@ -72,7 +72,7 @@ void UDFCWrapperNode::getCVImage()
     while (!cap.isOpened())
     {
         ros::Duration(1.0).sleep();  // Sleep for one second
-        ROS_WARN("Cannot start the UDFC! Retrying..."); // Needs to be changed to work with ROS
+        ROS_WARN("Cannot start the UDFC! Retrying...");
     }
     ROS_INFO("The UDFC has started successfully!");
     while (ros::ok()){ //Will stop running when Ctrl + c is pressed in terminal.
@@ -98,14 +98,15 @@ void UDFCWrapperNode::toImageRect(cv::Mat cv_image)
 {   
     //The function takes in a cv image, rectifies it, and converts it into a ros image and publishes it.
     cv::Mat dst = _cv_image.clone(); //Makes a copy of the cv-image.
-    auto s = cv_image.size(); //This is the size of the input image
-    cv::Rect a{};
-    cv::Rect * rectPointer = &a;
+
+    if (!initFlag) {
+        s = cv_image.size(); //This is the size of the input image
+        s1 = dst.size(); // This is the size of the rectified image
+        cv::getOptimalNewCameraMatrix(CameraMatrix, distortionCoefficents, s, 1,s1,rectPointer,false);
+
+        initFlag = true;
+    }
     cv::undistort(_cv_image,dst,CameraMatrix,distortionCoefficents);
-    auto s1 = dst.size(); // This is the size of the rectified image
-
-    cv::getOptimalNewCameraMatrix(CameraMatrix, distortionCoefficents, s, 1,s1,rectPointer,false);
-
     dst = dst(*rectPointer); //This crops the image according to the roi found from the function above
 
     header.seq = counter_rect;
