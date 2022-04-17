@@ -9,7 +9,7 @@ import rospy
 import sys 
 
 from sensor_msgs.msg import Image
-
+# bruh = 1
 from cv_bridge import CvBridge, CvBridgeError
 import dynamic_reconfigure.client
 
