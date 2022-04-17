@@ -26,7 +26,7 @@ class ImagePreprocessingNode():
     def __init__(self, image_topic):
         rospy.init_node('image_preprocessing_node')
         
-        ns = "/" + (image_topic.split("/"))[0]
+        ns = "/" + (image_topic.split("/"))[1]
 
         self.zedSub                 = rospy.Subscriber(image_topic, Image, self.image_callback, queue_size= 1)
 
@@ -60,9 +60,13 @@ class ImagePreprocessingNode():
 
         clahe_img = self.image_preprocessing.CLAHE(self.cv_image)
         clahe_img = clahe_img.round().astype(np.uint8)
-        self.cv_image_publisher(self.CLAHEPub, clahe_img, "bgra8")
-
-        _, _, R, _ = cv.split(self.cv_image)
+        try:
+            self.cv_image_publisher(self.CLAHEPub, clahe_img, "bgra8")
+            _, _, R, _ = cv.split(self.cv_image)
+        except Exception:
+            self.cv_image_publisher(self.CLAHEPub, clahe_img, "bgr8")
+            _, _, R = cv.split(self.cv_image)
+        
         clahe_r_channel = self.image_preprocessing.CLAHE(R)
         self.cv_image_publisher(self.single_CLAHEPub, clahe_r_channel, "mono8")
 
