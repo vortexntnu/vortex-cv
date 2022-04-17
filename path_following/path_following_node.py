@@ -16,6 +16,7 @@ import dynamic_reconfigure.client
 import numpy as np
 from timeit import default_timer as timer
 import traceback
+import cv2
 
 import scripts.feature_detection
 
@@ -65,18 +66,45 @@ class PathFollowingNode():
 
 
         # Defining classes
-        self.udfc_imgfeature_preprocessing = scripts.feature_detection.ImageFeatureProcessing()
+        self.udfc_feature_detector = scripts.feature_detection.FeatureDetection()
+    
+    def fsm_state_callback(self, fsm_msg):
+        # TODO: fix this for current state
+        self.current_state = 1
 
-    def path_following_zed_cb(self, zed_msg):
+    def odom_tf_callback(self, tf_msg):
+        # TODO: fix this for transformations
+        self.last_odom = 1
+    
+    #def zed_feed_callback(self, img_msg):
+    #    try:
+    #        self.zed_image = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
+    #    except CvBridgeError, e:
+    #        rospy.logerr("CvBridge Error: {0}".format(e))
+    #
+#
+    #def udfc_feed_callback(self, img_msg):
+    #    try:
+    #        self.udfc_image = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
+    #    except CvBridgeError, e:
+    #        rospy.logerr("CvBridge Error: {0}".format(e))
+
+
+    def path_following_zed_cb(self, img_msg):
         """
         We only use data from the ZED if we are searching for the path
 
         Find the biggest contour in the image and return its range and bearing
+        Instead of range and bearing, we might want to actually do a 3D point and just say we are unsure of the distance
+
         """
         if self.current_state != "path_search":
             return None
 
-    def path_following_udfc_cb(self, udfc_msg):
+        zed_image = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
+        
+
+    def path_following_udfc_cb(self, img_msg):
 
         """
         The first time we classify the path in UDFC makes us move to converge state
@@ -88,13 +116,79 @@ class PathFollowingNode():
         if self.current_state not in self.possible_states:
             return None
 
+        udfc_img = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
+        udfc_img_r = udfc_img[:,:,2]
+
         # Apply HSV to image
+        _, hsv_mask, hsv_mask_validation_img = self.udfc_feature_detector.hsv_processor(udfc_img, 
+                                        self.hsv_params[0], self.hsv_params[1], self.hsv_params[2],
+                                        self.hsv_params[3], self.hsv_params[4], self.hsv_params[5])
 
-        # Get contours and hierarchies
+        # Filter the image for noise
+        noise_filtered_img = self.udfc_feature_detector.noise_removal_processor(hsv_mask)
 
-        # Pick the biggest one etc
+        # Get most probable path contour
+        path_contour = self.udfc_feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, 
+                                                                return_image=False)
+
+        path_contour = self.udfc_feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, variance_filtering=True, coloured_img=udfc_img_r)
+
+        M = cv2.moments(path_contour)
+
+        cx = int(M['m10']/M['m00'])
+        cy = int(M['m01']/M['m00'])
+
+        cv2.drawContours(udfc_img, path_contour, (0,255,0), 5)
+        img_with_circle = cv2.circle(udfc_img, (cx,cy), radius=1, color=(0, 0, 255), thickness=-1)
+
         
 
+        
+        # For testing
+        
+    
+    # My feeling right now (kl 14:05 on sunday): We should not do the spiny stuff but do individual callbacks when we get camera msgs
+    def spin(self):
+        while not rospy.is_shutdown():            
+            if self.current_state == "path_search" and self.zed_image is not None:
+                # Do ZED stuff
+                # TODO: figure out how to do this
+
+
+                # Calculations
+                bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, self.current_object, self.hsv_params, self.noise_rm_params)
+                pt_arr_msg = self.build_point_array_msg(points_in_rects, self.current_object, self.image_shape[0], self.image_shape[1])
+                self.RectPointsPub.publish(pt_arr_msg)
+
+                # Publishing
+                self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_validation_img)
+                self.cv_image_publisher(self.noiseRmPub, self.feat_detection.nr_img, msg_encoding="mono8")
+                self.cv_image_publisher(self.i2rcpPub, self.feat_detection.i2rcp_image_blank)
+                self.cv_image_publisher(self.shapePub, self.feat_detection.rect_flt_img)
+                self.cv_image_publisher(self.linesPub, self.feat_detection.line_fitting_img)
+                self.cv_image_publisher(self.BBoxPub, self.feat_detection.bbox_img)
+                self.cv_image_publisher(self.pointAreasPub, self.feat_detection.pointed_rects_img)
+
+                    if bbox_points:
+                        bboxes_msg = self.build_bounding_boxes_msg(bbox_points, self.current_object)
+                        self.BBoxPointsPub.publish(bboxes_msg)
+                    
+                        self.prev_bboxes_msg = bboxes_msg
+                    
+                    else:
+                        rospy.logwarn("Bounding Box wasnt found... keep on spinning...")
+                        self.BBoxPointsPub.publish(self.prev_bboxes_msg)
+                    
+                    end = timer() # Stop function timer.
+                    timediff = (end - start)
+                    fps = 1 / timediff # Take reciprocal of the timediff to get runs per second. 
+                    self.timerPub.publish(fps)
+                
+
+            if self.current_state in self.possible_states and self.udfc_image is not None:
+                # Do UDFC stuff
+
+            self.ros_rate.sleep()
         
 
 

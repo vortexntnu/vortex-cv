@@ -216,17 +216,43 @@ class ImageFeatureProcessing(object):
 
         return filtered_contours
 
+    def contour_variance_filtering(self, contours, contour_area_threshold, noisy_img):
+        """Finds the contour above the area threshold with the lowest colour variance, returns its index
+        """
+
+        areas = [cv2.contourArea(contour) for contour in contours]
+        area_thresh_inds = np.where(areas > contour_area_threshold)
+
+        contour_colour_vars = np.empty_like(area_thresh_inds)
+
+        for k,ind in enumerate(area_thresh_inds):
+
+            # Create a mask image that contains the contour filled in
+            cimg = np.zeros_like(noisy_img)
+            cv2.drawContours(cimg, contours[ind], color=255.0, thickness=-1)
+
+            # Access the image pixels and create a 1D numpy array then add to list
+            pts = np.where(cimg == 255)
+            contour_intensities = (noisy_img[pts[0], pts[1]])
+            contour_colour_vars[k] = np.var(contour_intensities)
+
+        return area_thresh_inds[np.argmin(contour_colour_vars)]
+            
+
+
     def contour_processing(
         self,
         noise_removed_image,
         contour_area_threshold,
         enable_convex_hull=False,
         return_image=True,
+        variance_filtering=False,
+        coloured_img=None,
         image=None,
         show_centers=True,
         show_areas=False,
     ):
-        """Finds contours in a pre-processed image and filters them.
+        """Finds contours in a pre-processed image and filters them somehow.
 
         Params:
             noise_removed_image     (cv::Mat)   : A mono8 (8UC1) pre-processed image with morphised edges.
@@ -255,10 +281,16 @@ class ImageFeatureProcessing(object):
         contours, hierarchy = cv2.findContours(
             noise_removed_image, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE
         )
-
-        cnt_filter = self.contour_filtering(
-            hierarchy, contours, contour_area_threshold, mode=1
-        )
+        if variance_filtering:
+            if coloured_img is None:
+                raise AttributeError("Bruh give me an image if you want variance filtering angry face")
+            cnt_filter = self.contour_variance_filtering(
+                contours, contour_area_threshold, coloured_img
+            )
+        else:
+            cnt_filter = self.contour_filtering(
+                hierarchy, contours, contour_area_threshold, mode=1
+            )
         contours_array = np.array(contours)
         contours_filtered = contours_array[cnt_filter]
         
