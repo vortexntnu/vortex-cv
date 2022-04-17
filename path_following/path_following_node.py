@@ -71,16 +71,9 @@ class PathFollowingNode():
         
         # TODO: get image sizes for both ZED and UDFC cameras, these will be used to make the fd objects
         # First initialization of image shape
-        first_image_msg = rospy.wait_for_message(image_topic, Image)
-        try:
-            self.cv_image = self.bridge.imgmsg_to_cv2(first_image_msg, "passthrough")
-            self.udfc_image_shape = self.cv_image.shape
-        except CvBridgeError, e:
-            self.image_shape = (720, 1280, 4)
-
 
         # Defining classes
-        self.udfc_feature_detector = scripts.feature_detection.FeatureDetection()
+        self.feature_detector = scripts.feature_detection.FeatureDetection()
     
     def fsm_state_callback(self, fsm_msg):
         # TODO: fix this for current state
@@ -107,10 +100,10 @@ class PathFollowingNode():
         noise_filtered_img = self.udfc_feature_detector.noise_removal_processor(hsv_mask)
 
         # Get most probable path contour
-        path_contour = self.udfc_feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, 
+        path_contour = self.feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, 
                                                                 return_image=False)
 
-        path_contour = self.udfc_feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, variance_filtering=True, coloured_img=udfc_img_r)
+        path_contour = self.udfc_feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, variance_filtering=True, coloured_img=img)
 
         M = cv2.moments(path_contour)
 
