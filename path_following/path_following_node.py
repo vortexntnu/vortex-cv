@@ -8,7 +8,7 @@ import rospkg
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float32, Empty, String
 from cv_msgs.msg import Point2, PointArray
-from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
+#from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
 
 from cv_bridge import CvBridge, CvBridgeError
 import dynamic_reconfigure.client
