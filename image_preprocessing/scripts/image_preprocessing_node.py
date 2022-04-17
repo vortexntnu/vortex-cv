@@ -6,6 +6,7 @@
 # debugpy.wait_for_client()
 
 import rospy
+import sys 
 
 from sensor_msgs.msg import Image
 
@@ -24,12 +25,14 @@ class ImagePreprocessingNode():
 
     def __init__(self, image_topic):
         rospy.init_node('image_preprocessing_node')
+        
+        ns = "/" + (image_topic.split("/"))[0]
 
         self.zedSub                 = rospy.Subscriber(image_topic, Image, self.image_callback, queue_size= 1)
 
-        self.CLAHEPub               = rospy.Publisher('/cv/image_preprocessing/CLAHE', Image, queue_size= 1)
-        self.single_CLAHEPub        = rospy.Publisher('/cv/image_preprocessing/CLAHE_single', Image, queue_size= 1)
-        self.GWPub                  = rospy.Publisher('/cv/image_preprocessing/GW', Image, queue_size= 1)
+        self.CLAHEPub               = rospy.Publisher('/cv/image_preprocessing/CLAHE' + ns, Image, queue_size= 1)
+        self.single_CLAHEPub        = rospy.Publisher('/cv/image_preprocessing/CLAHE_single' + ns, Image, queue_size= 1)
+        self.GWPub                  = rospy.Publisher('/cv/image_preprocessing/GW' + ns, Image, queue_size= 1)
         
         self.bridge = CvBridge()
         self.image_preprocessing = ImagePreprocessing(2, 8)
@@ -106,8 +109,8 @@ class ImagePreprocessingNode():
 
 if __name__ == '__main__':
     try:
-        image_preprocessing_node = ImagePreprocessingNode(image_topic='/zed2/zed_node/rgb/image_rect_color')
-        # rospy.spin()
+        image_topic = sys.argv[1]
+        image_preprocessing_node = ImagePreprocessingNode(image_topic)
         image_preprocessing_node.spin()
 
     except rospy.ROSInterruptException:
