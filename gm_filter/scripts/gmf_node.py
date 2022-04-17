@@ -63,9 +63,9 @@ class GMFNode:
         # Tuning Parameters for the GMF scheme:
         self.init_prob = 0.2
         self.boost_prob = 0.1
-        self.termination_criterion = 0.95
-        self.survival_threshold = 0.05
-        gate_percentile = 0.99
+        self.termination_criterion = 0.9
+        self.survival_threshold = 0.15
+        gate_percentile = 0.15
         self.max_nr_hypotheses = 25
         # TODO: find a good number for these by looking at how many iterrations it takes to get that low
         self.covariance_norm_convergence = 1e-6
@@ -353,7 +353,7 @@ class GMFNode:
 
         self.best_ind = np.argmax(self.gmf_weights)
 
-        rospy.loginfo("Number of active hypotheses is now: %s", self.active_hypotheses)
+        rospy.loginfo("Number of active hypotheses is now: %s", self.active_hypotheses_count)
         rospy.loginfo("Highest probability for a hypothesis is: %s", np.max(self.gmf_weights))
         rospy.loginfo("Most likely hypothesis is: %s", self.best_ind)
     
@@ -435,9 +435,9 @@ class GMFNode:
         p.objectPose.pose.orientation.z = best_pose_quaternion[2]
         p.objectPose.pose.orientation.w = best_pose_quaternion[3]
 
-        p.isDetected = self.termination_boolean
-        p.estimateConverged = False
-        p.estimateFucked = False
+        p.isDetected = self.termination_bool
+        #p.estimateConverged = False
+        #p.estimateFucked = False
         
         self.gate_pose_pub.publish(p)
         rospy.loginfo("Object published: %s", objectID)
@@ -498,9 +498,9 @@ class GMFNode:
         # Upon GMF convergence, update only the best result and publish that
         if self.termination_bool:
             _, _, self.best_hypothesis = self.kf_function(z, self.best_hypothesis)
-            self.publish_function(msg.ObjectID)
-            self.mission_topic_old = self.mission_topic.copy()
+            self.publish_function(msg.objectID)
             rospy.loginfo("GMF converged at an estimate with nr of active hypotheses: %s", self.active_hypotheses_count)
+            self.mission_topic_old = self.mission_topic[:]
             self.evaluate_filter_convergence(msg.objectID)
             return None
 
@@ -529,7 +529,8 @@ class GMFNode:
             self.best_hypothesis = self.active_hypotheses[self.best_ind - 1]
 
         self.publish_function(msg.objectID)
-        self.mission_topic_old = self.mission_topic.copy()
+        #self.publish_function_test(msg.objectID)
+        self.mission_topic_old = self.mission_topic[:]
 
 
 if __name__ == '__main__':
