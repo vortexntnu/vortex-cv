@@ -74,7 +74,7 @@ if __name__ == '__main__':
     try:
         image_topic = sys.argv[1]
         image_preprocessing_node = ImagePreprocessingNode(image_topic)
-        image_preprocessing_node.spin()
+        rospy.spin()
 
     except rospy.ROSInterruptException:
         pass
