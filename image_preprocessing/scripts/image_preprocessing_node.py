@@ -9,12 +9,11 @@ import rospy
 import sys 
 
 from sensor_msgs.msg import Image
-# bruh = 1
+
 from cv_bridge import CvBridge, CvBridgeError
 import dynamic_reconfigure.client
 
 from ImagePreprocessing import ImagePreprocessing
-from read_yaml_config import read_yaml_file
 
 import numpy as np
 import cv2 as cv
@@ -43,8 +42,6 @@ class ImagePreprocessingNode():
         self.cv_image = self.bridge.imgmsg_to_cv2(first_image_msg, "passthrough")
         self.image_shape = self.cv_image.shape
 
-        self.dynam_client = dynamic_reconfigure.client.Client("/CVOD_cfg/img_preprocessing_cfg", config_callback=self.dynam_reconfigure_callback)
-
     def cv_image_publisher(self, publisher, image, msg_encoding="bgra8"):
         """
         Takes a cv::Mat image object, converts it into a ROS Image message type, and publishes it using the specified publisher.
@@ -72,44 +69,6 @@ class ImagePreprocessingNode():
 
         gw_img = self.image_preprocessing.gray_world(cv.cvtColor(self.cv_image, cv.COLOR_BGRA2BGR))
         self.cv_image_publisher(self.GWPub, gw_img, "bgr8")
-    
-    def load_obj_config(self, config_path):
-        params = read_yaml_file(config_path)
-
-        # self.noise_rm_params = [params["ksize1"],
-        #                         params["ksize2"],
-        #                         params["sigma"],
-        #                         params["blocksize"],
-        #                         params["C"], 
-        #                         params["ed_ksize"], 
-        #                         params["erosion_iterations"], 
-        #                         params["dilation_iterations"]]
-
-    def dynam_reconfigure_callback(self, config):
-        self.canny_threshold1 = config.canny_threshold1
-        self.canny_threshold2 = config.canny_threshold2
-        self.canny_aperture = config.canny_aperture_size
-
-        self.hsv_params[0] = config.hsv_hue_min
-        self.hsv_params[1] = config.hsv_hue_max
-        self.hsv_params[2] = config.hsv_sat_min
-        self.hsv_params[3] = config.hsv_sat_max
-        self.hsv_params[4] = config.hsv_val_min
-        self.hsv_params[5] = config.hsv_val_max
-
-        self.ksize1 = config.ksize1
-        self.ksize2 = config.ksize2
-        self.sigma = config.sigma
-
-        self.thresholding_blocksize = config.blocksize
-        self.thresholding_C = config.C
-
-        self.erosion_dilation_ksize = config.ed_ksize
-        self.erosion_iterations = config.erosion_iterations
-        self.dilation_iterations = config.dilation_iterations
-
-        self.noise_rm_params = [self.ksize1, self.ksize2, self.sigma, self.thresholding_blocksize, self.thresholding_C, self.erosion_dilation_ksize, self.erosion_iterations, self.dilation_iterations]
-
 
 if __name__ == '__main__':
     try:
