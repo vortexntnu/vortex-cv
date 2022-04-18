@@ -219,23 +219,27 @@ class ImageFeatureProcessing(object):
     def contour_variance_filtering(self, contours, contour_area_threshold, noisy_img):
         """Finds the contour above the area threshold with the lowest colour variance, returns its index
         """
-
-        areas = [cv2.contourArea(contour) for contour in contours]
+        # TODO: Now mostly works, but I should look into the error I get sometimes
+        
+        areas = np.array([cv2.contourArea(contour) for contour in contours])
         area_thresh_inds = np.where(areas > contour_area_threshold)
 
+        #print(area_thresh_inds)
         contour_colour_vars = np.empty_like(area_thresh_inds)
 
         for k,ind in enumerate(area_thresh_inds):
 
             # Create a mask image that contains the contour filled in
             cimg = np.zeros_like(noisy_img)
-            cv2.drawContours(cimg, contours[ind], color=255.0, thickness=-1)
+            cv2.drawContours(cimg, contours, ind, color=255, thickness= -1)
 
             # Access the image pixels and create a 1D numpy array then add to list
             pts = np.where(cimg == 255)
             contour_intensities = (noisy_img[pts[0], pts[1]])
-            contour_colour_vars[k] = np.var(contour_intensities)
-
+            
+            contour_colour_vars[k] = np.var(contour_intensities, axis=0)
+    
+        
         return area_thresh_inds[np.argmin(contour_colour_vars)]
             
 
@@ -278,19 +282,19 @@ class ImageFeatureProcessing(object):
             if image is not None:
                 img_cp = copy.deepcopy(image)
 
-        contours, hierarchy = cv2.findContours(
-            noise_removed_image, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE
-        )
+        contours, hierarchy = cv2.findContours(noise_removed_image, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)[-2:]
+        
         if variance_filtering:
             if coloured_img is None:
                 raise AttributeError("Bruh give me an image if you want variance filtering angry face")
             cnt_filter = self.contour_variance_filtering(
-                contours, contour_area_threshold, coloured_img
+                contours, contour_area_threshold, coloured_img[:,:,2]
             )
         else:
             cnt_filter = self.contour_filtering(
                 hierarchy, contours, contour_area_threshold, mode=1
             )
+        
         contours_array = np.array(contours)
         contours_filtered = contours_array[cnt_filter]
         
@@ -305,7 +309,9 @@ class ImageFeatureProcessing(object):
             contour_arr = hull_array
         else:
             contour_arr = contours_filtered
-
+        
+        # TODO: fucking stupid, BenG fix your unreadable code pliz :)   
+        return contour_arr
         # Contour centers
         centroid_data = []
         for cnt_idx in range(len(contours_filtered)):
