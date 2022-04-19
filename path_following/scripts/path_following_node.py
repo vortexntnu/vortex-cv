@@ -62,6 +62,7 @@ class PathFollowingNode():
                            175,       #hsv_val_min
                            248]     #hsv_val_max
         
+      
         self.ksize1 = 7
         self.ksize2 = 7
         self.sigma = 0.8
@@ -87,9 +88,8 @@ class PathFollowingNode():
         
         # Publish to autonomous
         self.pathPub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
-        self.pointPub = rospy.Publisher('/path_following/path_centriod', PointStamped, queue_size= 1)
+        #self.pointPub = rospy.Publisher('/path_following/path_centriod', PointStamped, queue_size= 1)
 
-        
         self.noise_filteredPub = rospy.Publisher("/path_following/noise_filtered", Image, queue_size=1)
         self.bridge = CvBridge()
 
@@ -103,7 +103,8 @@ class PathFollowingNode():
         # TODO: make a subscriber for this
         self.current_state = "path_search"
         self.objectID = "path"
-        
+        self.isDetected = False
+        self.detection_area_threshold = 2000
         # TODO: get image sizes for both ZED and UDFC cameras, these will be used to make the fd objects
         # First initialization of image shape
 
@@ -130,41 +131,42 @@ class PathFollowingNode():
         self.feature_detector = feature_detection.FeatureDetection(cv_image.shape)
         
         self.dynam_client = dynamic_reconfigure.client.Client("/CVOD_cfg/feature_detection_cfg", config_callback=self.dynam_reconfigure_callback)
-
+        rospy.loginfo("Bruh do we get here????")
         #TF stuff
-        self.__tfBuffer = tf2_ros.Buffer()
-        self.__listener = tf2_ros.TransformListener(self.__tfBuffer)
-        self.__tfBroadcaster = tf2_ros.TransformBroadcaster()
-
-        #The init will only continue if a transform between parent frame and child frame can be found
-        while self.__tfBuffer.can_transform(self.parent_frame, self.child_frame, rospy.Time()) == 0:
-            try:
-                rospy.loginfo("No transform between "+str(self.parent_frame) +' and ' + str(self.child_frame))
-                rospy.sleep(2)
-            except: #, tf2_ros.ExtrapolationException  (tf2_ros.LookupException, tf2_ros.ConnectivityException)
-                rospy.sleep(2)
-                continue
-        
-        rospy.loginfo("Transform between "+str(self.parent_frame) +' and ' + str(self.child_frame) + 'found.')
+        #self.__tfBuffer = tf2_ros.Buffer()
+        #self.__listener = tf2_ros.TransformListener(self.__tfBuffer)
+        #self.__tfBroadcaster = tf2_ros.TransformBroadcaster()
+#
+        ##The init will only continue if a transform between parent frame and child frame can be found
+        #while self.__tfBuffer.can_transform(self.parent_frame, self.child_frame, rospy.Time()) == 0:
+        #    try:
+        #        rospy.loginfo("No transform between "+str(self.parent_frame) +' and ' + str(self.child_frame))
+        #        rospy.sleep(2)
+        #    except: #, tf2_ros.ExtrapolationException  (tf2_ros.LookupException, tf2_ros.ConnectivityException)
+        #        rospy.sleep(2)
+        #        continue
+        #
+        #rospy.loginfo("Transform between "+str(self.parent_frame) +' and ' + str(self.child_frame) + 'found.')
     
-    def fsm_state_callback(self, fsm_msg):
-        # TODO: fix this for current state
-        self.current_state = 1
-
-    def odom_tf_callback(self, tf_msg):
-        # TODO: fix this for transformations
-        self.last_odom = 1
-
-    def make_pointStamped_odom(self, headerdata, position, name):
-        # TODO: someone else fix the fucking tf stuff I hate this fucking piece of shit
-
-        new_point = PointStamped()
-        new_point.header = "path_centroid"
-        new_point.header.stamp = rospy.get_rostime()
-        new_point.point.x = position[0]
-        new_point.point.y = position[1]
-        new_point.point.z = position[2]
-        pointPub.publish(new_point)
+    #def fsm_state_callback(self, fsm_msg):
+    #    # TODO: fix this for current state
+    #    self.current_state = 1
+#
+    #def odom_tf_callback(self, tf_msg):
+    #    # TODO: fix this for transformations
+    #    self.last_odom = 1
+#
+    #def make_pointStamped_odom(self, headerdata, position, name):
+    #    # TODO: someone else fix the fucking tf stuff I hate this fucking piece of shit
+#
+    #    new_point = PointStamped()
+    #    new_point.header = "path_centroid"
+    #    new_point.header.stamp = rospy.get_rostime()
+    #    new_point.point.x = position[0]
+    #    new_point.point.y = position[1]
+    #    new_point.point.z = position[2]
+    #    pointPub.publish(new_point)
+        rospy.loginfo("Bruh do we get here????")
 
     def transformbroadcast(self, parent_frame, p):
         t = TransformStamped()
@@ -219,10 +221,10 @@ class PathFollowingNode():
         #path_contour = self.feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, return_image=False)
 
         path_contour = self.feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, variance_filtering=True, coloured_img=img, return_image=False)
-        #rospy.logwarn(path_contour)
+        #rospy.logwarn(path_contour[0])
         
         cv2.drawContours(img, path_contour, -1, (0,0,255), 5)
-        path_area = cv2.contourArea(path_contour)
+        path_area = cv2.contourArea(path_contour[0])
         
         # This is just for the purposes of visualization on the image
         M = cv2.moments(path_contour[0])
@@ -249,8 +251,11 @@ class PathFollowingNode():
 
         p1 = p0 + 1000*colin_vec
         p2 = p0 - 1000*colin_vec
+        
+        print(p1)
+        print(p2)
 
-        cv2.line(img_drawn, p1.astype(int), p2.astype(int), color=(0, 255, 0), thickness=2)
+        cv2.line(img_drawn, tuple(p1), tuple(p2), color=(0, 255, 0), thickness=2)
 
         return [vx, vy, x0, y0], img_drawn
 
@@ -266,43 +271,60 @@ class PathFollowingNode():
         if self.current_state not in self.possible_states:
             return None
 
+        if np.shape(self.batch_line_params)[0] > 100:
+            # TODO: write batch_estimate_waypoint and the waypoint publisher
+            self.isEstimated = True
+            next_waypoint = self.batch_estimate_waypoint()
+            self.publish_waypoint(self.waypointPub, next_waypoint)
+            
+            return None
+
         udfc_img = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
         
-        path_contour, path_area, img_drawn, hsv_val_img = self.path_contour_and_centroid(udfc_img)
+        self.path_contour, path_area, img_drawn, hsv_val_img = self.path_calculations(udfc_img)
+        self.path_contour = self.path_contour[0][:,0,:]
         
         if self.isDetected == False and path_area > self.detection_area_threshold:
             self.isDetected == True
         
         # TODO: test if this gives same result as first finding the centroid in image and them mapping it
-        path_contour_camera = cv2.undistortPoints(path_contour, cameraMatrix=self.camera_matrix, dts=self.udfc_dcs)
+        #path_contour_camera = cv2.undistortPoints(path_contour, cameraMatrix=self.camera_matrix, dts=self.udfc_dcs)
 
-        M = cv2.moments(path_contour)
-        cx_tilde = int(M['m10']/M['m00'])
-        cy_tilde = int(M['m01']/M['m00'])
-        #X = (self.Z_prior / self.focal_length) * cx_tilde
-        #Y = (self.Z_prior / self.focal_length) * cy_til
-        #dp_ref = [X, Y, self.Z_prior]
+        M = cv2.moments(self.path_contour)
+        cx = int(M['m10']/M['m00'])
+        cy = int(M['m01']/M['m00'])
+        
+        self.path_centroid = np.array(cx, cy)
+        
+        # TODO: Transform from image coords to camera coords
+        cx_tilde, cy_tilde = cv2.unrectify(bruh = 1)
+        
+        X = (self.Z_prior / self.focal_length) * cx_tilde
+        Y = (self.Z_prior / self.focal_length) * cy_tilde
+        dp_ref = [X, Y, self.Z_prior]
+        
+        #print(np.shape(np.ravel(path_contour[0])))
+        upper_inds = np.where((self.path_contour[:,1] < cy_tilde) == True)[0]
+        upper_contour = self.path_contour[upper_inds]
 
-        upper_inds = np.where((path_contour[:,:,1] < cy_tilde) == True)
-        upper_contour = path_contour[upper_inds[0]]
 
         line_params, img_drawn = self.find_contour_line(upper_contour, img_drawn)
 
-        #self.batch_line_params = np.hstack((self.batch_line_params, line_params))
+        self.batch_line_params = np.hstack((self.batch_line_params, line_params))
 
         #self.dp_ref_publisher(self.dp_ref_Pub, dp_ref)
 
-        if self.current_state == "path_search" or "path_converge":
-            # TODO publish centroid here
-            bruh = 1
-
-        elif self.current_state == "path_execute":
-            bruh = 1
-        else:
-            pass
-        # TODO: do the decision for straight vs bendy and the batch optimization to solve for path angle
-
+        #if self.current_state == "path_search" or "path_converge":
+        #    # TODO publish centroid here
+        #    bruh = 1
+#
+        #elif self.current_state == "path_execute":
+        #    bruh = 1
+        #else:
+        #    pass
+        ## TODO: do the decision for straight vs bendy and the batch optimization to solve for path angle
         self.cv_image_publisher(self.udfcPub, img_drawn, "bgr8")
+        self.publish_waypoint(self.waypointPub, next_waypoint)
 
 
     def dynam_reconfigure_callback(self, config):
