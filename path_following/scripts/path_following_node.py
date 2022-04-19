@@ -2,6 +2,7 @@
 
 ## TODO: imports taken from feature detection, remove what is unused
 
+from matplotlib.pyplot import contour
 import rospy
 import rospkg
 
@@ -54,18 +55,18 @@ class PathFollowingNode():
         
         # Parameters for the algorithm:
         
-        self.hsv_params = [0,
-                           179,
-                           0,
-                           255,
-                           0,
-                           255]
-        
+        self.hsv_params = [0,       #hsv_hue_min
+                           53,     #hsv_hue_max
+                           71,       #hsv_sat_min
+                           131,     #hsv_sat_max
+                           175,       #hsv_val_min
+                           248]     #hsv_val_max
         
         self.ksize1 = 7
         self.ksize2 = 7
         self.sigma = 0.8
 
+        self.batch_line_params = np.zeros((1,4))
         # Thresholding params
         self.thresholding_blocksize = 11
         self.thresholding_C = 2
@@ -240,6 +241,19 @@ class PathFollowingNode():
         publisher.publish(msgified_img)
         
 
+    def find_contour_line(self, contour, img_drawn):
+        vx, vy, x0, y0 = cv2.fitLine(contour, cv2.DIST_L2, 0, 0.1, 0.1)
+
+        colin_vec = np.ravel(np.array((vx, vy)))
+        p0 = np.ravel(np.array((x0, y0)))
+
+        p1 = p0 + 1000*colin_vec
+        p2 = p0 - 1000*colin_vec
+
+        cv2.line(img_drawn, p1.astype(int), p2.astype(int), color=(0, 255, 0), thickness=2)
+
+        return [vx, vy, x0, y0], img_drawn
+
     def path_following_udfc_cb(self, img_msg):
 
         """
@@ -262,18 +276,30 @@ class PathFollowingNode():
         # TODO: test if this gives same result as first finding the centroid in image and them mapping it
         path_contour_camera = cv2.undistortPoints(path_contour, cameraMatrix=self.camera_matrix, dts=self.udfc_dcs)
 
-        if self.current_state == "path_converge" or "path_execute":
-            M = cv2.moments(path_contour_camera[0])
-            cx_tilde = int(M['m10']/M['m00'])
-            cy_tilde = int(M['m01']/M['m00'])
+        M = cv2.moments(path_contour)
+        cx_tilde = int(M['m10']/M['m00'])
+        cy_tilde = int(M['m01']/M['m00'])
+        #X = (self.Z_prior / self.focal_length) * cx_tilde
+        #Y = (self.Z_prior / self.focal_length) * cy_til
+        #dp_ref = [X, Y, self.Z_prior]
 
-            X = (self.Z_prior / self.focal_length) * cx_tilde
-            Y = (self.Z_prior / self.focal_length) * cy_tilde
+        upper_inds = np.where((path_contour[:,:,1] < cy_tilde) == True)
+        upper_contour = path_contour[upper_inds[0]]
 
-            dp_ref = [X, Y, self.Z_prior]
+        line_params, img_drawn = self.find_contour_line(upper_contour, img_drawn)
 
-            self.dp_ref_publisher(self.dp_ref_Pub, dp_ref)
+        #self.batch_line_params = np.hstack((self.batch_line_params, line_params))
 
+        #self.dp_ref_publisher(self.dp_ref_Pub, dp_ref)
+
+        if self.current_state == "path_search" or "path_converge":
+            # TODO publish centroid here
+            bruh = 1
+
+        elif self.current_state == "path_execute":
+            bruh = 1
+        else:
+            pass
         # TODO: do the decision for straight vs bendy and the batch optimization to solve for path angle
 
         self.cv_image_publisher(self.udfcPub, img_drawn, "bgr8")

@@ -225,9 +225,9 @@ class ImageFeatureProcessing(object):
         area_thresh_inds = np.where(areas > contour_area_threshold)
 
         #print(area_thresh_inds)
-        contour_colour_vars = np.empty_like(area_thresh_inds)
+        contour_colour_vars = np.empty_like(area_thresh_inds[0])
 
-        for k,ind in enumerate(area_thresh_inds):
+        for k,ind in enumerate(area_thresh_inds[0]):
 
             # Create a mask image that contains the contour filled in
             cimg = np.zeros_like(noisy_img)
@@ -240,7 +240,7 @@ class ImageFeatureProcessing(object):
             contour_colour_vars[k] = np.var(contour_intensities, axis=0)
     
         
-        return area_thresh_inds[np.argmin(contour_colour_vars)]
+        return area_thresh_inds[0][np.argmin(contour_colour_vars)]
             
 
 
