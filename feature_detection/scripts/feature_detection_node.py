@@ -44,6 +44,8 @@ class FeatureDetectionNode():
         self.resetSub               = rospy.Subscriber('/feature_detection/reset', Empty, self.feature_detection_reset_callback)
         self.fsmStateSub            = rospy.Subscriber('/fsm/state', String, self.fsm_state_cb)
         self.rcfaSub                = rospy.Subscriber('/cv/preprocessing/rcfa_detection', Bool, self.rcfa_bool_cb)
+        self.ocfaSub                = rospy.Subscriber('/cv/preprocessing/ocfa_detection', Bool, self.ocfa_bool_cb)
+
 
         self.hsvCheckPub            = rospy.Publisher('/feature_detection/hsv_check_image', Image, queue_size= 1)
         self.noiseRmPub             = rospy.Publisher('/feature_detection/noise_removal_image', Image, queue_size= 1)
@@ -61,6 +63,7 @@ class FeatureDetectionNode():
         self.bridge = CvBridge()
 
         self.rcfa_det = False
+        self.ocfa_det = False
 
         # ICP initial reference points
         self.ref_points_initial_guess = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
@@ -157,16 +160,20 @@ class FeatureDetectionNode():
         return pt_arr_msg
 
     def spin(self):
-        while not rospy.is_shutdown():            
+        while not rospy.is_shutdown():
             if self.cv_image is not None:
                 try:
                     start = timer() # Start function timer.
-
+                    if self.ocfa_det:
+                        rospy.loginfo("Ur mom gay")
                     try:
                         bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, self.current_object, self.hsv_params, self.noise_rm_params)
                         pt_arr_msg = self.build_point_array_msg(points_in_rects, self.current_object, self.image_shape[0], self.image_shape[1])
                         if self.rcfa_det:
                             self.RectPointsPub.publish(pt_arr_msg)
+                        elif self.ocfa_det:
+                            self.RectPointsPub.publish(pt_arr_msg)
+
 
                     except TypeError:
                         pass
@@ -183,7 +190,9 @@ class FeatureDetectionNode():
                         bboxes_msg = self.build_bounding_boxes_msg(bbox_points, self.current_object)
                         if self.rcfa_det:
                             self.BBoxPointsPub.publish(bboxes_msg)
-                    
+                        elif self.ocfa_det:
+                            self.BBoxPointsPub.publish(bboxes_msg)
+
                         self.prev_bboxes_msg = bboxes_msg
                     
                     else:
@@ -221,6 +230,9 @@ class FeatureDetectionNode():
     
     def rcfa_bool_cb(self, msg):
         self.rcfa_det = msg.data
+
+    def ocfa_bool_cb(self, msg):
+        self.ocfa_det = msg.data
 
         
     def load_obj_config(self, config_path):

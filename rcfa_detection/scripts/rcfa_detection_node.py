@@ -16,7 +16,7 @@ class ncfaDetectionNode():
     """
     Class to detect objects based on color frequency and plot histograms.
     """
-    def __init__(self, plot_histogram = True, mode = 1):
+    def __init__(self, plot_histogram = False, mode = 1):
         '''
         params: 
             plot_histogram (bool): bool value to determine if we will plot a histogarm
@@ -33,12 +33,12 @@ class ncfaDetectionNode():
 
         # publisher and subscriber for rcfa
         if(mode==1):
-            rospy.Subscriber('/cv/image_preprocessing/GW', Image, self.rcfa_cb, queue_size=1)
+            rospy.Subscriber('/cv/image_preprocessing/GW/zed2', Image, self.rcfa_cb, queue_size=1)
             self.rcfa_pub = rospy.Publisher('/cv/preprocessing/rcfa_detection',Bool , queue_size= 1)
 
         # publisher and subscriber for ocfa
         elif(mode == 2):
-            rospy.Subscriber('/cv/image_preprocessing/GW', Image, self.ocfa_cb, queue_size=1)
+            rospy.Subscriber('/cv/image_preprocessing/GW/zed2', Image, self.ocfa_cb, queue_size=1)
             self.ocfa_pub = rospy.Publisher('/cv/preprocessing/ocfa_detection',Bool , queue_size= 1)
 
         # Plotting the figure for histogram
@@ -79,7 +79,7 @@ class ncfaDetectionNode():
         self.fig_plot.canvas.flush_events()
 
 
-    def ocfa_cb(self, msg, threshold_o = 30000):
+    def ocfa_cb(self, msg, threshold_o = 11000):
         """
           ***Callback***
         Publishes a boolean value if the amount of orange pixels (100% red, 60% green) is higher than the threshhold.
@@ -108,13 +108,11 @@ class ncfaDetectionNode():
         # Publishs and outputs the information if gate is detected or not    
         rospy.loginfo(difference)
         if (difference>threshold_o):
-            rospy.loginfo("GATE DETECTED")
             gateDetection = True
-            self.rcfa_pub.publish(gateDetection) # Publishes boolean gateDetection 
+            self.ocfa_pub.publish(gateDetection) # Publishes boolean gateDetection 
         else:
-            rospy.loginfo("NO GATE")
             gateDetection = False
-            self.rcfa_pub.publish(gateDetection) # Publishes boolean gateDetection 
+            self.ocfa_pub.publish(gateDetection) # Publishes boolean gateDetection 
 
         # Plot the histogram
         if (self.bool):
@@ -142,13 +140,10 @@ class ncfaDetectionNode():
         difference  = max-mean
 
         # Publishs and outputs the information if gate is detected or not    
-        rospy.loginfo(difference)
         if (difference>threshold_r):
-            rospy.loginfo("GATE DETECTED")
             gateDetection = True
             self.rcfa_pub.publish(gateDetection) #Publishes gateDetection 
         else:
-            rospy.loginfo("NO GATE")
             gateDetection = False
             self.rcfa_pub.publish(gateDetection)
 
