@@ -164,8 +164,6 @@ class FeatureDetectionNode():
             if self.cv_image is not None:
                 try:
                     start = timer() # Start function timer.
-                    if self.ocfa_det:
-                        rospy.loginfo("Ur mom gay")
                     try:
                         bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, self.current_object, self.hsv_params, self.noise_rm_params)
                         pt_arr_msg = self.build_point_array_msg(points_in_rects, self.current_object, self.image_shape[0], self.image_shape[1])
