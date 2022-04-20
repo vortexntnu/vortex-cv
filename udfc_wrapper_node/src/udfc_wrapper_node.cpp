@@ -22,7 +22,10 @@ void UDFCWrapperNode::getDistortionCoefficents(){
 
     double k1{calibrationParams[4]};
     double k2{calibrationParams[5]};
-    distortionCoefficents = {k1,k2,0,0};
+    double p1{calibrationParams[6]};
+    double p2{calibrationParams[7]};
+    double k3{calibrationParams[8]};
+    distortionCoefficents = {k1,k2,p1,p2,k3};
 }
 
 

@@ -60,13 +60,16 @@ public:
     float cy;
     float k1;
     float k2;
+    float p1;
+    float p2;
+    float k3;
     int _camera_id;
     int _pipeline_id;
 
 
     UDFCWrapperNode(ros::NodeHandle nh);
-    std::vector<double> calibrationParams{fx,fy,cx,cy,k1,k2};
-    std::vector<std::string> paramNames{"fx","fy","cx","cy","k1","k2"};
+    std::vector<double> calibrationParams{fx,fy,cx,cy,k1,k2,p1,p2,k3};
+    std::vector<std::string> paramNames{"fx","fy","cx","cy","k1","k2","p1","p2","k3"};
 
 
     // Temp
