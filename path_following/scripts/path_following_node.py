@@ -114,7 +114,9 @@ class PathFollowingNode():
         self.focal_length = 2.97 * 10 **-3
 
         # TODO: find out what this is for optimal PFPSPerformance
-        self.Z_prior = 1.69
+        self.H_pool_prior = 2
+        self.h_path_prior = 0.1
+        self.Z_prior_ref = 1.69
 
         # TODO: Henrique pliz gibe:
         self.camera_matrix = np.eye(3)
@@ -233,6 +235,36 @@ class PathFollowingNode():
 
         return path_contour, path_area, img_drawn, hsv_val_img
 
+    def get_dp_ref(self, path_centroid_camera):
+        """
+        Takes in the path centroid in homogenious camera coordinates and calculates the X, Y, Z for the dp reference
+
+        Input: path_centroid in homogenious camera coordinates [x_tilde, y_tilde]^T
+
+        Output: path_centroid in odom frame [X, Y, Z]
+
+        Takes in the path contour points in world and calculates the x, y, z for the dp reference
+
+        2. Map it to world through odom z position
+        3. Map calculate the position of centroid
+        4. Waypoint is placed at x,y of centriod in world + ref_z (which is the ideal z over the path) 
+        """
+
+        # Get udfc pose in odom
+        udfc_odom_pose = magic_tf_lookup_stuff # TODO: big man tf fix
+
+        # Find out how far above path we are
+        z_udfc = udfc_odom_pose[2]
+        z_over_path = self.H_pool_prior - z_udfc - self.h_path_prior
+        
+        # Map X and Y to world frame
+        X = (z_over_path / self.focal_length) * path_centroid_camera[0]
+        Y = (z_over_path / self.focal_length) * path_centroid_camera[1]
+
+        # Set dp_ref to be path centroid in x and y and the desired Z to get view of centroid
+        dp_ref = [X, Y, self.Z_prior_ref]
+
+        return dp_ref
 
     def cv_image_publisher(self, publisher, image, msg_encoding="bgra8"):
         """
