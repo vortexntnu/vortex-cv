@@ -68,6 +68,7 @@ class PathFollowingNode():
         self.sigma = 0.8
 
         self.batch_line_params = np.zeros((1,4))
+        
         # Thresholding params
         self.thresholding_blocksize = 11
         self.thresholding_C = 2
@@ -105,8 +106,6 @@ class PathFollowingNode():
         self.objectID = "path"
         self.isDetected = False
         self.detection_area_threshold = 2000
-        # TODO: get image sizes for both ZED and UDFC cameras, these will be used to make the fd objects
-        # First initialization of image shape
 
         # TODO: In case transform performs badly, use this to estimate 
         #cv2.calibrationMatrixValues
@@ -243,22 +242,42 @@ class PathFollowingNode():
         publisher.publish(msgified_img)
         
 
-    def find_contour_line(self, contour, img_drawn):
+    def find_contour_line(self, contour, img_drawn=None):
         vx, vy, x0, y0 = cv2.fitLine(contour, cv2.DIST_L2, 0, 0.1, 0.1)
 
         colin_vec = np.ravel(np.array((vx, vy)))
         p0 = np.ravel(np.array((x0, y0)))
 
-        p1 = p0 + 1000*colin_vec
-        p2 = p0 - 1000*colin_vec
+        line_params = np.hstack((colin_vec, p0))
         
-        print(p1)
-        print(p2)
+        if img_drawn is not None:
+            p1 = p0 + 1000*colin_vec
+            p2 = p0 - 1000*colin_vec
+            cv2.line(img_drawn, tuple(p1), tuple(p2), color=(0, 255, 0), thickness=2)
 
-        cv2.line(img_drawn, tuple(p1), tuple(p2), color=(0, 255, 0), thickness=2)
+            return line_params, img_drawn
+        
+        else:
+            return line_params
 
-        return [vx, vy, x0, y0], img_drawn
-
+    def batch_estimate_waypoint(self):
+        
+        line_params = np.average(self.batch_line_params, 0)
+        
+        p0 = line_params[:2]
+        colin_vec = line_params[2:]
+        
+        # Get two points on the line
+        p1 = p0 + 100*colin_vec
+        p2 = p0 - 100*colin_vec
+        
+        points = [p1, p2]
+        # 
+        errors = [np.linalg.norm(self.y_min_point - points[i]) for i in range(len(points))]
+        next_waypoint = points[np.argmin(errors)]
+        
+        return next_waypoint
+    
     def path_following_udfc_cb(self, img_msg):
 
         """
@@ -273,15 +292,18 @@ class PathFollowingNode():
 
         if np.shape(self.batch_line_params)[0] > 100:
             # TODO: write batch_estimate_waypoint and the waypoint publisher
-            self.isEstimated = True
-            next_waypoint = self.batch_estimate_waypoint()
-            self.publish_waypoint(self.waypointPub, next_waypoint)
+            #self.isEstimated = True
+            #next_waypoint = self.batch_estimate_waypoint()
+            #self.publish_waypoint(self.waypointPub, next_waypoint)
+            print("bruh")
             
             return None
 
         udfc_img = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
         
         self.path_contour, path_area, img_drawn, hsv_val_img = self.path_calculations(udfc_img)
+        
+
         self.path_contour = self.path_contour[0][:,0,:]
         
         if self.isDetected == False and path_area > self.detection_area_threshold:
@@ -294,23 +316,26 @@ class PathFollowingNode():
         cx = int(M['m10']/M['m00'])
         cy = int(M['m01']/M['m00'])
         
-        self.path_centroid = np.array(cx, cy)
+        self.path_centroid = np.array([cx, cy])
         
         # TODO: Transform from image coords to camera coords
-        cx_tilde, cy_tilde = cv2.unrectify(bruh = 1)
+        #cx_tilde, cy_tilde = cv2.unrectify(bruh = 1)
+        cx_tilde, cy_tilde = 1, 2
         
         X = (self.Z_prior / self.focal_length) * cx_tilde
         Y = (self.Z_prior / self.focal_length) * cy_tilde
         dp_ref = [X, Y, self.Z_prior]
         
         #print(np.shape(np.ravel(path_contour[0])))
-        upper_inds = np.where((self.path_contour[:,1] < cy_tilde) == True)[0]
-        upper_contour = self.path_contour[upper_inds]
+        upper_inds = np.where((self.path_contour[:,1] < cy) == True)[0]
+        upper_contour_image = self.path_contour[upper_inds]
+        
+        #self.path_contour_world = 
 
 
-        line_params, img_drawn = self.find_contour_line(upper_contour, img_drawn)
+        line_params, img_drawn = self.find_contour_line(upper_contour_image, img_drawn)
 
-        self.batch_line_params = np.hstack((self.batch_line_params, line_params))
+        self.batch_line_params = np.vstack((self.batch_line_params, np.reshape(line_params, (1,4))))
 
         #self.dp_ref_publisher(self.dp_ref_Pub, dp_ref)
 
@@ -324,7 +349,7 @@ class PathFollowingNode():
         #    pass
         ## TODO: do the decision for straight vs bendy and the batch optimization to solve for path angle
         self.cv_image_publisher(self.udfcPub, img_drawn, "bgr8")
-        self.publish_waypoint(self.waypointPub, next_waypoint)
+        #self.publish_waypoint(self.waypointPub, next_waypoint)
 
 
     def dynam_reconfigure_callback(self, config):
