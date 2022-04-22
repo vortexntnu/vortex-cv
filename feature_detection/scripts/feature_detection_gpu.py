@@ -68,19 +68,17 @@ class ImageFeatureProcessingGPU(object):
             hsv_mask                (cv2::Mat)  : Array of x, y points for binary pixels that were filtered by the HSV params.
             hsv_mask_validation_img (cv2::Mat)  : original_image with applied hsv_mask.
         """
-        orig_img_cp = copy.deepcopy(original_image)
-    
-        hsv_img = cv2.cvtColor(original_image, cv2.COLOR_BGR2HSV)
+        hsv_img = cv2.cuda.cvtColor(original_image, cv2.COLOR_BGR2HSV)
 
         hsv_lower = np.array([hsv_hue_min, hsv_sat_min, hsv_val_min])
         hsv_upper = np.array([hsv_hue_max, hsv_sat_max, hsv_val_max])
 
         hsv_mask = cv2.inRange(hsv_img, hsv_lower, hsv_upper)
-        hsv_mask_validation_img = cv2.bitwise_and(
-            orig_img_cp, orig_img_cp, mask=hsv_mask
+        hsv_mask_validation_img = cv2.cuda.bitwise_and(
+            original_image, original_image, mask=hsv_mask
         )  # Applies mask
 
-        return hsv_img, hsv_mask, hsv_mask_validation_img
+        return hsv_mask, hsv_mask_validation_img
 
     def noise_removal_processor(
         self,
@@ -1133,7 +1131,9 @@ class FeatureDetectionGPU(ImageFeatureProcessingGPU, PointsProcessingGPU, ShapeP
             relevant_rects  (A[M][4][2, uint32]): Array of filtered rectangles.
             points_in_rects (A[N][2, uint32])   : An array of 2D points.
         """
-        _, hsv_mask, hsv_validation_img = self.hsv_processor(original_image, *hsv_params)
+        gpu_frame = cv2.cuda_GpuMat()
+
+        hsv_mask, hsv_validation_img = self.hsv_processor(original_image, *hsv_params)
         self.hsv_validation_img = hsv_validation_img
         
         try:
