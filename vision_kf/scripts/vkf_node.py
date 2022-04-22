@@ -167,16 +167,16 @@ class VKFNode:
         self.transformbroadcast(self.parent_frame, p)
 
     def obj_pose_callback(self, msg):
-
+        
         rospy.loginfo("Object data recieved for: %s", msg.objectID)
         self.current_object = msg.objectID
+        self.object_header = msg.header
     
         if self.mission_topic == self.current_object + "_execute":
             rospy.loginfo("Mission status: %s", self.mission_topic)
             self.prev_gauss = MultiVarGaussian(self.x_hat0, self.P_hat0)
             self.last_time = rospy.get_time()
             return None
-        
 
         # Gate in world frame for cyb pool
         obj_pose_position_wg = np.array([msg.objectPose.pose.position.x, 

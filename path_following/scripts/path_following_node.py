@@ -18,10 +18,14 @@ import dynamic_reconfigure.client
 from vortex_msgs.msg import ObjectPosition
 from geometry_msgs.msg import TransformStamped
 
+import tf2_ros
+import tf2_geometry_msgs.tf2_geometry_msgs
+
 import numpy as np
 from timeit import default_timer as timer
 import traceback
 import cv2
+from os.path import join
 
 import feature_detection
 
@@ -53,6 +57,12 @@ class PathFollowingNode():
         self.parent_frame = 'odom' 
         self.child_frame = 'udfc_link'
         
+        param_folder = '../params'
+
+        self.K           = np.loadtxt(join(param_folder, 'K.txt'))
+        self.dcs         = np.loadtxt(join(param_folder, 'dc.txt'))
+        self.K_opt       = np.loadtxt(join(param_folder, 'K_opt.txt'))
+
         # Parameters for the algorithm:
         
         self.hsv_params = [0,       #hsv_hue_min
@@ -66,8 +76,6 @@ class PathFollowingNode():
         self.ksize1 = 7
         self.ksize2 = 7
         self.sigma = 0.8
-
-        self.batch_line_params = np.zeros((1,4))
         
         # Thresholding params
         self.thresholding_blocksize = 11
@@ -79,16 +87,15 @@ class PathFollowingNode():
         self.dilation_iterations = 1
         self.noise_rm_params = [self.ksize1, self.ksize2, self.sigma, self.thresholding_blocksize, self.thresholding_C, self.erosion_dilation_ksize, self.erosion_iterations, self.dilation_iterations]
         
+
         self.udfcSub = rospy.Subscriber("/cv/image_preprocessing/CLAHE/udfc", Image, self.path_following_udfc_cb)
         #self.mission_topic_sub = rospy.Subscriber("/fsm/state", String, self.update_mission)
 
-        self.zedPub = rospy.Publisher("/path_following/zed2", Image, queue_size=1)
         self.udfcPub = rospy.Publisher("/path_following/udfc", Image, queue_size=1)
-        
         self.hsvPub = rospy.Publisher("/path_following/hsv_monkey", Image, queue_size=1)
-        
+
         # Publish to autonomous
-        self.pathPub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
+        self.wpPub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
         #self.pointPub = rospy.Publisher('/path_following/path_centriod', PointStamped, queue_size= 1)
 
         self.noise_filteredPub = rospy.Publisher("/path_following/noise_filtered", Image, queue_size=1)
@@ -104,8 +111,13 @@ class PathFollowingNode():
         # TODO: make a subscriber for this
         self.current_state = "path_search"
         self.objectID = "path"
-        self.isDetected = False
         self.detection_area_threshold = 2000
+
+        self.isDetected            = False
+        self.estimateConverged     = False
+        self.estimateFucked        = False
+
+        self.batch_line_params = np.zeros((1,4))
 
         # TODO: In case transform performs badly, use this to estimate 
         #cv2.calibrationMatrixValues
@@ -118,9 +130,7 @@ class PathFollowingNode():
         self.h_path_prior = 0.1
         self.Z_prior_ref = 1.69
 
-        # TODO: Henrique pliz gibe:
-        self.camera_matrix = np.eye(3)
-        self.udfc_dcs = [1, 2, 3, 4, 5, 6]
+        self.point_transformer = tf2_geometry_msgs.tf2_geometry_msgs
 
         # Defining classes
         img = rospy.wait_for_message("/cv/image_preprocessing/CLAHE_single/udfc", Image)
@@ -132,22 +142,22 @@ class PathFollowingNode():
         self.feature_detector = feature_detection.FeatureDetection(cv_image.shape)
         
         self.dynam_client = dynamic_reconfigure.client.Client("/CVOD_cfg/feature_detection_cfg", config_callback=self.dynam_reconfigure_callback)
-        rospy.loginfo("Bruh do we get here????")
+
         #TF stuff
-        #self.__tfBuffer = tf2_ros.Buffer()
-        #self.__listener = tf2_ros.TransformListener(self.__tfBuffer)
-        #self.__tfBroadcaster = tf2_ros.TransformBroadcaster()
+        self.__tfBuffer = tf2_ros.Buffer()
+        self.__listener = tf2_ros.TransformListener(self.__tfBuffer)
+        self.__tfBroadcaster = tf2_ros.TransformBroadcaster()
 #
-        ##The init will only continue if a transform between parent frame and child frame can be found
-        #while self.__tfBuffer.can_transform(self.parent_frame, self.child_frame, rospy.Time()) == 0:
-        #    try:
-        #        rospy.loginfo("No transform between "+str(self.parent_frame) +' and ' + str(self.child_frame))
-        #        rospy.sleep(2)
-        #    except: #, tf2_ros.ExtrapolationException  (tf2_ros.LookupException, tf2_ros.ConnectivityException)
-        #        rospy.sleep(2)
-        #        continue
-        #
-        #rospy.loginfo("Transform between "+str(self.parent_frame) +' and ' + str(self.child_frame) + 'found.')
+        #The init will only continue if a transform between parent frame and child frame can be found
+        while self.__tfBuffer.can_transform(self.parent_frame, self.child_frame, rospy.Time()) == 0:
+            try:
+                rospy.loginfo("No transform between "+str(self.parent_frame) +' and ' + str(self.child_frame))
+                rospy.sleep(2)
+            except: #, tf2_ros.ExtrapolationException  (tf2_ros.LookupException, tf2_ros.ConnectivityException)
+                rospy.sleep(2)
+                continue
+        
+        rospy.loginfo("Transform between "+str(self.parent_frame) +' and ' + str(self.child_frame) + 'found.')
     
     #def fsm_state_callback(self, fsm_msg):
     #    # TODO: fix this for current state
@@ -156,51 +166,22 @@ class PathFollowingNode():
     #def odom_tf_callback(self, tf_msg):
     #    # TODO: fix this for transformations
     #    self.last_odom = 1
-#
-    #def make_pointStamped_odom(self, headerdata, position, name):
-    #    # TODO: someone else fix the fucking tf stuff I hate this fucking piece of shit
-#
-    #    new_point = PointStamped()
-    #    new_point.header = "path_centroid"
-    #    new_point.header.stamp = rospy.get_rostime()
-    #    new_point.point.x = position[0]
-    #    new_point.point.y = position[1]
-    #    new_point.point.z = position[2]
-    #    pointPub.publish(new_point)
-        rospy.loginfo("Bruh do we get here????")
 
-    def transformbroadcast(self, parent_frame, p):
-        t = TransformStamped()
-        t.header.stamp = rospy.Time.now()
-        t.header.frame_id = parent_frame
-        t.child_frame_id = "object_" + str(p.objectID)
-        t.transform.translation.x = p.objectPose.pose.position.x
-        t.transform.translation.y = p.objectPose.pose.position.y
-        t.transform.translation.z = p.objectPose.pose.position.z
-        t.transform.rotation.x = p.objectPose.pose.orientation.x
-        t.transform.rotation.y = p.objectPose.pose.orientation.y
-        t.transform.rotation.z = p.objectPose.pose.orientation.z
-        t.transform.rotation.w = p.objectPose.pose.orientation.w
-        self.__tfBroadcaster.sendTransform(t)
-    
+    def make_PointStamped(self, point):
+        p = PointStamped()
+        p.point.x = p[0]
+        p.point.y = p[1]
+        p.point.z = p[2]
+        return p
 
-    def publish_object(self, path, path_centroid):
-        p = ObjectPosition()
-        #p.pose.header[]
-        p.objectID = self.objectID
-        p.objectPose.header = "object_" + str(self.objectID)
-        p.objectPose.pose.position.x = path_centroid[0]
-        p.objectPose.pose.position.y = path_centroid[1]
-        p.objectPose.pose.position.z = path_centroid[2]
-        p.objectPose.pose.orientation.x = 0
-        p.objectPose.pose.orientation.y = 0
-        p.objectPose.pose.orientation.z = 0
-        p.objectPose.pose.orientation.w = 0
-        
-        # TODO: figure out bools with auto
-
-        self.pathPub(p)
-        self.transformbroadcast(self.parent_frame, p)
+    def do_transform_point(self, point, transform):
+        p = transform_to_kdl(transform) * PyKDL.Vector(point.point.x, point.point.y, point.point.z)
+        res = PointStamped()
+        res.point.x = p[0]
+        res.point.y = p[1]
+        res.point.z = p[2]
+        res.header = transform.header
+        return res
 
     def path_calculations(self, img):
         """
@@ -235,7 +216,7 @@ class PathFollowingNode():
 
         return path_contour, path_area, img_drawn, hsv_val_img
 
-    def get_dp_ref(self, path_centroid_camera):
+    def get_dp_ref(self, path_centroid_camera, z_udfc_odom):
         """
         Takes in the path centroid in homogenious camera coordinates and calculates the X, Y, Z for the dp reference
 
@@ -250,12 +231,8 @@ class PathFollowingNode():
         4. Waypoint is placed at x,y of centriod in world + ref_z (which is the ideal z over the path) 
         """
 
-        # Get udfc pose in odom
-        udfc_odom_pose = magic_tf_lookup_stuff # TODO: big man tf fix
-
         # Find out how far above path we are
-        z_udfc = udfc_odom_pose[2]
-        z_over_path = self.H_pool_prior - z_udfc - self.h_path_prior
+        z_over_path = self.H_pool_prior - z_udfc_odom - self.h_path_prior
         
         # Map X and Y to world frame
         X = (z_over_path / self.focal_length) * path_centroid_camera[0]
@@ -263,7 +240,7 @@ class PathFollowingNode():
 
         # Set dp_ref to be path centroid in x and y and the desired Z to get view of centroid
         dp_ref = [X, Y, self.Z_prior_ref]
-
+        
         return dp_ref
 
     def cv_image_publisher(self, publisher, image, msg_encoding="bgra8"):
@@ -272,33 +249,67 @@ class PathFollowingNode():
         """
         msgified_img = self.bridge.cv2_to_imgmsg(image, encoding=msg_encoding)
         publisher.publish(msgified_img)
+    
+    def publish_waypoint(self, publisher, objectID, waypoint):
+        p = ObjectPosition()
+        #p.pose.header[]
+        p.objectID = objectID
+        try:
+            p.objectPose.header.seq += 1
+        except AttributeError:
+            p.objectPose.header.seq = 1
+            
+        p.header.time = rospy.get_rostime()
+        p.header.frame_id = self.parent_frame
+
+        p.objectPose.pose.position.x = waypoint[0]
+        p.objectPose.pose.position.y = waypoint[1]
+        p.objectPose.pose.position.z = waypoint[2]
+        p.objectPose.pose.orientation.x = 0
+        p.objectPose.pose.orientation.y = 0
+        p.objectPose.pose.orientation.z = 0
+        p.objectPose.pose.orientation.w = 1
+
+        p.isDetected = self.isDetected
+        p.estimateConverged = self.estimateConverged
+        p.estimateFucked = self.estimateFucked
+
+        publisher.publish(p)
+        rospy.loginfo("Object published: %s", objectID)
         
 
     def find_contour_line(self, contour, img_drawn=None):
+        """
+        Finds the line in image coordinates, and computes two points that are later to be stored in world.
+
+        Output:         p0 - a point on the line
+                        p1 - another point in the line, exactly [vx, vy] along the line from p0, s.t. colin_vec = p_line - p0
+        """
         vx, vy, x0, y0 = cv2.fitLine(contour, cv2.DIST_L2, 0, 0.1, 0.1)
 
         colin_vec = np.ravel(np.array((vx, vy)))
         p0 = np.ravel(np.array((x0, y0)))
-
-        line_params = np.hstack((colin_vec, p0))
+        p_line = p0 + colin_vec
         
         if img_drawn is not None:
             p1 = p0 + 1000*colin_vec
             p2 = p0 - 1000*colin_vec
             cv2.line(img_drawn, tuple(p1), tuple(p2), color=(0, 255, 0), thickness=2)
 
-            return line_params, img_drawn
+            return p_line, p0, img_drawn
         
         else:
-            return line_params
+            return p_line, p0
 
     def batch_estimate_waypoint(self):
         
         line_params = np.average(self.batch_line_params, 0)
         
-        p0 = line_params[:2]
-        colin_vec = line_params[2:]
+        p_line      = line_params[:2]
+        p0          = line_params[2:]
         
+        colin_vec = p_line - p0
+
         # Get two points on the line
         p1 = p0 + 100*colin_vec
         p2 = p0 - 100*colin_vec
@@ -308,7 +319,7 @@ class PathFollowingNode():
         errors = [np.linalg.norm(self.y_min_point - points[i]) for i in range(len(points))]
         next_waypoint = points[np.argmin(errors)]
         
-        return next_waypoint
+        return np.append(next_waypoint, self.Z_prior_ref)
     
     def path_following_udfc_cb(self, img_msg):
 
@@ -318,24 +329,21 @@ class PathFollowingNode():
         Simplest Way to do this: Find biggest contour and if it is above some threshold for area declare the path there
 
         """
+        self.waypoint_header = img_msg.header
 
         if self.current_state not in self.possible_states:
             return None
 
         if np.shape(self.batch_line_params)[0] > 100:
             # TODO: write batch_estimate_waypoint and the waypoint publisher
-            #self.isEstimated = True
-            #next_waypoint = self.batch_estimate_waypoint()
-            #self.publish_waypoint(self.waypointPub, next_waypoint)
-            print("bruh")
-            
+            self.isEstimated = True
+            next_waypoint = self.batch_estimate_waypoint()
+            self.publish_waypoint(self.wpPub, "next_task", next_waypoint)
             return None
 
         udfc_img = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
         
         self.path_contour, path_area, img_drawn, hsv_val_img = self.path_calculations(udfc_img)
-        
-
         self.path_contour = self.path_contour[0][:,0,:]
         
         if self.isDetected == False and path_area > self.detection_area_threshold:
@@ -351,36 +359,25 @@ class PathFollowingNode():
         self.path_centroid = np.array([cx, cy])
         
         # TODO: Transform from image coords to camera coords
-        #cx_tilde, cy_tilde = cv2.unrectify(bruh = 1)
-        cx_tilde, cy_tilde = 1, 2
+        path_centroid_cam = cv2.undistort(self.path_centroid, self.K, self.dcs, None, self.K_opt)
+
+        tf_lookup_wc = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5))
+        z_udfc_odom = tf_lookup_wc[0][2]
+
         
-        X = (self.Z_prior / self.focal_length) * cx_tilde
-        Y = (self.Z_prior / self.focal_length) * cy_tilde
-        dp_ref = [X, Y, self.Z_prior]
-        
-        #print(np.shape(np.ravel(path_contour[0])))
+        dp_ref = self.get_dp_ref(path_centroid_cam, z_udfc_odom)
+
         upper_inds = np.where((self.path_contour[:,1] < cy) == True)[0]
         upper_contour_image = self.path_contour[upper_inds]
         
-        #self.path_contour_world = 
+
+        p_line, p0, img_drawn = self.find_contour_line(upper_contour_image, img_drawn)
+
+        self.batch_line_params = np.vstack((self.batch_line_params, np.reshape(np.append(p_line, p0), (1,4))))
 
 
-        line_params, img_drawn = self.find_contour_line(upper_contour_image, img_drawn)
-
-        self.batch_line_params = np.vstack((self.batch_line_params, np.reshape(line_params, (1,4))))
-
-        #self.dp_ref_publisher(self.dp_ref_Pub, dp_ref)
-
-        #if self.current_state == "path_search" or "path_converge":
-        #    # TODO publish centroid here
-        #    bruh = 1
-#
-        #elif self.current_state == "path_execute":
-        #    bruh = 1
-        #else:
-        #    pass
-        ## TODO: do the decision for straight vs bendy and the batch optimization to solve for path angle
         self.cv_image_publisher(self.udfcPub, img_drawn, "bgr8")
+        self.publish_waypoint(self.wpPub, "path", dp_ref)
         #self.publish_waypoint(self.waypointPub, next_waypoint)
 
 
