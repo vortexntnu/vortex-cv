@@ -2,6 +2,7 @@
 import cv2 as cv
 import numpy as np
 from scipy import ndimage
+from copy import deepcopy
 
 class ImagePreprocessing:
 
@@ -25,11 +26,13 @@ class ImagePreprocessing:
     def CLAHE(self, img):
         #equ = np.zeros(np.shape(img))
         equ = cv.cuda_GpuMat()
+
+        img_cp = deepcopy(img)
         
         if len(np.shape(img)) == 2: # If it is a grayscale/one channel image
             #equ = self.clahe.apply(img)
             equ.upload(img)
-            dst = self.clahe(equ, cv.cuda_Stream.Null())
+            dst = self.clahe.apply(equ, cv.cuda_Stream.Null())
             return dst.download()
             
         elif len(np.shape(img)) < 2:
@@ -39,10 +42,10 @@ class ImagePreprocessing:
                 #equ[:,:,i] = self.clahe.apply(img[:,:,i])
 
                 equ.upload(img[:,:,i])
-                dst = self.clahe(equ, cv.cuda_Stream.Null())
-                img[:,:,i] = dst.download()
+                dst = self.clahe.apply(equ, cv.cuda_Stream.Null())
+                img_cp[:,:,i] = np.array(dst.download())
 
-            return img
+            return img_cp
 
     def SVD_compression(self, img, r):
         U, S, VT = np.linalg.svd(img)
