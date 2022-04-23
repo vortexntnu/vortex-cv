@@ -16,6 +16,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import dynamic_reconfigure.client
 
 import numpy as np
+import cv2
 from timeit import default_timer as timer
 import traceback
 
@@ -27,12 +28,12 @@ class FeatureDetectionNode():
     """Handles tasks related to feature detection
     """
 
-    def __init__(self):
+    def __init__(self, image_topic):
         rospy.init_node('feature_detection_node')
 
         self.ros_rate = rospy.Rate(10.0)
 
-        # self.zedSub                 = rospy.Subscriber('/front/image_view/output', Image, self.camera_callback)
+        self.zedSub                 = rospy.Subscriber(image_topic, Image, self.camera_callback)
         # self.resetSub               = rospy.Subscriber('/feature_detection/reset', Empty, self.feature_detection_reset_callback)
         # self.fsmStateSub            = rospy.Subscriber('/AUTONOMOUS/FSM_STATE', MISSING_TYPE, self.FSM_cb)
 
@@ -101,14 +102,14 @@ class FeatureDetectionNode():
         while not rospy.is_shutdown():            
             if self.cv_image is not None:
                 try:
-                    gpu_frame = cv2.cuda_GpuMat()
-                    gpu_frame.upload(self.cv_image)
+
+                    self.cv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGRA2BGR)
 
                     hsv_mask, hsv_mask_validation_img = self.feat_detection.hsv_processor(self.cv_image, *self.hsv_params)
                     self.cv_image_publisher(self.hsvCheckPub, hsv_mask_validation_img, msg_encoding="bgr8")
 
-                    nr_img = self.feat_detection.noise_removal_processor(hsv_mask, *self.noise_rm_params)
-                    self.cv_image_publisher(self.noiseRmPub, nr_img, msg_encoding="mono8")
+                    # nr_img = self.feat_detection.noise_removal_processor(hsv_mask, *self.noise_rm_params)
+                    # self.cv_image_publisher(self.noiseRmPub, nr_img, msg_encoding="mono8")
 
                 except Exception, e:
                     print(traceback.format_exc())
@@ -153,7 +154,7 @@ class FeatureDetectionNode():
 
 if __name__ == '__main__':
     try:
-        feature_detection_node = FeatureDetectionNode()
+        feature_detection_node = FeatureDetectionNode(image_topic='/cv/image_preprocessing/CLAHE/zed2')
         # rospy.spin()
         feature_detection_node.spin()
 

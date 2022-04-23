@@ -157,6 +157,7 @@ include_directories(
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
   scripts/feature_detection_node.py
+  scripts/feature_detection_node_gpu.py
   scripts/dynam_recfg.py
   # scripts/dynam_reconfigure_server.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

@@ -68,15 +68,30 @@ class ImageFeatureProcessingGPU(object):
             hsv_mask                (cv2::Mat)  : Array of x, y points for binary pixels that were filtered by the HSV params.
             hsv_mask_validation_img (cv2::Mat)  : original_image with applied hsv_mask.
         """
-        hsv_img = cv2.cuda.cvtColor(original_image, cv2.COLOR_BGR2HSV)
+
+
+        gpu_frame_orig = cv2.cuda_GpuMat()
+        gpu_frame_orig.upload(original_image)
+
+        gpu_frame_hsv = cv2.cuda_GpuMat()
+        
+        gpu_frame_hsv = cv2.cuda.cvtColor(gpu_frame_orig, cv2.COLOR_BGR2HSV, stream=cv2.cuda_Stream.Null())
+        cpu_frame_hsv = gpu_frame_hsv.download()
 
         hsv_lower = np.array([hsv_hue_min, hsv_sat_min, hsv_val_min])
         hsv_upper = np.array([hsv_hue_max, hsv_sat_max, hsv_val_max])
 
-        hsv_mask = cv2.inRange(hsv_img, hsv_lower, hsv_upper)
+        hsv_mask = cv2.inRange(cpu_frame_hsv, hsv_lower, hsv_upper)
+
+        gpu_frame_mask = cv2.cuda_GpuMat()
+        gpu_frame_mask.upload(hsv_mask)
+
         hsv_mask_validation_img = cv2.cuda.bitwise_and(
-            original_image, original_image, mask=hsv_mask
+            gpu_frame_orig, gpu_frame_orig, mask=gpu_frame_mask, stream=cv2.cuda_Stream.Null()
         )  # Applies mask
+
+        hsv_validation_img = hsv_mask_validation_img.download()
+
 
         return hsv_mask, hsv_mask_validation_img
 
