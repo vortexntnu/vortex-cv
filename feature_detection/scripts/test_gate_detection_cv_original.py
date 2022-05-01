@@ -1,5 +1,4 @@
 import cv2
-from matplotlib import lines
 import numpy as np
 from copy import deepcopy
 
@@ -39,35 +38,36 @@ class HoughMajingo:
                         -> vertical line: x_position, horizontal line: y_position
         '''
         
+        # 
         if set == 0:
-            coor_pos = 1  
+            ver = 1  # value for vertical lines
         elif set ==1:
-            coor_pos = 0  
+            ver = 0  # value for horizontal lines
 
-        line_only = lines_HT[:,0,set]
-        position = np.zeros((lines_HT.shape[0],1),dtype = int)
-        rect_list = np.zeros((lines_HT.shape[0],1,4),dtype = int)
+        lines_sort = lines_HT[lines_HT[:,0,set].argsort()]  
+        x_all_lines = lines_sort[:,0,set]
+        position = np.zeros((20,1),dtype = int)
+        rect_list = np.zeros((20,1,4),dtype = int)
 
         k= 0
         j= 0
-        print(line_only.shape)
-
-        # neighbouring lines are averaged and made to one line
-        for i in range(line_only.shape[0]-1):
-            print(line_only[i+1])
-            if line_only[i+1] - line_only[i] >= e or i == line_only.shape[0]-2: 
-                if len(line_only[k:i]) >1:
-                    x_pos_mean = int(line_only[k:i+1].mean())
-                    y_pos_ver =  min(lines_HT[k:i+1, 0, coor_pos])
+        
+        # list of lines is filtered and lines that are close together are combined -> change this if it is not working with calibrated images
+        for i in range(x_all_lines.shape[0]-1):
+            if x_all_lines[i+1] - x_all_lines[i] >= e or i == x_all_lines.shape[0]-2: 
+                if len(x_all_lines[k:i]) >1:
+                    x_pos_mean = int(x_all_lines[k:i+1].mean())
+                    y_pos_ver =  lines_sort[k:i+1, 0, ver]
                     y_pos_min = min(y_pos_ver)
-                    y_pos_ver = max(lines_HT[k:i+1, 0,coor_pos +2])
+                    y_pos_ver =  lines_sort[k:i+1, 0,ver +2]
                     y_pos_max = max(y_pos_ver)
                     k = i +1
                     position[j] = x_pos_mean
                     rect_list[j,0,set] = int(x_pos_mean)
-                    rect_list[j,0,coor_pos] = int(y_pos_min)
+                    rect_list[j,0,ver] = int(y_pos_min)
                     rect_list[j,0,set+2] = int(x_pos_mean)
-                    rect_list[j,0,coor_pos+2] = int(y_pos_max)
+                    rect_list[j,0,ver+2] = int(y_pos_max)
+                    
                     j +=1
                 else:
                     k += 1
@@ -76,7 +76,7 @@ class HoughMajingo:
     @staticmethod
     def cut_zeros(list):
         '''
-        deletes zero entries of the list
+        deletes "empty" entries of the list (instead of line zero vector)
         arg:
             list: list of lines with "empty" entries
         return:
@@ -161,13 +161,13 @@ class HoughMajingo:
         return centroid_list
 
     @staticmethod
-    def main(orig_img, t1= 100, t2= 200):
+    def main(orig_img, t1, t2):
         '''
         Applying hough transform on the image and postprocess the results to get bounding boxes from the detected object
         arg: 
-            orig_img    : image in gray scale
-            t1          : {default= 100} lower threshold for canny edge detector
-            t2          : {default= 200} upper threshold for canny edge detector
+            orig_img: image in gray scale
+            t1: lower threshold for canny edge detector
+            t2: upper threshold for canny edge detector
         return: 
             bb: list of bounding boxes
             center: list of centroids; list consists of arrays with x and y entries belonging to the bounding box of same index
@@ -176,53 +176,57 @@ class HoughMajingo:
             img_contrast: contrasted image --> delete, just for testing purposes, preprocessing is done somewhere else
         '''
         img_gray = deepcopy(orig_img)
-        visual_lines =  True # False # just for testing purposes
+        visual_lines =  False # True # 
         
         ## Preprocessing: Edge detection 
         edges = cv2.Canny(img_gray,t1,t2)
 
-        ## Applying HoughLinesP to get different lines
-        linesP = cv2.HoughLinesP(edges,1,np.pi/180,30,minLineLength=40,maxLineGap=20)
+        ## HoughLinesP
+        linesP = cv2.HoughLinesP(edges,1,np.pi/180,30,minLineLength=25,maxLineGap=10)
 
-        ## Filtering of HoughLines to get a set of nearly horizontal and nearly vertical lines
+        ## Orientation based Filtering 
+        # m = np.zeros(linesP.shape[0]) ## replace this with orientation of the drone
         k = 0
+        j = 0
+        lines_ver = linesP
+        lines_hor = linesP 
         if linesP is not None:
             for line_idx in range(0, len(linesP)):
                 line = linesP[line_idx][0]
-                if (line[3]- line[1]) >- 10^(-15) and (line[3]- line[1]) < 10^(-15): #m[line_idx] != 0: ## horizontal lines: processing
-                    linesP = np.delete(linesP,k, axis= 0)
+                # m[line_idx] = (line[3]- line[1]) / (line[2]-line[0]) --> not needed anymore, new solution should be validated
+                # print((line[3]- line[1]) / (0))
+                # print(m[line_idx])
+                if (line[3]- line[1]) != 0:  #m[line_idx] != 0: ## horizontal lines: processing
+                    lines_hor = np.delete(lines_hor,k, axis= 0)
                     k -=1
+                if (line[2]-line[0]) != 0: # (line[2]-line[0]) < 10^(-20) and (line[2]-line[0]) > -10^(-20):   #(line[2]-line[0]) != 0: #np.abs(m[line_idx]) != np.Inf: ## vertical lines: processing
+                    lines_ver = np.delete(lines_ver,j, axis= 0)
+                    j -=1
+    
                 k +=1
-        lines_array = np.array(linesP)
-        distance_ver = lines_array[:,0,2]- lines_array[:,0,0]
-        distance_hor = lines_array[:,0,3]- lines_array[:,0,1]
-        compare_ver = np.where(distance_ver < distance_hor)
-        compare_hor = np.where(distance_ver > distance_hor)
-        line_vert = linesP[compare_ver,:,:][0]
-        line_hori = linesP[compare_hor,:,:][0]
-        line_vert_sorted = line_vert[line_vert[:,0,0].argsort()]  
-        line_hori_sorted = line_hori[line_hori[:,0,1].argsort()]  
+                j +=1
         
         if visual_lines:
             ## Visualization of detected hough lines
-            if line_hori_sorted is not None:
-                for i in range(len(line_hori_sorted)):
-                    line_hor = line_hori_sorted[i,0,:]
+            if lines_hor is not None:
+                for i in range(len(lines_hor)):
+                    line_hor = lines_hor[i,0,:]
                     cv2.line(img_gray, (line_hor[0], line_hor[1]), (line_hor[2], line_hor[3]), (0,0,255), 2)
             
-            if line_vert_sorted is not None:
-                for i in range(len(line_vert_sorted)):
-                    line_ver = line_vert_sorted[i,0,:]
+            if lines_ver is not None:
+                for i in range(len(lines_ver)):
+                    line_ver = lines_ver[i,0,:]
                     cv2.line(img_gray, (line_ver[0], line_ver[1]), (line_ver[2], line_ver[3]), (0,255,0), 2)
         
 
         ## processing vertical and horizontal lines
-        rect_list_ver, pos_ver = HoughMajingo.lines_coord(line_vert_sorted, 0, 20)
-        rect_list_hor, pos_hor = HoughMajingo.lines_coord(line_hori_sorted, 1, 20)
+        rect_list_ver, pos_ver = HoughMajingo.lines_coord(lines_ver, 0, 5)
+        rect_list_hor, pos_hor = HoughMajingo.lines_coord(lines_hor, 1, 5)
 
         ## cut zeros from lists
         rect_list_ver_new = HoughMajingo.cut_zeros(rect_list_ver)
         rect_list_hor_new = HoughMajingo.cut_zeros(rect_list_hor)
+
 
         ## correlating lines and getting corner points from bounding box --> both should be outputted
         distanz = 35
@@ -231,19 +235,19 @@ class HoughMajingo:
         else:
             bb_ver = None
         if len(rect_list_hor_new) >1:
-            bb_hor =HoughMajingo.connect_lines2bb(rect_list_hor_new, 1, distanz)
+            bb_hor = HoughMajingo.connect_lines2bb(rect_list_hor_new, 1, distanz)
         else:
             bb_hor = None
 
         bb = []
         bbound = False
         if bb_ver is not None:
-            if np.shape(bb_ver) != 0: 
+            if np.shape(bb_ver) != 0: #
                 bb = bb_ver
                 bbound = True
 
         if bb_hor is not None:
-            if np.shape(bb_hor) != 0:
+            if np.shape(bb_ver) != 0:
                 bb = bb + bb_hor
             else: 
                 bb = bb_hor
@@ -293,18 +297,18 @@ class HoughMajingo:
         # Visualization of bounding boxes
         # if component:
         # print('New Bounding boxes', bb, 'shape',np.shape(bb)) 
-        # if component == False:
-        #     if np.shape(bb)[0] > 0:
-        #         for line_idx in range(len(bb)):
-        #             line = bb[line_idx] 
-        #             if np.shape(line) != 0:
-        #                 cv2.line(img_gray, (line[0], line[1]), (line[2], line[3]), (255,255,255), 2)
-        #                 cv2.line(img_gray, (line[0], line[1]), (line[4], line[5]), (255,255,255), 2)
-        #                 cv2.line(img_gray, (line[2], line[3]), (line[6], line[7]), (255,255,255), 2)
-        #                 cv2.line(img_gray, (line[4], line[5]), (line[6], line[7]), (255,255,255), 2)
+        if component == False:
+            if np.shape(bb)[0] > 0:
+                for line_idx in range(len(bb)):
+                    line = bb[line_idx] 
+                    if np.shape(line) != 0:
+                        cv2.line(img_gray, (line[0], line[1]), (line[2], line[3]), (255,255,255), 2)
+                        cv2.line(img_gray, (line[0], line[1]), (line[4], line[5]), (255,255,255), 2)
+                        cv2.line(img_gray, (line[2], line[3]), (line[6], line[7]), (255,255,255), 2)
+                        cv2.line(img_gray, (line[4], line[5]), (line[6], line[7]), (255,255,255), 2)
                 
-        #         if center is not None:
-        #             for cent_idx in range(len(center)): 
-        #                 cv2.circle(img_gray, (int(center[cent_idx][0]),int(center[cent_idx][1])), radius=3, color=(0, 0, 255), thickness=-1)
+                if center is not None:
+                    for cent_idx in range(len(center)): 
+                        cv2.circle(img_gray, (int(center[cent_idx][0]),int(center[cent_idx][1])), radius=3, color=(0, 0, 255), thickness=-1)
         # print('center in the end',center)
         return bb, center, img_gray, edges
