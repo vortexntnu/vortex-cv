@@ -58,12 +58,20 @@ class PathFollowingNode():
         self.child_frame = 'udfc_link'
         
         # Camera Calibration Params (CCP)
-        param_folder = '../params'
+        #param_folder = '~/cv_ws/src/Vortex-CV/path_following/params'
 
-        self.K           = np.loadtxt(join(param_folder, 'K.txt'))
-        self.dcs         = np.loadtxt(join(param_folder, 'dc.txt'))
-        self.K_opt       = np.loadtxt(join(param_folder, 'K_opt.txt'))
+        #self.K           = np.loadtxt(join(param_folder, 'K.txt'))
+        #self.dcs         = np.loadtxt(join(param_folder, 'dc.txt'))
+        #self.K_opt       = np.loadtxt(join(param_folder, 'K_opt.txt'))
+        fx_opt, fy_opt, cx_opt, cy_opt = rospy.get_param("fx_opt"), rospy.get_param("fy_opt"), rospy.get_param("cx_opt"), rospy.get_param("cy_opt")
+        self.K_opt = np.eye(3)
+        self.K_opt[0,0] = fx_opt
+        self.K_opt[1,1] = fy_opt
+        self.K_opt[0,2] = cx_opt
+        self.K_opt[1,2] = cy_opt
 
+        self.K_opt_inv = np.linalg.inv(self.K_opt)
+        rospy.loginfo(self.K_opt_inv)
         # Parameters for the algorithm:
         self.hsv_params = [0,       #hsv_hue_min
                            53,     #hsv_hue_max
@@ -327,13 +335,18 @@ class PathFollowingNode():
         self.path_centroid = np.array([cx, cy])
         
         # Undistort centroid point
-        path_centroid_cam = cv2.undistort(self.path_centroid, self.K, self.dcs, None, self.K_opt)
+        # HOT TAKE: WE DONT REALLY NEED THIS SINCE IMAGE IS UNDISTORTED. JUST HIT IT WITH THE INVERSE CAM MATRIX BRUV!!!
+        #path_centroid_cam = cv2.undistort(self.path_centroid, self.K, self.dcs, None, self.K_opt)
+        path_centroid_cam = np.matmul(self.K_opt_inv, np.append(self.path_centroid,1)) # TODO: make K_inv
         
         # Get drone position in odom and extract the z coordinate for future computations
         tf_lookup_wc = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5))
-        z_udfc_odom = tf_lookup_wc[0][2]
+        #trans, rot = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5))
+        z_udfc_odom = np.array([tf_lookup_wc.transform.translation.x,
+                                tf_lookup_wc.transform.translation.y,
+                                tf_lookup_wc.transform.translation.z])
 
-        dp_ref = self.get_dp_ref(path_centroid_cam, z_udfc_odom)
+        dp_ref = np.array(self.get_dp_ref(path_centroid_cam[:2], z_udfc_odom))
 
         # Get the upper contour
         upper_inds = np.where((self.path_contour[:,1] < cy) == True)[0]
@@ -341,10 +354,14 @@ class PathFollowingNode():
         
         # Get line, eventually as 2 points in odom and store those
         p_line, p0, img_drawn = self.find_contour_line(upper_contour_image, img_drawn)
-        p_line_odom = cv2.undistort(p_line , self.K, self.dcs, None, self.K_opt) + tf_lookup_wc[0]
-        p0_odom = cv2.undistort(p0 , self.K, self.dcs, None, self.K_opt) + tf_lookup_wc[0]
+        #p_line_odom = cv2.undistort(p_line , self.K, self.dcs, None, self.K_opt) + tf_lookup_wc[0]
+        #p0_odom = cv2.undistort(p0 , self.K, self.dcs, None, self.K_opt) + tf_lookup_wc[0]
+        p_line = np.append(p_line, 1)
+        p0 = np.append(p0, 1)
+        p_line_odom = np.matmul(self.K_opt_inv, p_line)
+        p0_odom = np.matmul(self.K_opt_inv, p0)
 
-        self.batch_line_params = np.vstack((self.batch_line_params, np.reshape(np.append(p_line_odom, p0_odom), (1,4))))
+        self.batch_line_params = np.vstack((self.batch_line_params, np.reshape(np.append(p_line_odom[:2], p0_odom[:2]), (1,4))))
 
         
         self.cv_image_publisher(self.udfcPub, img_drawn, "bgr8")
