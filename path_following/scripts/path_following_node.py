@@ -57,12 +57,6 @@ class PathFollowingNode():
         self.parent_frame = 'odom' 
         self.child_frame = 'udfc_link'
         
-        # Camera Calibration Params (CCP)
-        #param_folder = '~/cv_ws/src/Vortex-CV/path_following/params'
-
-        #self.K           = np.loadtxt(join(param_folder, 'K.txt'))
-        #self.dcs         = np.loadtxt(join(param_folder, 'dc.txt'))
-        #self.K_opt       = np.loadtxt(join(param_folder, 'K_opt.txt'))
         fx_opt, fy_opt, cx_opt, cy_opt = rospy.get_param("fx_opt"), rospy.get_param("fy_opt"), rospy.get_param("cx_opt"), rospy.get_param("cy_opt")
         self.K_opt = np.eye(3)
         self.K_opt[0,0] = fx_opt
@@ -71,7 +65,6 @@ class PathFollowingNode():
         self.K_opt[1,2] = cy_opt
 
         self.K_opt_inv = np.linalg.inv(self.K_opt)
-        rospy.loginfo(self.K_opt_inv)
         # Parameters for the algorithm:
         self.hsv_params = [0,       #hsv_hue_min
                            53,     #hsv_hue_max
@@ -118,7 +111,8 @@ class PathFollowingNode():
         self.estimateConverged     = False
         self.estimateFucked        = False
 
-        self.batch_line_params = np.zeros((1,4))
+        self.batch_line_params = np.zeros((1,3))
+        self.uppest_y_coords = []
 
         # TODO: In case transform performs badly due to focal length, use this to estimate focal length
         #cv2.calibrationMatrixValues
@@ -174,13 +168,13 @@ class PathFollowingNode():
         p = ObjectPosition()
         #p.pose.header[]
         p.objectID = objectID
-        try:
-            p.objectPose.header.seq += 1
-        except AttributeError:
-            p.objectPose.header.seq = 1
-            
-        p.header.time = rospy.get_rostime()
-        p.header.frame_id = self.parent_frame
+        #try:
+        #    p.objectPose.header.seq += 1
+        #except AttributeError:
+        #    p.objectPose.header.seq = 1
+        #    
+        #p.header.time = rospy.get_rostime()
+        #p.header.frame_id = self.parent_frame
 
         p.objectPose.pose.position.x = waypoint[0]
         p.objectPose.pose.position.y = waypoint[1]
@@ -191,8 +185,9 @@ class PathFollowingNode():
         p.objectPose.pose.orientation.w = 1
 
         p.isDetected = self.isDetected
-        p.estimateConverged = self.estimateConverged
-        p.estimateFucked = self.estimateFucked
+        # TODO: uncomment after we merge
+        #p.estimateConverged = self.estimateConverged
+        #p.estimateFucked = self.estimateFucked
 
         publisher.publish(p)
         rospy.loginfo("Object published: %s", objectID)
@@ -217,8 +212,7 @@ class PathFollowingNode():
         #path_contour = self.feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, return_image=False)
 
         path_contour = self.feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, variance_filtering=True, coloured_img=img, return_image=False)
-        #rospy.logwarn(path_contour[0])
-        
+
         cv2.drawContours(img, path_contour, -1, (0,0,255), 5)
         path_area = cv2.contourArea(path_contour[0])
         
@@ -229,8 +223,25 @@ class PathFollowingNode():
         img_drawn = cv2.circle(img, (cx,cy), radius=1, color=(0, 255, 0), thickness=3)
 
         return path_contour, path_area, img_drawn, hsv_val_img
+    def map_to_odom(self, point_cam, trans_udfc_odom):
 
-    def get_dp_ref(self, path_centroid_camera, z_udfc_odom):
+        """
+        Takes in a homogeneous point in camera frame and maps it to odom through the dp assumptions of no roll
+        and pitch and the similarity triangles equations.
+
+        """
+
+        z_over_path = self.H_pool_prior - trans_udfc_odom[2] - self.h_path_prior
+        
+        # Map X and Y to world frame
+        X = (z_over_path / self.focal_length) * point_cam[0]
+        Y = (z_over_path / self.focal_length) * point_cam[1]
+
+        point_odom = np.array([X, Y, z_over_path]) + trans_udfc_odom
+        
+        return point_odom
+
+    def get_dp_ref(self, path_centroid_camera, trans_udfc_odom):
         """
         Takes in the path centroid in homogenious camera coordinates and calculates the X, Y, Z for the dp reference
 
@@ -240,14 +251,14 @@ class PathFollowingNode():
         """
 
         # Find out how far above path we are
-        z_over_path = self.H_pool_prior - z_udfc_odom - self.h_path_prior
+        z_over_path = self.H_pool_prior - trans_udfc_odom[2] - self.h_path_prior
         
         # Map X and Y to world frame
         X = (z_over_path / self.focal_length) * path_centroid_camera[0]
         Y = (z_over_path / self.focal_length) * path_centroid_camera[1]
 
         # Set dp_ref to be path centroid in x and y and the desired Z to get view of centroid
-        dp_ref = [X, Y, self.Z_prior_ref]
+        dp_ref = np.array([X, Y, self.Z_prior_ref]) + trans_udfc_odom
         
         return dp_ref
 
@@ -258,11 +269,12 @@ class PathFollowingNode():
         Output:         p0 - a point on the line
                         p1 - another point in the line, exactly [vx, vy] along the line from p0, s.t. colin_vec = p_line - p0
         """
+        rospy.loginfo(np.shape(contour))
         vx, vy, x0, y0 = cv2.fitLine(contour, cv2.DIST_L2, 0, 0.1, 0.1)
 
-        colin_vec = np.ravel(np.array((vx, vy)))
-        p0 = np.ravel(np.array((x0, y0)))
-        p_line = p0 + colin_vec
+        colin_vec   = np.ravel(np.array((vx, vy)))
+        p0          = np.ravel(np.array((x0, y0)))
+        p_line      = p0 + colin_vec
         
         if img_drawn is not None:
             p1 = p0 + 1000*colin_vec
@@ -274,30 +286,44 @@ class PathFollowingNode():
         else:
             return p_line, p0
 
-    def batch_estimate_waypoint(self):
+    def batch_estimate_waypoint(self, t_udfc_odom):
         
-        line_params = np.average(self.batch_line_params, 0)
+        #line_params = np.average(self.batch_line_params, 0)
+        uppestest_y_coord = np.average(self.uppest_y_coords, 0)
+        vx, vy, x0, y0 = cv2.fitLine(self.batch_line_params[:,:2], cv2.DIST_L2, 0, 0.1, 0.1)
         
-        p_line      = line_params[:2]
-        p0          = line_params[2:]
+        colin_vec   = np.ravel(np.array((vx, vy)))
+        p0          = np.ravel(np.array((x0, y0)))
         
-        colin_vec = p_line - p0
+        #p_line      = p0 + colin_vec
+
+        #p_line      = line_params[:2]
+        #p0          = line_params[2:]
+        #
+        #colin_vec = p_line - p0
 
         # Get two points on the line
-        p1 = p0 + 100*colin_vec
-        p2 = p0 - 100*colin_vec
+        p1 = np.append(p0 + 15*colin_vec, 1)
+        p2 = np.append(p0 - 15*colin_vec, 1)
         
-        points = [p1, p2]
-        # 
-        errors = [np.linalg.norm(self.y_min_point - points[i]) for i in range(len(points))]
-        next_waypoint = points[np.argmin(errors)]
+        p1_img = np.matmul(self.K_opt, p1 - t_udfc_odom)
+        p2_img = np.matmul(self.K_opt, p2 - t_udfc_odom)
+
+
+        points      = [p1, p2]
+        points_img  = [p1_img, p2_img]
+        # Check which is closer to the 
+        errors          = [np.linalg.norm(uppestest_y_coord - points_img[i][:2]) for i in range(len(points_img))]
+        next_waypoint   = points[np.argmin(errors)]
+
+        rospy.loginfo(next_waypoint)
         
         return np.append(next_waypoint, self.Z_prior_ref)
     
     def path_following_udfc_cb(self, img_msg):
 
         """
-        The first time we classify the path in UDFC makes us move to converge state
+        The first time we detect the path in UDFC makes us move to converge state
 
         Simplest Way to do this: Find biggest contour and if it is above some threshold for area declare the path there
 
@@ -306,11 +332,17 @@ class PathFollowingNode():
 
         if self.current_state not in self.possible_states:
             return None
+        
+        # Get drone position in odom and extract the z coordinate for future computations
+        tf_lookup_wc    = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5))
+        t_udfc_odom     = np.array([tf_lookup_wc.transform.translation.x,
+                                    tf_lookup_wc.transform.translation.y,
+                                    tf_lookup_wc.transform.translation.z])
 
-        if np.shape(self.batch_line_params)[0] > 100:
+        if np.shape(self.batch_line_params)[0] > 200:
             # In case we have gathered enough information
             self.isEstimated = True
-            next_waypoint = self.batch_estimate_waypoint()
+            next_waypoint = self.batch_estimate_waypoint(t_udfc_odom)
             self.publish_waypoint(self.wpPub, "next_task", next_waypoint)
             return None
 
@@ -318,14 +350,12 @@ class PathFollowingNode():
         
         # Extracting the contour
         self.path_contour, path_area, img_drawn, hsv_val_img = self.path_calculations(udfc_img)
+        
         self.path_contour = self.path_contour[0][:,0,:]
         
         # Contour detection
         if self.isDetected == False and path_area > self.detection_area_threshold:
             self.isDetected == True
-        
-        # TODO: test if this gives same result as first finding the centroid in image and them mapping it
-        #path_contour_camera = cv2.undistortPoints(path_contour, cameraMatrix=self.camera_matrix, dts=self.udfc_dcs)
 
         # Get centroid of contour in image coordinates
         M = cv2.moments(self.path_contour)
@@ -335,34 +365,35 @@ class PathFollowingNode():
         self.path_centroid = np.array([cx, cy])
         
         # Undistort centroid point
-        # HOT TAKE: WE DONT REALLY NEED THIS SINCE IMAGE IS UNDISTORTED. JUST HIT IT WITH THE INVERSE CAM MATRIX BRUV!!!
-        #path_centroid_cam = cv2.undistort(self.path_centroid, self.K, self.dcs, None, self.K_opt)
-        path_centroid_cam = np.matmul(self.K_opt_inv, np.append(self.path_centroid,1)) # TODO: make K_inv
-        
-        # Get drone position in odom and extract the z coordinate for future computations
-        tf_lookup_wc = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5))
-        #trans, rot = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5))
-        z_udfc_odom = np.array([tf_lookup_wc.transform.translation.x,
-                                tf_lookup_wc.transform.translation.y,
-                                tf_lookup_wc.transform.translation.z])
+        path_centroid_cam = np.matmul(self.K_opt_inv, np.append(self.path_centroid,1))
 
-        dp_ref = np.array(self.get_dp_ref(path_centroid_cam[:2], z_udfc_odom))
+        dp_ref = self.get_dp_ref(path_centroid_cam[:2], t_udfc_odom)
 
         # Get the upper contour
-        upper_inds = np.where((self.path_contour[:,1] < cy) == True)[0]
+        upper_inds          = np.where((self.path_contour[:,1] < cy) == True)[0]
         upper_contour_image = self.path_contour[upper_inds]
+
+        uppest_y_ind = np.argmin(upper_contour_image[:,1])
+        self.uppest_y_coords.append(upper_contour_image[uppest_y_ind, :])
         
         # Get line, eventually as 2 points in odom and store those
-        p_line, p0, img_drawn = self.find_contour_line(upper_contour_image, img_drawn)
-        #p_line_odom = cv2.undistort(p_line , self.K, self.dcs, None, self.K_opt) + tf_lookup_wc[0]
-        #p0_odom = cv2.undistort(p0 , self.K, self.dcs, None, self.K_opt) + tf_lookup_wc[0]
-        p_line = np.append(p_line, 1)
-        p0 = np.append(p0, 1)
-        p_line_odom = np.matmul(self.K_opt_inv, p_line)
-        p0_odom = np.matmul(self.K_opt_inv, p0)
+        p_line, p0, img_drawn   = self.find_contour_line(upper_contour_image, img_drawn)
+        p_line                  = np.append(p_line, 1)
+        p0                      = np.append(p0, 1)
 
-        self.batch_line_params = np.vstack((self.batch_line_params, np.reshape(np.append(p_line_odom[:2], p0_odom[:2]), (1,4))))
+        # Map the points along the line to camera coordinates
+        p_line_cam      = np.matmul(self.K_opt_inv, p_line)
+        p0_cam          = np.matmul(self.K_opt_inv, p0)
 
+        # Map the points along the line to odom:
+        p_line_odom     = self.map_to_odom(p_line_cam, t_udfc_odom)
+        p0_odom         = self.map_to_odom(p0_cam, t_udfc_odom)
+
+        if self.current_state == "path_execute":
+            uppest_y_ind = np.argmin(upper_contour_image[:,1])
+            self.uppest_y_coords.append(upper_contour_image[uppest_y_ind, :])
+            #self.batch_line_params = np.vstack((self.batch_line_params, np.reshape(np.append(p_line_odom, p0_odom), (1,6))))
+            self.batch_line_params = np.vstack((self.batch_line_params, np.vstack((p_line_odom, p0_odom))))
         
         self.cv_image_publisher(self.udfcPub, img_drawn, "bgr8")
         self.publish_waypoint(self.wpPub, "path", dp_ref)
@@ -371,9 +402,9 @@ class PathFollowingNode():
     def dynam_reconfigure_callback(self, config):
         
         
-        self.canny_threshold1 = config.canny_threshold1
-        self.canny_threshold2 = config.canny_threshold2
-        self.canny_aperture = config.canny_aperture_size
+        self.canny_threshold1   = config.canny_threshold1
+        self.canny_threshold2   = config.canny_threshold2
+        self.canny_aperture     = config.canny_aperture_size
 
         self.hsv_params[0] = config.hsv_hue_min
         self.hsv_params[1] = config.hsv_hue_max
@@ -384,14 +415,14 @@ class PathFollowingNode():
 
         self.ksize1 = config.ksize1
         self.ksize2 = config.ksize2
-        self.sigma = config.sigma
+        self.sigma  = config.sigma
 
         self.thresholding_blocksize = config.blocksize
-        self.thresholding_C = config.C
+        self.thresholding_C         = config.C
 
         self.erosion_dilation_ksize = config.ed_ksize
-        self.erosion_iterations = config.erosion_iterations
-        self.dilation_iterations = config.dilation_iterations
+        self.erosion_iterations     = config.erosion_iterations
+        self.dilation_iterations    = config.dilation_iterations
 
         self.noise_rm_params = [self.ksize1, self.ksize2, self.sigma, self.thresholding_blocksize, self.thresholding_C, self.erosion_dilation_ksize, self.erosion_iterations, self.dilation_iterations]
         

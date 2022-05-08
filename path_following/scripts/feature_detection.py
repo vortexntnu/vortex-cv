@@ -239,7 +239,15 @@ class ImageFeatureProcessing(object):
             contour_intensities = (noisy_img[pts[0], pts[1]])
             
             contour_colour_vars[k] = np.var(contour_intensities, axis=0)
-    
+        #try:
+        #    inds = area_thresh_inds[np.argmin(contour_colour_vars)]
+        #except:
+        #    return np.empty(())
+        #return inds
+        # TODO: finish debugging this mess
+        print(np.argmin(contour_colour_vars))
+        print(np.shape(area_thresh_inds))
+        print(area_thresh_inds)
         return area_thresh_inds[np.argmin(contour_colour_vars)]
             
 
