@@ -242,7 +242,7 @@ class PathFollowingNode():
         """
 
         # Find out how far above path we are
-        z_over_path = self.H_pool_prior - trans_udfc_odom[2] - self.h_path_prior
+        z_over_path = self.H_pool_prior - abs(trans_udfc_odom[2]) - self.h_path_prior
         
         # Map X and Y to world frame
         X = (z_over_path / self.focal_length) * path_centroid_camera[0]
