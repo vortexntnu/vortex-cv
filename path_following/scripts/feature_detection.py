@@ -238,16 +238,13 @@ class ImageFeatureProcessing(object):
             contour_intensities = (noisy_img[pts[0], pts[1]])
             
             contour_colour_vars[k] = np.var(contour_intensities, axis=0)
-        #try:
-        #    inds = area_thresh_inds[np.argmin(contour_colour_vars)]
-        #except:
-        #    return np.empty(())
-        #return inds
-        # TODO: Try with just biggest area
-        #print(np.argmin(contour_colour_vars))
-        #print(np.shape(area_thresh_inds))
-        #print(area_thresh_inds)
-        return area_thresh_inds[np.argmin(contour_colour_vars)]
+        try:
+            #inds = area_thresh_inds[np.argmin(contour_colour_vars)]
+            inds = np.argmax(areas)
+        except:
+            return []
+        return inds
+        #return area_thresh_inds[np.argmin(contour_colour_vars)]
             
 
 
@@ -297,13 +294,16 @@ class ImageFeatureProcessing(object):
             cnt_filter = self.contour_variance_filtering(
                 contours, contour_area_threshold, coloured_img[:,:,2]
             )
+            contours_array = np.array(contours)
+            contours_filtered = contours_array[cnt_filter]
+            return contours_filtered
         else:
             cnt_filter = self.contour_filtering(
                 hierarchy, contours, contour_area_threshold, mode=1
             )
         
-        contours_array = np.array(contours)
-        contours_filtered = contours_array[cnt_filter]
+        #contours_array = np.array(contours)
+        #contours_filtered = contours_array[cnt_filter]
         
         # Container list
         contour_arr = []
@@ -318,7 +318,6 @@ class ImageFeatureProcessing(object):
             contour_arr = contours_filtered
         
         # TODO: fucking stupid, BenG fix your unreadable code pliz :)   
-        return contour_arr
         # Contour centers
         centroid_data = []
         for cnt_idx in range(len(contours_filtered)):
@@ -326,7 +325,12 @@ class ImageFeatureProcessing(object):
                 cnt = contour_arr[0][cnt_idx]
             except Exception:
                 cnt = contour_arr[cnt_idx]
+
             cnt_moments = cv2.moments(cnt)
+            #try:
+            #    cnt_moments = cv2.moments(cnt)
+            #except Exception:
+            #    cnt_moments = cv2.moments(contours_filtered[:,0])
 
             try:
                 centroid_center_x = int(cnt_moments["m10"] / cnt_moments["m00"])
@@ -389,6 +393,7 @@ class ImageFeatureProcessing(object):
             else:
                 return blank_image, contour_arr
         else:
+            print("BRUUUUH")
             return contour_arr
 
 

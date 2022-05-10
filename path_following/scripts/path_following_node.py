@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
-#import debugpy
-#print("Waiting for VSCode debugger...")
-#debugpy.listen(5678)
-#debugpy.wait_for_client()
+import debugpy
+print("Waiting for VSCode debugger...")
+debugpy.listen(5678)
+debugpy.wait_for_client()
 
 ## TODO: imports taken from feature detection, remove what is unused
 
+from cProfile import label
 from matplotlib.pyplot import contour
 import rospy
 import rospkg
@@ -27,6 +28,7 @@ import tf2_ros
 import tf2_geometry_msgs.tf2_geometry_msgs
 
 import numpy as np
+import matplotlib.pyplot as plt
 from timeit import default_timer as timer
 import traceback
 import cv2
@@ -202,31 +204,16 @@ class PathFollowingNode():
         Takes in an image and finds the path contour and centroid. Also returns the original image with these drawn.
 
         """
-        
-        # Apply HSV to image
-        _, hsv_mask, hsv_val_img = self.feature_detector.hsv_processor(img, *self.hsv_params)
-        self.cv_image_publisher(self.hsvPub, hsv_val_img, msg_encoding="bgr8")
+        cv2.drawContours(img, self.path_contour, -1, (0,0,255), 5)
+        path_area = cv2.contourArea(self.path_contour[:,0])
 
-        
-
-        # Filter the image for noise
-        noise_filtered_img = self.feature_detector.noise_removal_processor(hsv_mask, *self.noise_rm_params)
-        self.cv_image_publisher(self.noise_filteredPub, noise_filtered_img, msg_encoding="8UC1")
-
-        # Get most probable path contour
-        #path_contour = self.feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, return_image=False)
-
-        path_contour = self.feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, variance_filtering=True, coloured_img=img, return_image=False)
-        cv2.drawContours(img, path_contour, -1, (0,0,255), 5)
-        path_area = cv2.contourArea(path_contour[:,0])
-        print(path_contour)
         # This is just for the purposes of visualization on the image
-        M = cv2.moments(path_contour[:,0])
+        M = cv2.moments(self.path_contour[:,0])
         cx = int(M['m10']/M['m00'])
         cy = int(M['m01']/M['m00'])
         img_drawn = cv2.circle(img, (cx,cy), radius=1, color=(0, 255, 0), thickness=3)
 
-        return path_contour, path_area, img_drawn, hsv_val_img
+        return path_area, img_drawn
     def map_to_odom(self, point_cam, trans_udfc_odom):
 
         """
@@ -234,8 +221,8 @@ class PathFollowingNode():
         and pitch and the similarity triangles equations.
 
         """
-
-        z_over_path = self.H_pool_prior - trans_udfc_odom[2] - self.h_path_prior
+        # TODO: figure out why this gives nonsense values
+        z_over_path = self.H_pool_prior - abs(trans_udfc_odom[2]) - self.h_path_prior
         
         # Map X and Y to world frame
         X = (z_over_path / self.focal_length) * point_cam[0]
@@ -273,7 +260,6 @@ class PathFollowingNode():
         Output:         p0 - a point on the line
                         p1 - another point in the line, exactly [vx, vy] along the line from p0, s.t. colin_vec = p_line - p0
         """
-        rospy.loginfo(np.shape(contour))
         vx, vy, x0, y0 = cv2.fitLine(contour, cv2.DIST_L2, 0, 0.1, 0.1)
 
         colin_vec   = np.ravel(np.array((vx, vy)))
@@ -292,23 +278,14 @@ class PathFollowingNode():
 
     def batch_estimate_waypoint(self, t_udfc_odom):
         
-        #line_params = np.average(self.batch_line_params, 0)
         uppestest_y_coord = np.average(self.uppest_y_coords, 0)
         vx, vy, x0, y0 = cv2.fitLine(self.batch_line_params[:,:2], cv2.DIST_L2, 0, 0.1, 0.1)
         
         colin_vec   = np.ravel(np.array((vx, vy)))
         p0          = np.ravel(np.array((x0, y0)))
         
-        #p_line      = p0 + colin_vec
-
-        #p_line      = line_params[:2]
-        #p0          = line_params[2:]
-        #
-        #colin_vec = p_line - p0
-
-        # Get two points on the line
-        p1 = np.append(p0 + 15*colin_vec, 1)
-        p2 = np.append(p0 - 15*colin_vec, 1)
+        p1 = np.append(p0 + 50*colin_vec, 1)
+        p2 = np.append(p0 - 50*colin_vec, 1)
         
         p1_img = np.matmul(self.K_opt, p1 - t_udfc_odom)
         p2_img = np.matmul(self.K_opt, p2 - t_udfc_odom)
@@ -316,12 +293,17 @@ class PathFollowingNode():
 
         points      = [p1, p2]
         points_img  = [p1_img, p2_img]
-        # Check which is closer to the 
+        
         errors          = [np.linalg.norm(uppestest_y_coord - points_img[i][:2]) for i in range(len(points_img))]
         next_waypoint   = points[np.argmin(errors)]
 
-        rospy.loginfo(next_waypoint)
-        
+        fig, ax = plt.subplots()
+        ax.scatter(self.batch_line_params[:,0], self.batch_line_params[:,1], c="k", label="batch line params")
+        ax.scatter(next_waypoint[0], next_waypoint[1], c="g", label="next waypoint")
+        ax.scatter(points[np.argmax(errors)][0], points[np.argmax(errors)][1], c="r", label="wrong direction waypoint")
+        plt.legend()
+        plt.show()
+
         return np.append(next_waypoint, self.Z_prior_ref)
     
     def path_following_udfc_cb(self, img_msg):
@@ -337,7 +319,6 @@ class PathFollowingNode():
         if self.current_state not in self.possible_states:
             return None
         
-        # Get drone position in odom and extract the z coordinate for future computations
         tf_lookup_wc    = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5))
         t_udfc_odom     = np.array([tf_lookup_wc.transform.translation.x,
                                     tf_lookup_wc.transform.translation.y,
@@ -353,7 +334,19 @@ class PathFollowingNode():
         udfc_img = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
         
         # Extracting the contour
-        self.path_contour, path_area, img_drawn, hsv_val_img = self.path_calculations(udfc_img)
+        _, hsv_mask, hsv_val_img = self.feature_detector.hsv_processor(udfc_img, *self.hsv_params)
+        self.cv_image_publisher(self.hsvPub, hsv_val_img, msg_encoding="bgr8")
+
+        noise_filtered_img = self.feature_detector.noise_removal_processor(hsv_mask, *self.noise_rm_params)
+        self.cv_image_publisher(self.noise_filteredPub, noise_filtered_img, msg_encoding="8UC1")
+
+        self.path_contour = self.feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, variance_filtering=True, coloured_img=udfc_img, return_image=False)
+        try:
+            self.path_contour[:,0]
+        except:
+            return None
+
+        path_area, img_drawn = self.path_calculations(udfc_img)
         
         self.path_contour = self.path_contour[:,0]
         
@@ -396,7 +389,6 @@ class PathFollowingNode():
         if self.current_state == "path_execute":
             uppest_y_ind = np.argmin(upper_contour_image[:,1])
             self.uppest_y_coords.append(upper_contour_image[uppest_y_ind, :])
-            #self.batch_line_params = np.vstack((self.batch_line_params, np.reshape(np.append(p_line_odom, p0_odom), (1,6))))
             self.batch_line_params = np.vstack((self.batch_line_params, np.vstack((p_line_odom, p0_odom))))
         
         self.cv_image_publisher(self.udfcPub, img_drawn, "bgr8")
