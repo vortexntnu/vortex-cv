@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+#import debugpy
+#print("Waiting for VSCode debugger...")
+#debugpy.listen(5678)
+#debugpy.wait_for_client()
+
 ## TODO: imports taken from feature detection, remove what is unused
 
 from matplotlib.pyplot import contour
@@ -212,12 +217,11 @@ class PathFollowingNode():
         #path_contour = self.feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, return_image=False)
 
         path_contour = self.feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, variance_filtering=True, coloured_img=img, return_image=False)
-
         cv2.drawContours(img, path_contour, -1, (0,0,255), 5)
-        path_area = cv2.contourArea(path_contour[0])
-        
+        path_area = cv2.contourArea(path_contour[:,0])
+        print(path_contour)
         # This is just for the purposes of visualization on the image
-        M = cv2.moments(path_contour[0])
+        M = cv2.moments(path_contour[:,0])
         cx = int(M['m10']/M['m00'])
         cy = int(M['m01']/M['m00'])
         img_drawn = cv2.circle(img, (cx,cy), radius=1, color=(0, 255, 0), thickness=3)
@@ -351,7 +355,7 @@ class PathFollowingNode():
         # Extracting the contour
         self.path_contour, path_area, img_drawn, hsv_val_img = self.path_calculations(udfc_img)
         
-        self.path_contour = self.path_contour[0][:,0,:]
+        self.path_contour = self.path_contour[:,0]
         
         # Contour detection
         if self.isDetected == False and path_area > self.detection_area_threshold:

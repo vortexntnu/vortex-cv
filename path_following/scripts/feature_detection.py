@@ -219,10 +219,9 @@ class ImageFeatureProcessing(object):
     def contour_variance_filtering(self, contours, contour_area_threshold, noisy_img):
         """Finds the contour above the area threshold with the lowest colour variance, returns its index
         """
-        # TODO: Now mostly works, but I should look into the error I get sometimes
         
         areas = np.array([cv2.contourArea(contour) for contour in contours])
-        area_thresh_inds = np.where(areas > contour_area_threshold)
+        area_thresh_inds = np.ravel(np.where(areas > contour_area_threshold))
 
         #print(area_thresh_inds)
         contour_colour_vars = np.empty_like(np.ravel(area_thresh_inds))
@@ -244,10 +243,10 @@ class ImageFeatureProcessing(object):
         #except:
         #    return np.empty(())
         #return inds
-        # TODO: finish debugging this mess
-        print(np.argmin(contour_colour_vars))
-        print(np.shape(area_thresh_inds))
-        print(area_thresh_inds)
+        # TODO: Try with just biggest area
+        #print(np.argmin(contour_colour_vars))
+        #print(np.shape(area_thresh_inds))
+        #print(area_thresh_inds)
         return area_thresh_inds[np.argmin(contour_colour_vars)]
             
 
