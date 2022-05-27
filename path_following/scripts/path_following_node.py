@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-import debugpy
-print("Waiting for VSCode debugger...")
-debugpy.listen(5678)
-debugpy.wait_for_client()
+#import debugpy
+#print("Waiting for VSCode debugger...")
+#debugpy.listen(5678)
+#debugpy.wait_for_client()
 
 ## TODO: imports taken from feature detection, remove what is unused
 
@@ -225,8 +225,8 @@ class PathFollowingNode():
         z_over_path = self.H_pool_prior - abs(trans_udfc_odom[2]) - self.h_path_prior
         
         # Map X and Y to world frame
-        X = (z_over_path / self.focal_length) * point_cam[0]
-        Y = (z_over_path / self.focal_length) * point_cam[1]
+        X = z_over_path * point_cam[0]
+        Y = z_over_path * point_cam[1]
 
         point_odom = np.array([X, Y, z_over_path]) + trans_udfc_odom
         
@@ -245,8 +245,8 @@ class PathFollowingNode():
         z_over_path = self.H_pool_prior - abs(trans_udfc_odom[2]) - self.h_path_prior
         
         # Map X and Y to world frame
-        X = (z_over_path / self.focal_length) * path_centroid_camera[0]
-        Y = (z_over_path / self.focal_length) * path_centroid_camera[1]
+        X = z_over_path * path_centroid_camera[0]
+        Y = z_over_path * path_centroid_camera[1]
 
         # Set dp_ref to be path centroid in x and y and the desired Z to get view of centroid
         dp_ref = np.array([X, Y, self.Z_prior_ref]) + trans_udfc_odom
@@ -284,8 +284,8 @@ class PathFollowingNode():
         colin_vec   = np.ravel(np.array((vx, vy)))
         p0          = np.ravel(np.array((x0, y0)))
         
-        p1 = np.append(p0 + 50*colin_vec, 1)
-        p2 = np.append(p0 - 50*colin_vec, 1)
+        p1 = np.append(p0 + 5*colin_vec, 1)
+        p2 = np.append(p0 - 5*colin_vec, 1)
         
         p1_img = np.matmul(self.K_opt, p1 - t_udfc_odom)
         p2_img = np.matmul(self.K_opt, p2 - t_udfc_odom)
