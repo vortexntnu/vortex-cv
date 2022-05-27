@@ -239,6 +239,7 @@ class ImageFeatureProcessing(object):
             
             contour_colour_vars[k] = np.var(contour_intensities, axis=0)
         try:
+            # TODO: Now we just use the biggest contour. This might need to get fixed.
             #inds = area_thresh_inds[np.argmin(contour_colour_vars)]
             inds = np.argmax(areas)
         except:

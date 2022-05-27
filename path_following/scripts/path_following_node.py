@@ -121,13 +121,7 @@ class PathFollowingNode():
         self.batch_line_params = np.zeros((1,3))
         self.uppest_y_coords = []
 
-        # TODO: In case transform performs badly due to focal length, use this to estimate focal length
-        #cv2.calibrationMatrixValues
-
-        # Focal length 2.97 mm from the camera specs
-        self.focal_length = 2.97 * 10 **-3
-
-        # TODO: find realistic values for these
+        # TODO: find realistic values for these. Needs to be field tested.
         self.H_pool_prior       = 2     # Depth of pool
         self.h_path_prior       = 0.1   # Height of path
         self.Z_prior_ref        = 1.69  # Optimal z-coordinate for performing pfps
@@ -192,9 +186,8 @@ class PathFollowingNode():
         p.objectPose.pose.orientation.w = 1
 
         p.isDetected = self.isDetected
-        # TODO: uncomment after we merge
-        #p.estimateConverged = self.estimateConverged
-        #p.estimateFucked = self.estimateFucked
+        p.estimateConverged = self.estimateConverged
+        p.estimateFucked = self.estimateFucked
 
         publisher.publish(p)
         rospy.loginfo("Object published: %s", objectID)
@@ -211,47 +204,37 @@ class PathFollowingNode():
         M = cv2.moments(self.path_contour[:,0])
         cx = int(M['m10']/M['m00'])
         cy = int(M['m01']/M['m00'])
+        path_centroid = np.array([cx, cy])
+
         img_drawn = cv2.circle(img, (cx,cy), radius=1, color=(0, 255, 0), thickness=3)
 
-        return path_area, img_drawn
-    def map_to_odom(self, point_cam, trans_udfc_odom):
+        return path_area, img_drawn, path_centroid
+
+    def map_to_odom(self, point_cam, trans_udfc_odom, dp_ref=None):
 
         """
-        Takes in a homogeneous point in camera frame and maps it to odom through the dp assumptions of no roll
-        and pitch and the similarity triangles equations.
+        Takes in a point in homogenious camera coordinates and calculates the X, Y, Z in odom frame using the similarity 
+        triangles equations through the dp assumptions of no roll and pitch and known height over ground.
 
+        Input: 
+            point_cam - [x_tilde, y_tilde, 1]^T
+            trans_udfc_odom - position of udfc in odom
+
+        Output:
+            point_odom - estimate of point in odom frame [X, Y, Z]^T
         """
-        # TODO: figure out why this gives nonsense values
+
         z_over_path = self.H_pool_prior - abs(trans_udfc_odom[2]) - self.h_path_prior
         
         # Map X and Y to world frame
         X = z_over_path * point_cam[0]
         Y = z_over_path * point_cam[1]
 
-        point_odom = np.array([X, Y, z_over_path]) + trans_udfc_odom
-        
+        if dp_ref:
+            point_odom = np.array([X, Y, self.Z_prior_ref]) + trans_udfc_odom
+        else:
+            point_odom = np.array([X, Y, z_over_path]) + trans_udfc_odom
         return point_odom
-
-    def get_dp_ref(self, path_centroid_camera, trans_udfc_odom):
-        """
-        Takes in the path centroid in homogenious camera coordinates and calculates the X, Y, Z for the dp reference
-
-        Input: path_centroid in homogenious camera coordinates [x_tilde, y_tilde]^T
-
-        Output: path_centroid in odom frame [X, Y, Z]
-        """
-
-        # Find out how far above path we are
-        z_over_path = self.H_pool_prior - abs(trans_udfc_odom[2]) - self.h_path_prior
-        
-        # Map X and Y to world frame
-        X = z_over_path * path_centroid_camera[0]
-        Y = z_over_path * path_centroid_camera[1]
-
-        # Set dp_ref to be path centroid in x and y and the desired Z to get view of centroid
-        dp_ref = np.array([X, Y, self.Z_prior_ref]) + trans_udfc_odom
-        
-        return dp_ref
 
     def find_contour_line(self, contour, img_drawn=None):
         """
@@ -308,12 +291,6 @@ class PathFollowingNode():
     
     def path_following_udfc_cb(self, img_msg):
 
-        """
-        The first time we detect the path in UDFC makes us move to converge state
-
-        Simplest Way to do this: Find biggest contour and if it is above some threshold for area declare the path there
-
-        """
         self.waypoint_header = img_msg.header
 
         if self.current_state not in self.possible_states:
@@ -346,28 +323,24 @@ class PathFollowingNode():
         except:
             return None
 
-        path_area, img_drawn = self.path_calculations(udfc_img)
-        
+        path_area, img_drawn, self.path_centroid = self.path_calculations(udfc_img)
         self.path_contour = self.path_contour[:,0]
-        
+        print(path_area)
+
         # Contour detection
         if self.isDetected == False and path_area > self.detection_area_threshold:
             self.isDetected == True
+        # Whole path "detection"
+        if self.isDetected == True and path_area > 70000: # Hard thresholding like that is retarded...find a proper solution
+            self.estimateConverged = True
 
-        # Get centroid of contour in image coordinates
-        M = cv2.moments(self.path_contour)
-        cx = int(M['m10']/M['m00'])
-        cy = int(M['m01']/M['m00'])
-        
-        self.path_centroid = np.array([cx, cy])
-        
         # Undistort centroid point
         path_centroid_cam = np.matmul(self.K_opt_inv, np.append(self.path_centroid,1))
 
-        dp_ref = self.get_dp_ref(path_centroid_cam[:2], t_udfc_odom)
+        dp_ref = self.map_to_odom(path_centroid_cam[:2], t_udfc_odom, dp_ref=True)
 
         # Get the upper contour
-        upper_inds          = np.where((self.path_contour[:,1] < cy) == True)[0]
+        upper_inds          = np.where((self.path_contour[:,1] < self.path_centroid[1]) == True)[0]
         upper_contour_image = self.path_contour[upper_inds]
 
         uppest_y_ind = np.argmin(upper_contour_image[:,1])
