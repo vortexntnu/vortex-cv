@@ -280,12 +280,13 @@ class PathFollowingNode():
         errors          = [np.linalg.norm(uppestest_y_coord - points_img[i][:2]) for i in range(len(points_img))]
         next_waypoint   = points[np.argmin(errors)]
 
-        fig, ax = plt.subplots()
-        ax.scatter(self.batch_line_params[:,0], self.batch_line_params[:,1], c="k", label="batch line params")
-        ax.scatter(next_waypoint[0], next_waypoint[1], c="g", label="next waypoint")
-        ax.scatter(points[np.argmax(errors)][0], points[np.argmax(errors)][1], c="r", label="wrong direction waypoint")
-        plt.legend()
-        plt.show()
+        #Uncomment for visualization of batch line estimation
+        #fig, ax = plt.subplots()
+        #ax.scatter(self.batch_line_params[:,0], self.batch_line_params[:,1], c="k", label="batch line params")
+        #ax.scatter(next_waypoint[0], next_waypoint[1], c="g", label="next waypoint")
+        #ax.scatter(points[np.argmax(errors)][0], points[np.argmax(errors)][1], c="r", label="wrong direction waypoint")
+        #plt.legend()
+        #plt.show()
 
         return np.append(next_waypoint, self.Z_prior_ref)
     
