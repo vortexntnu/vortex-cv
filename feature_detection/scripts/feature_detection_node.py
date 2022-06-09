@@ -29,7 +29,8 @@ from read_yaml_config import read_yaml_file
 from time import sleep
 import copy
 
-from test_gate_detection_cv_original import HoughMajingo
+from Hough_Transform_orientation_based import HoughMajingo_ob
+
 
 class FeatureDetectionNode():
     """Handles tasks related to feature detection
@@ -186,24 +187,18 @@ class FeatureDetectionNode():
                 try:
                     start = timer() # Start function timer.
 
-                    # cv2_image = cv2.convertScaleAbs(self.cv_image, alpha=self.alpha, beta=self.beta)
-                    # lookUpTable = np.empty((1,256), np.uint8)
-                    # for i in range(256):
-                    #     lookUpTable[0,i] = np.clip(pow(i / 255.0, self.gamma) * 255.0, 0, 255)
-                    # res = cv2.LUT(cv2_image, lookUpTable)
-                    # self.cv_image_publisher(self.hsvCheckPub, res)
                     t1 = 80 # 100
                     t2 = 150 # 200
                     cv_img_cp = copy.deepcopy(self.cv_image)
                     cropped_image = cv_img_cp[5:720, 0:1280]
 
-                    bb_arr, center, hough_img, edges = HoughMajingo.main(cropped_image, t1, t2)   # self.canny_threshold1, self.canny_threshold2, self.cv_image
+                    bb_arr, center, hough_img, edges = HoughMajingo_ob.main(cropped_image, t1, t2)   # self.canny_threshold1, self.canny_threshold2, self.cv_image
                     self.cv_image_publisher(self.linesPub, hough_img) 
                     self.cv_image_publisher(self.i2rcpPub, edges, '8UC1')
                     
-                    # if len(bb_arr) != 0:
-                    #     rospy.loginfo("Now detecting: bounding box %s", bb_arr)
-                    #     rospy.loginfo( center)
+                    if len(bb_arr) != 0:
+                        rospy.loginfo("Now detecting: bounding box %s", bb_arr)
+                        rospy.loginfo( center)
 
                     end = timer() # Stop function timer.
                     timediff = (end - start)
@@ -284,7 +279,7 @@ class FeatureDetectionNode():
 
 if __name__ == '__main__':
     try:
-        feature_detection_node = FeatureDetectionNode(image_topic='/cv/preprocessing/image_rect_color_filtered')  # /cv/image_preprocessing/CLAHE  /zed2/zed_node/rgb/image_rect_color
+        feature_detection_node = FeatureDetectionNode(image_topic='/zed2/zed_node/rgb/image_rect_color')  # /cv/image_preprocessing/CLAHE  /zed2/zed_node/rgb/image_rect_color /cv/preprocessing/image_rect_color_filtered
         # rospy.spin()
         feature_detection_node.spin()
 

@@ -33,7 +33,7 @@ class PreprocessingNode():
         self.confident_depthPub = rospy.Publisher('/cv/preprocessing/depth_registered', Image, queue_size= 1)
 
         # Rectified color image
-        rospy.Subscriber('/zed2/zed_node/rgb/image_rect_color', Image, self.image_rect_color_cb)
+        rospy.Subscriber('/cv/image_preprocessing/CLAHE', Image, self.image_rect_color_cb)
         self.confident_rectImagePub = rospy.Publisher('cv/preprocessing/image_rect_color_filtered', Image, queue_size= 1)
 
         # Pointcloud

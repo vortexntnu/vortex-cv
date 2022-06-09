@@ -2,7 +2,7 @@
 <launch>
     <!-- Confidence thresholding node -->
     <node name="preprocessing_node"    pkg="preprocessing"     type="preprocessing_node.py"    output="screen"/>
-    <node name="feature"    pkg="preprocessing"     type="preprocessing_node.py"    output="screen"/>
+    <!-- <node name="feature"    pkg="preprocessing"     type="preprocessing_node.py"    output="screen"/> -->
     <node name="republish" type="republish" pkg="image_transport" output="screen" args="compressed in:=/zed2/zed_node/rgb/image_rect_color raw out:=/zed2/zed_node/rgb/image_rect_color" />
 
 

@@ -6,15 +6,15 @@ from copy import deepcopy
 ''' 
 ToDo
 + tuning of the parameter of cv2.HoughLinesP makes it more robust, but less sensitive
-+ adapt algorithm to calibrated images --> change function lines_coord 
 + component detection --> some kind of filter(?) has to be applied
++ idea on how to improve the algorithm: use eucledian norm to get distance of two lines to get independent of orientation
 
 '''
 
 # feature detection based on hough transform
-class HoughMajingo:
+class HoughMajingo_ob:
     """
-    Class used in feature detection to detect shapes of objects consisting of straight lines and returning a bounding box
+    Class used in feature detection to detect shapes of objects consisting of straight lines. Returns the bounding boxes and the centroids of them
 
     """
 
@@ -38,7 +38,6 @@ class HoughMajingo:
                         -> vertical line: x_position, horizontal line: y_position
         '''
         
-        # 
         if set == 0:
             ver = 1  # value for vertical lines
         elif set ==1:
@@ -115,10 +114,10 @@ class HoughMajingo:
         dis = np.zeros((line_1.shape[0],1))
         for j in range(len(line_1)):
             dis[j] = line_2[j,0,set] -line_1[j,0,set]
-        # print(dis)
+
         bb_corner_pair = []
         placeholder = np.zeros((8), dtype=int)
-        # j =0
+
         for i in range(len(dis)):
             if i < len(dis)-1 and dis[i] < dis[i+1]:
                 if dis[i] < distance:
@@ -145,18 +144,13 @@ class HoughMajingo:
         '''
         centroid_list = []
         cent_array = np.zeros((2))
-        # print('in centroid calculation', len(list_bb), np.shape(list_bb))
         for i in range(len(list_bb)):
             if np.shape(list_bb)[1] == 8:
                 bb = list_bb[i]  
-                # print('Ich bin bb',bb)
                 centroid_x = (bb[0]+ bb[6] + bb[2] + bb[4])//4
                 centroid_y = (bb[1]+ bb[7] + bb[3] + bb[5]) //4
-                # cent_array[0] = centroid_x
-                # cent_array[1] = centroid_y
 
                 centroid_list.append([centroid_x, centroid_y])
-                # print('centroid list',centroid_list)
         
         return centroid_list
 
@@ -175,6 +169,8 @@ class HoughMajingo:
             edges: image of edges --> delete, just for testing purposes
             img_contrast: contrasted image --> delete, just for testing purposes, preprocessing is done somewhere else
         '''
+        Hough = HoughMajingo_ob()
+
         img_gray = deepcopy(orig_img)
         visual_lines =  False # True # 
         
@@ -185,7 +181,6 @@ class HoughMajingo:
         linesP = cv2.HoughLinesP(edges,1,np.pi/180,30,minLineLength=25,maxLineGap=10)
 
         ## Orientation based Filtering 
-        # m = np.zeros(linesP.shape[0]) ## replace this with orientation of the drone
         k = 0
         j = 0
         lines_ver = linesP
@@ -193,13 +188,10 @@ class HoughMajingo:
         if linesP is not None:
             for line_idx in range(0, len(linesP)):
                 line = linesP[line_idx][0]
-                # m[line_idx] = (line[3]- line[1]) / (line[2]-line[0]) --> not needed anymore, new solution should be validated
-                # print((line[3]- line[1]) / (0))
-                # print(m[line_idx])
-                if (line[3]- line[1]) != 0:  #m[line_idx] != 0: ## horizontal lines: processing
+                if (line[3]- line[1]) != 0: 
                     lines_hor = np.delete(lines_hor,k, axis= 0)
                     k -=1
-                if (line[2]-line[0]) != 0: # (line[2]-line[0]) < 10^(-20) and (line[2]-line[0]) > -10^(-20):   #(line[2]-line[0]) != 0: #np.abs(m[line_idx]) != np.Inf: ## vertical lines: processing
+                if (line[2]-line[0]) != 0: 
                     lines_ver = np.delete(lines_ver,j, axis= 0)
                     j -=1
     
@@ -220,29 +212,29 @@ class HoughMajingo:
         
 
         ## processing vertical and horizontal lines
-        rect_list_ver, pos_ver = HoughMajingo.lines_coord(lines_ver, 0, 5)
-        rect_list_hor, pos_hor = HoughMajingo.lines_coord(lines_hor, 1, 5)
+        rect_list_ver, pos_ver = Hough.lines_coord(lines_ver, 0, 5)
+        rect_list_hor, pos_hor = Hough.lines_coord(lines_hor, 1, 5)
 
         ## cut zeros from lists
-        rect_list_ver_new = HoughMajingo.cut_zeros(rect_list_ver)
-        rect_list_hor_new = HoughMajingo.cut_zeros(rect_list_hor)
+        rect_list_ver_new = Hough.cut_zeros(rect_list_ver)
+        rect_list_hor_new = Hough.cut_zeros(rect_list_hor)
 
 
         ## correlating lines and getting corner points from bounding box --> both should be outputted
         distanz = 35
         if len(rect_list_ver_new) >1:
-            bb_ver = HoughMajingo.connect_lines2bb(rect_list_ver_new, 0, distanz)
+            bb_ver = Hough.connect_lines2bb(rect_list_ver_new, 0, distanz)
         else:
             bb_ver = None
         if len(rect_list_hor_new) >1:
-            bb_hor = HoughMajingo.connect_lines2bb(rect_list_hor_new, 1, distanz)
+            bb_hor = Hough.connect_lines2bb(rect_list_hor_new, 1, distanz)
         else:
             bb_hor = None
 
         bb = []
         bbound = False
         if bb_ver is not None:
-            if np.shape(bb_ver) != 0: #
+            if np.shape(bb_ver) != 0: 
                 bb = bb_ver
                 bbound = True
 
@@ -253,7 +245,6 @@ class HoughMajingo:
                 bb = bb_hor
             bbound = True
         
-        Hough = HoughMajingo()
         if bbound == True and bb:
             center = Hough.centroid(bb)
         else: 
@@ -265,7 +256,6 @@ class HoughMajingo:
         component = False
         
         if len(bb) == 0 :
-            # print('Component detection',len(bb))
             ### Check if distance to line is big --> if z of position of detected line > 8:
             ### Component is outputed 
             platzhalter = np.zeros(4)
@@ -295,8 +285,6 @@ class HoughMajingo:
                     cv2.line(img_gray, (line_hor[0], line_hor[1]), (line_hor[2], line_hor[3]), (255,255,0), 4)
 
         # Visualization of bounding boxes
-        # if component:
-        # print('New Bounding boxes', bb, 'shape',np.shape(bb)) 
         if component == False:
             if np.shape(bb)[0] > 0:
                 for line_idx in range(len(bb)):
@@ -310,5 +298,4 @@ class HoughMajingo:
                 if center is not None:
                     for cent_idx in range(len(center)): 
                         cv2.circle(img_gray, (int(center[cent_idx][0]),int(center[cent_idx][1])), radius=3, color=(0, 0, 255), thickness=-1)
-        # print('center in the end',center)
         return bb, center, img_gray, edges
