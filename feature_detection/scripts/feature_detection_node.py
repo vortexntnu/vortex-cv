@@ -173,50 +173,50 @@ class FeatureDetectionNode():
                     self.cv_image_publisher(self.hsvCheckPub, imger, "bgr8")
 
                     ################################################################ downsampled kmeans
-                    Z = imger.reshape((-1,3))
-                    # convert to np.float32
-                    Z = np.float32(Z)
-
-                    # define criteria, number of clusters(K) and apply kmeans()
-                    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-                    K = 8
-                    ret,label,center=cv2.kmeans(Z,K,None,criteria,10,cv2.KMEANS_RANDOM_CENTERS)
-
-                    # Now convert back into uint8, and make original image
-                    center = np.uint8(center)
-                    res = center[label.flatten()]
-                    result = res.reshape((imger.shape))
-
-                    gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
-                    result = cv2.Canny(gray, 100, 200)
-
-                    rospy.loginfo(result.shape)
-
-                    ################################################################ Repalletisizing
                     # Z = imger.reshape((-1,3))
                     # # convert to np.float32
                     # Z = np.float32(Z)
 
                     # # define criteria, number of clusters(K) and apply kmeans()
                     # criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-                    # K = 2
+                    # K = 8
                     # ret,label,center=cv2.kmeans(Z,K,None,criteria,10,cv2.KMEANS_RANDOM_CENTERS)
 
                     # # Now convert back into uint8, and make original image
                     # center = np.uint8(center)
-                    # # res = center[label.flatten()]
-                    # # res2 = res.reshape((imger.shape))
-                    
-                    # new_bgr = bgr_img.reshape((-1, 3))
+                    # res = center[label.flatten()]
+                    # result = res.reshape((imger.shape))
 
-                    # distance = np.linalg.norm(bgr_img[:,:,None] - center[None,None,:], axis=3)
+                    # # gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
+                    # # result = cv2.Canny(gray, 100, 200)
 
-                    # # Now choose whichever one of the palette colours is nearest for each pixel
-                    # palettised = np.argmin(distance, axis=2).astype(np.uint8)
-                    # result = center[palettised]
-                    ########################################################################
+                    # rospy.loginfo(result.shape)
+
+                    ################################################################ Repalletisizing
+                    Z = imger.reshape((-1,3))
+                    # convert to np.float32
+                    Z = np.float32(Z)
+
+                    # define criteria, number of clusters(K) and apply kmeans()
+                    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+                    K = 5
+                    ret,label,center=cv2.kmeans(Z,K,None,criteria,10,cv2.KMEANS_RANDOM_CENTERS)
+
+                    # Now convert back into uint8, and make original image
+                    center = np.uint8(center)
+                    # res = center[label.flatten()]
+                    # res2 = res.reshape((imger.shape))
                     
-                    self.cv_image_publisher(self.linesPub, result, "8UC1")
+                    new_bgr = bgr_img.reshape((-1, 3))
+
+                    distance = np.linalg.norm(bgr_img[:,:,None] - center[None,None,:], axis=3)
+
+                    # Now choose whichever one of the palette colours is nearest for each pixel
+                    palettised = np.argmin(distance, axis=2).astype(np.uint8)
+                    result = center[palettised]
+                    #######################################################################
+                    
+                    self.cv_image_publisher(self.linesPub, result, "rgb8")
                     rospy.loginfo("Palettized")
 
                     end = timer() # Stop function timer.
