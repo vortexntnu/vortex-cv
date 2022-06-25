@@ -15,6 +15,13 @@ class DynamicReconfigure(object):
                             "An enum to set sobel procedure aperture size")
         self.ddr.add_variable("canny_aperture_size", "A size parameter which is edited via an enum", 3, 3, 7, edit_method=canny_aperture_size_enum)
 
+        self.ddr.add_variable("b_min", "PLACEHOLDER",   0,    0,  255)
+        self.ddr.add_variable("b_max", "PLACEHOLDER",   255,    0,  255)
+        self.ddr.add_variable("g_min", "PLACEHOLDER",   0,    0,  255)
+        self.ddr.add_variable("g_max", "PLACEHOLDER",   255,    0,  255)
+        self.ddr.add_variable("r_min", "PLACEHOLDER",   0,    0,  255)
+        self.ddr.add_variable("r_max", "PLACEHOLDER",   255,    0,  255)
+
         self.ddr.add_variable("hsv_hue_min", "PLACEHOLDER",   179,    0,  179)
         self.ddr.add_variable("hsv_hue_max", "PLACEHOLDER",   0,    0,  179)
         self.ddr.add_variable("hsv_sat_min", "PLACEHOLDER",   255,    0,  255)

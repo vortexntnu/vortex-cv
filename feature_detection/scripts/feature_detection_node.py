@@ -80,6 +80,14 @@ class FeatureDetectionNode():
         self.canny_threshold2 = 200
         self.canny_aperture = 3
 
+        # BGR params
+        self.bgr_params = [0,
+                           255,
+                           0,
+                           255,
+                           0,
+                           255]
+
         # HSV params
         self.hsv_params = [0,
                            179,
@@ -163,9 +171,13 @@ class FeatureDetectionNode():
         while not rospy.is_shutdown():
             if self.cv_image is not None:
                 try:
-                    start = timer() # Start function timer.
+                    start = timer() # Start function timer. (0, 113, 0, 97, 19, 120)
+                    print(self.bgr_params)
+                    bgr_img, _, bgr_mask_validation_img = self.feat_detection.bgr_filter(self.cv_image, *self.bgr_params)
+                    _, hsv_mask, hsv_mask_validation_img = self.feat_detection.hsv_processor(bgr_mask_validation_img, *self.hsv_params)
+                    
                     try:
-                        bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, self.current_object, self.hsv_params, self.noise_rm_params)
+                        bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, self.current_object, hsv_mask, self.noise_rm_params)
                         pt_arr_msg = self.build_point_array_msg(points_in_rects, self.current_object, self.image_shape[0], self.image_shape[1])
                         if self.rcfa_det:
                             self.RectPointsPub.publish(pt_arr_msg)
@@ -176,7 +188,7 @@ class FeatureDetectionNode():
                     except TypeError:
                         pass
                     
-                    self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_validation_img)
+                    self.cv_image_publisher(self.hsvCheckPub, hsv_mask_validation_img, "bgr8")
                     self.cv_image_publisher(self.noiseRmPub, self.feat_detection.nr_img, msg_encoding="mono8")
                     self.cv_image_publisher(self.i2rcpPub, self.feat_detection.i2rcp_image_blank)
                     self.cv_image_publisher(self.shapePub, self.feat_detection.rect_flt_img)
@@ -236,6 +248,13 @@ class FeatureDetectionNode():
     def load_obj_config(self, config_path):
         params = read_yaml_file(config_path)
 
+        self.bgr_params[0] = params['b_min']
+        self.bgr_params[1] = params['b_max']
+        self.bgr_params[2] = params['g_min']
+        self.bgr_params[3] = params['g_max']
+        self.bgr_params[4] = params['r_min']
+        self.bgr_params[5] = params['r_max']
+
         self.hsv_params[0] = params['hsv_hue_min']
         self.hsv_params[1] = params['hsv_hue_max']
         self.hsv_params[2] = params['hsv_sat_min']
@@ -260,6 +279,13 @@ class FeatureDetectionNode():
         self.canny_threshold2 = config.canny_threshold2
         self.canny_aperture = config.canny_aperture_size
 
+        self.bgr_params[0] = config.b_min
+        self.bgr_params[1] = config.b_max
+        self.bgr_params[2] = config.g_min
+        self.bgr_params[3] = config.g_max
+        self.bgr_params[4] = config.r_min
+        self.bgr_params[5] = config.r_max
+
         self.hsv_params[0] = config.hsv_hue_min
         self.hsv_params[1] = config.hsv_hue_max
         self.hsv_params[2] = config.hsv_sat_min
@@ -283,7 +309,7 @@ class FeatureDetectionNode():
 
 if __name__ == '__main__':
     try:
-        feature_detection_node = FeatureDetectionNode(image_topic='/zed2/zed_node/rgb/image_rect_color')
+        feature_detection_node = FeatureDetectionNode(image_topic='/cv/image_preprocessing/CLAHE/zed2')
         # rospy.spin()
         feature_detection_node.spin()
 

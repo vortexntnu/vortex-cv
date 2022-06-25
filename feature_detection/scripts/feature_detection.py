@@ -42,6 +42,46 @@ class ImageFeatureProcessing(object):
 
         super(ImageFeatureProcessing, self).__init__(*args, **kwargs)
 
+    def bgr_filter(
+        self,
+        original_image,
+        b_min,
+        b_max,
+        g_min,
+        g_max,
+        r_min,
+        r_max,
+    ):
+        """Takes a raw image and applies Blue-Green-Red lower-upper bounds filtering.
+
+        Params:
+            original_image      (cv2::Mat)  : An image with BGRA channels.
+            b_min               (uint8)     : Lower bound for blue filtering. Range: 0-255.
+            b_max               (uint8)     : Upper bound for blue filtering. Range: 0-255.
+            g_min               (uint8)     : Lower bound for green filtering. Range: 0-255.
+            g_max               (uint8)     : Upper bound for green filtering. Range: 0-255.
+            r_min               (uint8)     : Lower bound for red filtering. Range: 0-255.
+            r_max               (uint8)     : Upper bound for red filtering. Range: 0-255.
+
+        Returns:
+            bgr_img                 (cv2::Mat)  : original_image converted into BGR color space.
+            bgr_mask                (cv2::Mat)  : Array of x, y points for binary pixels that were filtered by the BGR params.
+            bgr_mask_validation_img (cv2::Mat)  : original_image with applied bgr_mask.
+        """
+        orig_img_cp = copy.deepcopy(original_image)
+    
+        bgr_img = cv2.cvtColor(original_image, cv2.COLOR_BGRA2BGR)
+
+        bgr_lower = np.array([b_min, g_min, r_min])
+        bgr_upper = np.array([b_max, g_max, r_max])
+
+        bgr_mask = cv2.inRange(bgr_img, bgr_lower, bgr_upper)
+        bgr_mask_validation_img = cv2.bitwise_and(
+            bgr_img, bgr_img, mask=bgr_mask
+        )  # Applies mask
+
+        return bgr_img, bgr_mask, bgr_mask_validation_img
+
     def hsv_processor(
         self,
         original_image,
@@ -1120,7 +1160,7 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
         # Classification
         self.detection = False
 
-    def feature_detection(self, original_image, hsv_params, noise_removal_params):
+    def feature_detection(self, original_image, hsv_mask, noise_removal_params):
         """Feature detection pipeline.
         Applies HSV (colour) filter, morphism of canny image, contour fitting and filtering, shape fitting, I2RCP, and rectangle filtering.
 
@@ -1133,8 +1173,8 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
             relevant_rects  (A[M][4][2, uint32]): Array of filtered rectangles.
             points_in_rects (A[N][2, uint32])   : An array of 2D points.
         """
-        _, hsv_mask, hsv_validation_img = self.hsv_processor(original_image, *hsv_params)
-        self.hsv_validation_img = hsv_validation_img
+        # _, hsv_mask, hsv_validation_img = self.hsv_processor(original_image, *hsv_params)
+        # self.hsv_validation_img = hsv_validation_img
         
         try:
             nr_img = self.noise_removal_processor(hsv_mask, *noise_removal_params)
@@ -1259,6 +1299,7 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
         try:
             self.relevant_rects, self.points_in_rects = self.feature_detection(original_image, hsv_params, noise_removal_params)
         except Exception:
+            print("feature_detection func failed")
             pass
         
         try:
