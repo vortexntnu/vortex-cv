@@ -62,8 +62,11 @@ class PointcloudProcessingNode():
 
         Args:
             msg: The message recieved from feature_detection_node. It should be a PointArray message.
-        """            
-        rot, pos = self.pointcloud_mapper.object_orientation_position(msg.point_array, self.pointcloud_data)
+        """
+        try:
+            rot, pos = self.pointcloud_mapper.object_orientation_position(msg.point_array, self.pointcloud_data)
+        except TypeError:
+            quit()
         self.send_poseStamped_world(pos, rot)
 
         # headerdata = msg.header

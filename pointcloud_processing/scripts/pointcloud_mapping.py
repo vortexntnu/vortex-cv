@@ -77,11 +77,13 @@ class PointCloudMapping():
                     point_list.append([pt[0], pt[1], pt[2]])
 
         #orientationdata, positiondata = self.points_to_plane(point_list)
+
         orientationdata, positiondata = self.plane_with_SVD(point_list)
         return orientationdata, positiondata
 
     def object_position_from_xy_point(self, x_pixel, y_pixel, pointcloud_data): # Do not use
         """
+        NOT FOR CPP
         Reads the point cloud data from a given x, y coordinate
 
         Args:
@@ -128,11 +130,13 @@ class PointCloudMapping():
         
 
         #orientationdata, positiondata = self.points_to_plane(new_point_list)
+
         orientationdata, positiondata = self.plane_with_SVD(new_point_list)
         return orientationdata, positiondata
 
     def points_to_plane(self, points_list):
         """
+        NOT FOR CPP
         Function will give you an estimated plane from points in a 3D plane
 
         Args:
@@ -198,7 +202,12 @@ class PointCloudMapping():
         pos = np.average(X,0)
         X_mean_centered = X - pos
         Rot_homo = np.eye(4)
-        _, _, PT = np.linalg.svd(X_mean_centered)
+
+        try:
+            _, _, PT = np.linalg.svd(X_mean_centered)
+        except:
+            quit()
+
         Rot_homo[:3, :3] = PT.T
         quat = tft.quaternion_from_matrix(Rot_homo)
 
@@ -206,6 +215,7 @@ class PointCloudMapping():
 
     def get_middle_point(self, points_list):
         """
+        NOT FOR CPP
         Creates a middle point of n given points. n is the amount of points in points_list
 
         Args:
