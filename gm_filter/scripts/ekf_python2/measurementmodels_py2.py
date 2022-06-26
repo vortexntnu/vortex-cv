@@ -71,7 +71,7 @@ class MeasurementModel:
 
 
 
-class NED_range_bearing(MeasurementModel):
+class LTV_search_measurement_model(MeasurementModel):
 
     def __init__(self, 
                 sigma_sensor, 
@@ -79,8 +79,8 @@ class NED_range_bearing(MeasurementModel):
                 Rot
                 ):
         self.sigma_z = sigma_sensor
-        self.p_wb = pos 
-        self.Rot_wb = Rot
+        self.p_wc = pos 
+        self.Rot_wc = Rot
         # TODO Change this to be more general
     
     def h(self, x):
@@ -89,32 +89,65 @@ class NED_range_bearing(MeasurementModel):
         x = [pw_wg, gamma_wg] ^ T
         z = [pb_bg, gamma_wg]
         """
-
-        #z = self.Rot_wb.T @ (x[0:3] - self.p_wb[0:3])
         
-        z = np.matmul(self.Rot_wb.T, (x[0:3] - self.p_wb[0:3]))
-        z = np.append(z, x[3])
-
+        z = np.matmul(self.Rot_wc.T, (x[0:3] - self.p_wc[0:3]))
         return z
 
     def H(self, x):
         """Calculate the measurement Jacobian matrix at x in sensor_state.
         
-        H_4x4 = [Rot_3x3, 0 
-                 0, 0, 0, 1]
+        H_3x3 = Rot_3x3
+        
         """
 
-        H = block_diag(self.Rot_wb.T, 1)
+        H = self.Rot_wc.T
         return H
 
     def R(self, x):
         """Calculate the measurement covariance matrix at x in sensor_state."""
+
+        return np.diag(self.sigma_z[:3]**2)
+
+class LTV_full_measurement_model(MeasurementModel):
+
+    def __init__(self, 
+                sigma_sensor, 
+                pos, 
+                Rot
+                ):
+        self.sigma_z = sigma_sensor
+        self.p_wc = pos 
+        self.Rot_wc = Rot
+        # TODO Change this to be more general
+    
+    def h(self, x):
+        """Predict measurement through the non-linear vector field h given the
+        state x
+        x = [pw_wg, eulers_world] ^ T
+        z = [pb_bg, eulers_world]
+        """
         
-        n = len(self.sigma_z)
+        z = np.matmul(self.Rot_wc.T, (x[0:3] - self.p_wc[0:3]))
+        
+        return np.append(z, x[3:])
 
-        R = (self.sigma_z**2) * np.eye(n)
+    def H(self, x):
+        """Calculate the measurement Jacobian matrix at x in sensor_state.
+        
+        H_3x3 = Rot_3x3
+        
+        """
+        n = len(x)
+        H = np.eye(n)
+        H[:3,:3] = self.Rot_wc.T
 
-        return R
+        return H
+
+    def R(self, x):
+        """Calculate the measurement covariance matrix at x in sensor_state."""
+
+        return np.diag(self.sigma_z**2)
+
 
 
 class measurement_linear_landmark(MeasurementModel):

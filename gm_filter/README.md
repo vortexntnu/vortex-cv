@@ -1,16 +1,48 @@
-Simple Kalman Filter for estimating objects in odom frame. Includes a general ekf implementation which can be configured for
-use with generic process and sensor model.
+GMF scheme for evaluating detection validity and obtaining robust search.
 
-Kalman Filter:
+![Rsz_1gmf_bruh](https://user-images.githubusercontent.com/69768720/167249805-1a8c74ae-1f0c-473b-ab07-197ca5600d53.jpg)
 
-state vector:       x = [x, y, z, phi, theta, psi]
-measurement vector: y = [x, y, z, phi, theta, psi]
+##Description of the Algorithm:
 
-process model:     x_dot = 0 + v
-measurement model: y = I_6x6 * x
+### During Search:
+Perform the GMF Workflow. The model for the KF updating the hypotheses is an LTV 3 dimensional model where positions in odom are states. The measurements are modeled in camera frame.
 
+    A measurement comes in, assumed a Gaussian. Gate the measurements through Mahalanobis Distance.
+    Associate measurement to a hypothesis:
+        If there is only 1 hypothesis within gate, associate with that.
+        If there are more than one, perform mixture reduction and associate with the resultant Gaussian.
+        If there are no measurements, instantiate a new hypothesis.
+    Update Associated hypothesis with measurement through an EKF step.
+    Update hypotheses probabilities by boosting the associated one and normalizing the probabilities vector to sum to 1.
+    Evaluate the convergence of the scheme.
 
-Important Files in ekf_python2:
+The GMF scheme is evaluated in step 5 above in the following way. If a hypothesis goes over a convergence threshold, say 85%, it is declared a reliable detection, the bool transition_sc is set to True and we move into the converge state.
+
+### During Converge:
+In converge state, use a 6 DoF EKF which has the position and euler angles of the object in odom as states. The positional measurement is still modeled in camera frame, while the orientation is mapped to odom. The filter is instantiated with the hypothesis which was declared convergent in the GMF algorithm, and is updated from there with incoming measurements. The convergence of the EKF is evaluated. If the norm of the covariance matrix does not go under a certain threshold in a certain number of updates, the original GMF convergence is considered a mistake, and the bool transition_isFucked is set True (isFucked takes fsm from converge or execute back to search). If the EKF converges, the bool transition_x is set True, at which point execution is happening. 
+
+### During Execute:
+Do Nothing
+
+### Kalman Filters:
+
+#### In search:
+state vector:       x = [x_odom, y_odom, z_odom]
+measurement vector: y = [x_cam, y_cam, z_cam]
+
+process model:     x_dot = 0
+measurement model: y = Rot_cw * x + v
+
+#### In converge:
+state vector:       x = [x_odom, y_odom, z_odom, phi, theta, psi]
+measurement vector: y = [x_cam, y_cam, z_cam, phi, theta, psi]
+
+process model:     x_dot = 0
+measurement model: y = diag(Rot_cw, I_3x3) * x + v
+
+Rot_cw is the SO(3) matrix rotating a vector from w(orld = odom) to c(amera) frame.
+
+### Important Files in ekf_python2:
 
 dynamicmodels_py2.py: contains a parent class for dynamic models and as many different dynamic models as need to be defined 
 as subclasses
@@ -22,78 +54,4 @@ ekf_py2.py: contains a class implementing the ekf equations. In the case of line
 
 gaussparams_py2.py: contains a class which implements multivariate gaussians
 
-Pip3/pip requirement:
-pip install dataclasses
 
-
-
-## Work-flow pseudocode for the algorithm:
-###ToDo: change this pseudocode for a flow-chart
-
-global (self) variables:
-
-    boost_prob: the probability boost a hypothesis gets by getting associated to a measurement. This is a tuning parameter.
-
-    init_prob: the probability a new filter/hypothesis is initialized with. This is a tuning parameter
-
-    termination_criterion: a weight threshold for terminating the entire procedure. A hypothesis which has obtained weight above this threshold is considered to have won out, and we lock the gate position in that area. This is a tuning parameter.
-
-    survival_threshold: a weight threshold for which the hypothesis is considered dead. A hypothesis which was obtained weight under this thrreshold is terminated.
-    
-    null_gauss: a hypothesis at the origin, published when the null hypothesis is the leading one.
-
-    gmf_weights: list of length N containing the probabilities of hypotheses:
-        gmf_weights = [w_H0, w_H1, ... , w_HN-1]
-    
-    active_hypotheses: list of MultiVarGauss which are the active hypotheses
-
-    active_hypotheses_count: the number of hypotheses which are not the null hypothesis
-        active_hypotheses_count = len(gmf_weights) - 1
-    
-
-0) Measurement comes in
-
-1) Gate function: takes in a measurement (MultiVar Gaussian), returns a list of gated indices
-    How the fuck was gating done again?????
-
-2) Associate measurement: takes in a list of gated indices, returns two MultiVar Gaussians and an ass_ind
-
-    if gated = 0:
-        associate with a new KF initialized at the measurement with the sensor R
-    
-    if gated = 1:
-        associate with that one
-    
-    if gated = 2 or more:
-        merge mixture of these indices into a single one
-        give it weight that is sum of original weights
-
-        associate with that mixture
-
-    
-3) Update associated measurement
-    
-    if associated mean = measurement mean
-        updated = associated
-        go to weight update
-    else
-        updated = kf update with associated as prev and measurement as z
-        go to weight update
-    
-4) Weight update
-
-    if updated mean = measurement mean:
-        weight append initialization weight (tuning parameter)
-        normalize weights
-
-    else 
-        weigth[ass_ind] += weight boost (tuning parameter)'
-        normalize weights
-
-5) Decide convergence
-    if there is a weight over 0.95 %
-        terminate node and publish the hypothesis
-    else
-        publish number of hypotheses (maybe for auto, ASK FINN AND T-MAN !!!)
-        keep going
-        

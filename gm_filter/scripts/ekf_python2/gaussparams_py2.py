@@ -9,13 +9,17 @@ from config import DEBUG
 
 
 class MultiVarGaussian:
-    """A class for using Gaussians"""
-    #mean: ndarray  # shape=(n,)
-    #cov: ndarray  # shape=(n, n)
+    """A class for using Gaussians
+    mean: ndarray   #   shape=(n,)
+    cov: ndarray    #   shape=(n, n)
+    t: float        #   Time of last update    
+    """
 
-    def __init__(self, m, P):
+
+    def __init__(self, m, P, t=None):
         self.mean = m
         self.cov = P
+        self.last_update = t
 
     def __post_init__(self):
         # This is only for
