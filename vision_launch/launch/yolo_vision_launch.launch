@@ -3,8 +3,8 @@
     <!-- IPP node -->
     <include file="$(find image_preprocessing)/launch/feature_detection_node.launch"/>
 
-    <!-- FD node -->
-    <include file="$(find feature_detection)/launch/feature_detection_node.launch"/>
+    <!-- Yolo node -->
+    <include file="$(find darknet_ros)/launch/darknet_ros.launch.launch"/>
 
     <!-- PCP node -->
     <include file="$(find pointcloud_processing)/launch/pointcloud_processing_node.launch"/>
