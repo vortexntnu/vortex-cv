@@ -35,7 +35,7 @@ class FeatureDetectionNode():
         self.rospack = rospkg.RosPack()
         
         feat_det_pkg_path = self.rospack.get_path('feature_detection')
-        self.gate_cfg_path = feat_det_pkg_path + "/object_cfgs/gate_2.yaml"
+        self.gate_cfg_path = feat_det_pkg_path + "/object_cfgs/GATE_W_RGB_FILTER.yaml"
         self.pole_cfg_path = feat_det_pkg_path + "/object_cfgs/pole_cfg.yaml"
 
         self.ros_rate = rospy.Rate(60.0)
