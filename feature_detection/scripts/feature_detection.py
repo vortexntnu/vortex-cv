@@ -133,6 +133,7 @@ class ImageFeatureProcessing(object):
         erosion_dilation_kernel_size,
         erosion_iterations,
         dilation_iterations,
+        erosion_after_dilation=False
     ):
         """Applies various noise removal and morphism algorithms.
         Is meant to be used as a pre-processor for contour search.
@@ -169,14 +170,27 @@ class ImageFeatureProcessing(object):
         erosion_dilation_kernel = np.ones(
             (erosion_dilation_kernel_size, erosion_dilation_kernel_size), np.uint8
         )
-        erosion_img = cv2.erode(
-            thr_img, erosion_dilation_kernel, iterations=erosion_iterations
-        )
-        morphised_image = cv2.dilate(
-            erosion_img, erosion_dilation_kernel, iterations=dilation_iterations
-        )
+        morphed_image = thr_img
 
-        return morphised_image
+        if not erosion_after_dilation:
+            erosion_img = cv2.erode(
+                thr_img, erosion_dilation_kernel, iterations=erosion_iterations
+            )
+
+            morphed_image = cv2.dilate(
+                erosion_img, erosion_dilation_kernel, iterations=dilation_iterations
+            )
+
+        if erosion_after_dilation:
+            dilated_image = cv2.dilate(
+                thr_img, erosion_dilation_kernel, iterations=dilation_iterations
+            )
+
+            morphed_image = cv2.erode(
+                dilated_image, erosion_dilation_kernel, iterations=erosion_iterations
+            )
+
+        return morphed_image
 
     def contour_filtering(
         self,
@@ -1133,7 +1147,7 @@ class ShapeProcessing(object):
 
         if return_image:
             if image is not None:
-                return img_cp, blank_image, relevant_rects, points_in_rects
+                return pointed_rects_img, img_cp, blank_image, relevant_rects, points_in_rects
             else:
                 return blank_image, relevant_rects, points_in_rects
         else:

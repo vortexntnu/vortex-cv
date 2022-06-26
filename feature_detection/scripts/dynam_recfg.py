@@ -22,12 +22,12 @@ class DynamicReconfigure(object):
         self.ddr.add_variable("r_min", "PLACEHOLDER",   0,    0,  255)
         self.ddr.add_variable("r_max", "PLACEHOLDER",   255,    0,  255)
 
-        self.ddr.add_variable("hsv_hue_min", "PLACEHOLDER",   179,    0,  179)
-        self.ddr.add_variable("hsv_hue_max", "PLACEHOLDER",   0,    0,  179)
-        self.ddr.add_variable("hsv_sat_min", "PLACEHOLDER",   255,    0,  255)
-        self.ddr.add_variable("hsv_sat_max", "PLACEHOLDER",   0,    0,  255)
-        self.ddr.add_variable("hsv_val_min", "PLACEHOLDER",   255,    0,  255)
-        self.ddr.add_variable("hsv_val_max", "PLACEHOLDER",   0,    0,  255)
+        self.ddr.add_variable("hsv_hue_min", "PLACEHOLDER",   0,    0,  179)
+        self.ddr.add_variable("hsv_hue_max", "PLACEHOLDER",   179,    0,  179)
+        self.ddr.add_variable("hsv_sat_min", "PLACEHOLDER",   0,    0,  255)
+        self.ddr.add_variable("hsv_sat_max", "PLACEHOLDER",   255,    0,  255)
+        self.ddr.add_variable("hsv_val_min", "PLACEHOLDER",   1,    1,  255)
+        self.ddr.add_variable("hsv_val_max", "PLACEHOLDER",   255,    0,  255)
 
         self.ddr.add_variable("ksize1",  "PLACEHOLDER", 7, 0, 20)
         self.ddr.add_variable("ksize2",  "PLACEHOLDER", 7, 0, 20)
