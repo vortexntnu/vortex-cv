@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-    <node name="feature_detection_node"    pkg="feature_detection"     type="feature_detection_node.py"    output="screen"/>
+    <!-- <node name="republish" type="republish" pkg="image_transport" output="screen" args="compressed in:=/zed2/zed_node/rgb/image_rect_color raw out:=/zed2/zed_node/rgb/image_rect_color" /> -->
+    <node name="feature_detection_node"    pkg="feature_detection"     type="feature_detection_node_gpu.py"    output="screen"/>
     <node name="CVOD_cfg"    pkg="feature_detection"     type="dynam_recfg.py"    output="screen"/>
 </launch>

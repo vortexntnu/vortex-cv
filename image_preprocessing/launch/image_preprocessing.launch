@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 
 <launch>
-    <node name="republish" type="republish" pkg="image_transport" output="screen" args="compressed in:=/zed2/zed_node/rgb/image_rect_color raw out:=/zed2/zed_node/rgb/image_rect_color" />
+    <!-- <node name="republish" type="republish" pkg="image_transport" output="screen" args="compressed in:=/zed2/zed_node/rgb/image_rect_color raw out:=/zed2/zed_node/rgb/image_rect_color" /> -->
     <node name="image_preprocessing_zed_node"    pkg="image_preprocessing"     type="image_preprocessing_node.py"    output="screen" args="/zed2/zed_node/rgb/image_rect_color"/>
     <node name="image_preprocessing_udfc_node"    pkg="image_preprocessing"     type="image_preprocessing_node.py"    output="screen" args="/udfc/wrapper/camera_raw"/>
 </launch>
