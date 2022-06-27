@@ -1,0 +1,110 @@
+!!python/object/new:dynamic_reconfigure.encoding.Config
+dictitems:
+  C: 6
+  blocksize: 15
+  canny_aperture_size: 3
+  canny_threshold1: 104
+  canny_threshold2: 140
+  dilation_iterations: 5
+  ed_ksize: 2
+  erosion_iterations: 2
+  groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+    dictitems:
+      groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+        dictitems:
+          Blur: !!python/object/new:dynamic_reconfigure.encoding.Config
+            dictitems:
+              groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              id: 3
+              ksize1: 19
+              ksize2: 5
+              name: Blur
+              parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              parent: 0
+              sigma: 2.0
+              state: true
+              type: ''
+            state: []
+          Canny: !!python/object/new:dynamic_reconfigure.encoding.Config
+            dictitems:
+              canny_aperture_size: 3
+              canny_threshold1: 104
+              canny_threshold2: 140
+              groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              id: 1
+              name: Canny
+              parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              parent: 0
+              state: true
+              type: ''
+            state: []
+          ErosionDilation: !!python/object/new:dynamic_reconfigure.encoding.Config
+            dictitems:
+              dilation_iterations: 5
+              ed_ksize: 2
+              erosion_iterations: 2
+              groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              id: 5
+              name: ErosionDilation
+              parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              parent: 0
+              state: true
+              type: ''
+            state: []
+          HSV: !!python/object/new:dynamic_reconfigure.encoding.Config
+            dictitems:
+              groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              hsv_hue_max: 15
+              hsv_hue_min: 4
+              hsv_sat_max: 244
+              hsv_sat_min: 137
+              hsv_val_max: 230
+              hsv_val_min: 116
+              id: 2
+              name: HSV
+              parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              parent: 0
+              state: true
+              type: ''
+            state: []
+          Thresholding: !!python/object/new:dynamic_reconfigure.encoding.Config
+            dictitems:
+              C: 6
+              blocksize: 15
+              groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              id: 4
+              name: Thresholding
+              parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
+                state: []
+              parent: 0
+              state: true
+              type: ''
+            state: []
+        state: []
+      id: 0
+      name: Default
+      parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
+        state: []
+      parent: 0
+      state: true
+      type: ''
+    state: []
+  hsv_hue_max: 15
+  hsv_hue_min: 4
+  hsv_sat_max: 244
+  hsv_sat_min: 137
+  hsv_val_max: 230
+  hsv_val_min: 116
+  ksize1: 19
+  ksize2: 5
+  sigma: 2.0
+state: []
