@@ -614,8 +614,8 @@ class GMFNode:
                 x_conv_init = np.append(self.best_hypothesis.mean[:3], z[3:])
                 self.best_hypothesis = MultiVarGaussian(x_conv_init, self.P_hat0, self.best_hypothesis.last_update)
 
-
-            _, _, self.best_hypothesis = self.kf_function(z, self.best_hypothesis, full_ekf, self.best_hypothesis.last_update)
+            Ts = self.get_Ts(self.best_hypothesis)
+            _, _, self.best_hypothesis = self.kf_function(z, self.best_hypothesis, full_ekf, Ts)
             self.mission_topic_old = self.mission_topic[:]
             self.evaluate_filter_convergence("gate")
             #self.evaluate_filter_convergence(msg.objectID)
