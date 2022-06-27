@@ -35,7 +35,7 @@ class FeatureDetectionNode():
         self.rospack = rospkg.RosPack()
         
         feat_det_pkg_path = self.rospack.get_path('feature_detection')
-        self.gate_cfg_path = feat_det_pkg_path + "/object_cfgs/gate_2.yaml"
+        self.gate_cfg_path = feat_det_pkg_path + "/object_cfgs/GATE_W_RGB_FILTER.yaml"
         self.pole_cfg_path = feat_det_pkg_path + "/object_cfgs/pole_cfg.yaml"
 
         self.ros_rate = rospy.Rate(60.0)
@@ -47,7 +47,8 @@ class FeatureDetectionNode():
         self.ocfaSub                = rospy.Subscriber('/cv/preprocessing/ocfa_detection', Bool, self.ocfa_bool_cb)
 
 
-        self.hsvCheckPub            = rospy.Publisher('/feature_detection/hsv_check_image', Image, queue_size= 1)
+        self.hsvCheckPub            = rospy.Publisher('/feature_detection/color_filter_check_image', Image, queue_size= 1)
+        self.hsvMaskPub             = rospy.Publisher('/feature_detection/color_filter_mask_image', Image, queue_size= 1)
         self.noiseRmPub             = rospy.Publisher('/feature_detection/noise_removal_image', Image, queue_size= 1)
         self.i2rcpPub               = rospy.Publisher('/feature_detection/i2rcp_image', Image, queue_size= 1)
         self.shapePub               = rospy.Publisher('/feature_detection/shapes_image', Image, queue_size= 1)
@@ -80,12 +81,20 @@ class FeatureDetectionNode():
         self.canny_threshold2 = 200
         self.canny_aperture = 3
 
+        # BGR params
+        self.bgr_params = [0,
+                           255,
+                           0,
+                           255,
+                           0,
+                           255]
+
         # HSV params
         self.hsv_params = [0,
                            179,
                            0,
                            255,
-                           0,
+                           1,
                            255]
 
         # Blur params
@@ -163,40 +172,47 @@ class FeatureDetectionNode():
         while not rospy.is_shutdown():
             if self.cv_image is not None:
                 try:
-                    start = timer() # Start function timer.
+                    start = timer() # Start function timer. (0, 113, 0, 97, 19, 120)
+
                     try:
-                        bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, self.current_object, self.hsv_params, self.noise_rm_params)
+                        bgr_img, bgr_mask, bgr_mask_validation_img = self.feat_detection.bgr_filter(self.cv_image, *self.bgr_params)
+                        _, hsv_mask, hsv_mask_validation_img = self.feat_detection.hsv_processor(bgr_mask_validation_img, *self.hsv_params)
+                        nr_img = self.feat_detection.noise_removal_processor(hsv_mask, *self.noise_rm_params)
+                    except Exception, e:
+                        rospy.logwarn(traceback.format_exc())
+                        rospy.logwarn(rospy.get_rostime())
+
+                    try:
+                        using_cnts = self.feat_detection.contour_processing(nr_img, 300, return_image=False)
+                        shape_img, _, fitted_boxes, centroid_arr = self.feat_detection.shape_fitting(using_cnts, 5, return_image=True, image=bgr_img)
+                    except Exception, e:
+                        rospy.logwarn(traceback.format_exc())
+                        rospy.logwarn(rospy.get_rostime())
+
+                    try:
+                        i2rcp_img, i2rcp_image_blank, i2rcp_points = self.feat_detection.i2rcp(centroid_arr, return_image=True, image=bgr_img)
+                    except Exception, e:
+                        rospy.logwarn(traceback.format_exc())
+                        rospy.logwarn(rospy.get_rostime())
+
+                    try:
+                        pointed_rects_img, rect_flt_img, _, relevant_rects, points_in_rects = self.feat_detection.rect_filtering(i2rcp_points, fitted_boxes, return_rectangles_separately=False, return_image=True, image=bgr_img)
+                        self.rect_flt_img = rect_flt_img
                         pt_arr_msg = self.build_point_array_msg(points_in_rects, self.current_object, self.image_shape[0], self.image_shape[1])
-                        if self.rcfa_det:
-                            self.RectPointsPub.publish(pt_arr_msg)
-                        elif self.ocfa_det:
-                            self.RectPointsPub.publish(pt_arr_msg)
+                    except Exception, e:
+                        rospy.logwarn(traceback.format_exc())
+                        rospy.logwarn(rospy.get_rostime())
+
+                    self.cv_image_publisher(self.hsvCheckPub, hsv_mask_validation_img, "bgr8")
+                    self.cv_image_publisher(self.hsvMaskPub, hsv_mask, "mono8")
+                    self.cv_image_publisher(self.noiseRmPub, nr_img, msg_encoding="mono8")
+                    self.cv_image_publisher(self.i2rcpPub, i2rcp_img, "bgr8")
+                    self.cv_image_publisher(self.shapePub, rect_flt_img, "bgr8")
+                    self.cv_image_publisher(self.pointAreasPub, pointed_rects_img, "bgr8")
+
+                    self.RectPointsPub.publish(pt_arr_msg)
 
 
-                    except TypeError:
-                        pass
-                    
-                    self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_validation_img)
-                    self.cv_image_publisher(self.noiseRmPub, self.feat_detection.nr_img, msg_encoding="mono8")
-                    self.cv_image_publisher(self.i2rcpPub, self.feat_detection.i2rcp_image_blank)
-                    self.cv_image_publisher(self.shapePub, self.feat_detection.rect_flt_img)
-                    self.cv_image_publisher(self.linesPub, self.feat_detection.line_fitting_img)
-                    self.cv_image_publisher(self.BBoxPub, self.feat_detection.bbox_img)
-                    self.cv_image_publisher(self.pointAreasPub, self.feat_detection.pointed_rects_img)
-
-                    if bbox_points:
-                        bboxes_msg = self.build_bounding_boxes_msg(bbox_points, self.current_object)
-                        if self.rcfa_det:
-                            self.BBoxPointsPub.publish(bboxes_msg)
-                        elif self.ocfa_det:
-                            self.BBoxPointsPub.publish(bboxes_msg)
-
-                        self.prev_bboxes_msg = bboxes_msg
-                    
-                    else:
-                        rospy.logwarn("Bounding Box wasnt found... keep on spinning...")
-                        self.BBoxPointsPub.publish(self.prev_bboxes_msg)
-                    
                     end = timer() # Stop function timer.
                     timediff = (end - start)
                     fps = 1 / timediff # Take reciprocal of the timediff to get runs per second. 
@@ -236,6 +252,13 @@ class FeatureDetectionNode():
     def load_obj_config(self, config_path):
         params = read_yaml_file(config_path)
 
+        self.bgr_params[0] = params['b_min']
+        self.bgr_params[1] = params['b_max']
+        self.bgr_params[2] = params['g_min']
+        self.bgr_params[3] = params['g_max']
+        self.bgr_params[4] = params['r_min']
+        self.bgr_params[5] = params['r_max']
+
         self.hsv_params[0] = params['hsv_hue_min']
         self.hsv_params[1] = params['hsv_hue_max']
         self.hsv_params[2] = params['hsv_sat_min']
@@ -260,6 +283,13 @@ class FeatureDetectionNode():
         self.canny_threshold2 = config.canny_threshold2
         self.canny_aperture = config.canny_aperture_size
 
+        self.bgr_params[0] = config.b_min
+        self.bgr_params[1] = config.b_max
+        self.bgr_params[2] = config.g_min
+        self.bgr_params[3] = config.g_max
+        self.bgr_params[4] = config.r_min
+        self.bgr_params[5] = config.r_max
+
         self.hsv_params[0] = config.hsv_hue_min
         self.hsv_params[1] = config.hsv_hue_max
         self.hsv_params[2] = config.hsv_sat_min
@@ -283,7 +313,7 @@ class FeatureDetectionNode():
 
 if __name__ == '__main__':
     try:
-        feature_detection_node = FeatureDetectionNode(image_topic='/zed2/zed_node/rgb/image_rect_color')
+        feature_detection_node = FeatureDetectionNode(image_topic='/cv/image_preprocessing/CLAHE/zed2')
         # rospy.spin()
         feature_detection_node.spin()
 
