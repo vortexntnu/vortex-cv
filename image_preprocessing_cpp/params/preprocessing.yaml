@@ -1,0 +1,8 @@
+
+# Use method
+useCLAHE: true
+imageTopic: "/zed2/zed_node/rgb/image_rect_color"
+claheTopic: "/image_preprocessing/clahe"
+claheClipLimit: 2
+claheTileGridSize: 8
+clahePlane: 0
