@@ -63,7 +63,7 @@ class VKFNode:
 
         #Gauss prev values
         self.x_hat0 = np.array([0, 0, 0, 0, 0, 0])
-        self.P_hat0 = np.diag(20*self.sigma_z)
+        self.P_hat0 = np.diag(100*self.sigma_z)
         self.prev_gauss = MultiVarGaussian(self.x_hat0, self.P_hat0)
 
         ################
@@ -79,7 +79,14 @@ class VKFNode:
 
         # Subscribe to mission topic
         self.mission_topic = self.current_object + "_execute"
+        self.mission_topic_old = self.mission_topic[:]
         self.mission_topic_sub = rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
+
+        # LMS decision logic
+        self.Fnorm_threshold = 0.5
+        self.is_detected = True
+        self.estimateConverged = False
+        self.estimateFucked = False
         
         # Subscriber to gate pose and orientation 
         self.object_pose_sub = rospy.Subscriber(object_topic_subscribe, ObjectPosition, self.obj_pose_callback, queue_size=1)
@@ -204,7 +211,17 @@ class VKFNode:
 
         return z, R_wc, cam_pose_position_wc
 
+    def check_filter_convergence(self, gauss_estimate):
+        """
+        Sets the convergence boolean to True if Frobenius norm under a threshold
+        """
+        cov = gauss_estimate.cov
+        Fnorm_P = np.linalg.norm(cov, "fro")
 
+        if Fnorm_P < self.Fnorm_threshold:
+            self.estimateConverged = True
+        else
+            pass
 
     def transformbroadcast(self, parent_frame, p):
         t = TransformStamped()
@@ -234,9 +251,9 @@ class VKFNode:
         p.objectPose.pose.orientation.z = ekf_pose_quaterion[2]
         p.objectPose.pose.orientation.w = ekf_pose_quaterion[3]
 
-        p.isDetected            = self.termination_bool
-        #p.estimateConverged     = self.estimateConverged
-        #p.estimateFucked        = self.estimateFucked
+        p.isDetected            = self.is_detected
+        p.estimateConverged     = self.estimateConverged
+        p.estimateFucked        = self.estimateFucked
         
         self.gate_pose_pub.publish(p)
         rospy.loginfo("Object published: %s", objectID)
@@ -253,7 +270,6 @@ class VKFNode:
             self.prev_gauss = MultiVarGaussian(self.x_hat0, self.P_hat0)
             self.last_time = rospy.get_time()
             return None
-        
 
         # Gate in world frame for cyb pool
         #obj_pose_position_wg = np.array([msg.objectPose.pose.position.x, 
@@ -291,7 +307,9 @@ class VKFNode:
         ekf_position, ekf_pose = self.est_to_pose(x_hat)
         ekf_pose_quaterion = tft.quaternion_from_euler(ekf_pose[0], ekf_pose[1], ekf_pose[2])
 
-        # Publish data
+        # Publish data, update mission topic
+        self.mission_topic_old = self.mission_topic
+        self.check_filter_convergence(gauss_est)
         self.publish_object(msg.objectID, ekf_position, ekf_pose_quaterion)
 
 
