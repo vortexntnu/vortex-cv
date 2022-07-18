@@ -1,9 +1,21 @@
 <?xml version="1.0"?>
 <launch>
-    <!-- Feature detection node -->
+    <arg name="type" default="real"/>
+
+    <group if="$(eval type == 'simulator')">
+        <node name="republish" type="republish" pkg="image_transport" output="screen" args="compressed in:=/zed2/zed_node/rgb/image_rect_color raw out:=/zed2/zed_node/rgb/image_rect_color" />
+    </group>
+
+    <!-- IPP node -->
+    <include file="$(find image_preprocessing)/launch/image_preprocessing.launch"/>
+
+    <!-- FD node -->
     <include file="$(find feature_detection)/launch/feature_detection_node.launch"/>
 
-    <!-- Pointcloud processing node -->
+    <!-- PCP node -->
     <include file="$(find pointcloud_processing)/launch/pointcloud_processing_node.launch"/>
+
+    <!-- VKF node -->
+    <include file="$(find vision_kf)/launch/ekf_node.launch"/>
 
 </launch>
