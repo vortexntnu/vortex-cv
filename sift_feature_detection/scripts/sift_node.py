@@ -38,8 +38,11 @@ class SiftFeature:
         # Image rate 
         self.get_image_rate = 0.1
 
-        # Compare image(s), color = 0, grayscale = 1
-        self.image_list = [cv.imread(file, 0) for file in glob.glob("/home/kristian/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/*.png")]
+        #  grayscale = 0, color = 1
+        self.colormode = 1
+
+        # Compare image(s)
+        self.image_list = [cv.imread(file, self.colormode) for file in glob.glob("/home/vortex/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/*.png")]
 
         # Minimum matches needed for drawing bounding box
         self.MIN_MATCH_COUNT = 8
@@ -68,15 +71,15 @@ class SiftFeature:
         self.cornerpoints_pub = rospy.Publisher('/feature_detection/sift_object_points', PointArray, queue_size= 1)
         self.detection_centeroid_pub = rospy.Publisher('/feature_detection/sift_detection_centeroid', PoseStamped, queue_size=1)
 
-
-
         ################
         ###CV stuff ####
         ################
         self.bridge = CvBridge() 
 
-        # Initiate SIFT detector
-        self.sift = cv.SIFT_create()
+        # Initiate SIFT detector (opencv version 3.4.x) 
+        self.sift = cv.xfeatures2d.SIFT_create()
+        # (opencv version 4.5.1)
+        #self.sift = cv.SIFT_create()
 
         self.kp = []
         self.des = []
@@ -164,7 +167,7 @@ class SiftFeature:
         Taking in four corner points and finding the middle points between these.
         The middle points then gets utillized to find the center of the figure using these.
 
-        p1----p14----p4
+        p1----p14----p4  
         |             |
         |             |
        p12     c     p34
@@ -203,7 +206,7 @@ class SiftFeature:
         pt_arr_msg.width = image_width
         pt_arr_msg.height = image_height
 
-        rospy.loginfo("Point array published")
+        #rospy.loginfo("Point array published")
         
         self.cornerpoints_pub.publish(pt_arr_msg)
 
@@ -225,6 +228,8 @@ class SiftFeature:
     def callback(self, img_in):
         try:
             self.cv_image = self.bridge.imgmsg_to_cv2(img_in, "passthrough")
+            if self.colormode == 0:
+                self.cv_image = cv.cvtColor(self.cv_image, cv.COLOR_BGR2GRAY)      
         except CvBridgeError, e:
             rospy.logerr("CvBridge Error: {0}".format(e))
 
@@ -274,15 +279,17 @@ class SiftFeature:
                 #self.publish_centeroid(i, centeroid, orientation)
                 self.publish_point_array_msg(dst_scaled, "image" + str(i), self.cv_image.shape[1], self.cv_image.shape[0])
 
-                # Only for visual effects (draws bounding box, cornerpoints)
+                # Only for visual effects (draws bounding box, cornerpoints, etc...)
                 self.draw_things(self.cv_image, dst, dst_scaled_cv_packed, centeroid, i)
 
             else:
                 #print( "Not enough matches are found - {}/{}".format(len(good), self.MIN_MATCH_COUNT) )
                 matchesMask = None
 
-        
-        pub_img = self.bridge.cv2_to_imgmsg(self.cv_image, encoding="bgra8")
+        if self.colormode == 0:
+            pub_img = self.bridge.cv2_to_imgmsg(self.cv_image, encoding="mono8")
+        else:
+            pub_img = self.bridge.cv2_to_imgmsg(self.cv_image, encoding="bgra8")
         self.detections_pub.publish(pub_img)
         rospy.sleep(self.get_image_rate)
         
