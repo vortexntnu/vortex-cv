@@ -18,7 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 # Find CUDA enabled OpenCV build on Xavier
 if( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64" )
-  find_package(OpenCV 4.5.1 REQUIRED)
+  find_package(OpenCV 4 REQUIRED)
 else()
   find_package(OpenCV)
 endif()
