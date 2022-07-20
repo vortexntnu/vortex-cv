@@ -53,8 +53,8 @@ class VKFNode:
         ##################
 
         # Tuning parameters
-        self.sigma_a = 3/5*np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
-        self.sigma_z = 2*np.array([0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
+        self.sigma_a = 0*np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
+        self.sigma_z = 2*np.array([1, 0.5, 0.5, 5 * np.pi/180, 5 * np.pi/180, 5 * np.pi/180])
 
         # Making gate model object
         self.landmark_model = landmark_pose_world(self.sigma_a)
@@ -271,22 +271,7 @@ class VKFNode:
             self.last_time = rospy.get_time()
             return None
 
-        # Gate in world frame for cyb pool
-        #obj_pose_position_wg = np.array([msg.objectPose.pose.position.x, 
-        #                                 msg.objectPose.pose.position.y, 
-        #                                 msg.objectPose.pose.position.z])
-
-        #obj_pose_pose_wg = np.array([msg.objectPose.pose.orientation.x,
-        #                             msg.objectPose.pose.orientation.y,
-        #                             msg.objectPose.pose.orientation.z,
-        #                             msg.objectPose.pose.orientation.w])
-
-        ## Prepare measurement vector
-        #z_phi, z_theta, z_psi = tft.euler_from_quaternion(obj_pose_pose_wg, axes='sxyz')
-
-        #z = obj_pose_position_wg
-        #z = np.append(z, [z_phi, z_theta, z_psi])
-        
+        # Extract relevant information from msg and transforms
         z, R_wc, cam_pose_position_wc = self.process_measurement_message(msg)
 
 

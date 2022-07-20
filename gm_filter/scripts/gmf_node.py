@@ -62,7 +62,7 @@ class GMFNode:
 
         # Tuning Parameters for the GMF scheme:
         self.init_prob = 0.2
-        self.boost_prob = 0.05
+        self.boost_prob = 0.085
         self.termination_criterion = 0.95
         self.survival_threshold = 0.05
         gate_percentile = 0.6
@@ -94,7 +94,7 @@ class GMFNode:
 
         # Tuning parameters
         self.sigma_a = 0*np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
-        self.sigma_z = 2*np.array([1, 0.5, 0.5, 0.5, 0.5, 0.5])
+        self.sigma_z = 2*np.array([1, 0.5, 0.5, 5 * np.pi/180, 5 * np.pi/180, 5 * np.pi/180])
 
         self.R = np.diag(self.sigma_z)
 
