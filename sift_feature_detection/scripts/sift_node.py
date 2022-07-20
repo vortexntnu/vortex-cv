@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from operator import imod
 import cv2 as cv
 from cv_bridge import CvBridge, CvBridgeError
 import glob
@@ -37,6 +36,22 @@ class SiftFeature:
     
     def __init__(self):
 
+        ##################
+        ##### Params #####
+        ##################
+
+        # Image rate 
+        self.get_image_rate = 1
+
+        #  grayscale = 0, color = 1
+        self.colormode = 1
+
+        # Minimum matches needed for drawing bounding box
+        self.MIN_MATCH_COUNT = 8
+
+        # Scale the bounding box (Only downscale)
+        self.scale = 0.999
+
         #################
         ###### Node #####
         #################
@@ -58,31 +73,6 @@ class SiftFeature:
         self.cornerpoints_pub = rospy.Publisher('/feature_detection/sift_object_points', PointArray, queue_size= 1)
         self.detection_centeroid_pub = rospy.Publisher('/feature_detection/sift_detection_centeroid', PoseStamped, queue_size=1)
 
-        ##################
-        ##### Params #####
-        ##################
-
-        # Image rate 
-        self.get_image_rate = 0.1
-
-        #  grayscale = 0, color = 1
-        self.colormode = 1
-
-        # Image path
-        path = "/home/vortex/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/*.png"
-
-        # Compare image(s)
-        self.image_list = [cv.imread(file, self.colormode) for file in glob.glob(path)]
-        rospy.loginfo("Number of images: %s", len(self.image_list))
-        if len(self.image_list) == 0:
-            rospy.logwarn("\n ######################################## \n ### No images found! Check your path!### \n ########################################")
-
-        # Minimum matches needed for drawing bounding box
-        self.MIN_MATCH_COUNT = 8
-
-        # Scale the bounding box (Only downscale)
-        self.scale = 0.999
-
         ################
         ###CV stuff ####
         ################
@@ -95,18 +85,52 @@ class SiftFeature:
         # (opencv version 4.5.1)
         self.sift = cv.SIFT_create()
 
+        ################################
+        ##### kp and des from data #####
+        ################################
+
+        # Image path
+        path0 = "/home/vortex/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/bootlegger/*.png"
+        path1 = "/home/vortex/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/gman/*.png"
+        #path2 = "/home/vortex/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/figure/*.png"
+
+        
+        # Name of figure/item
+        self.image_types = []
+        self.image_types.append("bootlegger")
+        self.image_types.append("gman")
+        # self.image_types.append("Another item/figure")
+
+
+        # Compare image(s)
+        bootlegger = [cv.imread(file, self.colormode) for file in glob.glob(path0)]
+        g_man = [cv.imread(file, self.colormode) for file in glob.glob(path1)]
+
+        self.image_list = []
+        self.image_list.append(bootlegger)
+        self.image_list.append(g_man)
+
+        rospy.loginfo("Number of imagetypes: %s", len(self.image_list))
+        if len(self.image_list) == 0:
+            rospy.logwarn("\n ######################################## \n ### No images found! Check your path!### \n ########################################")
+
         self.kp = []
         self.des = []
 
         
-
         # Gets keypoints and descriptors for every loaded image
-        for image in self.image_list:
-            k, d = self.sift.detectAndCompute(image,None)
-            #rospy.loginfo("print k %s", k)
-            self.kp.append(k)
-            self.des.append(d)
-
+        for image_type in self.image_list:
+            kp_temp = []
+            des_temp = []
+            for image in image_type:
+                k, d = self.sift.detectAndCompute(image,None)
+                #rospy.loginfo("print k %s", k)
+                kp_temp.append(k)
+                des_temp.append(d)
+            
+            self.kp.append(kp_temp)
+            self.des.append(des_temp)
+        
         ############
         ##Init end##
         ############
@@ -169,10 +193,12 @@ class SiftFeature:
         
         self.cornerpoints_pub.publish(pt_arr_msg)
 
-    def compare_matches(self, cam_image, flann, kp2, des2):
+    def compare_matches(self, cam_image, flann, kp2, des2, single_image_list, kp, des, image_type):
 
-        for i in range(len(self.image_list)):
-            matches = flann.knnMatch(self.des[i],des2,k=2)
+        good_prev = []
+
+        for i in range(len(single_image_list)):
+            matches = flann.knnMatch(des[i],des2,k=2)
 
             # store all the good matches as per Lowe's ratio test.
             good = []
@@ -180,38 +206,41 @@ class SiftFeature:
                 if m.distance < 0.7*n.distance:
                     good.append(m)
 
-            if len(good)>self.MIN_MATCH_COUNT:
-                src_pts = np.float32([ self.kp[i][m.queryIdx].pt for m in good ]).reshape(-1,1,2)
-                dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
-                M, mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC,5.0)
-                matchesMask = mask.ravel().tolist()
+            if len(good) > len(good_prev):
+                good_prev = good
 
-                if len(self.image_list[i].shape) == 2:
-                    h,w = self.image_list[i].shape
-                else:
-                    h, w, _ = self.image_list[i].shape
+        if len(good)>self.MIN_MATCH_COUNT:
+            src_pts = np.float32([ kp[i][m.queryIdx].pt for m in good ]).reshape(-1,1,2)
+            dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
+            M, mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC,5.0)
+            matchesMask = mask.ravel().tolist()
 
-                pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
-                dst = cv.perspectiveTransform(pts,M)
-
-                # Gets orientation of the object
-                #M0 = np.zeros((4,4))
-                #M0[:3, :3] = M[:3, :3]
-                #M0[3,3] = 1
-                #orientation = tf.transformations.quaternion_from_matrix(M0)
-
-                # Scales the bounding box
-                dst_scaled_cv_packed, dst_scaled = self.scale_bounding_box(dst)
-                
-                #self.publish_centeroid(i, centeroid, orientation)
-                self.publish_point_array_msg(dst_scaled, "image" + str(i), cam_image.shape[1], cam_image.shape[0])
-
-                # Only for visual effects (draws bounding box, cornerpoints, etc...)
-                cam_image = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, i, centeroid=True)
-
+            if len(single_image_list[i].shape) == 2:
+                h,w = single_image_list[i].shape
             else:
-                #print( "Not enough matches are found - {}/{}".format(len(good), self.MIN_MATCH_COUNT) )
-                matchesMask = None
+                h, w, _ = single_image_list[i].shape
+
+            pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
+            dst = cv.perspectiveTransform(pts,M)
+
+            # Gets orientation of the object
+            #M0 = np.zeros((4,4))
+            #M0[:3, :3] = M[:3, :3]
+            #M0[3,3] = 1
+            #orientation = tf.transformations.quaternion_from_matrix(M0)
+
+            # Scales the bounding box
+            dst_scaled_cv_packed, dst_scaled = self.scale_bounding_box(dst)
+                
+            #self.publish_centeroid(i, centeroid, orientation)
+            self.publish_point_array_msg(dst_scaled, image_type, cam_image.shape[1], cam_image.shape[0])
+
+            # Only for visual effects (draws bounding box, cornerpoints, etc...)
+            cam_image = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, image_type, centeroid=True,)
+
+        else:
+            #print( "Not enough matches are found - {}/{}".format(len(good), self.MIN_MATCH_COUNT) )
+            matchesMask = None
 
         return cam_image
 
@@ -229,7 +258,12 @@ class SiftFeature:
         search_params = dict(checks = 50)
         flann = cv.FlannBasedMatcher(index_params, search_params)
         
-        cam_image = self.compare_matches(cam_image, flann, kp2, des2)
+        for i in range(len(self.image_list)):
+            single_image_list = self.image_list[i]
+            kp = self.kp[i]
+            des = self.des[i]
+            image_type = self.image_types[i]
+            cam_image = self.compare_matches(cam_image, flann, kp2, des2, single_image_list, kp, des, image_type)
 
         if self.colormode == 0:
             pub_img = self.bridge.cv2_to_imgmsg(cam_image, encoding="mono8")
@@ -237,7 +271,7 @@ class SiftFeature:
             pub_img = self.bridge.cv2_to_imgmsg(cam_image, encoding="bgra8")
         self.detections_pub.publish(pub_img)
 
-        rospy.sleep(self.get_image_rate)
+        #rospy.sleep(self.get_image_rate)
         
 
 if __name__ == '__main__':

@@ -51,23 +51,23 @@ class DrawTools:
 
         return img
 
-    def text_on_image(self, img, dst, image_number):
+    def text_on_image(self, img, dst, image_type):
         points = np.reshape(dst, (4,2))
         x, y = int(points[0][0]) ,int(points[0][1] - 15.0)
         h,w = img.shape[0], img.shape[1]
-        text = "image" + str(image_number)
+        text = image_type
 
         cv.putText(img, text, (x, y), cv.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2, cv.LINE_AA)
 
         return img
 
-    def draw_all(self, img, dst, dst_packed, image_number,centeroid=False):
+    def draw_all(self, img, dst, dst_packed, image_type,centeroid=False):
         if centeroid == True:
             centeroid  = self.find_centeroid(dst)
         
         img = self.draw_all_circles(img, dst, radius=8)
         img = self.draw_all_circles(img, dst_packed, radius=5)
-        img = self.text_on_image(img, dst, image_number)
+        img = self.text_on_image(img, dst, image_type)
         img = self.drawcircle(img, center_coordinates=(centeroid[0], centeroid[1]))
         img = cv.polylines(img,[np.int32(dst)],True,255,3, cv.LINE_AA)
 
