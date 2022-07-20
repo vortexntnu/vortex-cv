@@ -9,6 +9,7 @@
 
 from cProfile import label
 from matplotlib.pyplot import contour
+from plumbum import local
 import rospy
 import rospkg
 
@@ -104,7 +105,7 @@ class PathFollowingNode():
         self.hsvPub = rospy.Publisher("/path_following/hsv_monkey", Image, queue_size=1)
 
         self.wpPub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
-        #self.errorPub = rospy.Publisher('/pfps/error_img', Point, queue_size=1)
+        self.errorPub = rospy.Publisher('/pfps/error_img', Point, queue_size=1)
 
         self.noise_filteredPub = rospy.Publisher("/path_following/noise_filtered", Image, queue_size=1)
         self.bridge = CvBridge()
@@ -169,6 +170,15 @@ class PathFollowingNode():
         msgified_img = self.bridge.cv2_to_imgmsg(image, encoding=msg_encoding)
         publisher.publish(msgified_img)
     
+    def publish_error(self, local_error):
+        p = Point
+
+        p.x = local_error[0]
+        p.y = local_error[1]
+        p.z = 0
+
+        self.errorPub.publish(p)
+
     def publish_waypoint(self, publisher, objectID, waypoint):
         p = ObjectPosition()
         #p.pose.header[]
@@ -375,7 +385,8 @@ class PathFollowingNode():
         local_error = self.local_path_errors()
 
         self.cv_image_publisher(self.udfcPub, img_drawn, "bgr8")
-        self.publish_waypoint(self.wpPub, "path", local_error)
+        self.publish_waypoint(self.wpPub, "path", dp_ref)
+        self.publish_error(local_error)
 
 
     def dynam_reconfigure_callback(self, config):
