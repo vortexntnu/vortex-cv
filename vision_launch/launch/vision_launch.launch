@@ -13,13 +13,13 @@
     <!-- FD node -->
     <include file="$(find feature_detection)/launch/feature_detection_node.launch"/>
 
-    <!-- Sift node -->
-    <include file="$(find sift_feature_detection)/launch/sift_feature_detection_node.launch"/>
-
     <!-- PCP node -->
     <include file="$(find pointcloud_processing)/launch/pointcloud_processing_node.launch"/>
 
     <!-- VKF node -->
     <include file="$(find vision_kf)/launch/ekf_node.launch"/>
+    
+    <!-- ZED Wrapper -->
+    <include file="$(find zed_wrapper)/launch/zed2.launch"/>
 
 </launch>
