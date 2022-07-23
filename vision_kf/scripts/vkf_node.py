@@ -44,7 +44,7 @@ class VKFNode:
         self.current_object = ""
 
         #Subscribe topic
-        object_topic_subscribe = "/pointcloud_processing/object_pose/spy"
+        object_topic_subscribe = "/pointcloud_processing/poseStamped/spy"
         mission_topic_subscribe = "/fsm/state"
 
 
@@ -53,8 +53,8 @@ class VKFNode:
         ##################
 
         # Tuning parameters
-        self.sigma_a = 0*np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
-        self.sigma_z = 2*np.array([1, 0.5, 0.5, 5 * np.pi/180, 5 * np.pi/180, 5 * np.pi/180])
+        self.sigma_a = 3/5*np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
+        self.sigma_z = 2*np.array([0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
 
         # Making gate model object
         self.landmark_model = landmark_pose_world(self.sigma_a)
@@ -78,18 +78,18 @@ class VKFNode:
         rospy.loginfo("Current time %i %i", now.secs, now.nsecs)
 
         # Subscribe to mission topic
-        self.mission_topic = self.current_object + "_execute"
+        self.mission_topic = self.current_object + "/execute"
         self.mission_topic_old = self.mission_topic[:]
         self.mission_topic_sub = rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
 
         # LMS decision logic
-        self.Fnorm_threshold = 0.5
+        self.Fnorm_threshold = 0.1
         self.is_detected = True
         self.estimateConverged = False
         self.estimateFucked = False
         
         # Subscriber to gate pose and orientation 
-        self.object_pose_sub = rospy.Subscriber(object_topic_subscribe, ObjectPosition, self.obj_pose_callback, queue_size=1)
+        self.object_pose_sub = rospy.Subscriber(object_topic_subscribe, PoseStamped, self.obj_pose_callback, queue_size=1)
       
         # Publisher to autonomous
         self.gate_pose_pub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
@@ -220,7 +220,7 @@ class VKFNode:
 
         if Fnorm_P < self.Fnorm_threshold:
             self.estimateConverged = True
-        else
+        else:
             pass
 
     def transformbroadcast(self, parent_frame, p):
@@ -242,7 +242,7 @@ class VKFNode:
         p = ObjectPosition()
         #p.pose.header[]
         p.objectID = objectID
-        p.objectPose.header = "object_" + str(objectID)
+        # p.objectPose.header = "object_" + str(objectID)
         p.objectPose.pose.position.x = ekf_position[0]
         p.objectPose.pose.position.y = ekf_position[1]
         p.objectPose.pose.position.z = ekf_position[2]
@@ -261,23 +261,39 @@ class VKFNode:
 
     
     def obj_pose_callback(self, msg):
-
-        rospy.loginfo("Object data recieved for: %s", msg.objectID)
-        self.current_object = msg.objectID
+        #print(self.mission_topic)
+        objID = self.mission_topic.split("/")[0]
+        rospy.loginfo("Object data recieved for: %s", objID)
+        self.current_object = objID
     
-        if self.mission_topic == self.current_object + "_execute":
-            rospy.loginfo("Mission status: %s", self.mission_topic)
+        if self.mission_topic == self.current_object + "/execute":
+            rospy.loginfo("Mission status: %s", objID)
             self.prev_gauss = MultiVarGaussian(self.x_hat0, self.P_hat0)
             self.last_time = rospy.get_time()
             return None
 
-        # Extract relevant information from msg and transforms
+        # Gate in world frame for cyb pool
+        #obj_pose_position_wg = np.array([msg.objectPose.pose.position.x, 
+        #                                 msg.objectPose.pose.position.y, 
+        #                                 msg.objectPose.pose.position.z])
+
+        #obj_pose_pose_wg = np.array([msg.objectPose.pose.orientation.x,
+        #                             msg.objectPose.pose.orientation.y,
+        #                             msg.objectPose.pose.orientation.z,
+        #                             msg.objectPose.pose.orientation.w])
+
+        ## Prepare measurement vector
+        #z_phi, z_theta, z_psi = tft.euler_from_quaternion(obj_pose_pose_wg, axes='sxyz')
+
+        #z = obj_pose_position_wg
+        #z = np.append(z, [z_phi, z_theta, z_psi])
+        
         z, R_wc, cam_pose_position_wc = self.process_measurement_message(msg)
 
 
         if sorted(self.prev_gauss.mean) == sorted(self.x_hat0):
             # Initialize with current measurement mapped to odom
-            z = np.apend(self.detection_position_odom[:3], z[3:])
+            z = np.append(self.detection_position_odom[:3], z[3:])
             self.prev_gauss = MultiVarGaussian(z, self.P_hat0)
             self.last_time = rospy.get_time()
             return None
@@ -295,7 +311,7 @@ class VKFNode:
         # Publish data, update mission topic
         self.mission_topic_old = self.mission_topic
         self.check_filter_convergence(gauss_est)
-        self.publish_object(msg.objectID, ekf_position, ekf_pose_quaterion)
+        self.publish_object(objID, ekf_position, ekf_pose_quaterion)
 
 
 if __name__ == '__main__':

@@ -438,6 +438,8 @@ class PointsProcessing(object):
         self.integral_diff_values_arr = []
         self.integral_diff_values_arr_len = len_of_integral_binary_resetter
 
+        self.NRIDDC = []
+
         self.prev_closest_points = []
         self.prev_closest_point_dsts = []
 
@@ -620,6 +622,7 @@ class PointsProcessing(object):
         closest_point_dsts,
         threshold,
         reset_reference_points_threshold,
+        detect_false_positives=False,
     ):
         """Binary Integral Derivative (BID) controller. Checks for point position deltas - if delta is too huge, point will take its previous step value.
         Gathers integral sum of position deltas over N previous steps - if the sum delta is too huge, resets the initial reference points.

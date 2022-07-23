@@ -31,7 +31,7 @@ class ImagePreprocessingNode():
 
         self.CLAHEPub               = rospy.Publisher('/cv/image_preprocessing/CLAHE' + ns, Image, queue_size= 1)
         # self.single_CLAHEPub        = rospy.Publisher('/cv/image_preprocessing/CLAHE_single' + ns, Image, queue_size= 1)
-        # self.GWPub                  = rospy.Publisher('/cv/image_preprocessing/GW' + ns, Image, queue_size= 1)
+        self.GWPub                  = rospy.Publisher('/cv/image_preprocessing/GW' + ns, Image, queue_size= 1)
         
         self.bridge = CvBridge()
         self.image_preprocessing = ImagePreprocessing(2, 8)
@@ -67,8 +67,8 @@ class ImagePreprocessingNode():
         # clahe_r_channel = self.image_preprocessing.CLAHE(R)
         # self.cv_image_publisher(self.single_CLAHEPub, clahe_r_channel, "mono8")
 
-        # gw_img = self.image_preprocessing.gray_world(cv.cvtColor(self.cv_image, cv.COLOR_BGRA2BGR))
-        # self.cv_image_publisher(self.GWPub, gw_img, "bgr8")
+        gw_img = self.image_preprocessing.gray_world(cv.cvtColor(self.cv_image, cv.COLOR_BGRA2BGR))
+        self.cv_image_publisher(self.GWPub, gw_img, "bgr8")
 
 if __name__ == '__main__':
     try:

@@ -35,7 +35,7 @@ class FeatureDetectionNode():
         self.rospack = rospkg.RosPack()
         
         feat_det_pkg_path = self.rospack.get_path('feature_detection')
-        self.gate_cfg_path = feat_det_pkg_path + "/object_cfgs/GATE_W_RGB_FILTER.yaml"
+        self.gate_cfg_path = feat_det_pkg_path + "/object_cfgs/CLOSE_HUSEBY_GATE.yaml"
         self.pole_cfg_path = feat_det_pkg_path + "/object_cfgs/pole_cfg.yaml"
 
         self.ros_rate = rospy.Rate(60.0)
@@ -67,14 +67,15 @@ class FeatureDetectionNode():
         self.ocfa_det = False
 
         # ICP initial reference points
-        self.ref_points_initial_guess = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
+        # self.ref_points_initial_guess = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
+        self.ref_points_initial_guess = np.array([[443, 368], [879, 373], [662, 371]], dtype=int)
 
         # FSM
         self.current_object = "UNKNOWN"
         self.fsm_state = "UNKNOWN"
         self.prev_fsm_state = "UNKNOWN" # Not used rn
-        self.states_obj_dict = {"gate_search": 'gate', "pole_search": 'pole'}
-        self.states_cfg_dict = {"gate_search": self.gate_cfg_path, "pole_search": self.pole_cfg_path}
+        self.states_obj_dict = {"gate/search": 'gate', "pole_search": 'pole'}
+        self.states_cfg_dict = {"gate/search": self.gate_cfg_path, "pole_search": self.pole_cfg_path}
 
         # Canny params
         self.canny_threshold1 = 100
@@ -83,10 +84,10 @@ class FeatureDetectionNode():
 
         # BGR params
         self.bgr_params = [0,
-                           255,
+                           91,
                            0,
                            255,
-                           0,
+                           41,
                            255]
 
         # HSV params
@@ -95,20 +96,20 @@ class FeatureDetectionNode():
                            0,
                            255,
                            1,
-                           255]
+                           114]
 
         # Blur params
-        self.ksize1 = 7
-        self.ksize2 = 7
-        self.sigma = 0.8
+        self.ksize1 = 15
+        self.ksize2 = 15
+        self.sigma = 7.9
 
         # Thresholding params
-        self.thresholding_blocksize = 11
-        self.thresholding_C = 2
-
+        self.thresholding_blocksize = 27
+        self.thresholding_C = 1
+  
         # Erosion and dilation params
-        self.erosion_dilation_ksize = 5
-        self.erosion_iterations = 1
+        self.erosion_dilation_ksize = 2
+        self.erosion_iterations = 2
         self.dilation_iterations = 1
         self.noise_rm_params = [self.ksize1, self.ksize2, self.sigma, self.thresholding_blocksize, self.thresholding_C, self.erosion_dilation_ksize, self.erosion_iterations, self.dilation_iterations]
         
@@ -279,6 +280,7 @@ class FeatureDetectionNode():
         self.feat_detection.points_processing_reset()
 
     def dynam_reconfigure_callback(self, config):
+
         self.canny_threshold1 = config.canny_threshold1
         self.canny_threshold2 = config.canny_threshold2
         self.canny_aperture = config.canny_aperture_size

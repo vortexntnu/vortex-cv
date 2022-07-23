@@ -156,6 +156,10 @@ class PointcloudProcessingNode():
         pose_msg_camera.pose.orientation.z = quaternion_data[2]
         pose_msg_camera.pose.orientation.w = quaternion_data[3]
 
+        # WPF TODO: contact BenG or IvanG
+        if max(position_data) > 7 or any(np.isnan(position_data)) or any(np.isnan(quaternion_data)):
+            quit()
+
 
         #pose_msg_odom = self.pose_transformer.do_transform_pose(pose_msg_camera, tf_lookup_world_to_camera)
         self.posePub.publish(pose_msg_camera)       

@@ -183,7 +183,7 @@ def test_reduce_mixture(gated_hypotheses, gated_weights):
 def test_callback_logic():
 
     mission_topic = "pole_search"
-    mission_topic_old = "gate_search"
+    mission_topic_old = "gate/search"
 
     current_action = mission_topic.split("_")[1]
     old_action = mission_topic_old.split("_")[1]

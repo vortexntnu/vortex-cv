@@ -1,7 +1,11 @@
 <?xml version="1.0"?>
 <launch>
+
+    <!-- ZED Wrapper -->
+    <include file="$(find zed_wrapper)/launch/zed2.launch"/>
+
     <!-- IPP node -->
-    <include file="$(find image_preprocessing)/launch/feature_detection_node.launch"/>
+    <include file="$(find image_preprocessing)/launch/image_preprocessing.launch"/>
 
     <!-- FD node -->
     <include file="$(find feature_detection)/launch/feature_detection_node.launch"/>
@@ -10,6 +14,9 @@
     <include file="$(find pointcloud_processing)/launch/pointcloud_processing_node.launch"/>
 
     <!-- VKF node -->
-    <include file="$(find vision_kf)/launch/ekf_node.launch"/>
+    <!-- <include file="$(find vision_kf)/launch/ekf_node.launch"/> -->
+
+    <!-- gmf node -->
+    <include file="$(find gmf)/launch/gmf_node.launch"/>
 
 </launch>
