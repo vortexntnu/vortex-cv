@@ -13,7 +13,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 import dynamic_reconfigure.client
 
-from ImagePreprocessing import ImagePreprocessing
+from ImagePreprocessing_gpu import ImagePreprocessing
 
 import numpy as np
 import cv2 as cv
@@ -30,7 +30,7 @@ class ImagePreprocessingNode():
         self.zedSub                 = rospy.Subscriber(image_topic, Image, self.image_callback, queue_size= 1)
 
         self.CLAHEPub               = rospy.Publisher('/cv/image_preprocessing/CLAHE' + ns, Image, queue_size= 1)
-        self.single_CLAHEPub        = rospy.Publisher('/cv/image_preprocessing/CLAHE_single' + ns, Image, queue_size= 1)
+        # self.single_CLAHEPub        = rospy.Publisher('/cv/image_preprocessing/CLAHE_single' + ns, Image, queue_size= 1)
         self.GWPub                  = rospy.Publisher('/cv/image_preprocessing/GW' + ns, Image, queue_size= 1)
         
         self.bridge = CvBridge()
@@ -64,8 +64,8 @@ class ImagePreprocessingNode():
             self.cv_image_publisher(self.CLAHEPub, clahe_img, "bgr8")
             _, _, R = cv.split(self.cv_image)
         
-        clahe_r_channel = self.image_preprocessing.CLAHE(R)
-        self.cv_image_publisher(self.single_CLAHEPub, clahe_r_channel, "mono8")
+        # clahe_r_channel = self.image_preprocessing.CLAHE(R)
+        # self.cv_image_publisher(self.single_CLAHEPub, clahe_r_channel, "mono8")
 
         gw_img = self.image_preprocessing.gray_world(cv.cvtColor(self.cv_image, cv.COLOR_BGRA2BGR))
         self.cv_image_publisher(self.GWPub, gw_img, "bgr8")

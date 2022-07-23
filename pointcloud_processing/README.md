@@ -1,7 +1,53 @@
 [![Build Status](https://travis-ci.com/vortexntnu/auv-cv.svg?branch=master)](https://travis-ci.com/vortexntnu/auv-cv)
-# AUV-CV
+# Pointcloud Processing
 Download this repo to your src-folder in your catkin workspace.
 
+
+## pointcloud_mapping
+
+Contains the following functions:
+
+##### object_orientation_from_xy_area
+Calculates the object pose from a bounded area. For use with YOLO or other machine learning methods.
+
+##### object_orientation_from_point_list
+Calculates the object pose from a list of pointcloud points.
+
+##### plane_with_SVD
+Both other functions call this. Takes in the M x 3 pointcloud data matrix and decomposes it using the singular value decomposition (SVD) to extract the orientation of the data. 
+
+X = U * S * VT
+
+The right singular vectors (columns of V) are an orhtonormal basis for the data, giving the directions of most variance. Naturally first two vectors should lie in the plane, with the last one pointing out of the plane (# TODO: FIND OUT WHY THIS GOES WRONG SOMETIMES)
+
+
+## pointcloud_processing_node
+
+Contains the following functions:
+##### feat_det_cb
+
+Callback for a detected feature. Uses the functions from mapping to calculate the pose. Passes it onto functions for tf-ing into odom frame and publishing.
+##### bbox_cb
+
+Callback that does the same as feat_det_cb but with a bounding box from YOLO.
+
+##### send_pose_in_world
+
+Subscribes the pose into odom frame and publishes it.
+
+
+##### send_ObjectPose_message
+
+Same as send_pose_in_world but does it as ObjectPose msg instead of a PoseStamped
+
+
+
+
+
+
+
+
+#TODO: Delete this???? What more to add???
 
 ## Installing dependencies
 OpenCV >= 3.4.0: https://github.com/opencv/opencv

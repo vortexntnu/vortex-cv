@@ -11,7 +11,7 @@ p2: 2.732927077291138779e-04
 k3: -1.242539054818194745e-02
 
 # Camera id to set image stream:
-camera_id: 0
+camera_id: 1
 
 # Image pipeline to get the stream:
-pipeline_id: 2
+pipeline_id: 0

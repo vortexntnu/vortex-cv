@@ -33,7 +33,7 @@ class ncfaDetectionNode():
 
         # publisher and subscriber for rcfa
         if(mode==1):
-            rospy.Subscriber('/cv/image_preprocessing/GW/zed2', Image, self.rcfa_cb, queue_size=1)
+            rospy.Subscriber('/cv/image_preprocessing/CLAHE/zed2', Image, self.rcfa_cb, queue_size=1)
             self.rcfa_pub = rospy.Publisher('/cv/preprocessing/rcfa_detection',Bool , queue_size= 1)
 
         # publisher and subscriber for ocfa

@@ -15,11 +15,11 @@
 
     <!-- PCP node -->
     <include file="$(find pointcloud_processing)/launch/pointcloud_processing_node.launch"/>
-
-    <!-- VKF node -->
-    <include file="$(find vision_kf)/launch/ekf_node.launch"/>
     
     <!-- ZED Wrapper -->
     <include file="$(find zed_wrapper)/launch/zed2.launch"/>
+
+    <!-- gmf node -->
+    <include file="$(find gmf)/launch/gmf_node.launch"/>
 
 </launch>

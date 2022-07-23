@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- IPP node -->
+    <include file="$(find image_preprocessing)/launch/feature_detection_node.launch"/>
+
+    <!-- Yolo node -->
+    <include file="$(find darknet_ros)/launch/darknet_ros.launch.launch"/>
+
+    <!-- PCP node -->
+    <include file="$(find pointcloud_processing)/launch/pointcloud_processing_node.launch"/>
+
+    <!-- VKF node -->
+    <include file="$(find vision_kf)/launch/ekf_node.launch"/>
+
+</launch>
