@@ -190,10 +190,10 @@ class SiftFeature:
     def build_bounding_boxes_msg(self, bbox_points, obj_class):
         bbox = BoundingBox()
         bbox.probability = 69.69
-        bbox.xmin = bbox_points[0]
-        bbox.ymin = bbox_points[1]
-        bbox.xmax = bbox_points[2]
-        bbox.ymax = bbox_points[3]
+        bbox.xmin = int(bbox_points[0][0])
+        bbox.ymin = int(bbox_points[0][1])
+        bbox.xmax = int(bbox_points[2][0])
+        bbox.ymax = int(bbox_points[2][1])
         bbox.z = 100000.0
         bbox.id = 0
         bbox.Class = obj_class
@@ -254,7 +254,7 @@ class SiftFeature:
             cam_image = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, image_type, centeroid=True,)
 
         else:
-            #print( "Not enough matches are found - {}/{}".format(len(good), self.MIN_MATCH_COUNT) )
+            #print( "Not enough matches are found - {}/{}".format(len(good_best), self.MIN_MATCH_COUNT) )
             matchesMask = None
 
         return cam_image
