@@ -178,12 +178,12 @@ class SiftFeature:
         ############
 
     def update_object_search(self, status):
-        mission_topic = status.data.split("/")[1]
+        mission_topic = status.data.split("/")[0]
         mission = status.data
         rospy.loginfo(mission)
 
 
-        if mission == "execute/gate":
+        if mission == "gate/execute":
             # Remove "bootlegger", "gman"
             self.lower_image_list_index += len(self.image_types_gate)
             rospy.loginfo("Gate executed!!")
@@ -191,15 +191,15 @@ class SiftFeature:
             # Add image_types_torpedo
             self.upper_image_list_index += len(self.image_types_torpedo)
 
-        if mission == "execute/buoy":
+        if mission == "buoy/execute":
             # Remove "badge", "tommy"
             self.lower_image_list_index += len(self.image_types_buoys) 
             
-        if mission_topic == "torpedo_poster":
+        if mission == "torpedo_poster/search":
             # Add torpedo holes
             self.upper_image_list_index += len(self.image_types_torpedo_holes)
 
-        if mission_topic == "torpedo_target":
+        if mission_topic == "torpedo_target/search":
             # Removes "torpedo_poster_bootlegger", "torpedo_poster_gman"
             self.lower_image_list_index += len(self.image_types_torpedo)
 
