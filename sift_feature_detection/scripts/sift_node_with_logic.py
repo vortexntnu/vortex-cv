@@ -52,7 +52,7 @@ class SiftFeature:
         self.colormode = 0
 
         # Minimum matches needed for drawing bounding box
-        self.MIN_MATCH_COUNT = 6
+        self.MIN_MATCH_COUNT = 8
 
         # Scale the bounding box (Only downscale)
         self.scale = 0.999
@@ -75,6 +75,9 @@ class SiftFeature:
         # image_sub = "/cv/image_preprocessing/CLAHE/zed2"
         
         rospy.Subscriber(image_sub, Image, self.callback)
+
+        mission_topic_subscribe = "/fsm/state"
+        self.mission_topic_sub = rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
         
         # Publisher
         self.detections_pub = rospy.Publisher('/feature_detection/sift_bbox_image', Image, queue_size=1)
@@ -196,6 +199,9 @@ class SiftFeature:
         ############
         ##Init end##
         ############
+
+    def update_mission(self, mission):
+        self.mission_topic = mission.data.split("/")[1]
 
     def scale_bounding_box(self, dst):
         '''
