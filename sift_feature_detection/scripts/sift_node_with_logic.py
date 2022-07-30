@@ -183,7 +183,7 @@ class SiftFeature:
         rospy.loginfo(mission)
 
 
-        if mission == "gate/execute":
+        if mission == "gate/converge":
             # Remove "bootlegger", "gman"
             self.lower_image_list_index += len(self.image_types_gate)
             rospy.loginfo("Gate executed!!")
@@ -191,17 +191,19 @@ class SiftFeature:
             # Add image_types_torpedo
             self.upper_image_list_index += len(self.image_types_torpedo)
 
-        if mission == "buoy/execute":
+        if mission == "buoy/converge":
             # Remove "badge", "tommy"
             self.lower_image_list_index += len(self.image_types_buoys) 
             
-        if mission == "torpedo_poster/search":
+        if mission == "torpedo/search":
             # Add torpedo holes
             self.upper_image_list_index += len(self.image_types_torpedo_holes)
 
-        if mission_topic == "torpedo_target/search":
-            # Removes "torpedo_poster_bootlegger", "torpedo_poster_gman"
+
+        if mission == "torpedo/converge":
+            # Add torpedo holes
             self.lower_image_list_index += len(self.image_types_torpedo)
+
 
         # if self.mission_topic == "octagon":
 
@@ -373,7 +375,6 @@ class SiftFeature:
         
         # Sift matching on camera feed
         for i in range(self.lower_image_list_index, self.upper_image_list_index):
-            rospy.loginfo(self.lower_image_list_index)
             single_image_list = self.image_list[i]
             kp = self.kp[i]
             des = self.des[i]
@@ -390,7 +391,8 @@ class SiftFeature:
         self.CentroidArray_message.header.frame_id = "zed_left_camera_sensor"
 
         self.detection_centeroid_pub.publish(self.CentroidArray_message)
-        
+        rospy.loginfo(self.lower_image_list_index)
+
         #rospy.sleep(self.get_image_rate)
         
 
