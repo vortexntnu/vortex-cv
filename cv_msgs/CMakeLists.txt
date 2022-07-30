@@ -12,6 +12,8 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   DIRECTORY msg
   FILES
+  Centeroid.msg
+  CenteroidArray.msg
   BBox.msg
   BBoxes.msg
   Point2.msg
