@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
+from os import rename
 import cv2 as cv
+from matplotlib import image
 from cv_bridge import CvBridge, CvBridgeError
 import glob
 import numpy as np
@@ -72,19 +74,13 @@ class SiftFeature:
         rospy.init_node(node_name)
 
         #Subscribe topic
-        image_sub = "/zed2/zed_node/rgb/image_rect_color"
-        # image_sub = "/cv/image_preprocessing/CLAHE/zed2"
-        
+        image_sub = "/zed2/zed_node/rgb/image_rect_color"    
         rospy.Subscriber(image_sub, Image, self.callback)
-
-        mission_topic_subscribe = "/fsm/state"
-        self.mission_topic_sub = rospy.Subscriber(mission_topic_subscribe, String, self.update_object_search)
         
         # Publisher
         self.detections_pub = rospy.Publisher('/feature_detection/sift_bbox_image', Image, queue_size=1)
         self.i2rcpPub = rospy.Publisher('/feature_detection/i2rcp_image', Image, queue_size= 1)
         self.detections_hough_pub = rospy.Publisher('/feature_detection/sift_bbox_image_hough', Image, queue_size= 1)
-
 
         #self.cornerpoints_pub = rospy.Publisher('/feature_detection/sift_object_points', BoundingBoxes, queue_size= 1)
         self.detection_centeroid_pub = rospy.Publisher('/feature_detection/sift_detection_centeroid', CenteroidArray, queue_size=1)
@@ -94,30 +90,46 @@ class SiftFeature:
         #### Mission specific ####
         ##########################
 
+        #### Selected side ####
+        self.side_select = "gman" # or "bootlegger"
+
         #Subscribe topic
         mission_topic_subscribe = "/fsm/state"
-        rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
+        self.mission_topic_sub = rospy.Subscriber(mission_topic_subscribe, String, self.update_object_search)
+
         self.landmark_server_names = ["gate", "buoy","torpedo_poster","torpedo_target","octagon"]
+        
+        # Starts searching for "bootlegger", "gman", "badge", "tommy"
+        self.lower_image_list_index = 0
+        self.upper_image_list_index = 3
+        self.image_types = []
 
         # Gate logic
-        self.image_types = ["bootlegger", "gman"]
+        self.image_types_gate = ["bootlegger", "gman"]
+        self.image_types.append(self.image_types_gate[0])
+        self.image_types.append(self.image_types_gate[1])
         self.gman_detected = 0
         self.bootlegger_detected = 0
 
         # buoy
-        self.image_types_hough = ["badge"]
         self.image_types_buoys = ["badge", "tommy"]
+        self.image_types.append(self.image_types_buoys[0])
+        self.image_types.append(self.image_types_buoys[1])
         self.badge_detected = 0
         self.tommy_detected = 0
 
         # Torpedo
-        # self.image_types_torpedo = ["torpedo_poster_bootlegger", "torpedo_poster_gman"]
+        self.image_types_torpedo = ["torpedo_poster_bootlegger", "torpedo_poster_gman"]
+        self.image_types.append(self.image_types_torpedo[0])
+        self.image_types.append(self.image_types_torpedo[1])
         self.torpedo_poster_gman_detected = 0
         self.torpedo_poster_bootlegger_detected = 0
 
         # Torpedo holes
-        # self.image_types_torpedo_holes = ["botlegger_circle", "bootlegger_square","gman_circle", "gman_star"]
-        self.image_types = ["botlegger_circle", "bootlegger_square","gman_circle", "gman_star"]
+        self.image_types_torpedo_holes = ["bootlegger_square","gman_star"]
+        self.image_types.append(self.image_types_torpedo_holes[0])
+        self.image_types.append(self.image_types_torpedo_holes[1])
+        # self.image_types_ = ["botlegger_circle", "bootlegger_square","gman_circle", "gman_star"]
         self.circle_search = False
 
         self.torpedo_hole_detected = 0
@@ -155,67 +167,70 @@ class SiftFeature:
             des_temp = []
             for image in image_type:
                 k, d = self.sift.detectAndCompute(image,None)
-                #rospy.loginfo("print k %s", k)
                 kp_temp.append(k)
                 des_temp.append(d)
             
             self.kp.append(kp_temp)
             self.des.append(des_temp)
-
-        ############################
-        ##### kp and des hough #####
-        ############################
-        self.image_list_hough = []
-        self.kp_hough = []
-        self.des_hough = []
-
-        for i in range(len(self.image_types_hough)):
-            temp_path = glob.glob(path + self.image_types_hough[i] + "/*.png")
-            temp = [cv.imread(file, self.colormode) for file in temp_path]
-            self.image_list_hough.append(temp)
-            temp_path = None
-
-        # Gets keypoints and descriptors for every loaded image
-        for image_type in self.image_list_hough:
-            kp_temp_hough = []
-            des_temp_hough = []
-            for image in image_type:
-                k, d = self.sift.detectAndCompute(image,None)
-                #rospy.loginfo("print k %s", k)
-                kp_temp_hough.append(k)
-                des_temp_hough.append(d)
-            
-            self.kp_hough.append(kp_temp_hough)
-            self.des_hough.append(des_temp_hough)
         
         ############
         ##Init end##
         ############
 
-    def update_object_search(self, mission):
-        self.mission_topic = mission.data.split("/")[1]
+    def update_object_search(self, status):
+        mission_topic = status.data.split("/")[1]
+        mission = status.data
+        rospy.loginfo(mission)
+
 
         if mission == "execute/gate":
-            self.image_list.remove("bootlegger")
-            self.image_list.remove("gman")
+            # Remove "bootlegger", "gman"
+            self.lower_image_list_index += len(self.image_types_gate)
+            rospy.loginfo("Gate executed!!")
 
-            self.image_list.append(self.image_types_torpedo)
+            # Add image_types_torpedo
+            self.upper_image_list_index += len(self.image_types_torpedo)
 
-        if self.mission_topic == "execute/buoy":
-            self.image_list.remove("badge")
-            self.image_list.remove("tommy")
+        if mission == "execute/buoy":
+            # Remove "badge", "tommy"
+            self.lower_image_list_index += len(self.image_types_buoys) 
             
-        if self.mission_topic == "torpedo_poster":
-            self.circle_search = True
+        if mission_topic == "torpedo_poster":
+            # Add torpedo holes
+            self.upper_image_list_index += len(self.image_types_torpedo_holes)
 
-        if self.mission_topic == "torpedo_target":
-            self.image_list.remove("torpedo_poster_bootlegger")
-            self.image_list.remove("torpedo_poster_gman")
+        if mission_topic == "torpedo_target":
+            # Removes "torpedo_poster_bootlegger", "torpedo_poster_gman"
+            self.lower_image_list_index += len(self.image_types_torpedo)
 
         # if self.mission_topic == "octagon":
 
     # def detect_shape(self, cam_image):
 
+    def side_desicion(self, image_type):
+        # landmark server names ["gate", "buoy","torpedo_poster","torpedo_target","octagon"]
+
+        if self.side_select == "gman":
+
+            if image_type == "gman":
+                renamed_type = self.landmark_server_names[0]
+
+            elif image_type == "badge":
+                renamed_type = self.landmark_server_names[1]
+
+            elif image_type == "torpedo_poster_bootlegger":
+                renamed_type = self.landmark_server_names[2]
+
+            elif image_type == "bootlegger_square":
+                renamed_type = self.landmark_server_names[3]
+
+            elif image_type == "octagon_center":
+                renamed_type = self.landmark_server_names[4]
+            else:
+                renamed_type = image_type
+
+        return renamed_type
+                
 
     def add_centeroid(self, img_type, centeroid):
         pub = Centeroid()
@@ -313,7 +328,10 @@ class SiftFeature:
 
             # Scales the bounding box
             dst_scaled_cv_packed, dst_scaled = self.scale_bounding_box(dst)
-                
+
+            # Changes the name such that it fits with the fsm names
+            image_type = self.side_desicion(image_type)
+
             #self.publish_centeroid(i, centeroid, orientation)
             msg = self.build_bounding_boxes_msg(dst_scaled, image_type)
 
@@ -327,7 +345,7 @@ class SiftFeature:
             cam_image = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, image_type, centeroid=True,)
 
         else:
-            print( "Not enough matches are found - {}/{}".format(len(good_best), self.MIN_MATCH_COUNT) )
+            # print( "Not enough matches are found - {}/{}".format(len(good_best), self.MIN_MATCH_COUNT) )
             matchesMask = None
 
         return cam_image
@@ -335,15 +353,6 @@ class SiftFeature:
     def cv_image_publisher(self, publisher, image, msg_encoding="bgra8"):
         pub_img = self.bridge.cv2_to_imgmsg(image, encoding=msg_encoding)
         publisher.publish(pub_img)
-
-    def hough(self, cam_image):
-        t1 = 60 # 100
-        t2 = 150 # 200
-        bb_arr, center, hough_img, edges = HoughMajingo_ob.main(cam_image, t1, t2)   # self.canny_threshold1, self.canny_threshold2, self.cv_image
-        self.cv_image_publisher(self.i2rcpPub, edges, 'mono8')
-
-        return edges
-
 
     def callback(self, cam_image_ros):
         try:
@@ -356,17 +365,15 @@ class SiftFeature:
         # Creates a CenteroidArray
         self.CentroidArray_message = CenteroidArray()
 
-        # Huffin on some sift
-        edges_image = self.hough(cam_image)
-
         kp2, des2 = self.sift.detectAndCompute(cam_image, None)
         FLANN_INDEX_KDTREE = 1
         index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
         search_params = dict(checks = 50)
         flann = cv.FlannBasedMatcher(index_params, search_params)
         
-        rospy.loginfo(len(self.image_list))
-        for i in range(len(self.image_list)):
+        # Sift matching on camera feed
+        for i in range(self.lower_image_list_index, self.upper_image_list_index):
+            rospy.loginfo(self.lower_image_list_index)
             single_image_list = self.image_list[i]
             kp = self.kp[i]
             des = self.des[i]
@@ -378,19 +385,7 @@ class SiftFeature:
         else:
             self.cv_image_publisher(self.detections_pub, cam_image, msg_encoding="bgra8")
 
-        
-
-        for i in range(len(self.image_list_hough)):
-            single_image_list_hough = self.image_list_hough[i]
-            kp_hough = self.kp_hough[i]
-            des_hough = self.des_hough[i]
-            rospy.loginfo("des length: %s",len(self.kp_hough))
-            image_type = self.image_types_hough[i]
-            edges_image = self.compare_matches(edges_image, flann, kp2, des2, single_image_list_hough, kp_hough, des_hough, image_type)
-
-        self.cv_image_publisher(self.detections_hough_pub, edges_image, msg_encoding="mono8")
-
-                # Centeroid message
+        # Centeroid message
         self.CentroidArray_message.header.stamp = rospy.get_rostime()
         self.CentroidArray_message.header.frame_id = "zed_left_camera_sensor"
 
