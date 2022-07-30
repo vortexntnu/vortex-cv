@@ -12,10 +12,11 @@ from os.path import join, basename, realpath, dirname, exists, splitext
 import rospy
 from rospkg import RosPack
 import tf.transformations
-from sensor_msgs.msg import Image, JointState
+from sensor_msgs.msg import Image
 from cv_msgs.msg import Point2, PointArray
 from geometry_msgs.msg import PoseStamped
 from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
+from cv_msgs.msg import Centeroid, CenteroidArray
 
 
 # Contains visualization tools
@@ -76,7 +77,7 @@ class SiftFeature:
         self.detections_pub = rospy.Publisher('/feature_detection/sift_bbox_image', Image, queue_size=1)
 
         #self.cornerpoints_pub = rospy.Publisher('/feature_detection/sift_object_points', BoundingBoxes, queue_size= 1)
-        self.detection_centeroid_pub = rospy.Publisher('/feature_detection/sift_detection_centeroid', JointState, queue_size=1)
+        self.detection_centeroid_pub = rospy.Publisher('/feature_detection/sift_detection_centeroid', CenteroidArray, queue_size=1)
 
         self.BBoxPointsPub = rospy.Publisher('/feature_detection/sift_detection_bbox', BoundingBoxes, queue_size= 1)
 
@@ -105,7 +106,7 @@ class SiftFeature:
         #path1 = "/home/kristian/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/gman/*.png"
         #path2 = "/home/vortex/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/gate_corner/*.png"
 
-        self.image_types = ["bootlegger","gman"] # ,"gate"
+        self.image_types = ["bootlegger","gman","badge"] # ,"gate"
         self.image_list = []
 
         for i in range(len(self.image_types)):
@@ -151,16 +152,15 @@ class SiftFeature:
         ##Init end##
         ############
 
-    def publish_centeroid(self, img_type, centeroid):
-        pub = JointState()
-        pub.header.stamp = rospy.get_rostime()
-        pub.header.frame_id = "zed_left_optical_camera_sensor"
-        pub.name = str(img_type)
+    def add_centeroid(self, img_type, centeroid):
+        pub = Centeroid()
+        pub.name = img_type
+        pub.centre_x = centeroid[0]
+        pub.centre_y = centeroid[1]
+        pub.centre_z = 0
 
-        pub.position = centeroid[0]
-        # pub.velocity = centeroid[1]
+        self.CentroidArray_message.centeroid.append(pub)
 
-        self.detection_centeroid_pub.publish(pub)
 
 
     def scale_bounding_box(self, dst):
@@ -265,8 +265,11 @@ class SiftFeature:
 
             # Only for visual effects (draws bounding box, cornerpoints, etc...)
             cam_image, centeroid = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, image_type, centeroid=True)
-            # rospy.loginfo(image_type)
-            self.publish_centeroid(image_type, centeroid)
+            
+            # Add centeroid
+            self.add_centeroid(image_type, centeroid)
+
+            # self.publish_centeroid(image_type, centeroid)
 
         else:
             #print( "Not enough matches are found - {}/{}".format(len(good_best), self.MIN_MATCH_COUNT) )
@@ -275,6 +278,7 @@ class SiftFeature:
         return cam_image
 
     def callback(self, cam_image_ros):
+        self.CentroidArray_message = CenteroidArray()
         try:
             cam_image = self.bridge.imgmsg_to_cv2(cam_image_ros, "passthrough")
             if self.colormode == 0:
@@ -300,6 +304,13 @@ class SiftFeature:
         else:
             pub_img = self.bridge.cv2_to_imgmsg(cam_image, encoding="bgra8")
         self.detections_pub.publish(pub_img)
+
+        # Centeroid message
+        
+        self.CentroidArray_message.header.stamp = rospy.get_rostime()
+        self.CentroidArray_message.header.frame_id = "zed_left_camera_sensor"
+
+        self.detection_centeroid_pub.publish(self.CentroidArray_message)
 
         rospy.sleep(self.get_image_rate)
         
