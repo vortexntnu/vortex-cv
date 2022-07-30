@@ -75,18 +75,20 @@ class PointcloudProcessingNode():
             r = 10
             n = 200
 
-            if feat_name == "gate":
+            if feat_name == "gate_actual":
                 point_list = self.pointcloud_mapper.generate_points_circle(r,n,[feat_x,feat_y])
                 rot, pos = self.pointcloud_mapper.sift_feature_centeroid(point_list, self.pointcloud_data)
             else:
-                if feat_name in ["bootlegger", "gman"]:
-                    r = 10
-                    n = 100
-                    # rot, pos = self.pointcloud_mapper.sift_feature_centeroid([feat_x, feat_y], self.pointcloud_data)
-                    # self.send_pointStamped_message(pos, feat_name)
-                if feat_name == "badge":
-                    r = 10
-                    n = 100
+                if feat_name in ["gate", "gman"]:
+                    r = 3
+                    n = 25
+                elif feat_name in ["torpedo_poster", "torpedo_target", "octagon"]:
+                    r = 5
+                    n = 50
+
+                elif feat_name == "buoy":
+                    r = 5
+                    n = 50
 
                 point_list = self.pointcloud_mapper.generate_points_circle(r, n, [feat_x,feat_y])
                 rot, pos = self.pointcloud_mapper.sift_feature_centeroid(point_list, self.pointcloud_data)
