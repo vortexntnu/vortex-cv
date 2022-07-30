@@ -14,6 +14,7 @@ from cv_msgs.msg import Point2, PointArray
 from geometry_msgs.msg import PoseStamped
 from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
 from std_msgs.msg import String
+from cv_msgs.msg import Centeroid, CenteroidArray
 
 
 # Contains visualization tools
@@ -77,7 +78,7 @@ class SiftFeature:
         rospy.Subscriber(image_sub, Image, self.callback)
 
         mission_topic_subscribe = "/fsm/state"
-        self.mission_topic_sub = rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
+        self.mission_topic_sub = rospy.Subscriber(mission_topic_subscribe, String, self.update_object_search)
         
         # Publisher
         self.detections_pub = rospy.Publisher('/feature_detection/sift_bbox_image', Image, queue_size=1)
@@ -86,49 +87,38 @@ class SiftFeature:
 
 
         #self.cornerpoints_pub = rospy.Publisher('/feature_detection/sift_object_points', BoundingBoxes, queue_size= 1)
-        #self.detection_centeroid_pub = rospy.Publisher('/feature_detection/sift_detection_centeroid', PoseStamped, queue_size=1)
-
+        self.detection_centeroid_pub = rospy.Publisher('/feature_detection/sift_detection_centeroid', CenteroidArray, queue_size=1)
         self.BBoxPointsPub = rospy.Publisher('/feature_detection/sift_detection_bbox', BoundingBoxes, queue_size= 1)
 
         ##########################
         #### Mission specific ####
         ##########################
-        self.lower_image_numb = 0
-        self.upper_image_numb = 0
 
         #Subscribe topic
         mission_topic_subscribe = "/fsm/state"
         # rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
 
         # Gate logic
-        self.image_types = ["badge"]
-        # self.image_types = []
-        
-        self.gate_image_numbs = len(self.image_types)
+        self.image_types = ["bootlegger", "gman"]
         self.gman_detected = 0
         self.bootlegger_detected = 0
 
-        #Bouy
+        # Bouy
         self.image_types_hough = ["badge"]
-        # self.image_types_hough.append()
-        # self.image_types_hough.append("tommy")
-        rospy.loginfo("image types: %s", self.image_types_hough)
-
-        self.bouy_image_numbs = 2
-
+        self.image_types_bouys = ["badge", "tommy"]
         self.badge_detected = 0
         self.tommy_detected = 0
 
-        #Torpedo
-        # self.image_types.append("torpedo_poster_bootlegger")
-        # self.image_types.append("torpedo_poster_gman")
-
-        self.torpedo_image_numb = 2
-
+        # Torpedo
+        self.image_types_torpedo = ["torpedo_poster_bootlegger", "torpedo_poster_gman"]
         self.torpedo_poster_gman_detected = 0
         self.torpedo_poster_bootlegger_detected = 0
 
-        self.torpedo_hole = 0
+        # Torpedo holes
+        self.image_types_torpedo_holes = ["botlegger_circle", "bootlegger_square","gman_circle", "gman_star"]
+        self.circle_search = False
+
+        self.torpedo_hole_detected = 0
 
         ################
         ###CV stuff ####
@@ -200,8 +190,34 @@ class SiftFeature:
         ##Init end##
         ############
 
-    def update_mission(self, mission):
+    def update_object_search(self, mission):
         self.mission_topic = mission.data.split("/")[1]
+
+        if mission == "execute/gate":
+            self.image_list.remove("bootlegger")
+            self.image_list.remove("gman")
+
+            self.image_list.append(self.image_types_torpedo)
+
+        if self.mission_topic == "execute/buoy":
+            self.image_list.remove("badge")
+            self.image_list.remove("tommy")
+            
+        if self.mission_topic == "torpedo_poster":
+            self.circle_search = True
+
+        # if self.mission_topic == "torpedo_target":
+
+        # if self.mission_topic == "octagon":
+
+    def add_centeroid(self, img_type, centeroid):
+        pub = Centeroid()
+        pub.name = img_type
+        pub.centre_x = centeroid[0]
+        pub.centre_y = centeroid[1]
+        pub.centre_z = 0
+
+        self.CentroidArray_message.centeroid.append(pub)
 
     def scale_bounding_box(self, dst):
         '''
@@ -288,12 +304,6 @@ class SiftFeature:
             pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
             dst = cv.perspectiveTransform(pts,M)
 
-            # Gets orientation of the object
-            #M0 = np.zeros((4,4))
-            #M0[:3, :3] = M[:3, :3]
-            #M0[3,3] = 1
-            #orientation = tf.transformations.quaternion_from_matrix(M0)
-
             # Scales the bounding box
             dst_scaled_cv_packed, dst_scaled = self.scale_bounding_box(dst)
                 
@@ -302,9 +312,12 @@ class SiftFeature:
 
             self.BBoxPointsPub.publish(msg)
 
+            # Add centeroid
+            centeroid = self.drawtools.find_centeroid(dst)
+            self.add_centeroid(image_type, centeroid)
 
             # Only for visual effects (draws bounding box, cornerpoints, etc...)
-            cam_image, centeroid = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, image_type, centeroid=True,)
+            cam_image = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, image_type, centeroid=True,)
 
         else:
             print( "Not enough matches are found - {}/{}".format(len(good_best), self.MIN_MATCH_COUNT) )
@@ -332,6 +345,9 @@ class SiftFeature:
                 cam_image = cv.cvtColor(cam_image, cv.COLOR_BGR2GRAY)      
         except CvBridgeError, e:
             rospy.logerr("CvBridge Error: {0}".format(e))
+
+        # Creates a CenteroidArray
+        self.CentroidArray_message = CenteroidArray()
 
         # Huffin on some sift
         edges_image = self.hough(cam_image)
@@ -366,6 +382,12 @@ class SiftFeature:
             edges_image = self.compare_matches(edges_image, flann, kp2, des2, single_image_list_hough, kp_hough, des_hough, image_type)
 
         self.cv_image_publisher(self.detections_hough_pub, edges_image, msg_encoding="mono8")
+
+                # Centeroid message
+        self.CentroidArray_message.header.stamp = rospy.get_rostime()
+        self.CentroidArray_message.header.frame_id = "zed_left_camera_sensor"
+
+        self.detection_centeroid_pub.publish(self.CentroidArray_message)
         
         #rospy.sleep(self.get_image_rate)
         
