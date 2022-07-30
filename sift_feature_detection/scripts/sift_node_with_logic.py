@@ -4,8 +4,6 @@ import cv2 as cv
 from cv_bridge import CvBridge, CvBridgeError
 import glob
 import numpy as np
-from os.path import join, basename, realpath, dirname, exists, splitext
-
 
 #ROS imports
 import rospy
@@ -15,10 +13,13 @@ from sensor_msgs.msg import Image
 from cv_msgs.msg import Point2, PointArray
 from geometry_msgs.msg import PoseStamped
 from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
+from std_msgs.msg import String
 
 
 # Contains visualization tools
 from draw_tools import DrawTools
+
+from Hough_Transform_orientation_based import HoughMajingo_ob
 
 
 class SiftFeature:
@@ -56,6 +57,9 @@ class SiftFeature:
         # Scale the bounding box (Only downscale)
         self.scale = 0.999
 
+        self.canny_threshold1 = 100
+        self.canny_threshold2 = 200
+
         #################
         ###### Node #####
         #################
@@ -68,46 +72,62 @@ class SiftFeature:
 
         #Subscribe topic
         image_sub = "/zed2/zed_node/rgb/image_rect_color"
+        # image_sub = "/cv/image_preprocessing/CLAHE/zed2"
         
         rospy.Subscriber(image_sub, Image, self.callback)
+
+        mission_topic_subscribe = "/fsm/state"
+        self.mission_topic_sub = rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
         
         # Publisher
         self.detections_pub = rospy.Publisher('/feature_detection/sift_bbox_image', Image, queue_size=1)
+        self.i2rcpPub = rospy.Publisher('/feature_detection/i2rcp_image', Image, queue_size= 1)
+        self.detections_hough_pub = rospy.Publisher('/feature_detection/sift_bbox_image_hough', Image, queue_size= 1)
+
 
         #self.cornerpoints_pub = rospy.Publisher('/feature_detection/sift_object_points', BoundingBoxes, queue_size= 1)
         #self.detection_centeroid_pub = rospy.Publisher('/feature_detection/sift_detection_centeroid', PoseStamped, queue_size=1)
 
         self.BBoxPointsPub = rospy.Publisher('/feature_detection/sift_detection_bbox', BoundingBoxes, queue_size= 1)
 
-        #########################
-        ##### Mission Bools #####
-        #########################
+        ##########################
+        #### Mission specific ####
+        ##########################
+        self.lower_image_numb = 0
+        self.upper_image_numb = 0
 
         #Subscribe topic
         mission_topic_subscribe = "/fsm/state"
-        rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
+        # rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
 
         # Gate logic
-        self.image_types = ["gate","bootlegger","gman"]
-
+        self.image_types = ["badge"]
+        # self.image_types = []
+        
+        self.gate_image_numbs = len(self.image_types)
         self.gman_detected = 0
         self.bootlegger_detected = 0
 
         #Bouy
-        self.image_types.append("badge")
-        self.image_types.appedn("tommy")
+        self.image_types_hough = ["badge"]
+        # self.image_types_hough.append()
+        # self.image_types_hough.append("tommy")
+        rospy.loginfo("image types: %s", self.image_types_hough)
+
+        self.bouy_image_numbs = 2
 
         self.badge_detected = 0
         self.tommy_detected = 0
 
         #Torpedo
-        self.image_types.append("torpedo_poster_bootlegger")
-        self.image_types.append("torpedo_poster_gman")
+        # self.image_types.append("torpedo_poster_bootlegger")
+        # self.image_types.append("torpedo_poster_gman")
 
-        self.torpedo_poster_gman = 0
-        self.torpedo_poster_bootlegger = 0
+        self.torpedo_image_numb = 2
 
-        self.torpedo_poster = 0
+        self.torpedo_poster_gman_detected = 0
+        self.torpedo_poster_bootlegger_detected = 0
+
         self.torpedo_hole = 0
 
         ################
@@ -117,38 +137,26 @@ class SiftFeature:
 
         self.bridge = CvBridge() 
 
-        # Initiate SIFT detector (opencv version 3.4.x) 
-        #self.sift = cv.xfeatures2d.SIFT_create()
-        # (opencv version 4.5.1)
-        self.sift = cv.SIFT_create()
+        # Initiate SIFT detector 
+        self.sift = cv.SIFT_create() # self.sift = cv.xfeatures2d.SIFT_create() # (opencv version 3.4.x) 
 
-        ################################
-        ##### kp and des from data #####
-        ################################
+        ###############################
+        ##### kp and des cam feed #####
+        ###############################
 
         rp = RosPack()
         path = str(rp.get_path('sift_feature_detection')) + '/data/sift_images/'
 
-        # self.image_types = ["gate","bootlegger","gman"]
         self.image_list = []
-
-        for i in range(len(self.image_types)):
-            temp_path = glob.glob(path + self.image_types[i] + "/*.png")
-            print(temp_path)
-            temp = [cv.imread(file, self.colormode) for file in temp_path]
-            self.image_list.append(temp)
-            temp_path = None
-            print(temp_path)
-
-
-        rospy.loginfo("Number of imagetypes: %s", len(self.image_list))
-        if len(self.image_list) == 0:
-            rospy.logwarn("\n ######################################## \n ### No images found!### \n ########################################")
-
         self.kp = []
         self.des = []
 
-        
+        for i in range(len(self.image_types)):
+            temp_path = glob.glob(path + self.image_types[i] + "/*.png")
+            temp = [cv.imread(file, self.colormode) for file in temp_path]
+            self.image_list.append(temp)
+            temp_path = None
+
         # Gets keypoints and descriptors for every loaded image
         for image_type in self.image_list:
             kp_temp = []
@@ -161,13 +169,39 @@ class SiftFeature:
             
             self.kp.append(kp_temp)
             self.des.append(des_temp)
+
+        ############################
+        ##### kp and des hough #####
+        ############################
+        self.image_list_hough = []
+        self.kp_hough = []
+        self.des_hough = []
+
+        for i in range(len(self.image_types_hough)):
+            temp_path = glob.glob(path + self.image_types_hough[i] + "/*.png")
+            temp = [cv.imread(file, self.colormode) for file in temp_path]
+            self.image_list_hough.append(temp)
+            temp_path = None
+
+        # Gets keypoints and descriptors for every loaded image
+        for image_type in self.image_list_hough:
+            kp_temp_hough = []
+            des_temp_hough = []
+            for image in image_type:
+                k, d = self.sift.detectAndCompute(image,None)
+                #rospy.loginfo("print k %s", k)
+                kp_temp_hough.append(k)
+                des_temp_hough.append(d)
+            
+            self.kp_hough.append(kp_temp_hough)
+            self.des_hough.append(des_temp_hough)
         
         ############
         ##Init end##
         ############
 
     def update_mission(self, mission):
-        self.mission_topic = mission.data
+        self.mission_topic = mission.data.split("/")[1]
 
     def scale_bounding_box(self, dst):
         '''
@@ -209,10 +243,10 @@ class SiftFeature:
     def build_bounding_boxes_msg(self, bbox_points, obj_class):
         bbox = BoundingBox()
         bbox.probability = 69.69
-        bbox.xmin = bbox_points[0]
-        bbox.ymin = bbox_points[1]
-        bbox.xmax = bbox_points[2]
-        bbox.ymax = bbox_points[3]
+        bbox.xmin = int(bbox_points[0][0])
+        bbox.ymin = int(bbox_points[0][1])
+        bbox.xmax = int(bbox_points[2][0])
+        bbox.ymax = int(bbox_points[2][1])
         bbox.z = 100000.0
         bbox.id = 0
         bbox.Class = obj_class
@@ -268,21 +302,28 @@ class SiftFeature:
 
             self.BBoxPointsPub.publish(msg)
 
-            if image_type == "bootlegger":
-                self.bootlegger_detected = 1
-            
-            if image_type == "gman":
-                self.gman_detected = 1
-
 
             # Only for visual effects (draws bounding box, cornerpoints, etc...)
-            cam_image = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, image_type, centeroid=True,)
+            cam_image, centeroid = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, image_type, centeroid=True,)
 
         else:
-            #print( "Not enough matches are found - {}/{}".format(len(good), self.MIN_MATCH_COUNT) )
+            print( "Not enough matches are found - {}/{}".format(len(good_best), self.MIN_MATCH_COUNT) )
             matchesMask = None
 
         return cam_image
+
+    def cv_image_publisher(self, publisher, image, msg_encoding="bgra8"):
+        pub_img = self.bridge.cv2_to_imgmsg(image, encoding=msg_encoding)
+        publisher.publish(pub_img)
+
+    def hough(self, cam_image):
+        t1 = 60 # 100
+        t2 = 150 # 200
+        bb_arr, center, hough_img, edges = HoughMajingo_ob.main(cam_image, t1, t2)   # self.canny_threshold1, self.canny_threshold2, self.cv_image
+        self.cv_image_publisher(self.i2rcpPub, edges, 'mono8')
+
+        return edges
+
 
     def callback(self, cam_image_ros):
         try:
@@ -292,17 +333,17 @@ class SiftFeature:
         except CvBridgeError, e:
             rospy.logerr("CvBridge Error: {0}".format(e))
 
+        # Huffin on some sift
+        edges_image = self.hough(cam_image)
+
         kp2, des2 = self.sift.detectAndCompute(cam_image, None)
         FLANN_INDEX_KDTREE = 1
         index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
         search_params = dict(checks = 50)
         flann = cv.FlannBasedMatcher(index_params, search_params)
         
-        move_list = 0
-        if self.bootlegger_detected == 1 or self.gman_detected == 1:
-            move_list = 1
-
-        for i in range(move_list, len(self.image_list)):
+        rospy.loginfo(len(self.image_list))
+        for i in range(len(self.image_list)):
             single_image_list = self.image_list[i]
             kp = self.kp[i]
             des = self.des[i]
@@ -310,12 +351,23 @@ class SiftFeature:
             cam_image = self.compare_matches(cam_image, flann, kp2, des2, single_image_list, kp, des, image_type)
 
         if self.colormode == 0:
-            pub_img = self.bridge.cv2_to_imgmsg(cam_image, encoding="mono8")
+            self.cv_image_publisher(self.detections_pub, cam_image, msg_encoding="mono8")
         else:
-            pub_img = self.bridge.cv2_to_imgmsg(cam_image, encoding="bgra8")
-        self.detections_pub.publish(pub_img)
+            self.cv_image_publisher(self.detections_pub, cam_image, msg_encoding="bgra8")
 
-        rospy.sleep(self.get_image_rate)
+        
+
+        for i in range(len(self.image_list_hough)):
+            single_image_list_hough = self.image_list_hough[i]
+            kp_hough = self.kp_hough[i]
+            des_hough = self.des_hough[i]
+            rospy.loginfo("des length: %s",len(self.kp_hough))
+            image_type = self.image_types_hough[i]
+            edges_image = self.compare_matches(edges_image, flann, kp2, des2, single_image_list_hough, kp_hough, des_hough, image_type)
+
+        self.cv_image_publisher(self.detections_hough_pub, edges_image, msg_encoding="mono8")
+        
+        #rospy.sleep(self.get_image_rate)
         
 
 if __name__ == '__main__':

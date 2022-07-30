@@ -71,7 +71,7 @@ class DrawTools:
         img = self.drawcircle(img, center_coordinates=(centeroid[0], centeroid[1]))
         img = cv.polylines(img,[np.int32(dst)],True,255,3, cv.LINE_AA)
 
-        return img
+        return img, centeroid
 
     # def publish_centeroid(self, img_numb, centeroid, orientation):
     #     pub = PoseStamped()

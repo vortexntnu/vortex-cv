@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from tkinter import image_types
 import cv2 as cv
 from cv_bridge import CvBridge, CvBridgeError
 import glob
@@ -11,7 +12,7 @@ from os.path import join, basename, realpath, dirname, exists, splitext
 import rospy
 from rospkg import RosPack
 import tf.transformations
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, JointState
 from cv_msgs.msg import Point2, PointArray
 from geometry_msgs.msg import PoseStamped
 from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
@@ -75,7 +76,7 @@ class SiftFeature:
         self.detections_pub = rospy.Publisher('/feature_detection/sift_bbox_image', Image, queue_size=1)
 
         #self.cornerpoints_pub = rospy.Publisher('/feature_detection/sift_object_points', BoundingBoxes, queue_size= 1)
-        #self.detection_centeroid_pub = rospy.Publisher('/feature_detection/sift_detection_centeroid', PoseStamped, queue_size=1)
+        self.detection_centeroid_pub = rospy.Publisher('/feature_detection/sift_detection_centeroid', JointState, queue_size=1)
 
         self.BBoxPointsPub = rospy.Publisher('/feature_detection/sift_detection_bbox', BoundingBoxes, queue_size= 1)
 
@@ -149,6 +150,18 @@ class SiftFeature:
         ############
         ##Init end##
         ############
+
+    def publish_centeroid(self, img_type, centeroid):
+        pub = JointState()
+        pub.header.stamp = rospy.get_rostime()
+        pub.header.frame_id = "zed_left_optical_camera_sensor"
+        pub.name = str(img_type)
+
+        pub.position = centeroid[0]
+        # pub.velocity = centeroid[1]
+
+        self.detection_centeroid_pub.publish(pub)
+
 
     def scale_bounding_box(self, dst):
         '''
@@ -244,14 +257,16 @@ class SiftFeature:
             # Scales the bounding box
             dst_scaled_cv_packed, dst_scaled = self.scale_bounding_box(dst)
                 
-            #self.publish_centeroid(i, centeroid, orientation)
+            
             msg = self.build_bounding_boxes_msg(dst_scaled, image_type)
 
             self.BBoxPointsPub.publish(msg)
 
 
             # Only for visual effects (draws bounding box, cornerpoints, etc...)
-            cam_image = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, image_type, centeroid=True,)
+            cam_image, centeroid = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, image_type, centeroid=True)
+            # rospy.loginfo(image_type)
+            self.publish_centeroid(image_type, centeroid)
 
         else:
             #print( "Not enough matches are found - {}/{}".format(len(good_best), self.MIN_MATCH_COUNT) )
