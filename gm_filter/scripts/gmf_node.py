@@ -37,9 +37,9 @@ class GMFNode:
         ########################################
         ####Things you can change yourself####
         ########################################
-
+        node_name = rospy.get_param("name")
         #Name of the node
-        node_name = "gmf"
+        # node_name = "gmf"
 
         #Frame names, e.g. "odom" and "cam"
 
@@ -52,7 +52,7 @@ class GMFNode:
         #Subscribe topic
         # TODO: this is just like object_edc, which was used on pool test, but why?? Is everything a spy??
 
-        object_topic_subscribe = "/pointcloud_processing/poseStamped/spy"
+        object_topic_subscribe = "/pointcloud_processing/poseStamped/" + node_name
         mission_topic_subscribe = "/fsm/state"
 
         ##################

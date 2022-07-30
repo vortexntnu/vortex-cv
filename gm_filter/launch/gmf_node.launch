@@ -8,6 +8,11 @@
     <arg name="type" default="real"/> 
     <arg name="bagfile" default="$(env HOME)/vortex_ws/src/Vortex-CV/object_edc/bagfiles/lite_gate_medium_sway_backwards_qual.bag" />
 
+    <arg name="gate" default="gate"/>
+    <arg name="badge" default="badge"/>
+    <arg name="bootlegger" default="bootlegger"/>
+    <arg name="gman" default="gman"/>
+
   
     <group if="$(eval type == 'simulator')">
       <param name ="/use_sim_time" value="true"/>
@@ -23,6 +28,19 @@
     </group>
     
     <group if="$(eval type == 'real')"> 
+      <node name="gmf_gate" pkg="gm_filter" type="gmf_node.py" output="screen">
+        <param name="gate"/>
+      </node>
+      <node name="gmf_badge" pkg="gm_filter" type="gmf_node.py" output="screen">
+        <param name="badge"/>
+      </node>
+      <node name="gmf_gman" pkg="gm_filter" type="gmf_node.py" output="screen">
+        <param name="gman"/>
+      </node>
+      <node name="gmf_bootlegger" pkg="gm_filter" type="gmf_node.py" output="screen">
+        <param name="bootlegger"/>
+      </node>
+
       <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_camera_center" args="0.3175 0 0.10 0 0 -0.0087266 base_link zed2_camera_center" />
       
     </group>
