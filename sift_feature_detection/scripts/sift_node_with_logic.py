@@ -96,26 +96,28 @@ class SiftFeature:
 
         #Subscribe topic
         mission_topic_subscribe = "/fsm/state"
-        # rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
+        rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
+        self.landmark_server_names = ["gate", "buoy","torpedo_poster","torpedo_target","octagon"]
 
         # Gate logic
         self.image_types = ["bootlegger", "gman"]
         self.gman_detected = 0
         self.bootlegger_detected = 0
 
-        # Bouy
+        # buoy
         self.image_types_hough = ["badge"]
-        self.image_types_bouys = ["badge", "tommy"]
+        self.image_types_buoys = ["badge", "tommy"]
         self.badge_detected = 0
         self.tommy_detected = 0
 
         # Torpedo
-        self.image_types_torpedo = ["torpedo_poster_bootlegger", "torpedo_poster_gman"]
+        # self.image_types_torpedo = ["torpedo_poster_bootlegger", "torpedo_poster_gman"]
         self.torpedo_poster_gman_detected = 0
         self.torpedo_poster_bootlegger_detected = 0
 
         # Torpedo holes
-        self.image_types_torpedo_holes = ["botlegger_circle", "bootlegger_square","gman_circle", "gman_star"]
+        # self.image_types_torpedo_holes = ["botlegger_circle", "bootlegger_square","gman_circle", "gman_star"]
+        self.image_types = ["botlegger_circle", "bootlegger_square","gman_circle", "gman_star"]
         self.circle_search = False
 
         self.torpedo_hole_detected = 0
@@ -206,9 +208,14 @@ class SiftFeature:
         if self.mission_topic == "torpedo_poster":
             self.circle_search = True
 
-        # if self.mission_topic == "torpedo_target":
+        if self.mission_topic == "torpedo_target":
+            self.image_list.remove("torpedo_poster_bootlegger")
+            self.image_list.remove("torpedo_poster_gman")
 
         # if self.mission_topic == "octagon":
+
+    # def detect_shape(self, cam_image):
+
 
     def add_centeroid(self, img_type, centeroid):
         pub = Centeroid()
