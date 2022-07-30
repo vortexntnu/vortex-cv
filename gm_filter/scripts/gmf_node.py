@@ -7,6 +7,8 @@
 #debugpy.wait_for_client()
 
 ##EKF imports
+import sys
+
 from ast import Mult
 from re import X
 
@@ -33,11 +35,11 @@ from scipy.stats import chi2
 class GMFNode:
     
 
-    def __init__(self):
+    def __init__(self, name):
         ########################################
         ####Things you can change yourself####
         ########################################
-        node_name = rospy.get_param("name")
+        node_name = name
         #Name of the node
         # node_name = "gmf"
 
@@ -661,10 +663,10 @@ class GMFNode:
 
 
 if __name__ == '__main__':
-    while not rospy.is_shutdown():     
-        try:
-            gm_filter = GMFNode()
-            rospy.spin()
-        except rospy.ROSInterruptException:
-            pass
+    name = sys.argv[1]
+    print("Node name:" + name)
+   
+    gm_filter = GMFNode(name)
+    rospy.spin()
+
     

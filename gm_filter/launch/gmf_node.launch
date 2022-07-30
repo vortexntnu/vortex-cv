@@ -33,20 +33,11 @@
       <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_camera_center" args="0.3175 0 0.10 0 0 -0.0087266 base_link zed2_camera_center" />
       
     </group>
-
-    <node name="gmf_gate" pkg="gmf" type="gmf_node.py" output="screen">
-      <param name="name" value="gate"/>
-    </node>
-    <node name="gmf_badge" pkg="gmf" type="gmf_node.py" output="screen">
-      <param name="name" value="badge"/>
-    </node>
-    <node name="gmf_gman" pkg="gmf" type="gmf_node.py" output="screen">
-      <param name="name" value="gman"/>
-    </node>
-    <node name="gmf_bootlegger" pkg="gmf" type="gmf_node.py" output="screen">
-      <param name="name" value="bootlegger"/>
-    </node>
-    
+ 
+    <node name="gmf_gate" pkg="gmf" type="gmf_node.py" args="gate" output="screen"/>
+    <node name="gmf_badge" pkg="gmf" type="gmf_node.py" args="badge" output="screen"/>
+    <node name="gmf_gman" pkg="gmf" type="gmf_node.py" args="gman" output="screen"/>
+    <node name="gmf_bootlegger" pkg="gmf" type="gmf_node.py" args="bootlegger" output="screen"/>
     
     <!-- <node pkg="gmf" type="gmf_node.py" name="gmf_node" output="screen"/> -->
 
