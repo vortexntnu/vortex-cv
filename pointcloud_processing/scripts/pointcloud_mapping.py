@@ -1,8 +1,8 @@
-#!/usr/bin/env python
-
+from logging import exception
 import numpy as np
 import math
 import ros_numpy as rnp
+import rospy
 
 from sensor_msgs import point_cloud2
 from sensor_msgs.msg import PointCloud2
@@ -13,6 +13,72 @@ class PointCloudMapping():
     """
     Class used for various tasks surrounding pointcloud mappng
     """
+    def generate_points_circle(self, r: int, n: int, center_point):
+        """
+        Generate list of n points around a center, with radius r"""
+        point_list = np.empty((n,2),float)
+        try:
+            for i in range(n):
+                ang = np.random.uniform(0,1) * 2 * math.pi
+                hyp = math.sqrt(np.random.uniform(0, 1)) * r
+                adj = math.cos(ang) * hyp
+                opp = math.sin(ang) * hyp
+                point_list[i] = [center_point[0] + adj, center_point[1] + opp]
+        except Exception as e:
+            rospy.loginfo(e)
+        return point_list
+
+    def sift_feature_centeroid(self, point_list, pointcloud_data):
+        cloud_points_as_matrix = rnp.pointcloud2_to_array(pointcloud_data)
+        point_array = np.empty((0, 3), float) 
+        for point in point_list:
+            pc_data_points = np.array(cloud_points_as_matrix.item(int(point[1]), int(point[0])))
+            point_array = np.append(point_array, [pc_data_points[:3]], axis=0)
+
+        if np.shape(point_array)[0] != 0:
+            return self.plane_with_SVD(point_array)
+
+    def sift_feature_gate(self, point_list, pointcloud_data):
+        
+        xmin = point_list[0]
+        xmax = point_list[1]
+        ymin = point_list[2]
+        ymax = point_list[3]
+
+        point_list = []
+        for x in [xmin, xmax]:
+            for y in [ymin, ymax]:
+                pt_gen = point_cloud2.read_points(pointcloud_data, skip_nans=True, uvs=[[x,y]])
+                for pt in pt_gen:
+                    point_list.append([pt[0], pt[1], pt[2]])
+
+        orientationdata, positiondata = self.points_to_plane(point_list)
+
+
+        cloud_points_as_matrix = rnp.pointcloud2_to_array(pointcloud_data)
+        point_array = np.empty((0, 3), float) 
+        for point in point_list:
+            pc_data_points = np.array(cloud_points_as_matrix.item(point.x, point.y))
+            point_array = np.append(point_array, [pc_data_points[:3]], axis=0)
+
+        if np.shape(point_array)[0] != 0:
+            return self.plane_with_SVD(point_array)
+
+        return positiondata, orientationdata
+
+
+    def sift_feature_area(self, point_list, pointcloud_data):
+        """
+        """
+        cloud_points_as_matrix = rnp.pointcloud2_to_array(pointcloud_data)
+        rows = point_list[0][1] - point_list[0][0]
+        cols = point_list[1][1] - point_list[1][0]
+        test_array = np.zeros(shape=(rows, cols))
+
+        
+
+        svd_data = 0
+        return svd_data
 
     def object_orientation_position(self, point_list, pointcloud_data):
         """
