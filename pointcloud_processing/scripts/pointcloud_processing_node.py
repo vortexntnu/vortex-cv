@@ -13,7 +13,7 @@ import tf2_geometry_msgs.tf2_geometry_msgs
 import tf2_ros
 
 # Import msg types
-from cv_msgs.msg import PointArray
+from cv_msgs.msg import PointArray, Centeroid, CenteroidArray
 from geometry_msgs.msg import PointStamped, PoseStamped, TransformStamped
 from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
 from vortex_msgs.msg import ObjectPosition
@@ -49,7 +49,7 @@ class PointcloudProcessingNode():
         # self.posePub = rospy.Publisher("/pointcloud_processing/poseStamped/spy", PoseStamped, queue_size=1)
 
         # self.siftSub = rospy.Subscriber('/feature_detection/detection_bbox', BoundingBoxes, self.sift_cb, queue_size=1)
-        self.siftCentSub = rospy.Subscriber('/feature_detection/sift_detection_centeroid', PoseStamped, self.sift_centeroid_cb, queue_size=1)
+        self.siftCentSub = rospy.Subscriber('/feature_detection/sift_detection_centeroid', CenteroidArray, self.sift_centeroid_cb, queue_size=1)
 
         # Defining classes
         self.pointcloud_mapper = PointCloudMapping()
@@ -65,17 +65,36 @@ class PointcloudProcessingNode():
         CB to sift feature cenetoid. Gets the centerpoint of a detection, 
         creates circular points around center and finds position and orientation of feature.
         """
-        feat_x = msg.pose.position.x
-        feat_y = msg.pose.position.y
+        
+        for ctrd in msg.centeroid:
+            feat_name = ctrd.name
+            feat_x = ctrd.centre_x
+            feat_y = ctrd.centre_y
+            feat_y = ctrd.centre_z
 
-        if "gate" == "gate":
-            point_list = self.pointcloud_mapper.generate_points_circle(2,10,[feat_x,feat_y])
-            rot, pos = self.pointcloud_mapper.sift_feature_centeroid(point_list, self.pointcloud_data)
-            self.send_poseStamped_world(pos, rot, "spy1")
-        if "data" in ["bootlegger", "gman", "data"]:
-            point_list = self.pointcloud_mapper.generate_points_circle(2,10,[feat_x,feat_y])
-            rot, pos = self.pointcloud_mapper.sift_feature_centeroid(point_list, self.pointcloud_data)
-            self.send_poseStamped_world(pos, rot, "spy2")
+            r = 10
+            n = 200
+
+            if feat_name == "gate":
+                point_list = self.pointcloud_mapper.generate_points_circle(r,n,[feat_x,feat_y])
+                rot, pos = self.pointcloud_mapper.sift_feature_centeroid(point_list, self.pointcloud_data)
+            else:
+                if feat_name in ["bootlegger", "gman"]:
+                    r = 10
+                    n = 100
+                    # rot, pos = self.pointcloud_mapper.sift_feature_centeroid([feat_x, feat_y], self.pointcloud_data)
+                    # self.send_pointStamped_message(pos, feat_name)
+                if feat_name == "badge":
+                    r = 10
+                    n = 100
+
+                point_list = self.pointcloud_mapper.generate_points_circle(r, n, [feat_x,feat_y])
+                rot, pos = self.pointcloud_mapper.sift_feature_centeroid(point_list, self.pointcloud_data)
+
+            try:
+                self.send_poseStamped_world(pos, rot, feat_name)
+            except Exception as e:
+                rospy.logdebug("Sift pose message error: ", e)
 
     def sift_cb(self, msg):
         """

@@ -1,4 +1,4 @@
-from logging import exception
+from cmath import isfinite
 import numpy as np
 import math
 import ros_numpy as rnp
@@ -33,8 +33,11 @@ class PointCloudMapping():
         point_array = np.empty((0, 3), float) 
         for point in point_list:
             pc_data_points = np.array(cloud_points_as_matrix.item(int(point[1]), int(point[0])))
-            point_array = np.append(point_array, [pc_data_points[:3]], axis=0)
-
+            if np.isfinite(np.sum(pc_data_points)):
+                point_array = np.append(point_array, [pc_data_points[:3]], axis=0)
+            else:
+                rospy.logdebug("Point has nans, not adding: %s", str(pc_data_points))
+        
         if np.shape(point_array)[0] != 0:
             return self.plane_with_SVD(point_array)
 
