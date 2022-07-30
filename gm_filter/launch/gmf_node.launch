@@ -35,9 +35,10 @@
     </group>
  
     <node name="gmf_gate" pkg="gmf" type="gmf_node.py" args="gate" output="screen"/>
-    <node name="gmf_badge" pkg="gmf" type="gmf_node.py" args="badge" output="screen"/>
-    <node name="gmf_gman" pkg="gmf" type="gmf_node.py" args="gman" output="screen"/>
-    <node name="gmf_bootlegger" pkg="gmf" type="gmf_node.py" args="bootlegger" output="screen"/>
+    <node name="gmf_torpedo_target" pkg="gmf" type="gmf_node.py" args="torpedo_target" output="screen"/>
+    <node name="gmf_torpedo_poster" pkg="gmf" type="gmf_node.py" args="torpedo_poster" output="screen"/>
+    <node name="gmf_buoy" pkg="gmf" type="gmf_node.py" args="buoy" output="screen"/>
+    <node name="gmf_octagon" pkg="gmf" type="gmf_node.py" args="octagon" output="screen"/>
     
     <!-- <node pkg="gmf" type="gmf_node.py" name="gmf_node" output="screen"/> -->
 
