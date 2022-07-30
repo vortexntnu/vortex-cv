@@ -4,8 +4,6 @@ import cv2 as cv
 from cv_bridge import CvBridge, CvBridgeError
 import glob
 import numpy as np
-from os.path import join, basename, realpath, dirname, exists, splitext
-
 
 #ROS imports
 import rospy
@@ -15,6 +13,7 @@ from sensor_msgs.msg import Image
 from cv_msgs.msg import Point2, PointArray
 from geometry_msgs.msg import PoseStamped
 from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
+from std_msgs.msg import String
 
 
 # Contains visualization tools
@@ -79,35 +78,42 @@ class SiftFeature:
 
         self.BBoxPointsPub = rospy.Publisher('/feature_detection/sift_detection_bbox', BoundingBoxes, queue_size= 1)
 
-        #########################
-        ##### Mission Bools #####
-        #########################
+        ##########################
+        #### Mission specific ####
+        ##########################
+        self.lower_image_numb = 0
+        self.upper_image_numb = 0
 
         #Subscribe topic
         mission_topic_subscribe = "/fsm/state"
-        rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
+        # rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
 
         # Gate logic
-        self.image_types = ["gate","bootlegger","gman"]
-
+        self.image_types = ["bootlegger", "gman"]
+        
+        self.gate_image_numbs = len(self.image_types)
         self.gman_detected = 0
         self.bootlegger_detected = 0
 
         #Bouy
-        self.image_types.append("badge")
-        self.image_types.appedn("tommy")
+        # self.image_types.append()
+        # self.image_types.append("tommy")
+        rospy.loginfo("image types: %s", self.image_types)
+
+        self.bouy_image_numbs = 2
 
         self.badge_detected = 0
         self.tommy_detected = 0
 
         #Torpedo
-        self.image_types.append("torpedo_poster_bootlegger")
-        self.image_types.append("torpedo_poster_gman")
+        # self.image_types.append("torpedo_poster_bootlegger")
+        # self.image_types.append("torpedo_poster_gman")
 
-        self.torpedo_poster_gman = 0
-        self.torpedo_poster_bootlegger = 0
+        self.torpedo_image_numb = 2
 
-        self.torpedo_poster = 0
+        self.torpedo_poster_gman_detected = 0
+        self.torpedo_poster_bootlegger_detected = 0
+
         self.torpedo_hole = 0
 
         ################
@@ -129,7 +135,11 @@ class SiftFeature:
         rp = RosPack()
         path = str(rp.get_path('sift_feature_detection')) + '/data/sift_images/'
 
-        # self.image_types = ["gate","bootlegger","gman"]
+        # Image path
+        #path0 = "/home/kristian/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/bootlegger/*.png"
+        #path1 = "/home/kristian/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/gman/*.png"
+        #path2 = "/home/vortex/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/gate_corner/*.png"
+
         self.image_list = []
 
         for i in range(len(self.image_types)):
@@ -140,6 +150,15 @@ class SiftFeature:
             temp_path = None
             print(temp_path)
 
+        # Compare image(s)
+#         bootlegger = [cv.imread(file, self.colormode) for file in glob.glob(path0)]
+#         self.image_list.append(bootlegger)
+# # 
+#         g_man = [cv.imread(file, self.colormode) for file in glob.glob(path1)]
+#         self.image_list.append(g_man)
+        
+        #gate_corner = [cv.imread(file, self.colormode) for file in glob.glob(path2)]
+        #self.image_list.append(gate_corner)
 
         rospy.loginfo("Number of imagetypes: %s", len(self.image_list))
         if len(self.image_list) == 0:
@@ -165,9 +184,6 @@ class SiftFeature:
         ############
         ##Init end##
         ############
-
-    def update_mission(self, mission):
-        self.mission_topic = mission.data
 
     def scale_bounding_box(self, dst):
         '''
@@ -209,10 +225,10 @@ class SiftFeature:
     def build_bounding_boxes_msg(self, bbox_points, obj_class):
         bbox = BoundingBox()
         bbox.probability = 69.69
-        bbox.xmin = bbox_points[0]
-        bbox.ymin = bbox_points[1]
-        bbox.xmax = bbox_points[2]
-        bbox.ymax = bbox_points[3]
+        bbox.xmin = int(bbox_points[0][0])
+        bbox.ymin = int(bbox_points[0][1])
+        bbox.xmax = int(bbox_points[2][0])
+        bbox.ymax = int(bbox_points[2][1])
         bbox.z = 100000.0
         bbox.id = 0
         bbox.Class = obj_class
@@ -268,18 +284,12 @@ class SiftFeature:
 
             self.BBoxPointsPub.publish(msg)
 
-            if image_type == "bootlegger":
-                self.bootlegger_detected = 1
-            
-            if image_type == "gman":
-                self.gman_detected = 1
-
 
             # Only for visual effects (draws bounding box, cornerpoints, etc...)
             cam_image = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, image_type, centeroid=True,)
 
         else:
-            #print( "Not enough matches are found - {}/{}".format(len(good), self.MIN_MATCH_COUNT) )
+            #print( "Not enough matches are found - {}/{}".format(len(good_best), self.MIN_MATCH_COUNT) )
             matchesMask = None
 
         return cam_image
@@ -298,11 +308,7 @@ class SiftFeature:
         search_params = dict(checks = 50)
         flann = cv.FlannBasedMatcher(index_params, search_params)
         
-        move_list = 0
-        if self.bootlegger_detected == 1 or self.gman_detected == 1:
-            move_list = 1
-
-        for i in range(move_list, len(self.image_list)):
+        for i in range(len(self.image_list)):
             single_image_list = self.image_list[i]
             kp = self.kp[i]
             des = self.des[i]
