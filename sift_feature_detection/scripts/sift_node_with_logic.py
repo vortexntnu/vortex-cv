@@ -160,12 +160,10 @@ class SiftFeature:
             # self.upper_image_list_index += 1
             
         if mission == "torpedo/search":
-            # Add Torpedo_poster
+            # Add Torpedo_poster torpedo_target
             self.upper_image_list_index += 2
             # Remove "badge" (buoy)
             self.lower_image_list_index += 1
-            #Add torpedo_target
-            self.upper_image_list_index += 1
             # Add octagon
             self.upper_image_list_index += 3
 
