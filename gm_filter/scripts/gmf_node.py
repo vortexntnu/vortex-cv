@@ -72,7 +72,7 @@ class GMFNode:
         self.max_nr_hypotheses = 25
         # TODO: find a good number for these by looking at how many iterrations it takes to get that low
         self.covariance_norm_convergence = 1
-        self.max_kf_iterrations = 20
+        self.max_kf_iterrations = 30
 
 
         # Measurement gate, in GMF we are only looking at position
