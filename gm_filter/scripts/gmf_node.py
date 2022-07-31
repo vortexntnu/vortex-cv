@@ -65,14 +65,14 @@ class GMFNode:
 
         # Tuning Parameters for the GMF scheme:
         self.init_prob = 0.2
-        self.boost_prob = 0.08
+        self.boost_prob = 0.25
         self.termination_criterion = 0.95
         self.survival_threshold = 0.05
         gate_percentile = 0.6
         self.max_nr_hypotheses = 25
         # TODO: find a good number for these by looking at how many iterrations it takes to get that low
         self.covariance_norm_convergence = 1
-        self.max_kf_iterrations = 20
+        self.max_kf_iterrations = 30
 
 
         # Measurement gate, in GMF we are only looking at position
@@ -535,7 +535,7 @@ class GMFNode:
         p.objectPose.pose.orientation.w = best_pose_quaternion[3]
 
         p.isDetected            = self.termination_bool
-        p.estimateConverged     = True
+        p.estimateConverged     = self.estimateConverged
         p.estimateFucked        = self.estimateFucked
 
         
