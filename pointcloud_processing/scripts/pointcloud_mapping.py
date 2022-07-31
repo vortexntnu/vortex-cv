@@ -1,4 +1,3 @@
-from cmath import isfinite
 import numpy as np
 import math
 import ros_numpy as rnp
@@ -13,7 +12,7 @@ class PointCloudMapping():
     """
     Class used for various tasks surrounding pointcloud mappng
     """
-    def generate_points_circle(self, r: int, n: int, center_point):
+    def generate_points_circle(self, r, n, center_point):
         """
         Generate list of n points around a center, with radius r"""
         point_list = np.empty((n,2),float)

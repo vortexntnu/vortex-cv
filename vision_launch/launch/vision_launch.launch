@@ -8,10 +8,10 @@
     </group>
 
     <!-- IPP node -->
-    <include file="$(find image_preprocessing)/launch/image_preprocessing.launch"/>
+    <!-- <include file="$(find image_preprocessing)/launch/image_preprocessing.launch"/> -->
 
     <!-- FD node -->
-    <include file="$(find feature_detection)/launch/feature_detection_node.launch"/>
+    <!-- <include file="$(find feature_detection)/launch/feature_detection_node.launch"/> -->
 
     <!-- PCP node -->
     <include file="$(find pointcloud_processing)/launch/pointcloud_processing_node.launch"/>
