@@ -2,7 +2,7 @@ version: '3.8'
 services:
   vortex:
     container_name: sift
-    build: .
+    image: sift:autolaunch
     user: vortex
     privileged: true
     volumes:
@@ -15,4 +15,4 @@ services:
     stdin_open: true
     tty: true
     network_mode: host
-
+    entrypoint: ["/entrypoint.sh"]

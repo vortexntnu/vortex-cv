@@ -2,7 +2,6 @@
 
 from os import rename
 import cv2 as cv
-from matplotlib import image
 from cv_bridge import CvBridge, CvBridgeError
 import glob
 import numpy as np
@@ -21,9 +20,6 @@ from cv_msgs.msg import Centeroid, CenteroidArray
 
 # Contains visualization tools
 from draw_tools import DrawTools
-
-from Hough_Transform_orientation_based import HoughMajingo_ob
-
 
 class SiftFeature:
     '''
@@ -327,7 +323,6 @@ class SiftFeature:
 
             pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
             dst = cv.perspectiveTransform(pts,M)
-
             # Scales the bounding box
             dst_scaled_cv_packed, dst_scaled = self.scale_bounding_box(dst)
 
@@ -344,7 +339,7 @@ class SiftFeature:
             self.add_centeroid(image_type, centeroid)
 
             # Only for visual effects (draws bounding box, cornerpoints, etc...)
-            cam_image = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, image_type, centeroid=True,)
+            #cam_image = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, image_type, centeroid=True,)
 
         else:
             # print( "Not enough matches are found - {}/{}".format(len(good_best), self.MIN_MATCH_COUNT) )
