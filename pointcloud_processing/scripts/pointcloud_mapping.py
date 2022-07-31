@@ -12,9 +12,31 @@ class PointCloudMapping():
     """
     Class used for various tasks surrounding pointcloud mappng
     """
+
+    def generate_torpedo_target(self, center_point, offset):
+        """"
+        Generate a torpedo target for the torpedo poster.
+        Need position data from somewhere on the target board, but centered in the target hole.
+        
+        Args:
+            center_point: centerpoint of the torpedo target [x,y]
+            offset: offset in [x,y]
+
+        Returns:
+            point_list: Points on the same xy image plane, where depth data is the same as where the target hole is.
+        """
+        point_list = self.generate_points_circle(r= 5, n= 25, center_point=[center_point[0] + offset[0], center_point[1] + offset[1]])
+        return point_list
+
     def generate_points_circle(self, r, n, center_point):
         """
-        Generate list of n points around a center, with radius r"""
+        Generate list of n points around a center, with radius r
+        
+        Args:
+            r: radius of circle, where you want to generate points
+            n: number of points to generate
+            center_point: center point for points to generate
+        """
         point_list = np.empty((n,2),float)
         try:
             for i in range(n):
@@ -27,21 +49,29 @@ class PointCloudMapping():
             rospy.loginfo(e)
         return point_list
 
-    def sift_feature_centeroid(self, point_list, pointcloud_data):
-        cloud_points_as_matrix = rnp.pointcloud2_to_array(pointcloud_data)
-        point_array = np.empty((0, 3), float) 
-        for point in point_list:
-            pc_data_points = np.array(cloud_points_as_matrix.item(int(point[1]), int(point[0])))
-            if np.isfinite(np.sum(pc_data_points)):
-                point_array = np.append(point_array, [pc_data_points[:3]], axis=0)
-            else:
-                rospy.logdebug("Point has nans, not adding: %s", str(pc_data_points))
-        
-        if np.shape(point_array)[0] != 0:
-            return self.plane_with_SVD(point_array)
+    def sift_feature_centeroid(self, point_list, pointcloud_data, use_standard = False):
+        if not use_standard:
+            cloud_points_as_matrix = rnp.pointcloud2_to_array(pointcloud_data)
+            point_array = np.empty((0, 3), float) 
+            for point in point_list:
+                pc_data_points = np.array(cloud_points_as_matrix.item(int(point[1]), int(point[0])))
+                if np.isfinite(np.sum(pc_data_points)):
+                    point_array = np.append(point_array, [pc_data_points[:3]], axis=0)
+                else:
+                    rospy.logdebug("Point has nans, not adding: %s", str(pc_data_points))
 
-            # , use_standard = False
-            # if not use_standard
+            if np.shape(point_array)[0] != 0:
+                return self.plane_with_SVD(point_array)
+        else:
+            new_point_list = []
+            for point in point_list:
+                pt_gen = point_cloud2.read_points(pointcloud_data, skip_nans=True, uvs=[[int(point[0]),int(point[1])]])
+                for pt in pt_gen:
+                    new_point_list.append([pt[0], pt[1], pt[2]])
+            return self.plane_with_SVD(new_point_list)
+
+        
+
 
     def sift_feature_gate(self, point_list, pointcloud_data):
         
@@ -69,7 +99,7 @@ class PointCloudMapping():
         if np.shape(point_array)[0] != 0:
             return self.plane_with_SVD(point_array)
 
-        return positiondata, orientationdata
+        return orientationdata, positiondata
 
 
     def sift_feature_area(self, point_list, pointcloud_data):

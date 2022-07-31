@@ -70,7 +70,7 @@ class PointcloudProcessingNode():
             feat_name = ctrd.name
             feat_x = ctrd.centre_x
             feat_y = ctrd.centre_y
-            feat_y = ctrd.centre_z
+            feat_z = ctrd.centre_z
 
             r = 10
             n = 200
@@ -78,16 +78,17 @@ class PointcloudProcessingNode():
             if feat_name == "gate_actual":
                 point_list = self.pointcloud_mapper.generate_points_circle(r,n,[feat_x,feat_y])
                 rot, pos = self.pointcloud_mapper.sift_feature_centeroid(point_list, self.pointcloud_data)
+            elif feat_name in ["torpedo_target"]:
+                point_list = self.pointcloud_mapper.generate_torpedo_target([feat_x, feat_y], [-7, -14])
+                rot, pos = self.pointcloud_mapper.sift_feature_centeroid(point_list, self.pointcloud_data)
+                
             else:
-                if feat_name in ["bootlegger", "gman", "buoy", "torpedo_poster","torpedo_target","octagon"]:
-                    r = 10
-                    n = 100
-                    # rot, pos = self.pointcloud_mapper.sift_feature_centeroid([feat_x, feat_y], self.pointcloud_data)
-                    # self.send_pointStamped_message(pos, feat_name)
-                if feat_name == "badge":
-                    r = 10
-                    n = 100
-
+                if feat_name in ["gate", "octagon"]:
+                    r = 3
+                    n = 25
+                if feat_name in ["buoy", "torpedo_poster"]:
+                    r = 5
+                    n = 50
                 point_list = self.pointcloud_mapper.generate_points_circle(r, n, [feat_x,feat_y])
                 rot, pos = self.pointcloud_mapper.sift_feature_centeroid(point_list, self.pointcloud_data)
 
@@ -114,7 +115,7 @@ class PointcloudProcessingNode():
                                 (box.xmax,box.ymax)]
 
             if box.Class == "gate":
-                pos_data, or_data = self.pointcloud_mapper.sift_feature_gate([box.xmin, box.xmax, box.ymin, box.ymax/2], self.pointcloud_data)
+                or_data, pos_data = self.pointcloud_mapper.sift_feature_gate([box.xmin, box.xmax, box.ymin, box.ymax/2], self.pointcloud_data)
                 rospy.info(or_data)
                 self.send_poseStamped_world(pos_data, or_data, box.Class)
 
