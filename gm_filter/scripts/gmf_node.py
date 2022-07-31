@@ -40,6 +40,7 @@ class GMFNode:
         ####Things you can change yourself####
         ########################################
         node_name = name
+        self.object_name = name
         #Name of the node
         # node_name = "gmf"
 
@@ -522,7 +523,7 @@ class GMFNode:
         
         p = ObjectPosition()
         #p.pose.header[]
-        p.objectID = objectID
+        p.objectID = self.object_name
         #p.objectPose.header = "object_" + str(objectID)
         p.objectPose.pose.position.x = best_position[0]
         p.objectPose.pose.position.y = best_position[1]
@@ -534,7 +535,7 @@ class GMFNode:
         p.objectPose.pose.orientation.w = best_pose_quaternion[3]
 
         p.isDetected            = self.termination_bool
-        p.estimateConverged     = self.estimateConverged
+        p.estimateConverged     = True
         p.estimateFucked        = self.estimateFucked
 
         

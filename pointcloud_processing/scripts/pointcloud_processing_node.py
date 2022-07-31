@@ -79,7 +79,7 @@ class PointcloudProcessingNode():
                 point_list = self.pointcloud_mapper.generate_points_circle(r,n,[feat_x,feat_y])
                 rot, pos = self.pointcloud_mapper.sift_feature_centeroid(point_list, self.pointcloud_data)
             else:
-                if feat_name in ["bootlegger", "gman"]:
+                if feat_name in ["bootlegger", "gman", "buoy", "torpedo_poster","torpedo_target","octagon"]:
                     r = 10
                     n = 100
                     # rot, pos = self.pointcloud_mapper.sift_feature_centeroid([feat_x, feat_y], self.pointcloud_data)
