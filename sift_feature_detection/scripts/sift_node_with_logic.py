@@ -51,7 +51,7 @@ class SiftFeature:
         self.colormode = 0
 
         # Minimum matches needed for drawing bounding box
-        self.MIN_MATCH_COUNT = 8
+        self.MIN_MATCH_COUNT = 7
 
         # Scale the bounding box (Only downscale)
         self.scale = 0.999
@@ -95,40 +95,11 @@ class SiftFeature:
 
         self.landmark_server_names = ["gate", "buoy","torpedo_poster","torpedo_target","octagon"]
         
-        # Starts searching for "bootlegger", "gman", "badge", "tommy"
+         # Starts searching for "bootlegger", "gman", "badge", "tommy"
+        self.image_types = ["gman","badge","torpedo_poster_bootlegger","bootlegger_square", "octagon", "octagon_bootlegger", "octagon_gman"]
         self.lower_image_list_index = 0
-        self.upper_image_list_index = 3
-        self.image_types = []
-
-        # Gate logic
-        self.image_types_gate = ["bootlegger", "gman"]
-        self.image_types.append(self.image_types_gate[0])
-        self.image_types.append(self.image_types_gate[1])
-        self.gman_detected = 0
-        self.bootlegger_detected = 0
-
-        # buoy
-        self.image_types_buoys = ["badge", "tommy"]
-        self.image_types.append(self.image_types_buoys[0])
-        self.image_types.append(self.image_types_buoys[1])
-        self.badge_detected = 0
-        self.tommy_detected = 0
-
-        # Torpedo
-        self.image_types_torpedo = ["torpedo_poster_bootlegger", "torpedo_poster_gman"]
-        self.image_types.append(self.image_types_torpedo[0])
-        self.image_types.append(self.image_types_torpedo[1])
-        self.torpedo_poster_gman_detected = 0
-        self.torpedo_poster_bootlegger_detected = 0
-
-        # Torpedo holes
-        self.image_types_torpedo_holes = ["bootlegger_square","gman_star"]
-        self.image_types.append(self.image_types_torpedo_holes[0])
-        self.image_types.append(self.image_types_torpedo_holes[1])
-        # self.image_types_ = ["botlegger_circle", "bootlegger_square","gman_circle", "gman_star"]
-        self.circle_search = False
-
-        self.torpedo_hole_detected = 0
+        self.upper_image_list_index = 2
+        # self.upper_image_list_index = len(self.image_types)
 
         ################
         ###CV stuff ####
@@ -179,34 +150,34 @@ class SiftFeature:
         rospy.loginfo(mission)
 
 
-        if mission == "gate/converge":
-            # Remove "bootlegger", "gman"
-            self.lower_image_list_index += len(self.image_types_gate)
+        if mission == "gate/execute":
+            # Remove "gman"
+            self.lower_image_list_index += 1
             rospy.loginfo("Gate executed!!")
 
-            # Add image_types_torpedo
-            self.upper_image_list_index += len(self.image_types_torpedo)
-
-        if mission == "buoy/converge":
-            # Remove "badge", "tommy"
-            self.lower_image_list_index += len(self.image_types_buoys) 
+        # if mission == "buoy/search":
+            # Add Torpedo_poster
+            # self.upper_image_list_index += 1
             
         if mission == "torpedo/search":
-            # Add torpedo holes
-            self.upper_image_list_index += len(self.image_types_torpedo_holes)
+            # Add Torpedo_poster
+            self.upper_image_list_index += 2
+            # Remove "badge" (buoy)
+            self.lower_image_list_index += 1
+            #Add torpedo_target
+            self.upper_image_list_index += 1
+            # Add octagon
+            self.upper_image_list_index += 3
 
+        if mission == "octagon/search":
+            # Remove torpedo_poster and torpedo_target
+            self.lower_image_list_index += 2
 
-        if mission == "torpedo/converge":
-            # Add torpedo holes
-            self.lower_image_list_index += len(self.image_types_torpedo)
-
-
-        # if self.mission_topic == "octagon":
 
     # def detect_shape(self, cam_image):
 
     def side_desicion(self, image_type):
-        # landmark server names ["gate", "buoy","torpedo_poster","torpedo_target","octagon"]
+        # landmark server names ["gate", "buoy","torpedo_poster","torpedo_target","octagon", "octagon_bootlegger", "octagon_gman"]
 
         if self.side_select == "gman":
 
@@ -222,7 +193,7 @@ class SiftFeature:
             elif image_type == "bootlegger_square":
                 renamed_type = self.landmark_server_names[3]
 
-            elif image_type == "octagon_center":
+            elif image_type == "octagon":
                 renamed_type = self.landmark_server_names[4]
             else:
                 renamed_type = image_type
@@ -309,17 +280,19 @@ class SiftFeature:
 
             if len(good) > len(good_best):
                 good_best = good
+                kp_best = kp[i]
+                best_image = single_image_list[i]
 
         if len(good_best)>self.MIN_MATCH_COUNT:
-            src_pts = np.float32([ kp[i][m.queryIdx].pt for m in good ]).reshape(-1,1,2)
-            dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
+            src_pts = np.float32([ kp_best[m.queryIdx].pt for m in good_best ]).reshape(-1,1,2)
+            dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good_best ]).reshape(-1,1,2)
             M, mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC,5.0)
             matchesMask = mask.ravel().tolist()
 
-            if len(single_image_list[i].shape) == 2:
-                h,w = single_image_list[i].shape
+            if len(best_image.shape) == 2:
+                h,w = best_image.shape
             else:
-                h, w, _ = single_image_list[i].shape
+                h, w, _ = best_image.shape
 
             pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
             dst = cv.perspectiveTransform(pts,M)
@@ -339,7 +312,7 @@ class SiftFeature:
             self.add_centeroid(image_type, centeroid)
 
             # Only for visual effects (draws bounding box, cornerpoints, etc...)
-            #cam_image = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, image_type, centeroid=True,)
+            # cam_image = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, image_type, centeroid=True,)
 
         else:
             # print( "Not enough matches are found - {}/{}".format(len(good_best), self.MIN_MATCH_COUNT) )
@@ -386,7 +359,8 @@ class SiftFeature:
         self.CentroidArray_message.header.frame_id = "zed_left_camera_sensor"
 
         self.detection_centeroid_pub.publish(self.CentroidArray_message)
-        rospy.loginfo(self.lower_image_list_index)
+        print( "Lower and upper index - {}/{}".format(self.lower_image_list_index, self.upper_image_list_index) )
+
 
         #rospy.sleep(self.get_image_rate)
         
