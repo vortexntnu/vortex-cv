@@ -22,7 +22,7 @@ class PointCloudMapping():
                 hyp = math.sqrt(np.random.uniform(0, 1)) * r
                 adj = math.cos(ang) * hyp
                 opp = math.sin(ang) * hyp
-                point_list[i] = [center_point[0] + adj, center_point[1] + opp]
+                point_list[i] = [int(center_point[0] + adj), int(center_point[1] + opp)]
         except Exception as e:
             rospy.loginfo(e)
         return point_list
@@ -39,6 +39,9 @@ class PointCloudMapping():
         
         if np.shape(point_array)[0] != 0:
             return self.plane_with_SVD(point_array)
+
+            # , use_standard = False
+            # if not use_standard
 
     def sift_feature_gate(self, point_list, pointcloud_data):
         

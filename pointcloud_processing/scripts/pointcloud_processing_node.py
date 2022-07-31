@@ -75,7 +75,7 @@ class PointcloudProcessingNode():
             r = 10
             n = 200
 
-            if feat_name == "gate":
+            if feat_name == "gate_actual":
                 point_list = self.pointcloud_mapper.generate_points_circle(r,n,[feat_x,feat_y])
                 rot, pos = self.pointcloud_mapper.sift_feature_centeroid(point_list, self.pointcloud_data)
             else:
