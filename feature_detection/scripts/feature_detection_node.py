@@ -17,8 +17,6 @@ from cv_bridge import CvBridge, CvBridgeError
 import dynamic_reconfigure.client
 
 import numpy as np
-import cv2
-import math
 from timeit import default_timer as timer
 import traceback
 
@@ -27,10 +25,6 @@ from feature_detection import FeatureDetection
 from read_yaml_config import read_yaml_file
 
 from time import sleep
-import copy
-
-from Hough_Transform_orientation_based import HoughMajingo_ob
-
 
 class FeatureDetectionNode():
     """Handles tasks related to feature detection
@@ -164,34 +158,12 @@ class FeatureDetectionNode():
         pt_arr_msg.height = image_height
         
         return pt_arr_msg
-    
-    def hough_transform_manifold(self):
-        cv_img_cp = copy.deepcopy(self.cv_image)
-        canny_img = cv2.Canny(cv_img_cp, self.canny_threshold1, self.canny_threshold2, apertureSize=self.canny_aperture)
-                    
-        lines = cv2.HoughLines(canny_img, 1, np.pi / 180, 150, None, 0, 0)
-        cnny_clors = cv2.cvtColor(canny_img, cv2.COLOR_GRAY2BGR)
-        
-        if lines is not None:
-            for i in range(0, len(lines)):
-                rho = lines[i][0][0]
-                theta = lines[i][0][1]
-                a = math.cos(theta)
-                b = math.sin(theta)
-                x0 = a * rho
-                y0 = b * rho
-                pt1 = (int(x0 + 1000*(-b)), int(y0 + 1000*(a)))
-                pt2 = (int(x0 - 1000*(-b)), int(y0 - 1000*(a)))
-                cv2.line(cnny_clors, pt1, pt2, (0,0,255), 3, cv2.LINE_AA)
-                cv2.line(cv_img_cp, pt1, pt2, (0,0,255), 3, cv2.LINE_AA)
-
-        return cv_img_cp, cnny_clors, lines
 
     def spin(self):
         while not rospy.is_shutdown():
             if self.cv_image is not None:
                 try:
-                    start = timer() # Start function timer
+                    start = timer() # Start function timer.
                     try:
                         bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, self.current_object, self.hsv_params, self.noise_rm_params)
                         pt_arr_msg = self.build_point_array_msg(points_in_rects, self.current_object, self.image_shape[0], self.image_shape[1])
@@ -225,10 +197,6 @@ class FeatureDetectionNode():
                         rospy.logwarn("Bounding Box wasnt found... keep on spinning...")
                         self.BBoxPointsPub.publish(self.prev_bboxes_msg)
                     
-                    if len(bb_arr) != 0:
-                        rospy.loginfo("Now detecting: bounding box %s", bb_arr)
-                        rospy.loginfo( center)
-
                     end = timer() # Stop function timer.
                     timediff = (end - start)
                     fps = 1 / timediff # Take reciprocal of the timediff to get runs per second. 
@@ -315,7 +283,7 @@ class FeatureDetectionNode():
 
 if __name__ == '__main__':
     try:
-        feature_detection_node = FeatureDetectionNode(image_topic='/zed2/zed_node/rgb/image_rect_color')  # /cv/image_preprocessing/CLAHE  /zed2/zed_node/rgb/image_rect_color /cv/preprocessing/image_rect_color_filtered
+        feature_detection_node = FeatureDetectionNode(image_topic='/zed2/zed_node/rgb/image_rect_color')
         # rospy.spin()
         feature_detection_node.spin()
 
