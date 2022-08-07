@@ -22,9 +22,9 @@ class DynamicReconfigure(object):
         self.ddr.add_variable("hsv_val_min", "PLACEHOLDER",   255,    0,  255)
         self.ddr.add_variable("hsv_val_max", "PLACEHOLDER",   0,    0,  255)
 
-        self.ddr.add_variable("ksize1",  "PLACEHOLDER", 7, 0, 100)
-        self.ddr.add_variable("ksize2",  "PLACEHOLDER", 7, 0, 100)
-        self.ddr.add_variable("sigma",  "PLACEHOLDER", 9, 0, 30)
+        self.ddr.add_variable("ksize1",  "PLACEHOLDER", 7, 0, 20)
+        self.ddr.add_variable("ksize2",  "PLACEHOLDER", 7, 0, 20)
+        self.ddr.add_variable("sigma",  "PLACEHOLDER", .8, 0, 10)
 
         self.ddr.add_variable("blocksize", "PLACEHOLDER", 11, 0, 50)
         self.ddr.add_variable("C", "PLACEHOLDER", 2, -10, 30)
