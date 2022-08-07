@@ -9,7 +9,7 @@ import rospy
 import rospkg
 
 from sensor_msgs.msg import Image
-from std_msgs.msg import Float32, Empty, String
+from std_msgs.msg import Float32, Empty, String, Bool
 from cv_msgs.msg import Point2, PointArray
 from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
 
@@ -49,6 +49,9 @@ class FeatureDetectionNode():
         self.zedSub                 = rospy.Subscriber(image_topic, Image, self.camera_callback)
         self.resetSub               = rospy.Subscriber('/feature_detection/reset', Empty, self.feature_detection_reset_callback)
         self.fsmStateSub            = rospy.Subscriber('/fsm/state', String, self.fsm_state_cb)
+        self.rcfaSub                = rospy.Subscriber('/cv/preprocessing/rcfa_detection', Bool, self.rcfa_bool_cb)
+        self.ocfaSub                = rospy.Subscriber('/cv/preprocessing/ocfa_detection', Bool, self.ocfa_bool_cb)
+
 
         self.hsvCheckPub            = rospy.Publisher('/feature_detection/hsv_check_image', Image, queue_size= 1)
         self.noiseRmPub             = rospy.Publisher('/feature_detection/noise_removal_image', Image, queue_size= 1)
@@ -64,6 +67,9 @@ class FeatureDetectionNode():
         self.timerPub               = rospy.Publisher('/feature_detection/fps_timer', Float32, queue_size= 1)
 
         self.bridge = CvBridge()
+
+        self.rcfa_det = False
+        self.ocfa_det = False
 
         # ICP initial reference points
         self.ref_points_initial_guess = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
@@ -182,19 +188,42 @@ class FeatureDetectionNode():
         return cv_img_cp, cnny_clors, lines
 
     def spin(self):
-        while not rospy.is_shutdown():            
+        while not rospy.is_shutdown():
             if self.cv_image is not None:
                 try:
-                    start = timer() # Start function timer.
+                    start = timer() # Start function timer
+                    try:
+                        bbox_points, bbox_area, points_in_rects, detection = self.feat_detection.classification(self.cv_image, self.current_object, self.hsv_params, self.noise_rm_params)
+                        pt_arr_msg = self.build_point_array_msg(points_in_rects, self.current_object, self.image_shape[0], self.image_shape[1])
+                        if self.rcfa_det:
+                            self.RectPointsPub.publish(pt_arr_msg)
+                        elif self.ocfa_det:
+                            self.RectPointsPub.publish(pt_arr_msg)
 
-                    t1 = 80 # 100
-                    t2 = 150 # 200
-                    cv_img_cp = copy.deepcopy(self.cv_image)
-                    cropped_image = cv_img_cp[5:720, 0:1280]
 
-                    bb_arr, center, hough_img, edges = HoughMajingo_ob.main(cropped_image, t1, t2)   # self.canny_threshold1, self.canny_threshold2, self.cv_image
-                    self.cv_image_publisher(self.linesPub, hough_img) 
-                    self.cv_image_publisher(self.i2rcpPub, edges, '8UC1')
+                    except TypeError:
+                        pass
+                    
+                    self.cv_image_publisher(self.hsvCheckPub, self.feat_detection.hsv_validation_img)
+                    self.cv_image_publisher(self.noiseRmPub, self.feat_detection.nr_img, msg_encoding="mono8")
+                    self.cv_image_publisher(self.i2rcpPub, self.feat_detection.i2rcp_image_blank)
+                    self.cv_image_publisher(self.shapePub, self.feat_detection.rect_flt_img)
+                    self.cv_image_publisher(self.linesPub, self.feat_detection.line_fitting_img)
+                    self.cv_image_publisher(self.BBoxPub, self.feat_detection.bbox_img)
+                    self.cv_image_publisher(self.pointAreasPub, self.feat_detection.pointed_rects_img)
+
+                    if bbox_points:
+                        bboxes_msg = self.build_bounding_boxes_msg(bbox_points, self.current_object)
+                        if self.rcfa_det:
+                            self.BBoxPointsPub.publish(bboxes_msg)
+                        elif self.ocfa_det:
+                            self.BBoxPointsPub.publish(bboxes_msg)
+
+                        self.prev_bboxes_msg = bboxes_msg
+                    
+                    else:
+                        rospy.logwarn("Bounding Box wasnt found... keep on spinning...")
+                        self.BBoxPointsPub.publish(self.prev_bboxes_msg)
                     
                     if len(bb_arr) != 0:
                         rospy.loginfo("Now detecting: bounding box %s", bb_arr)
@@ -229,6 +258,13 @@ class FeatureDetectionNode():
 
             self.feat_detection.points_processing_reset()
     
+    def rcfa_bool_cb(self, msg):
+        self.rcfa_det = msg.data
+
+    def ocfa_bool_cb(self, msg):
+        self.ocfa_det = msg.data
+
+        
     def load_obj_config(self, config_path):
         params = read_yaml_file(config_path)
 
