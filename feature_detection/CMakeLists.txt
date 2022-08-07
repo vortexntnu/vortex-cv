@@ -152,6 +152,7 @@ catkin_install_python(PROGRAMS
   scripts/feature_detection_node.py
   scripts/dynam_recfg.py
   # scripts/dynam_reconfigure_server.py
+  scripts/hough_transform_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
