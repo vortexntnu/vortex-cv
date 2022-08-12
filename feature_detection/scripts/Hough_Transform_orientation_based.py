@@ -18,7 +18,7 @@ class HoughTransform:
     """
 
     @staticmethod
-    def lines_coord(lines_HT, orientation, e=8):
+    def lines_coord(lines_HT, orientation=0, e=8):
         """
         Since the image is affected by noise and calibration inaccuracies, this function attempts to make the output of the bounding boxes more robust
         by combining adjacent lines into one line.
