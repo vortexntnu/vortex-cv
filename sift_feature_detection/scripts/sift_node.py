@@ -1,42 +1,44 @@
 #!/usr/bin/env python
 
-from tkinter import image_types
 import cv2 as cv
-from cv_bridge import CvBridge, CvBridgeError
 import glob
+from matplotlib.transforms import Bbox
 import numpy as np
-from os.path import join, basename, realpath, dirname, exists, splitext
-
 
 #ROS imports
 import rospy
-from rospkg import RosPack
-import tf.transformations
-from sensor_msgs.msg import Image
-from cv_msgs.msg import Point2, PointArray
-from geometry_msgs.msg import PoseStamped
-from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
-from cv_msgs.msg import Centeroid, CenteroidArray
+import tf.transformations # Required for the orientiation estimation implementation
 
+from cv_bridge import CvBridge, CvBridgeError
+from rospkg import RosPack
+
+from cv_msgs.msg import Centeroid, CenteroidArray
+from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
+from sensor_msgs.msg import Image
+from std_msgs.msg import String
 
 # Contains visualization tools
 from draw_tools import DrawTools
 
-
 class SiftFeature:
     '''
+    TODO: The orientation of the object can be estimated based on the images from image list. For this to be done 
+    properly the image used for orientation estimation should have known orientation. A implementation securing
+    this is not implemented yet. (One idea is to have some images for position detection and one image for 
+    orientation estimation)
+
     This node:
 
     * Reads images from a folder, generates kp (keypoints) and des (descriptors) and stores them for the session
 
     * Compares stored kp and des with the ones from the camera image.
 
-    * When matches are within the threshold the homography and perspective trasform (opencv functions) gets applied
+    * When matches are within the threshold homography and perspective trasform (opencv functions) gets applied
 
     * The corner points from the read images gets found in the cam image, aswell as the centeroid
 
 
-    * Bounding box and found points gets drawn unless commented out
+    * Bounding box and found points gets drawn and published if set to True
 
     '''
     
@@ -51,12 +53,21 @@ class SiftFeature:
 
         #  grayscale = 0, color = 1
         self.colormode = 0
+                    
+        # Only for visual effects (draws bounding box, cornerpoints, etc...)
+        self.visualize_detections = False
 
         # Minimum matches needed for drawing bounding box
-        self.MIN_MATCH_COUNT = 8
+        self.MIN_MATCH_COUNT = 7
 
         # Scale the bounding box (Only downscale)
         self.scale = 0.999
+
+        # Folders to read from
+        self.image_types = ["bootlegger","gman"]
+
+        self.lower_image_list_index = 0
+        self.upper_image_list_index = len(self.image_types)
 
         #################
         ###### Node #####
@@ -68,19 +79,14 @@ class SiftFeature:
         # ROS node init
         rospy.init_node(node_name)
 
-        #Subscribe topic
-        image_sub = "/zed2/zed_node/rgb/image_rect_color"
-        
-        rospy.Subscriber(image_sub, Image, self.callback)
-        
-        # Publisher
-        self.detections_pub = rospy.Publisher('/feature_detection/sift_bbox_image', Image, queue_size=1)
+        #Subscribers
+        rospy.Subscriber("/zed2/zed_node/rgb/image_rect_color", Image, self.callback)
+        rospy.Subscriber("/fsm/state", String, self.update_object_search)
 
-        #self.cornerpoints_pub = rospy.Publisher('/feature_detection/sift_object_points', BoundingBoxes, queue_size= 1)
-        self.detection_centeroid_pub = rospy.Publisher('/feature_detection/sift_detection_centeroid', CenteroidArray, queue_size=1)
-
+        # Publishers
         self.BBoxPointsPub = rospy.Publisher('/feature_detection/sift_detection_bbox', BoundingBoxes, queue_size= 1)
-
+        self.detections_pub = rospy.Publisher('/feature_detection/sift_bbox_image', Image, queue_size=1)
+        self.detection_centeroid_pub = rospy.Publisher('/feature_detection/sift_detection_centeroid', CenteroidArray, queue_size=1)
 
         ################
         ###CV stuff ####
@@ -89,59 +95,31 @@ class SiftFeature:
 
         self.bridge = CvBridge() 
 
-        # Initiate SIFT detector (opencv version 3.4.x) 
-        #self.sift = cv.xfeatures2d.SIFT_create()
-        # (opencv version 4.5.1)
-        self.sift = cv.SIFT_create()
+        self.sift = cv.SIFT_create() # cv.xfeatures2d.SIFT_create() # (opencv version 3.4.x) 
 
-        ################################
-        ##### kp and des from data #####
-        ################################
+        ###############################
+        ##### kp and des cam feed #####
+        ###############################
 
         rp = RosPack()
         path = str(rp.get_path('sift_feature_detection')) + '/data/sift_images/'
 
-        # Image path
-        #path0 = "/home/kristian/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/bootlegger/*.png"
-        #path1 = "/home/kristian/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/gman/*.png"
-        #path2 = "/home/vortex/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/gate_corner/*.png"
-
-        self.image_types = ["bootlegger","gman","badge"] # ,"gate"
         self.image_list = []
-
-        for i in range(len(self.image_types)):
-            temp_path = glob.glob(path + self.image_types[i] + "/*.png")
-            print(temp_path)
-            temp = [cv.imread(file, self.colormode) for file in temp_path]
-            self.image_list.append(temp)
-            temp_path = None
-            print(temp_path)
-
-        # Compare image(s)
-#         bootlegger = [cv.imread(file, self.colormode) for file in glob.glob(path0)]
-#         self.image_list.append(bootlegger)
-# # 
-#         g_man = [cv.imread(file, self.colormode) for file in glob.glob(path1)]
-#         self.image_list.append(g_man)
-        
-        #gate_corner = [cv.imread(file, self.colormode) for file in glob.glob(path2)]
-        #self.image_list.append(gate_corner)
-
-        rospy.loginfo("Number of imagetypes: %s", len(self.image_list))
-        if len(self.image_list) == 0:
-            rospy.logwarn("\n ######################################## \n ### No images found!### \n ########################################")
-
         self.kp = []
         self.des = []
 
-        
+        for i in range(len(self.image_types)):
+            temp_path = glob.glob(path + self.image_types[i] + "/*.png")
+            temp = [cv.imread(file, self.colormode) for file in temp_path]
+            self.image_list.append(temp)
+            temp_path = None
+
         # Gets keypoints and descriptors for every loaded image
         for image_type in self.image_list:
             kp_temp = []
             des_temp = []
             for image in image_type:
                 k, d = self.sift.detectAndCompute(image,None)
-                #rospy.loginfo("print k %s", k)
                 kp_temp.append(k)
                 des_temp.append(d)
             
@@ -152,6 +130,13 @@ class SiftFeature:
         ##Init end##
         ############
 
+    def update_object_search(self, status):
+        mission = status.data
+
+        if mission == "gate/execute":
+            # Remove first element from search
+            self.lower_image_list_index += 1
+            
     def add_centeroid(self, img_type, centeroid):
         pub = Centeroid()
         pub.name = img_type
@@ -161,13 +146,11 @@ class SiftFeature:
 
         self.CentroidArray_message.centeroid.append(pub)
 
-
-
-    def scale_bounding_box(self, dst):
+    def scale_bounding_box(self, dst, scale=1):
         '''
         This function downscales a square to a smaller square (no upscale).
-        Use small scaling like 0.999 if your bounding box gets crazy when
-        choosing a small number.
+        Keep the scale close to 1, (e.g. 0.999) if your bounding box gets uncanny when
+        choosing a number further away from 1.
 
             p1-----------p4
             | \        /  |
@@ -176,11 +159,16 @@ class SiftFeature:
             |   p2s  p3s  |
             |  /        \ |
             p2------------p3
+        
+        args:
+            dst    : Array of (4,1,2), four cornerpoints
+            scale    : Scale in range of [0, 1]
 
         Returns:
-            dst_scaled as a (4,1,2) array and a (4,2) array
+            dst_scaled_cv_packed    : Array of (4,1,2)
+            dst_scaled    : Array of (4,2)
         '''
-        sf = self.scale - 1
+        sf = scale - 1
         sf1 = 1 + np.abs(sf)
         sf2 = 1 - np.abs(sf)
 
@@ -198,9 +186,11 @@ class SiftFeature:
 
         dst_scaled = np.array([p1, p2, p3, p4])
 
-        return np.reshape(dst_scaled,(4,1,2)), dst_scaled
+        dst_scaled_cv_packed = np.reshape(dst_scaled,(4,1,2))
 
-    def build_bounding_boxes_msg(self, bbox_points, obj_class):
+        return dst_scaled_cv_packed, dst_scaled
+
+    def add_bounding_box(self, bbox_points, obj_class):
         bbox = BoundingBox()
         bbox.probability = 69.69
         bbox.xmin = int(bbox_points[0][0])
@@ -211,14 +201,14 @@ class SiftFeature:
         bbox.id = 0
         bbox.Class = obj_class
 
-        new_bbox_points_msg = BoundingBoxes()
-        new_bbox_points_msg.header.stamp = rospy.get_rostime()
-        new_bbox_points_msg.header.frame_id = "zed_left_optical_camera_sensor"
-        new_bbox_points_msg.bounding_boxes.append(bbox)
+        self.BBoxPoints_message.bounding_boxes.append(bbox)
 
-        return new_bbox_points_msg
+    def compare_matches(self, cam_image, kp2, des2, single_image_list, kp, des, image_type):
 
-    def compare_matches(self, cam_image, flann, kp2, des2, single_image_list, kp, des, image_type):
+        FLANN_INDEX_KDTREE = 1
+        index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
+        search_params = dict(checks = 50)
+        flann = cv.FlannBasedMatcher(index_params, search_params)
 
         good_best = []
 
@@ -233,52 +223,52 @@ class SiftFeature:
 
             if len(good) > len(good_best):
                 good_best = good
+                kp_best = kp[i]
+                best_image = single_image_list[i]
 
         if len(good_best)>self.MIN_MATCH_COUNT:
-            src_pts = np.float32([ kp[i][m.queryIdx].pt for m in good ]).reshape(-1,1,2)
-            dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
-            M, mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC,5.0)
-            matchesMask = mask.ravel().tolist()
+            src_pts = np.float32([ kp_best[m.queryIdx].pt for m in good_best ]).reshape(-1,1,2)
+            dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good_best ]).reshape(-1,1,2)
+            M, _ = cv.findHomography(src_pts, dst_pts, cv.RANSAC,5.0)
 
-            if len(single_image_list[i].shape) == 2:
-                h,w = single_image_list[i].shape
+            if len(best_image.shape) == 2:
+                h,w = best_image.shape
             else:
-                h, w, _ = single_image_list[i].shape
+                h, w, _ = best_image.shape
 
             pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
             dst = cv.perspectiveTransform(pts,M)
-
-            # Gets orientation of the object
+ 
+            # Gets orientation of the object, this is based on the orientation of compare image
             #M0 = np.zeros((4,4))
             #M0[:3, :3] = M[:3, :3]
             #M0[3,3] = 1
             #orientation = tf.transformations.quaternion_from_matrix(M0)
 
             # Scales the bounding box
-            dst_scaled_cv_packed, dst_scaled = self.scale_bounding_box(dst)
-                
-            
-            msg = self.build_bounding_boxes_msg(dst_scaled, image_type)
+            dst_scaled_cv_packed, dst_scaled = self.scale_bounding_box(dst, self.scale)
 
-            self.BBoxPointsPub.publish(msg)
+            # Changes the name such that it fits with the fsm names
+            image_type = self.side_desicion(image_type)
 
+            #self.publish_centeroid(i, centeroid, orientation)
+            self.add_bounding_box(dst_scaled, image_type)
 
-            # Only for visual effects (draws bounding box, cornerpoints, etc...)
-            cam_image, centeroid = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, image_type, centeroid=True)
-            
             # Add centeroid
+            centeroid = self.drawtools.find_centeroid(dst)
             self.add_centeroid(image_type, centeroid)
 
-            # self.publish_centeroid(image_type, centeroid)
+            if self.visualize_detections == True:
+                cam_image = self.drawtools.draw_all(cam_image, dst, dst_scaled_cv_packed, image_type, centeroid)
 
-        else:
-            #print( "Not enough matches are found - {}/{}".format(len(good_best), self.MIN_MATCH_COUNT) )
-            matchesMask = None
 
         return cam_image
 
+    def cv_image_publisher(self, publisher, image, msg_encoding="bgra8"):
+        pub_img = self.bridge.cv2_to_imgmsg(image, encoding=msg_encoding)
+        publisher.publish(pub_img)
+
     def callback(self, cam_image_ros):
-        self.CentroidArray_message = CenteroidArray()
         try:
             cam_image = self.bridge.imgmsg_to_cv2(cam_image_ros, "passthrough")
             if self.colormode == 0:
@@ -286,33 +276,40 @@ class SiftFeature:
         except CvBridgeError, e:
             rospy.logerr("CvBridge Error: {0}".format(e))
 
+        stamp = rospy.get_rostime()
+        frame_id = "zed2_left_camera_sensor"
+
+        # Creates a CenteroidArray
+        self.CentroidArray_message = CenteroidArray()
+
+        # Creates a Boundingbox array
+        self.BBoxPoints_message = BoundingBoxes()
+
         kp2, des2 = self.sift.detectAndCompute(cam_image, None)
-        FLANN_INDEX_KDTREE = 1
-        index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
-        search_params = dict(checks = 50)
-        flann = cv.FlannBasedMatcher(index_params, search_params)
         
-        for i in range(len(self.image_list)):
+        for i in range(self.lower_image_list_index, self.upper_image_list_index):
             single_image_list = self.image_list[i]
             kp = self.kp[i]
             des = self.des[i]
             image_type = self.image_types[i]
-            cam_image = self.compare_matches(cam_image, flann, kp2, des2, single_image_list, kp, des, image_type)
-
-        if self.colormode == 0:
-            pub_img = self.bridge.cv2_to_imgmsg(cam_image, encoding="mono8")
-        else:
-            pub_img = self.bridge.cv2_to_imgmsg(cam_image, encoding="bgra8")
-        self.detections_pub.publish(pub_img)
+            cam_image = self.compare_matches(cam_image, kp2, des2, single_image_list, kp, des, image_type)
 
         # Centeroid message
-        
-        self.CentroidArray_message.header.stamp = rospy.get_rostime()
-        self.CentroidArray_message.header.frame_id = "zed_left_camera_sensor"
-
+        self.CentroidArray_message.header.stamp = stamp
+        self.CentroidArray_message.header.frame_id = frame_id
         self.detection_centeroid_pub.publish(self.CentroidArray_message)
 
-        rospy.sleep(self.get_image_rate)
+        # Boundingbox message
+        self.BBoxPoints_message.header.stamp = stamp
+        self.BBoxPoints_message.header.frame_id = frame_id
+        self.BBoxPointsPub.publish(self.BBoxPoints_message)
+
+        # Visualization pub
+        if self.visualize_detections == True:
+            if self.colormode == 0:
+                self.cv_image_publisher(self.detections_pub, cam_image, msg_encoding="mono8")
+            else:
+                self.cv_image_publisher(self.detections_pub, cam_image, msg_encoding="bgra8")
         
 
 if __name__ == '__main__':

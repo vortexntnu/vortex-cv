@@ -8,6 +8,6 @@
     </group>
 
     <!-- Sift node -->
-   <node pkg="sift_feature_detection" type="sift_node_with_logic.py" name="sift_node" output="screen"/>
+   <node pkg="sift_feature_detection" type="sift_node.py" name="sift_node" output="screen"/>
 
 </launch>

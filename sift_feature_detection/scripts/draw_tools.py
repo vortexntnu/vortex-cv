@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import cv2 as cv
 import numpy as np
 
@@ -61,10 +59,7 @@ class DrawTools:
 
         return img
 
-    def draw_all(self, img, dst, dst_packed, image_type,centeroid=False):
-        if centeroid == True:
-            centeroid  = self.find_centeroid(dst)
-        
+    def draw_all(self, img, dst, dst_packed, image_type,centeroid):        
         img = self.draw_all_circles(img, dst, radius=8)
         img = self.draw_all_circles(img, dst_packed, radius=5)
         img = self.text_on_image(img, dst, image_type)
@@ -73,15 +68,3 @@ class DrawTools:
 
         return img
 
-    # def publish_centeroid(self, img_numb, centeroid, orientation):
-    #     pub = PoseStamped()
-    #     pub.header.frame_id = "image" + str(img_numb)
-    #     pub.pose.position.x = centeroid[0]
-    #     pub.pose.position.y = centeroid[1]
-    #     pub.pose.position.z = 0
-    #     pub.pose.orientation.x = orientation[0]
-    #     pub.pose.orientation.y = orientation[1]
-    #     pub.pose.orientation.z = orientation[2]
-    #     pub.pose.orientation.w = orientation[3]
-
-    #     self.detection_centeroid_pub.publish(pub)
