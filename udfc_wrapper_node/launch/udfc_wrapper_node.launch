@@ -1,0 +1,7 @@
+
+<launch>
+    <node name ="udfc_wrapper_node" pkg="udfc_wrapper_node" type="udfc_wrapper_node" output="screen" />
+    <rosparam command="load" file="$(find udfc_wrapper_node)/params/cameraParams.yaml" />
+</launch>
+
+

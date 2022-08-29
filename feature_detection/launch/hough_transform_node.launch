@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<launch>
+    <node name="hough_transform_node"    pkg="feature_detection"     type="hough_transform_node.py"    output="screen"/>
+</launch>

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(feature_detection)
+project(image_preprocessing)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -9,8 +9,6 @@ project(feature_detection)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   rospy
-  sensor_msgs
-  dynamic_reconfigure
 )
 
 ## System dependencies are found with CMake's conventions
@@ -77,9 +75,20 @@ find_package(catkin REQUIRED COMPONENTS
 ## Declare ROS dynamic reconfigure parameters ##
 ################################################
 
+## To declare and build dynamic reconfigure parameters within this
+## package, follow these steps:
+## * In the file package.xml:
+##   * add a build_depend and a exec_depend tag for "dynamic_reconfigure"
+## * In this file (CMakeLists.txt):
+##   * add "dynamic_reconfigure" to
+##     find_package(catkin REQUIRED COMPONENTS ...)
+##   * uncomment the "generate_dynamic_reconfigure_options" section below
+##     and list every .cfg file to be processed
+
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
 # generate_dynamic_reconfigure_options(
-#   cfg/gate_detection.cfg
+#   cfg/DynReconf1.cfg
+#   cfg/DynReconf2.cfg
 # )
 
 ###################################
@@ -93,8 +102,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES feature_detection
-  CATKIN_DEPENDS rospy sensor_msgs dynamic_reconfigure
+#  LIBRARIES image_preprocessing
+#  CATKIN_DEPENDS rospy
 #  DEPENDS system_lib
 )
 
@@ -111,7 +120,7 @@ include_directories(
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/feature_detection.cpp
+#   src/${PROJECT_NAME}/image_preprocessing.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -122,7 +131,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/feature_detection_node.cpp)
+# add_executable(${PROJECT_NAME}_node src/image_preprocessing_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -132,7 +141,7 @@ include_directories(
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-# add_dependencies(${PROJECT_NAME}_gencfg ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
@@ -149,10 +158,7 @@ include_directories(
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
-  scripts/feature_detection_node.py
-  scripts/dynam_recfg.py
-  # scripts/dynam_reconfigure_server.py
-  scripts/hough_transform_node.py
+  scripts/image_preprocessing_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
@@ -189,7 +195,7 @@ catkin_install_python(PROGRAMS
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_feature_detection.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_image_preprocessing.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
