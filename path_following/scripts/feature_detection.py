@@ -238,15 +238,28 @@ class ImageFeatureProcessing(object):
             contour_intensities = (noisy_img[pts[0], pts[1]])
             
             contour_colour_vars[k] = np.var(contour_intensities, axis=0)
+
         try:
-            # TODO: Now we just use the biggest contour. This might need to get fixed.
-            #inds = area_thresh_inds[np.argmin(contour_colour_vars)]
-            inds = np.argmax(areas)
+            inds = area_thresh_inds[np.argmin(contour_colour_vars)]
+            return inds
         except:
             return []
-        return inds
-        #return area_thresh_inds[np.argmin(contour_colour_vars)]
-            
+    
+    def biggest_contour_inds(self, contours, contour_area_threshold):
+        """Returns the argmax inds of the contours if it is above a certain threshold. Returns an empty list otherwise.
+        """
+        
+        areas = np.array([cv2.contourArea(contour) for contour in contours])
+
+        try:
+
+            inds = np.argmax(areas)
+            if areas[inds] >= contour_area_threshold:
+                return inds
+            else:
+                return[]
+        except:
+            return []
 
 
     def contour_processing(
@@ -255,7 +268,7 @@ class ImageFeatureProcessing(object):
         contour_area_threshold,
         enable_convex_hull=False,
         return_image=True,
-        variance_filtering=False,
+        pfps=False,
         coloured_img=None,
         image=None,
         show_centers=True,
@@ -271,6 +284,8 @@ class ImageFeatureProcessing(object):
             return_image            (bool)      : {default=True} False to return only contour data.
                                                   If param 'image' is None - returns a blanked image with drawn contour data.
                                                   If param 'image' is an image - returns both drawn blanked and passed images.
+            pfps                    (bool)      : Path Following Perception System. Set true when the path following node is
+                                                  calling this, and does a pfps specific set of contour processing actions.
             image                   (cv::Mat)   : {default=None} An image on which to draw processed contours.
             show_centers            (bool)      : {default=True} Draw contour centers in the returned image(s).
             show_areas              (bool)      : {default=False} Draw contour areas in the returned image(s).
@@ -289,12 +304,18 @@ class ImageFeatureProcessing(object):
 
         contours, hierarchy = cv2.findContours(noise_removed_image, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)[-2:]
         
-        if variance_filtering:
+        if pfps:
             if coloured_img is None:
                 raise AttributeError("Bruh give me an image if you want variance filtering angry face")
-            cnt_filter = self.contour_variance_filtering(
-                contours, contour_area_threshold, coloured_img[:,:,2]
+            
+            # As of summer 2022 we are using the biggest contour instead of variance filtering
+            #cnt_filter = self.contour_variance_filtering(
+            #    contours, contour_area_threshold, coloured_img[:,:,2]
+            #)
+            cnt_filter = self.biggest_contour_inds(
+                contours, contour_area_threshold
             )
+
             contours_array = np.array(contours)
             contours_filtered = contours_array[cnt_filter]
             return contours_filtered
