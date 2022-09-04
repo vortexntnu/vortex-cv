@@ -115,7 +115,7 @@ class PathFollowingNode():
         self.possible_states = ["path_search", "path_converge", "path_execute"]
         self.current_state = ""
         self.objectID = "path"
-        self.detection_area_threshold = 30000
+        self.detection_area_threshold = 2000
 
         self.isDetected            = False
         self.estimateConverged     = False
@@ -137,6 +137,8 @@ class PathFollowingNode():
         try:
             cv_image = self.bridge.imgmsg_to_cv2(img, "passthrough")
             self.image_shape = cv_image.shape
+            self.img_center = np.array([self.image_shape[0]/2, self.image_shape[1]/2])
+
         except CvBridgeError, e:
             rospy.logerr("CvBridge Error: {0}".format(e))
 
@@ -335,7 +337,7 @@ class PathFollowingNode():
         noise_filtered_img = self.feature_detector.noise_removal_processor(hsv_mask, *self.noise_rm_params)
         self.cv_image_publisher(self.noise_filteredPub, noise_filtered_img, msg_encoding="8UC1")
 
-        self.path_contour = self.feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, variance_filtering=True, coloured_img=udfc_img, return_image=False)
+        self.path_contour = self.feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, pfps=True, coloured_img=udfc_img, return_image=False)
         try:
             self.path_contour[:,0]
         except:
