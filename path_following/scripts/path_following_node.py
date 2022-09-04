@@ -9,6 +9,7 @@
 
 from cProfile import label
 from matplotlib.pyplot import contour
+from plumbum import local
 import rospy
 import rospkg
 
@@ -22,7 +23,7 @@ import dynamic_reconfigure.client
 
 #from geometry_msgs.msg import PointStamped
 from vortex_msgs.msg import ObjectPosition
-from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import TransformStamped, Point
 
 import tf2_ros
 import tf2_geometry_msgs.tf2_geometry_msgs
@@ -102,7 +103,9 @@ class PathFollowingNode():
         # Publishers
         self.udfcPub = rospy.Publisher("/path_following/udfc", Image, queue_size=1)
         self.hsvPub = rospy.Publisher("/path_following/hsv_monkey", Image, queue_size=1)
+
         self.wpPub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
+        self.errorPub = rospy.Publisher('/pfps/error_img', Point, queue_size=1)
 
         self.noise_filteredPub = rospy.Publisher("/path_following/noise_filtered", Image, queue_size=1)
         self.bridge = CvBridge()
@@ -112,7 +115,7 @@ class PathFollowingNode():
         self.possible_states = ["path_search", "path_converge", "path_execute"]
         self.current_state = ""
         self.objectID = "path"
-        self.detection_area_threshold = 2000
+        self.detection_area_threshold = 30000
 
         self.isDetected            = False
         self.estimateConverged     = False
@@ -122,9 +125,10 @@ class PathFollowingNode():
         self.uppest_y_coords = []
 
         # TODO: find realistic values for these. Needs to be field tested.
+        # Huseby 20.07.2022 patch: these should now be useless!!!
         self.H_pool_prior       = 2     # Depth of pool
         self.h_path_prior       = 0.1   # Height of path
-        self.Z_prior_ref        = 1.69  # Optimal z-coordinate for performing pfps
+        self.Z_prior_ref        = 1  # Optimal z-coordinate for performing pfps
 
         self.point_transformer = tf2_geometry_msgs.tf2_geometry_msgs
 
@@ -132,11 +136,12 @@ class PathFollowingNode():
         img = rospy.wait_for_message("/cv/image_preprocessing/CLAHE_single/udfc", Image)
         try:
             cv_image = self.bridge.imgmsg_to_cv2(img, "passthrough")
+            self.image_shape = cv_image.shape
         except CvBridgeError, e:
             rospy.logerr("CvBridge Error: {0}".format(e))
 
         # Objects for the classes
-        self.feature_detector = feature_detection.FeatureDetection(cv_image.shape)
+        self.feature_detector = feature_detection.FeatureDetection(self.image_shape)
         self.dynam_client = dynamic_reconfigure.client.Client("/CVOD_cfg/feature_detection_cfg", config_callback=self.dynam_reconfigure_callback)
 
         #TF stuff
@@ -165,17 +170,19 @@ class PathFollowingNode():
         msgified_img = self.bridge.cv2_to_imgmsg(image, encoding=msg_encoding)
         publisher.publish(msgified_img)
     
+    def publish_error(self, local_error):
+        p = Point
+
+        p.x = local_error[0]
+        p.y = local_error[1]
+        p.z = 0
+
+        self.errorPub.publish(p)
+
     def publish_waypoint(self, publisher, objectID, waypoint):
         p = ObjectPosition()
         #p.pose.header[]
         p.objectID = objectID
-        #try:
-        #    p.objectPose.header.seq += 1
-        #except AttributeError:
-        #    p.objectPose.header.seq = 1
-        #    
-        #p.header.time = rospy.get_rostime()
-        #p.header.frame_id = self.parent_frame
 
         p.objectPose.pose.position.x = waypoint[0]
         p.objectPose.pose.position.y = waypoint[1]
@@ -185,9 +192,15 @@ class PathFollowingNode():
         p.objectPose.pose.orientation.z = 0
         p.objectPose.pose.orientation.w = 1
 
-        p.isDetected = self.isDetected
-        p.estimateConverged = self.estimateConverged
-        p.estimateFucked = self.estimateFucked
+        p.isDetected            = self.isDetected
+        p.estimateConverged     = self.estimateConverged
+        p.estimateFucked        = self.estimateFucked
+        
+        # When we publish the buoy we set everything to false again
+        if objectID == "buoy":
+            p.isDetected            = False
+            p.estimateConverged     = False
+            p.estimateFucked        = False
 
         publisher.publish(p)
         rospy.loginfo("Object published: %s", objectID)
@@ -258,6 +271,11 @@ class PathFollowingNode():
         
         else:
             return p_line, p0
+    def local_path_errors(self):
+        local_error = np.append(self.img_center - self.path_centroid, 1)
+        local_error = np.matmul(self.K_opt_inv, local_error)
+
+        return local_error
 
     def batch_estimate_waypoint(self, t_udfc_odom):
         
@@ -267,8 +285,8 @@ class PathFollowingNode():
         colin_vec   = np.ravel(np.array((vx, vy)))
         p0          = np.ravel(np.array((x0, y0)))
         
-        p1 = np.append(p0 + 5*colin_vec, 1)
-        p2 = np.append(p0 - 5*colin_vec, 1)
+        p1 = np.append(p0 + 50*colin_vec, 1)
+        p2 = np.append(p0 - 50*colin_vec, 1)
         
         p1_img = np.matmul(self.K_opt, p1 - t_udfc_odom)
         p2_img = np.matmul(self.K_opt, p2 - t_udfc_odom)
@@ -288,7 +306,7 @@ class PathFollowingNode():
         #plt.legend()
         #plt.show()
 
-        return np.append(next_waypoint, self.Z_prior_ref)
+        return np.append(next_waypoint, 0)
     
     def path_following_udfc_cb(self, img_msg):
 
@@ -304,9 +322,8 @@ class PathFollowingNode():
 
         if np.shape(self.batch_line_params)[0] > 200:
             # In case we have gathered enough information
-            self.isEstimated = True
             next_waypoint = self.batch_estimate_waypoint(t_udfc_odom)
-            self.publish_waypoint(self.wpPub, "next_task", next_waypoint)
+            self.publish_waypoint(self.wpPub, "buoy", next_waypoint)
             return None
 
         udfc_img = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
@@ -326,13 +343,12 @@ class PathFollowingNode():
 
         path_area, img_drawn, self.path_centroid = self.path_calculations(udfc_img)
         self.path_contour = self.path_contour[:,0]
-        print(path_area)
 
         # Contour detection
         if self.isDetected == False and path_area > self.detection_area_threshold:
             self.isDetected == True
         # Whole path "detection"
-        if self.isDetected == True and path_area > 70000: # Hard thresholding like that is retarded...find a proper solution
+        if self.isDetected == True and path_area > 20000: # Hard thresholding like that is retarded...find a proper solution
             self.estimateConverged = True
 
         # Undistort centroid point
@@ -365,8 +381,12 @@ class PathFollowingNode():
             self.uppest_y_coords.append(upper_contour_image[uppest_y_ind, :])
             self.batch_line_params = np.vstack((self.batch_line_params, np.vstack((p_line_odom, p0_odom))))
         
+        # TODO: print this to test if it makes sense
+        local_error = self.local_path_errors()
+
         self.cv_image_publisher(self.udfcPub, img_drawn, "bgr8")
         self.publish_waypoint(self.wpPub, "path", dp_ref)
+        self.publish_error(local_error)
 
 
     def dynam_reconfigure_callback(self, config):
