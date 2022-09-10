@@ -1,0 +1,18 @@
+version: '3.8'
+services:
+  vortex:
+    container_name: sift
+    image: sift:autolaunch
+    user: vortex
+    privileged: true
+    volumes:
+      - "../..:/home/vortex/auv_ws/src" # Shared volume to avoid rebuilding when starting a new container
+      - "../../..:/home/vortex/auv_ws/"
+      - "/dev:/dev"
+
+    environment:
+      DISPLAY: :0
+    stdin_open: true
+    tty: true
+    network_mode: host
+    entrypoint: ["/entrypoint.sh"]
