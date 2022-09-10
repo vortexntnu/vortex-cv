@@ -53,7 +53,7 @@ class SiftFeature:
         self.colormode = 0
                     
         # Only for visual effects (draws bounding box, cornerpoints, etc...)
-        self.visualize_detections = False
+        self.visualize_detections = True
 
         # Minimum matches needed for drawing bounding box
         self.MIN_MATCH_COUNT = 7
@@ -245,9 +245,6 @@ class SiftFeature:
 
             # Scales the bounding box
             dst_scaled_cv_packed, dst_scaled = self.scale_bounding_box(dst, self.scale)
-
-            # Changes the name such that it fits with the fsm names
-            image_type = self.side_desicion(image_type)
 
             #self.publish_centeroid(i, centeroid, orientation)
             self.add_bounding_box(dst_scaled, image_type)
