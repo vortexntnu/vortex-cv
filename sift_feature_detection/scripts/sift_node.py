@@ -167,7 +167,10 @@ class SiftFeature:
 
     def scale_bounding_box(self, dst, scale=1):
         '''
-        This function downscales a square to a smaller square (no upscale).
+        This function downscales a bounding box to a smaller one (no upscale).
+        The idea is to make sure the bounding box is to remove more points on the
+        outside of the object.
+
         Keep the scale close to 1, (e.g. 0.999) if your bounding box gets uncanny when
         choosing a number further away from 1.
 
