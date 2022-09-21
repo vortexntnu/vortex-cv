@@ -1,6 +1,6 @@
-#FROM ros:melodic
+FROM ros:melodic
 
-FROM arm64v8/ros:melodic
+# FROM arm64v8/ros:melodic
 
 ARG distro=melodic
 ENV DEBIAN_FRONTEND=noninteractive
@@ -54,12 +54,14 @@ RUN pip install  \
 
 RUN apt update
 
+
 RUN echo "source /opt/ros/melodic/setup.bash" >> /home/vortex/.bashrc
 RUN echo "source /home/vortex/auv_ws/devel/setup.bash" >> /home/vortex/.bashrc
 RUN echo "alias srcdev='source devel/setup.bash'" >> /home/vortex/.bashrc
 
-
 RUN mkdir -p /home/vortex/auv_ws/src
 RUN chown -R vortex /home/vortex/auv_ws
+
+COPY ./entrypoint.sh /
 
 CMD ["/bin/bash"]

@@ -28,6 +28,9 @@ class SiftFeature:
 
     TODO: Add multi image type support
 
+    TODO: Add a function that takes care of objects detected in the same spot (where one or more is false detections), 
+    compare the number of matches and cut out the false positives.  
+
     This node:
 
     * Reads images from a folder(multiple folders), generates kp (keypoints) and des (descriptors) and stores them for the session
@@ -50,19 +53,20 @@ class SiftFeature:
         ##################
 
         # grayscale = 0, color = 1
-        self.colormode = 0
+        self.colormode = 1
                     
         # Only for visual effects (draws bounding box, cornerpoints, etc...)
         self.visualize_detections = True
 
         # Minimum matches needed for drawing bounding box
-        self.MIN_MATCH_COUNT = 7
+        self.MIN_MATCH_COUNT = 10
 
         # Scale the bounding box (Only downscale)
         self.scale = 0.999
 
         # Folders to read from
-        self.image_types = ["bootlegger","gman"]
+        self.image_types = ["gman", "bootlegger"]
+
 
         self.lower_image_list_index = 0
         self.upper_image_list_index = len(self.image_types)
@@ -76,6 +80,9 @@ class SiftFeature:
 
         # ROS node init
         rospy.init_node(node_name)
+
+        # The frame object gets detected in
+        self.frame_id = "zed2_left_camera_sensor"
 
         #Subscribers
         rospy.Subscriber("/fsm/state", String, self.update_object_search)
@@ -93,7 +100,8 @@ class SiftFeature:
 
         self.bridge = CvBridge() 
 
-        self.sift = cv.SIFT_create() # cv.xfeatures2d.SIFT_create() # (opencv version 3.4.x) 
+        #self.sift = cv.SIFT_create() # (opencv version 4.x.y) 
+        self.sift = cv.xfeatures2d.SIFT_create() # (opencv version 3.4.x) 
 
         ###############################
         ##### kp and des cam feed #####
@@ -272,7 +280,7 @@ class SiftFeature:
             rospy.logerr("CvBridge Error: {0}".format(e))
 
         stamp = rospy.get_rostime()
-        frame_id = "zed2_left_camera_sensor"
+        frame_id = self.frame_id
 
         # Creates a CenteroidArray
         self.CentroidArray_message = CenteroidArray()
