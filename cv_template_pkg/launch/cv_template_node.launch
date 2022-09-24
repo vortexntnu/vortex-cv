@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+    <node name="republish" type="republish" pkg="image_transport" output="screen" args="compressed in:=/zed2/zed_node/rgb_raw/image_raw_color raw out:=/zed2/zed_node/rgb_raw/image_raw_color" />
+
+    <node name="cv_template_node"    pkg="cv_template_pkg"     type="cv_template_node.py"    output="screen"/>
+    <node name="test_cfg"    pkg="cv_template_pkg"     type="dynam_recfg_core.py"    output="screen"/>
+</launch>
