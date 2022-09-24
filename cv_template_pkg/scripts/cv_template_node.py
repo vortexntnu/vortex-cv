@@ -10,12 +10,12 @@ import cv2 as cv
 import numpy as np
 import traceback
 
-class CoreCVNode():
+class CVTemplateNode():
     """Handles tasks related to feature detection
     """
 
     def __init__(self, image_topic):
-        rospy.init_node('core_cv_node')
+        rospy.init_node('cv_template_node')
         
         self.ros_rate = rospy.Rate(60.0)
 
@@ -42,7 +42,7 @@ class CoreCVNode():
         except CvBridgeError, e:
             raise("CV Bridge was not successful in converting the ROS image...")
 
-        self.dynam_client = dynamic_reconfigure.client.Client("/test_cfg/cv_core_cfg", config_callback=self.dynam_reconfigure_callback)
+        self.dynam_client = dynamic_reconfigure.client.Client("/test_cfg/cv_template_cfg", config_callback=self.dynam_reconfigure_callback)
 
     def cv_image_publisher(self, publisher, image, msg_encoding="bgra8"):
         """
@@ -92,9 +92,9 @@ class CoreCVNode():
 
 if __name__ == '__main__':
     try:
-        core_cv_node = CoreCVNode(image_topic='/zed2/zed_node/rgb_raw/image_raw_color')
+        cv_template_node = CVTemplateNode(image_topic='/zed2/zed_node/rgb_raw/image_raw_color')
         # rospy.spin()
-        core_cv_node.spin()
+        cv_template_node.spin()
 
     except rospy.ROSInterruptException:
         pass

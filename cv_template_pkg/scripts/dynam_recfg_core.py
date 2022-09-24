@@ -5,7 +5,7 @@ from ddynamic_reconfigure_python.ddynamic_reconfigure import DDynamicReconfigure
 
 class DynamicReconfigure(object):
     def __init__(self, *args, **kwargs):        
-        self.ddr = DDynamicReconfigure("cv_core_cfg")
+        self.ddr = DDynamicReconfigure("cv_template_cfg")
 
         # Slider example
         self.ddr.add_variable("test_slider1", "test",   100,    0,  1000)
@@ -46,7 +46,7 @@ class DynamicReconfigure(object):
         return config
 
 if __name__ == '__main__':
-    rospy.init_node('cv_core_cfg')
+    rospy.init_node('cv_template_cfg')
 
     # Create a D(ynamic)DynamicReconfigure
     dynam = DynamicReconfigure()
