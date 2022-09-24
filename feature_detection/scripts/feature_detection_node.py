@@ -10,8 +10,7 @@ import rospkg
 
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float32, Empty, String, Bool
-from cv_msgs.msg import Point2, PointArray
-from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
+from cv_msgs.msg import Point2, PointArray, BBox, BBoxes
 
 from cv_bridge import CvBridge, CvBridgeError
 import dynamic_reconfigure.client
@@ -123,7 +122,7 @@ class FeatureDetectionNode():
         publisher.publish(msgified_img)
     
     def build_bounding_boxes_msg(self, bbox_points, obj_class):
-        bbox = BoundingBox()
+        bbox = BBox()
         bbox.probability = 69.69
         bbox.xmin = bbox_points[0]
         bbox.ymin = bbox_points[1]

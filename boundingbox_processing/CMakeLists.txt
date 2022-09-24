@@ -9,7 +9,6 @@ project(boundingbox_processing)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   cv_msgs
-  darknet_ros_msgs
   roscpp
   rospy
   std_msgs

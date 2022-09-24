@@ -1,7 +1,9 @@
-string Class
 float64 probability
-float32 width
-float32 height
+int64 xmin
+int64 ymin
+int64 xmax
+int64 ymax
 float32 z
-float32 centre_angle_x
-float32 centre_angle_y
+
+int16 id
+string Class

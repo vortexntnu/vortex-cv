@@ -6,8 +6,7 @@ import numpy as np
 import ros_numpy
 
 # Import msg types
-from darknet_ros_msgs.msg import BoundingBoxes, BoundingBox
-from cv_msgs.msg import BBox, BBoxes
+from cv_msgs.msg import BBoxes, BBOox
 from sensor_msgs.msg import PointCloud2
 
 # Import classes
@@ -24,10 +23,10 @@ class BoundingBoxProcessingNode():
     def __init__(self):
         rospy.init_node('boundingbox_processing_node')
         self.pointcloudSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_camera_cb)
-        self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.darknet_cb)
+        self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BBoxes, self.darknet_cb)
 
         # subscriber and publisher for limiting pointcloud to bounding box
-        self.CVbboxSub = rospy.Subscriber('/gate_detection/BoundingBox', BoundingBox, self.feature_bbox_cb)
+        self.CVbboxSub = rospy.Subscriber('/gate_detection/BoundingBox', BBoxes, self.feature_bbox_cb)
         self.lim_pointcloudPub = rospy.Publisher('/pointcloud_processing/pointcloud_limited_to_bbox',PointCloud2, queue_size=1) 
         
         # TODO: Needs reevaluation
@@ -98,7 +97,7 @@ class BoundingBoxProcessingNode():
 
     def darknet_cb(self, data):
         """
-        Gets the data from the subscribed message BoundingBoxes and publishes the size estimates of a detected object, and the position of the object.
+        Gets the data from the subscribed message BBoxes and publishes the size estimates of a detected object, and the position of the object.
 
         Args:
             data: The message that has been recieved.
