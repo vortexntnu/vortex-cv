@@ -9,8 +9,7 @@ import rospy
 
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float32, Empty
-from cv_msgs.msg import BBox
-from darknet_ros_msgs.msg import BoundingBox
+from cv_msgs.msg import BBox, BBoxes
 
 from cv_bridge import CvBridge, CvBridgeError
 import dynamic_reconfigure.client
@@ -44,7 +43,7 @@ class FeatureDetectionNode():
         self.pointAreasPub          = rospy.Publisher('/feature_detection/point_areas_image', Image, queue_size= 1)
         self.BBoxPub                = rospy.Publisher('/feature_detection/bbox_image', Image, queue_size= 1)
         
-        self.BBoxPointsPub          = rospy.Publisher('/feature_detection/detection_bbox', BoundingBox, queue_size= 1)
+        self.BBoxPointsPub          = rospy.Publisher('/feature_detection/detection_bbox', BBox, queue_size= 1)
         # self.RectPointsPub          = rospy.Publisher('/feature_detection/object_points', SOMETOPIC, queue_size= 1)
 
         self.timerPub               = rospy.Publisher('/feature_detection/fps_timer', Float32, queue_size= 1)
