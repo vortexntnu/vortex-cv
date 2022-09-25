@@ -7,6 +7,8 @@
 #debugpy.wait_for_client()
 
 ##EKF imports
+import sys
+
 from ast import Mult
 from re import X
 
@@ -33,13 +35,14 @@ from scipy.stats import chi2
 class GMFNode:
     
 
-    def __init__(self):
+    def __init__(self, name):
         ########################################
         ####Things you can change yourself####
         ########################################
-
+        node_name = name
+        self.object_name = name
         #Name of the node
-        node_name = "gmf"
+        # node_name = "gmf"
 
         #Frame names, e.g. "odom" and "cam"
 
@@ -52,7 +55,7 @@ class GMFNode:
         #Subscribe topic
         # TODO: this is just like object_edc, which was used on pool test, but why?? Is everything a spy??
 
-        object_topic_subscribe = "/pointcloud_processing/poseStamped/spy"
+        object_topic_subscribe = "/pointcloud_processing/poseStamped/" + node_name
         mission_topic_subscribe = "/fsm/state"
 
         ##################
@@ -62,13 +65,13 @@ class GMFNode:
 
         # Tuning Parameters for the GMF scheme:
         self.init_prob = 0.2
-        self.boost_prob = 0.05
+        self.boost_prob = 0.25
         self.termination_criterion = 0.95
         self.survival_threshold = 0.05
         gate_percentile = 0.6
         self.max_nr_hypotheses = 25
         # TODO: find a good number for these by looking at how many iterrations it takes to get that low
-        self.covariance_norm_convergence = 0.5
+        self.covariance_norm_convergence = 1
         self.max_kf_iterrations = 30
 
 
@@ -94,7 +97,7 @@ class GMFNode:
 
         # Tuning parameters
         self.sigma_a = 0*np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
-        self.sigma_z = 2*np.array([1, 0.5, 0.5, 0.5, 0.5, 0.5])
+        self.sigma_z = 2*np.array([1, 0.5, 0.5, 5 * np.pi/180, 5 * np.pi/180, 5 * np.pi/180])
 
         self.R = np.diag(self.sigma_z)
 
@@ -126,7 +129,7 @@ class GMFNode:
         # Subscribe to mission topic
         # TODO: figure out what we do here with Tarek and Finn
         # We always start in _search state. This will later be updated from first measurement arrival
-        self.mission_topic = self.current_object + "_search"
+        self.mission_topic = self.current_object + "/search"
         self.mission_topic_old = self.mission_topic[:]
         self.mission_topic_sub = rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
 
@@ -520,8 +523,8 @@ class GMFNode:
         
         p = ObjectPosition()
         #p.pose.header[]
-        p.objectID = objectID
-        p.objectPose.header = "object_" + str(objectID)
+        p.objectID = self.object_name
+        #p.objectPose.header = "object_" + str(objectID)
         p.objectPose.pose.position.x = best_position[0]
         p.objectPose.pose.position.y = best_position[1]
         p.objectPose.pose.position.z = best_position[2]
@@ -532,8 +535,9 @@ class GMFNode:
         p.objectPose.pose.orientation.w = best_pose_quaternion[3]
 
         p.isDetected            = self.termination_bool
-        #p.estimateConverged     = self.estimateConverged
-        #p.estimateFucked        = self.estimateFucked
+        p.estimateConverged     = self.estimateConverged
+        p.estimateFucked        = self.estimateFucked
+
         
         self.gate_pose_pub.publish(p)
         rospy.loginfo("Object published: %s", objectID)
@@ -589,8 +593,10 @@ class GMFNode:
         #self.publish_hypothesis_transformation(self.testing_hypothesis)
         
         # In the case of failed convergence validation from the VKF, we will go from current_object + "converge" to current_object + "search"
-        current_action = self.mission_topic.split("_")[1]
-        old_action = self.mission_topic_old.split("_")[1]
+        current_action = self.mission_topic.split("/")[1]
+        old_action = self.mission_topic_old.split("/")[1]
+
+        ObjectID = self.mission_topic.split("/")[0]
         
         # Reset GMF on going from converge back to search
         if old_action == "converge" and current_action == "search":
@@ -617,11 +623,11 @@ class GMFNode:
             Ts = self.get_Ts(self.best_hypothesis)
             _, _, self.best_hypothesis = self.kf_function(z, self.best_hypothesis, full_ekf, Ts)
             self.mission_topic_old = self.mission_topic[:]
-            self.evaluate_filter_convergence("gate")
-            #self.evaluate_filter_convergence(msg.objectID)
+            #self.evaluate_filter_convergence("gate")
+            self.evaluate_filter_convergence(ObjectID)
 
-            #self.publish_function(msg.ObjectID)
-            self.publish_function("gate")
+            self.publish_function(ObjectID)
+            #self.publish_function("gate")
 
             return None
 
@@ -652,16 +658,16 @@ class GMFNode:
             self.best_hypothesis = self.active_hypotheses[self.best_ind - 1]
 
         # TODO: Fix this in pcp
-        #self.publish_function(msg.objectID, search=True)
-        self.publish_function("gate", search=True)
+        self.publish_function(ObjectID, search=True)
+        #self.publish_function("gate", search=True)
         self.mission_topic_old = self.mission_topic
 
 
 if __name__ == '__main__':
-    while not rospy.is_shutdown():     
-        try:
-            gm_filter = GMFNode()
-            rospy.spin()
-        except rospy.ROSInterruptException:
-            pass
+    name = sys.argv[1]
+    print("Node name:" + name)
+   
+    gm_filter = GMFNode(name)
+    rospy.spin()
+
     
