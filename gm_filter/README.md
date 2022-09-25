@@ -27,20 +27,24 @@ Do Nothing
 ### Kalman Filters:
 
 #### In search:
-state vector:       x = [x_odom, y_odom, z_odom]
-measurement vector: y = [x_cam, y_cam, z_cam]
+**state vector:**       $x = [x_{odom}, y_{odom}, z_{odom}]^T$
 
-process model:     x_dot = 0
-measurement model: y = Rot_cw * x + v
+**measurement vector:** y = $[x_{cam}, y_{cam}, z_{cam}]^T$
+
+**process model:**     $\dot x = 0$
+
+**measurement model:** $y = R_w^c * x + v$
 
 #### In converge:
-state vector:       x = [x_odom, y_odom, z_odom, phi, theta, psi]
-measurement vector: y = [x_cam, y_cam, z_cam, phi, theta, psi]
+**state vector:**       $x = [x_{odom}, y_{odom}, z_{odom}, \phi,\theta, \psi]^T$
 
-process model:     x_dot = 0
-measurement model: y = diag(Rot_cw, I_3x3) * x + v
+**measurement vector:** $y = [x_{cam}, y_{cam}, z_{cam}, \phi, \theta, \psi]^T$
 
-Rot_cw is the SO(3) matrix rotating a vector from w(orld = odom) to c(amera) frame.
+**process model:**     $\dot x = 0$
+
+**measurement model:** $y = diag(R_w^c, I_{3 \times 3}) * x + v$
+
+$R_w^c$ is the SO(3) matrix rotating a vector from w(orld = odom) to c(amera) frame.
 
 ### Important Files in ekf_python2:
 
