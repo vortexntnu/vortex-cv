@@ -1,0 +1,19 @@
+  <launch>
+    <!--Input args-->
+    <!-- <param name ="/use_sim_time" value="true"/> -->
+    <!-- arg name="bagfile" default="$(env HOME)/vortex_ws/src/Vortex-CV/object_edc/bagfiles/lite_gate_medium_sway_backwards_qual.bag" /> -->
+
+    <arg name="gate" default="gate"/>
+    <arg name="badge" default="badge"/>
+    <arg name="bootlegger" default="bootlegger"/>
+    <arg name="gman" default="gman"/>
+    
+    <node name="gmf_gate" pkg="gmf" type="gmf_node.py" args="gate" output="screen"/>
+    <node name="gmf_torpedo_target" pkg="gmf" type="gmf_node.py" args="torpedo_target" output="screen"/>
+    <node name="gmf_torpedo_poster" pkg="gmf" type="gmf_node.py" args="torpedo_poster" output="screen"/>
+    <node name="gmf_buoy" pkg="gmf" type="gmf_node.py" args="buoy" output="screen"/>
+    <node name="gmf_octagon" pkg="gmf" type="gmf_node.py" args="octagon" output="screen"/>
+    
+    <!-- <node pkg="gmf" type="gmf_node.py" name="gmf_node" output="screen"/> -->
+
+  </launch>
