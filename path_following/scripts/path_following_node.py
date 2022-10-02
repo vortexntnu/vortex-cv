@@ -48,7 +48,7 @@ class PathFollowingNode():
                             and we request switch to converge.
 
         path_converge:      During path converge the goal is to center the path in the FOV of the underwater downwards facing camera (in the future refered to as the UDFC)
-                            The path is classified in UDFC frame and it's areal centroid is mapped to odom and given as xy reference for the DP controller. The assumption being
+                            The path is classified in UDFC frame and it's areal centroid is regulated to the middle of the image through a local PID scheme. The assumption being
                             that this scheme will progressively get the path more and more into FOV, and finally in the centre of UDFC frame. After the path is sufficiently
                             centered we move on to execute.
 
