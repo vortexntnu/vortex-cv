@@ -41,6 +41,9 @@ class GMFNode:
         ########################################
         node_name = name
         self.object_name = name
+
+        print("HEllo world from DAvid PErsson")
+
         #Name of the node
         # node_name = "gmf"
 
