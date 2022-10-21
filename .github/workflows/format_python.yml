@@ -1,2 +1,8 @@
 name: Format python code
 on: push
+jobs:
+  Job_test:
+    runs-on: ubuntu-latest
+    name: HEllo world test job
+    steps:
+       - run: echo "Hello world"
