@@ -44,6 +44,7 @@ class GMFNode:
 
         print("HEllo world from DAvid PErsson")
         print("Another test")
+        print("Another test")
 
         #Name of the node
         # node_name = "gmf"
