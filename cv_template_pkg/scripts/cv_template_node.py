@@ -39,7 +39,7 @@ class CVTemplateNode():
         try:
             self.cv_image = self.bridge.imgmsg_to_cv2(first_image_msg, "passthrough")
             self.image_shape = self.cv_image.shape
-        except CvBridgeError, e:
+        except (CvBridgeError, e):
             raise("CV Bridge was not successful in converting the ROS image...")
 
         self.dynam_client = dynamic_reconfigure.client.Client("/test_cfg/cv_template_cfg", config_callback=self.dynam_reconfigure_callback)
