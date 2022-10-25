@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+
+  cv-dev:
+    container_name: cv-dev
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    user: vortex
+    privileged: true
+    volumes:
+      - "..:/home/vortex/cv_ws/src"
+      - "/dev:/dev"
+
+    stdin_open: true  #Enable terminal input
+    tty: true         #Keep from closing
