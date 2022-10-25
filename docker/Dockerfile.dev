@@ -1,0 +1,28 @@
+FROM ros:melodic
+
+ARG distro=melodic
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Create vortex user
+RUN useradd -ms /bin/bash \
+    --home /home/vortex  vortex
+RUN echo "vortex:vortex" | chpasswd
+RUN usermod -aG sudo vortex
+
+#ROS package dependencies
+RUN apt update && \
+    apt install -y --no-install-recommends \
+    python-pip
+
+#Python package dependencies
+#RUN pip install \
+#    numpy \
+#    scipy \
+#    statistics \
+#    turtle
+
+RUN source /opt/ros/$distro/setup.bash && \
+#    cd /vortex_ws && \
+#    catkin build
+#ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/bin/bash"]
