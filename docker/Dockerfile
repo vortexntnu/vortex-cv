@@ -17,12 +17,12 @@ RUN pip install \
     turtle
 
 # Assume the root contains vortex-cv, darknet_ros_zed and ddynamic_reconfigure_python
-#COPY ./vortex-cv /vortex_ws/src/vortex-cv
-#COPY ./darknet_ros_zed /vortex_ws/src/darknet_ros_zed
-#COPY ./ddynamic_reconfigure_python /vortex_ws/src/ddynamic_reconfigure_python
+COPY ./vortex-cv /vortex_ws/src/vortex-cv
+COPY ./darknet_ros_zed /vortex_ws/src/darknet_ros_zed
+COPY ./ddynamic_reconfigure_python /vortex_ws/src/ddynamic_reconfigure_python
 
-#RUN source /opt/ros/$distro/setup.bash && \
-#    cd /vortex_ws && \
-#    catkin build
+RUN source /opt/ros/$distro/setup.bash && \
+    cd /vortex_ws && \
+    catkin build
 #ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/bin/bash"]
