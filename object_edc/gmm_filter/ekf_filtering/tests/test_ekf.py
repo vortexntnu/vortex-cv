@@ -30,12 +30,8 @@ def test_data():
 
 
 def compare(a, b):
-    if (
-        isinstance(a, np.ndarray)
-        or isinstance(b, np.ndarray)
-        or np.isscalar(a)
-        or np.isscalar(b)
-    ):
+    if (isinstance(a, np.ndarray) or isinstance(b, np.ndarray)
+            or np.isscalar(a) or np.isscalar(b)):
         return np.allclose(a, b)
     elif is_dataclass(a) or is_dataclass(b):
         return str(a) == str(b)
@@ -53,8 +49,8 @@ class TestOutput:
 
             self_2, state_upd_prev_gauss_2, Ts_2 = deepcopy(params)
 
-            state_pred_gauss_1 = ekf.EKF.predict(
-                self_1, state_upd_prev_gauss_1, Ts_1)
+            state_pred_gauss_1 = ekf.EKF.predict(self_1,
+                                                 state_upd_prev_gauss_1, Ts_1)
 
             state_pred_gauss_2 = solution.ekf.EKF.predict(
                 self_2, state_upd_prev_gauss_2, Ts_2)
@@ -94,8 +90,8 @@ class TestOutput:
             self_2, z_2, state_pred_gauss_2, measurement_gauss_2 = deepcopy(
                 params)
 
-            state_upd_gauss_1 = ekf.EKF.update(
-                self_1, z_1, state_pred_gauss_1, measurement_gauss_1)
+            state_upd_gauss_1 = ekf.EKF.update(self_1, z_1, state_pred_gauss_1,
+                                               measurement_gauss_1)
 
             state_upd_gauss_2 = solution.ekf.EKF.update(
                 self_2, z_2, state_pred_gauss_2, measurement_gauss_2)
@@ -141,7 +137,8 @@ class TestSolutionUsage:
 
             ekf.EKF.predict(**params)
 
-            assert not solution.used["ekf.EKF.predict"], "The function uses the solution"
+            assert not solution.used[
+                "ekf.EKF.predict"], "The function uses the solution"
 
     def test_solution_usage__EKF_predict_measurement(self, test_data):
         for finput in test_data["ekf.EKF.predict_measurement"][:1]:
@@ -151,7 +148,8 @@ class TestSolutionUsage:
 
             ekf.EKF.predict_measurement(**params)
 
-            assert not solution.used["ekf.EKF.predict_measurement"], "The function uses the solution"
+            assert not solution.used[
+                "ekf.EKF.predict_measurement"], "The function uses the solution"
 
     def test_solution_usage__EKF_update(self, test_data):
         for finput in test_data["ekf.EKF.update"][:1]:
@@ -161,7 +159,8 @@ class TestSolutionUsage:
 
             ekf.EKF.update(**params)
 
-            assert not solution.used["ekf.EKF.update"], "The function uses the solution"
+            assert not solution.used[
+                "ekf.EKF.update"], "The function uses the solution"
 
     def test_solution_usage__EKF_step_with_info(self, test_data):
         for finput in test_data["ekf.EKF.step_with_info"][:1]:
@@ -171,7 +170,8 @@ class TestSolutionUsage:
 
             ekf.EKF.step_with_info(**params)
 
-            assert not solution.used["ekf.EKF.step_with_info"], "The function uses the solution"
+            assert not solution.used[
+                "ekf.EKF.step_with_info"], "The function uses the solution"
 
 
 if __name__ == "__main__":

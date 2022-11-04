@@ -30,12 +30,8 @@ def test_data():
 
 
 def compare(a, b):
-    if (
-        isinstance(a, np.ndarray)
-        or isinstance(b, np.ndarray)
-        or np.isscalar(a)
-        or np.isscalar(b)
-    ):
+    if (isinstance(a, np.ndarray) or isinstance(b, np.ndarray)
+            or np.isscalar(a) or np.isscalar(b)):
         return np.allclose(a, b)
     elif is_dataclass(a) or is_dataclass(b):
         return str(a) == str(b)
@@ -107,34 +103,40 @@ class TestOutput:
 class TestSolutionUsage:
 
     def test_solution_usage__WhitenoiseAcceleration2D_f(self, test_data):
-        for finput in test_data["dynamicmodels.WhitenoiseAcceleration2D.f"][:1]:
+        for finput in test_data[
+                "dynamicmodels.WhitenoiseAcceleration2D.f"][:1]:
             params = finput
 
             solution.used["dynamicmodels.WhitenoiseAcceleration2D.f"] = False
 
             dynamicmodels.WhitenoiseAcceleration2D.f(**params)
 
-            assert not solution.used["dynamicmodels.WhitenoiseAcceleration2D.f"], "The function uses the solution"
+            assert not solution.used[
+                "dynamicmodels.WhitenoiseAcceleration2D.f"], "The function uses the solution"
 
     def test_solution_usage__WhitenoiseAcceleration2D_F(self, test_data):
-        for finput in test_data["dynamicmodels.WhitenoiseAcceleration2D.F"][:1]:
+        for finput in test_data[
+                "dynamicmodels.WhitenoiseAcceleration2D.F"][:1]:
             params = finput
 
             solution.used["dynamicmodels.WhitenoiseAcceleration2D.F"] = False
 
             dynamicmodels.WhitenoiseAcceleration2D.F(**params)
 
-            assert not solution.used["dynamicmodels.WhitenoiseAcceleration2D.F"], "The function uses the solution"
+            assert not solution.used[
+                "dynamicmodels.WhitenoiseAcceleration2D.F"], "The function uses the solution"
 
     def test_solution_usage__WhitenoiseAcceleration2D_Q(self, test_data):
-        for finput in test_data["dynamicmodels.WhitenoiseAcceleration2D.Q"][:1]:
+        for finput in test_data[
+                "dynamicmodels.WhitenoiseAcceleration2D.Q"][:1]:
             params = finput
 
             solution.used["dynamicmodels.WhitenoiseAcceleration2D.Q"] = False
 
             dynamicmodels.WhitenoiseAcceleration2D.Q(**params)
 
-            assert not solution.used["dynamicmodels.WhitenoiseAcceleration2D.Q"], "The function uses the solution"
+            assert not solution.used[
+                "dynamicmodels.WhitenoiseAcceleration2D.Q"], "The function uses the solution"
 
 
 if __name__ == "__main__":
