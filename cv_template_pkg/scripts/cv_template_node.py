@@ -63,7 +63,7 @@ class CVTemplateNode():
 
                     self.cv_image_publisher(self.imgPub, gray, msg_encoding="8UC1")
 
-                except Exception, e:
+                except Exception (CvBridgeError, e):
                     rospy.logwarn(traceback.format_exc())
                     rospy.logwarn(rospy.get_rostime())
 
@@ -72,7 +72,7 @@ class CVTemplateNode():
     def img_callback(self, img_msg):
         try:
             self.cv_image = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
-        except CvBridgeError, e:
+        except (CvBridgeError, e):
             rospy.logerr("CvBridge Error: {0}".format(e))
 
     def dynam_reconfigure_callback(self, config):
