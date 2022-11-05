@@ -14,8 +14,15 @@ RUN apt update && \
     apt install -y --no-install-recommends \
     python-pip \
     python-catkin-tools \
-    \
-    ros$distro-tf
+    libx11-dev
+
+#ROS packages
+RUN apt update && \
+    apt install -y --no-install-recommends \
+    ros-${distro}-tf \
+    ros-${distro}-cv-bridge \
+    ros-${distro}-image-transport 
+
 
 
 #Python package dependencies
@@ -23,14 +30,17 @@ RUN apt update && \
 #    numpy \
 #    scipy \
 #    statistics \
-#    turtle
+#    turtle \
+#    scikit-learn 
+    #opencv-python
+
 
 # Add source to .bashrc file
-RUN echo "source /opt/ros/melodic/setup.bash" >> /home/vortex/.bashrc
+RUN echo "source /opt/ros/${distro}/setup.bash" >> /home/vortex/.bashrc
 RUN echo "source /home/vortex/auv_ws/devel/setup.bash" >> /home/vortex/.bashrc
 
 RUN mkdir -p /home/vortex/cv_ws/src
 RUN chown -R vortex /home/vortex/cv_ws
 
-#ENTRYPOINT ["/entrypoint.sh"]
+
 CMD ["/bin/bash"]

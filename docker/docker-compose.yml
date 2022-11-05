@@ -11,7 +11,7 @@ services:
     privileged: true  #Give the container access to your computer and all connected devices
 
     volumes:
-      - "..:/home/vortex/cv_ws/src"
+      - "../..:/home/vortex/cv_ws/src"
       - "/dev:/dev"
 
     stdin_open: true  #Enable terminal input
