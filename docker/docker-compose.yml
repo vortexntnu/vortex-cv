@@ -8,7 +8,7 @@ services:
       dockerfile: docker/Dockerfile.dev
 
     user: vortex
-    privileged: true  #Give the container access to your computer and all connected devices
+    privileged: true  #Give the container access to all your files and all connected devices
 
     volumes:
       - "../..:/home/vortex/cv_ws/src"

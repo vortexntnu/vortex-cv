@@ -1,0 +1,48 @@
+name: Publish Docker image to ghcr
+
+on:
+  push:
+    branches: 
+    - feature/docker
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout own repository
+        uses: actions/checkout@v3
+
+      # Move vortex_msgs to image
+      - name: Checkout vortex_msgs
+        uses: actions/checkout@v3
+        with:
+          repository: 'vortexntnu/vortex-msgs'
+          path: './vortex-msgs'  
+      - name: Move vortex_msgs
+        run: mv ./vortex-msgs ../vortex-msgs
+
+      # Move ddynamic_reconfigure_python to image
+      - name: Checkout ddynamic_reconfigure_python
+        uses: actions/checkout@v3
+        with:
+          repository: 'pal-robotics/ddynamic_reconfigure_python'
+          path: './ddynamic_reconfigure_python'
+      - name: Move ddynamic_reconfigure_python
+        run: mv ./Dynamic dynamic reconfigure python ../
+
+      # Move  darknet_ros_zed to image
+      - name: Checkout vortex_msgs
+        uses: actions/checkout@v3
+        with:
+          repository: 'vortexntnu/darknet_ros_zed'
+          path: './darknet_ros_zed'  
+      - name: Move darknet_ros_zed
+        run: mv ./darknet_ros_zed ../darknet_ros_zed
