@@ -14,7 +14,7 @@ RUN apt update && \
     apt install -y --no-install-recommends \
     python-pip \
     python-catkin-tools \
-    libx11-dev
+    libx11-dev 
 
 #ROS packages
 RUN apt update && \
@@ -37,7 +37,7 @@ RUN apt update && \
 
 # Add source to .bashrc file
 RUN echo "source /opt/ros/${distro}/setup.bash" >> /home/vortex/.bashrc
-RUN echo "source /home/vortex/auv_ws/devel/setup.bash" >> /home/vortex/.bashrc
+RUN echo "source /home/vortex/cv_ws/devel/setup.bash" >> /home/vortex/.bashrc
 
 RUN mkdir -p /home/vortex/cv_ws/src
 RUN chown -R vortex /home/vortex/cv_ws
