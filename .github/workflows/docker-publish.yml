@@ -36,7 +36,7 @@ jobs:
           repository: 'pal-robotics/ddynamic_reconfigure_python'
           path: './ddynamic_reconfigure_python'
       - name: Move ddynamic_reconfigure_python
-        run: mv ./Dynamic dynamic reconfigure python ../
+        run: mv ./ddynamic_reconfigure_python ../
 
       # Move  darknet_ros_zed to image
       - name: Checkout vortex_msgs
