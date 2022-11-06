@@ -8,8 +8,8 @@ import rospy
 # Measurement models interface declaration
 
 
-
 class MeasurementModel:
+
     def h(self, x, **kwargs):
         """Calculate the noise free measurement location at x in sensor_state.
         Args:
@@ -70,7 +70,6 @@ class MeasurementModel:
 #        return R
 
 
-
 class NED_range_bearing(MeasurementModel):
     """The model is a sensor agnostic landmark pose measurement model
 
@@ -81,32 +80,25 @@ class NED_range_bearing(MeasurementModel):
     
     """
 
-    def __init__(self, 
-                sigma_sensor, 
-                pos, 
-                R_sw, 
-                R_sl,
-                Jac_lam
-                ):
+    def __init__(self, sigma_sensor, pos, R_sw, R_sl, Jac_lam):
         self.sigma_z = sigma_sensor
         self.p_wb = pos
         self.Rot_sw = R_sw
         self.Rot_sl = R_sl
         self.orientation_jacobian = Jac_lam
 
-    
     def h(self, x):
         """Predict measurement through the non-linear vector field h given the
         state x
         x = [pw_wg, gamma_wg] ^ T
         z = [pb_bg, gamma_wg]
         """
-         
+
         z = np.matmul(self.Rot_sw.T, (x[0:3] - self.p_wb[0:3]))
 
-        z_phi = np.arctan2(self.Rot_sl[2,1] , self.Rot_sl[2,2])
-        z_theta = np.arcsin(-self.Rot_sl[2,0])
-        z_psi = np.arctan2(self.Rot_sl[1,0], self.Rot_sl[0,0])
+        z_phi = np.arctan2(self.Rot_sl[2, 1], self.Rot_sl[2, 2])
+        z_theta = np.arcsin(-self.Rot_sl[2, 0])
+        z_psi = np.arctan2(self.Rot_sl[1, 0], self.Rot_sl[0, 0])
 
         z = np.append(z, [z_phi, z_theta, z_psi])
 
@@ -119,14 +111,24 @@ class NED_range_bearing(MeasurementModel):
         H_6x6 = [Rot_3x3, 0 
                   0, matrix2euler_jacobian]
         """
-        
+
         euler_state = x[3:6]
         R_sl = self.Rot_sl
 
-        r11, r12, r13, r21, r22, r23, r31, r32, r33 = R_sl[0,0], R_sl[0,1], R_sl[0,2] , R_sl[1,0] , R_sl[1,1] , R_sl[1,2] , R_sl[2,0] , R_sl[2,1] , R_sl[2,2]
+        r11, r12, r13, r21, r22, r23, r31, r32, r33 = R_sl[0, 0], R_sl[
+            0,
+            1], R_sl[0,
+                     2], R_sl[1,
+                              0], R_sl[1,
+                                       1], R_sl[1,
+                                                2], R_sl[2,
+                                                         0], R_sl[2,
+                                                                  1], R_sl[2,
+                                                                           2]
         phi_x, theta_y, psi_z = euler_state[0], euler_state[1], euler_state[2]
 
-        H_eulers = self.orientation_jacobian(r11, r12, r13, r21, r22, r23, r31, r32, r33, phi_x, theta_y, psi_z)
+        H_eulers = self.orientation_jacobian(r11, r12, r13, r21, r22, r23, r31,
+                                             r32, r33, phi_x, theta_y, psi_z)
 
         H = block_diag(self.Rot_sw.T, H_eulers)
         return H
@@ -141,7 +143,6 @@ class NED_range_bearing(MeasurementModel):
         return R
 
 
-
 class NED_semi_linear_landmark(MeasurementModel):
     """The model is a sensor agnostic landmark pose measurement model
 
@@ -152,30 +153,23 @@ class NED_semi_linear_landmark(MeasurementModel):
     
     """
 
-    def __init__(self, 
-                sigma_sensor, 
-                pos, 
-                R_sw, 
-                R_sl,
-                Jac_lam
-                ):
+    def __init__(self, sigma_sensor, pos, R_sw, R_sl, Jac_lam):
         self.sigma_z = sigma_sensor
         self.p_wb = pos
         self.Rot_sw = R_sw
         self.Rot_sl = R_sl
         self.orientation_jacobian = Jac_lam
 
-    
     def h(self, x):
         """Predict measurement through the non-linear vector field h given the
         state x
         x = [pw_wg, gamma_wg] ^ T
         z = [pb_bg, gamma_wg]
         """
-        
+
         z_pos = np.matmul(self.Rot_sw.T, (x[0:3] - self.p_wb[0:3]))
         z_angs = np.matmul(np.eye(3), x[3:6])
-        
+
         rospy.loginfo(z_pos)
         rospy.loginfo(z_angs)
 
@@ -189,7 +183,7 @@ class NED_semi_linear_landmark(MeasurementModel):
         H_6x6 = [Rot_3x3, 0 
                   0, matrix2euler_jacobian]
         """
-        
+
         #euler_state = x[3:6]
         #R_sl = self.Rot_sl
 
@@ -221,13 +215,10 @@ class NED_linear_landmark(MeasurementModel):
     
     """
 
-    def __init__(self, 
-                sigma_sensor
-                ):
+    def __init__(self, sigma_sensor):
 
         self.sigma_z = sigma_sensor
 
-    
     def h(self, x):
         """Predict measurement through the non-linear vector field h given the
         state prediction x
@@ -245,9 +236,9 @@ class NED_linear_landmark(MeasurementModel):
         H_6x6 = [Rot_3x3, 0 
                   0, matrix2euler_jacobian]
         """
-    
+
         n = np.shape(x)[0]
-        H =  np.eye(n)
+        H = np.eye(n)
         return H
 
     def R(self, x):

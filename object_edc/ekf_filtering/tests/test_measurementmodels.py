@@ -30,12 +30,8 @@ def test_data():
 
 
 def compare(a, b):
-    if (
-        isinstance(a, np.ndarray)
-        or isinstance(b, np.ndarray)
-        or np.isscalar(a)
-        or np.isscalar(b)
-    ):
+    if (isinstance(a, np.ndarray) or isinstance(b, np.ndarray)
+            or np.isscalar(a) or np.isscalar(b)):
         return np.allclose(a, b)
     elif is_dataclass(a) or is_dataclass(b):
         return str(a) == str(b)
@@ -108,7 +104,8 @@ class TestSolutionUsage:
 
             measurementmodels.CartesianPosition2D.h(**params)
 
-            assert not solution.used["measurementmodels.CartesianPosition2D.h"], "The function uses the solution"
+            assert not solution.used[
+                "measurementmodels.CartesianPosition2D.h"], "The function uses the solution"
 
     def test_solution_usage__CartesianPosition2D_H(self, test_data):
         for finput in test_data["measurementmodels.CartesianPosition2D.H"][:1]:
@@ -118,7 +115,8 @@ class TestSolutionUsage:
 
             measurementmodels.CartesianPosition2D.H(**params)
 
-            assert not solution.used["measurementmodels.CartesianPosition2D.H"], "The function uses the solution"
+            assert not solution.used[
+                "measurementmodels.CartesianPosition2D.H"], "The function uses the solution"
 
     def test_solution_usage__CartesianPosition2D_R(self, test_data):
         for finput in test_data["measurementmodels.CartesianPosition2D.R"][:1]:
@@ -128,7 +126,8 @@ class TestSolutionUsage:
 
             measurementmodels.CartesianPosition2D.R(**params)
 
-            assert not solution.used["measurementmodels.CartesianPosition2D.R"], "The function uses the solution"
+            assert not solution.used[
+                "measurementmodels.CartesianPosition2D.R"], "The function uses the solution"
 
 
 if __name__ == "__main__":

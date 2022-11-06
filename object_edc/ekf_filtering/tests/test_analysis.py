@@ -30,12 +30,8 @@ def test_data():
 
 
 def compare(a, b):
-    if (
-        isinstance(a, np.ndarray)
-        or isinstance(b, np.ndarray)
-        or np.isscalar(a)
-        or np.isscalar(b)
-    ):
+    if (isinstance(a, np.ndarray) or isinstance(b, np.ndarray)
+            or np.isscalar(a) or np.isscalar(b)):
         return np.allclose(a, b)
     elif is_dataclass(a) or is_dataclass(b):
         return str(a) == str(b)
@@ -106,8 +102,8 @@ class TestOutput:
 
             ANEES_1 = analysis.get_ANEES(x_upd_gauss_data_1, x_gt_data_1)
 
-            ANEES_2 = solution.analysis.get_ANEES(
-                x_upd_gauss_data_2, x_gt_data_2)
+            ANEES_2 = solution.analysis.get_ANEES(x_upd_gauss_data_2,
+                                                  x_gt_data_2)
 
             assert compare(ANEES_1, ANEES_2)
 
@@ -125,7 +121,8 @@ class TestSolutionUsage:
 
             analysis.get_NIS(**params)
 
-            assert not solution.used["analysis.get_NIS"], "The function uses the solution"
+            assert not solution.used[
+                "analysis.get_NIS"], "The function uses the solution"
 
     def test_solution_usage__get_NEES(self, test_data):
         for finput in test_data["analysis.get_NEES"][:1]:
@@ -135,7 +132,8 @@ class TestSolutionUsage:
 
             analysis.get_NEES(**params)
 
-            assert not solution.used["analysis.get_NEES"], "The function uses the solution"
+            assert not solution.used[
+                "analysis.get_NEES"], "The function uses the solution"
 
     def test_solution_usage__get_ANIS(self, test_data):
         for finput in test_data["analysis.get_ANIS"][:1]:
@@ -145,7 +143,8 @@ class TestSolutionUsage:
 
             analysis.get_ANIS(**params)
 
-            assert not solution.used["analysis.get_ANIS"], "The function uses the solution"
+            assert not solution.used[
+                "analysis.get_ANIS"], "The function uses the solution"
 
     def test_solution_usage__get_ANEES(self, test_data):
         for finput in test_data["analysis.get_ANEES"][:1]:
@@ -155,7 +154,8 @@ class TestSolutionUsage:
 
             analysis.get_ANEES(**params)
 
-            assert not solution.used["analysis.get_ANEES"], "The function uses the solution"
+            assert not solution.used[
+                "analysis.get_ANEES"], "The function uses the solution"
 
 
 if __name__ == "__main__":
