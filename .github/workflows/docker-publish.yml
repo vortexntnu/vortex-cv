@@ -38,7 +38,7 @@ jobs:
       - name: Move ddynamic_reconfigure_python
         run: mv ./ddynamic_reconfigure_python ../ddynamic_reconfigure_python
 
-      # Move  darknet_ros_zed to image
+      # Move darknet_ros_zed to image
       - name: Checkout vortex_msgs
         uses: actions/checkout@v3
         with:
