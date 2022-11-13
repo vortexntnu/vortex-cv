@@ -47,6 +47,8 @@ jobs:
       - name: Move darknet_ros_zed
         run: mv ./darknet_ros_zed ../darknet_ros_zed
 
+      - name: debug
+        run: tree -d /proc/self/
 
       # Upload image to ghcr
       - name: Log in to the Container registry
