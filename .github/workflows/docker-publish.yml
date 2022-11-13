@@ -20,7 +20,7 @@ jobs:
       - name: Checkout own repository
         uses: actions/checkout@v3
 
-      # Move vortex_msgs to image
+      # Copy vortex_msgs to image
       - name: Checkout vortex_msgs
         uses: actions/checkout@v3
         with:
@@ -29,7 +29,7 @@ jobs:
       - name: Move vortex_msgs
         run: mv ./vortex-msgs ../vortex-msgs
 
-      # Move ddynamic_reconfigure_python to image
+      # Copy ddynamic_reconfigure_python to image
       - name: Checkout ddynamic_reconfigure_python
         uses: actions/checkout@v3
         with:
@@ -38,8 +38,8 @@ jobs:
       - name: Move ddynamic_reconfigure_python
         run: mv ./ddynamic_reconfigure_python ../ddynamic_reconfigure_python
 
-      # Move darknet_ros_zed to image
-      - name: Checkout vortex_msgs
+      # Copy darknet_ros_zed to image
+      - name: Checkout darknet_ros_zed
         uses: actions/checkout@v3
         with:
           repository: 'vortexntnu/darknet_ros_zed'

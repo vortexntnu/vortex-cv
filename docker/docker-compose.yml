@@ -1,12 +1,12 @@
 version: '3.8'
 services:
 
-  auv:
+  cv:
     container_name: cv
-    image: ghcr.io/EirikKolas/vortex-cv:feature/docker
-    stdin_open: true
-    tty: true
-    #network_mode: host #Maps ports in container to same port on computer
+    image: ghcr.io/eirikkolas/vortex-cv:feature/docker
+    stdin_open: true    #Enable terminal input
+    tty: true           #Keep container from closing
+    #network_mode: host  #Maps ports in container to same port number on computer
 
   #Build 
   cv-dev:
@@ -22,6 +22,6 @@ services:
       - "../..:/home/vortex/cv_ws/src"
       - "/dev:/dev"
 
-    stdin_open: true    #Enable terminal input
-    tty: true           #Keep container from closing
+    stdin_open: true    
+    tty: true           
     #network_mode: host  
