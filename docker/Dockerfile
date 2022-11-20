@@ -27,6 +27,7 @@ COPY ./ddynamic_reconfigure_python  /vortex_ws/src/ddynamic_reconfigure_python
 # catkin build 
 RUN source /opt/ros/${distro}/setup.bash
 RUN cd /vortex_ws
+RUN echo ls
 RUN catkin build
 
 #ENTRYPOINT ["/entrypoint.sh"]
