@@ -25,9 +25,9 @@ COPY ./darknet_ros_zed              /vortex_ws/src/darknet_ros_zed
 COPY ./ddynamic_reconfigure_python  /vortex_ws/src/ddynamic_reconfigure_python
 
 # catkin build 
-RUN source /opt/ros/${distro}/setup.bash && \
-    cd ./vortex_ws && \
-    tree -d /proc/self/ && \
+RUN source /opt/ros/${distro}/setup.bash
+RUN cd ./vortex_ws && \
+    tree -d -L 3 && \
     catkin build
 
 #ENTRYPOINT ["/entrypoint.sh"]
