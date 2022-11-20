@@ -19,7 +19,7 @@ RUN apt update && \
     ros-${distro}-cv-bridge \
     ros-${distro}-image-transport 
 
-# Assume the root contains vortex-cv, vortex-msgs, darknet_ros_zed and ddynamic_reconfigure_python
+# Assume the root contains vortex-cv, darknet_ros_zed and ddynamic_reconfigure_python
 # This is the case when we build using ghcr
 COPY ./vortex-cv                    /vortex_ws/src/vortex-cv
 COPY ./vortex-msgs                  /vortex_ws/src/vortex-msgs
@@ -28,7 +28,8 @@ COPY ./ddynamic_reconfigure_python  /vortex_ws/src/ddynamic_reconfigure_python
 
 # catkin build 
 RUN source /opt/ros/${distro}/setup.bash && \
-    cd /vortex_ws && \
+    cd ./vortex_ws && \
+    tree -d -L 3 && \
     catkin build
 
 #ENTRYPOINT ["/entrypoint.sh"]
