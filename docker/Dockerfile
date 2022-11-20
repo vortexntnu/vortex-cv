@@ -22,6 +22,7 @@ RUN apt update && \
 # Assume the root contains vortex-cv, darknet_ros_zed and ddynamic_reconfigure_python
 # This is the case when we build using ghcr
 COPY ./vortex-cv                    /vortex_ws/src/vortex-cv
+COPY ./vortex-msgs                  /vortex_ws/src/vortex-msgs
 COPY ./darknet_ros_zed              /vortex_ws/src/darknet_ros_zed
 COPY ./ddynamic_reconfigure_python  /vortex_ws/src/ddynamic_reconfigure_python
 
