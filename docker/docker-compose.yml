@@ -8,14 +8,9 @@ services:
     tty: true           #Keep container from closing
     network_mode: host  #Maps ports in container to same port number on computer
 
-  #Build 
   cv-dev:
     container_name: cv-dev
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.dev
-
-    user: vortex
+    image: ghcr.io/eirikkolas/vortex-cv:feature-docker
     privileged: true  #Give the container access to all your files and all connected devices
 
     volumes:
@@ -25,3 +20,4 @@ services:
     stdin_open: true    
     tty: true           
     network_mode: host  
+    entrypoint: ["/bin/bash", "-l"]
