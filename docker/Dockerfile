@@ -9,7 +9,8 @@ RUN apt update && \
     apt install -y --no-install-recommends \
     python-pip \
     python-catkin-tools \
-    libx11-dev 
+    libx11-dev \
+    tree
 
 #ROS packages
 RUN apt update && \
