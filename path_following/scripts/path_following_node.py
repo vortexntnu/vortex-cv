@@ -48,7 +48,7 @@ class PathFollowingNode():
                             and we request switch to converge.
 
         path_converge:      During path converge the goal is to center the path in the FOV of the underwater downwards facing camera (in the future refered to as the UDFC)
-                            The path is classified in UDFC frame and it's areal centroid is mapped to odom and given as xy reference for the DP controller. The assumption being
+                            The path is classified in UDFC frame and it's areal centroid is regulated to the middle of the image through a local PID scheme. The assumption being
                             that this scheme will progressively get the path more and more into FOV, and finally in the centre of UDFC frame. After the path is sufficiently
                             centered we move on to execute.
 
@@ -112,7 +112,7 @@ class PathFollowingNode():
 
 
         # Initialize state and bools
-        self.possible_states = ["path_search", "path_converge", "path_execute"]
+        self.possible_states = ["path/search", "path/converge", "path/execute"]
         self.current_state = ""
         self.objectID = "path"
         self.detection_area_threshold = 2000
@@ -175,8 +175,8 @@ class PathFollowingNode():
     def publish_error(self, local_error):
         p = Point
 
-        p.x = local_error[0]
-        p.y = local_error[1]
+        p.x = local_error[1]
+        p.y = local_error[0] # the first value of the error vector is error in sway
         p.z = 0
 
         self.errorPub.publish(p)
@@ -274,8 +274,8 @@ class PathFollowingNode():
         else:
             return p_line, p0
     def local_path_errors(self):
-        local_error = np.append(self.img_center - self.path_centroid, 1)
-        local_error = np.matmul(self.K_opt_inv, local_error)
+        local_error = np.append(self.path_centroid, 1)
+        local_error = -np.matmul(self.K_opt_inv, local_error)
 
         return local_error
 
@@ -316,7 +316,7 @@ class PathFollowingNode():
 
         if self.current_state not in self.possible_states:
             return None
-        
+     
         tf_lookup_wc    = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5))
         t_udfc_odom     = np.array([tf_lookup_wc.transform.translation.x,
                                     tf_lookup_wc.transform.translation.y,
@@ -354,9 +354,10 @@ class PathFollowingNode():
             self.estimateConverged = True
 
         # Undistort centroid point
-        path_centroid_cam = np.matmul(self.K_opt_inv, np.append(self.path_centroid,1))
-
-        dp_ref = self.map_to_odom(path_centroid_cam[:2], t_udfc_odom, dp_ref=True)
+        # These should be redundant, if the idea of local relative regulation work. Remove after that
+        # has been shown to work in lab 
+        #path_centroid_cam = np.matmul(self.K_opt_inv, np.append(self.path_centroid,1))
+        #dp_ref = self.map_to_odom(path_centroid_cam[:2], t_udfc_odom, dp_ref=True)
 
         # Get the upper contour
         upper_inds          = np.where((self.path_contour[:,1] < self.path_centroid[1]) == True)[0]
@@ -383,11 +384,10 @@ class PathFollowingNode():
             self.uppest_y_coords.append(upper_contour_image[uppest_y_ind, :])
             self.batch_line_params = np.vstack((self.batch_line_params, np.vstack((p_line_odom, p0_odom))))
         
-        # TODO: print this to test if it makes sense
         local_error = self.local_path_errors()
 
+        # Publish error and drawn-on image
         self.cv_image_publisher(self.udfcPub, img_drawn, "bgr8")
-        self.publish_waypoint(self.wpPub, "path", dp_ref)
         self.publish_error(local_error)
 
 
