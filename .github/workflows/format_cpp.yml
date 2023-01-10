@@ -5,6 +5,9 @@ jobs:
     name: clang-format Code Formatter
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@master
+      with: 
+        ref: ${{ github.head_ref }}
     - name: Clang Code Formatter
       uses: ivanludvig/clang-format-action@v1.4
       env:
