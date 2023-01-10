@@ -10,7 +10,7 @@ services:
 
   cv-dev:
     container_name: cv-dev
-    image: ghcr.io/eirikkolas/vortex-cv:main
+    image: ghcr.io/vortexntnu/vortex-cv:main
     privileged: true  #Give the container access to all your files and all connected devices
 
     volumes:
