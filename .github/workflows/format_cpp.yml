@@ -1,5 +1,5 @@
 name: Code Formatter
-on: 
+on:
   push:
 jobs:
   clang-format:
