@@ -1,14 +1,11 @@
-on: push
-name: clang-format Code Formatter
+name: Code Formatter
+on:
+  push:
 jobs:
-  lint:
-    name: clang-format Code Formatter
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@master
-      with: 
-        ref: ${{ github.head_ref }}
-    - name: Clang Code Formatter
-      uses: ivanludvig/clang-format-action@v1.4
-      env:
-        GITHUB_TOKEN: ${ { secrets.GITHUB_TOKEN } }
+  clang-format:
+      runs-on: ubuntu-latest
+      steps:
+      - uses: actions/checkout@v2
+      - uses: AutoModality/action-ros-clang-format@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
