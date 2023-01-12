@@ -62,6 +62,6 @@ RUN echo "alias srcdev='source devel/setup.bash'" >> /home/vortex/.bashrc
 RUN mkdir -p /home/vortex/auv_ws/src
 RUN chown -R vortex /home/vortex/auv_ws
 
-COPY ./entrypoint.sh /
+#COPY ./entrypoint.sh /
 
-CMD ["/bin/bash"]
+#CMD ["/bin/bash"]

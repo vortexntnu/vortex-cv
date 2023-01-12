@@ -7,8 +7,8 @@ services:
     user: vortex
     privileged: true
     volumes:
-      - "../..:/home/vortex/auv_ws/src" # Shared volume to avoid rebuilding when starting a new container
-      - "../../..:/home/vortex/auv_ws/"
+    #example: - ~/OneDrive/Documents:/home/vortex
+      - "~/workshop2023/src:/home/workshop2023/src"
       - "/dev:/dev"
 
     environment:
@@ -16,5 +16,5 @@ services:
     stdin_open: true
     tty: true
     network_mode: host
-    entrypoint: ["/entrypoint.sh"]
+    #entrypoint: ["/entrypoint.sh"]
 
