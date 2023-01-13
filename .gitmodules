@@ -1,0 +1,3 @@
+[submodule "ouster-lidar"]
+	path = ouster-lidar
+	url = https://github.com/Pernillepingvin/ouster-lidar.git
