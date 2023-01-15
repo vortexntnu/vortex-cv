@@ -3,14 +3,15 @@ services:
 
   cv:
     container_name: cv
-    image: ghcr.io/vortexntnu/vortex-cv:main
+    
+    image: ghcr.io/vortexntnu/vortex-cv:feature-docker
     stdin_open: true    #Enable terminal input
     tty: true           #Keep container from closing
     network_mode: host  #Maps ports in container to same port number on computer
 
   cv-dev:
     container_name: cv-dev
-    image: ghcr.io/eirikkolas/vortex-cv:main
+    image: ghcr.io/vortexntnu/vortex-cv:feature-docker 
     privileged: true  #Give the container access to all your files and all connected devices
 
     volumes:
