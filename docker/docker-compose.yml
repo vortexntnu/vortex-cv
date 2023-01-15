@@ -21,3 +21,22 @@ services:
     tty: true           
     network_mode: host  
     entrypoint: ["/bin/bash", "-l"]
+
+  cv-local:
+    container_name: cv-local
+    build: 
+      context: ../..
+      dockerfile: vortex-cv/docker/Dockerfile.local
+      
+    # privileged: true  #Give the container access to all your files and all connected devices
+
+    # volumes:
+    #  - "../..:/home/vortex/cv_ws/src"
+    #  - "/dev:/dev"
+
+    stdin_open: true    
+    tty: true           
+    network_mode: host  
+    environment:
+      DISPLAY: :0
+    entrypoint: ["/bin/bash", "-l"]
