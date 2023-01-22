@@ -4,7 +4,7 @@ services:
   cv:
     container_name: cv
     
-    image: ghcr.io/vortexntnu/vortex-cv:feature-docker
+    image: ghcr.io/vortexntnu/vortex-cv:main
     stdin_open: true    #Enable terminal input
     tty: true           #Keep container from closing
     network_mode: host  #Maps ports in container to same port number on computer
