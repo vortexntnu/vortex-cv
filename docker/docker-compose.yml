@@ -43,6 +43,21 @@ services:
     entrypoint: ["/bin/bash", "-l"]
 
 
+
+  cv-aruco:
+    container_name: cv-aruco
+    build: 
+      context: ../..
+      dockerfile: vortex-cv/docker/Dockerfile.aruco
+
+    stdin_open: true    
+    tty: true           
+    network_mode: host  
+    environment:
+      DISPLAY: :0
+    entrypoint: ["/bin/bash", "-l"]
+
+
   cv-test:
     container_name: cv-test
     build: 
