@@ -2,6 +2,7 @@ name: Publish Docker image to ghcr
 
 on:
   push:
+  workflow-call:
 
 env:
   REGISTRY: ghcr.io
