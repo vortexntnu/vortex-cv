@@ -1,6 +1,7 @@
 FROM ghcr.io/eirikkolas/vortex-cv:main
 
 RUN pip install statistics && \
-    pip install scipy
+    pip install scipy && \
+    pip install matplotlib
 RUN sudo apt install -y --no-install-recommends \
     ros-melodic-tf2-geometry-msgs
