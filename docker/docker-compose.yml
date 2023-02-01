@@ -41,3 +41,21 @@ services:
     environment:
       DISPLAY: :0
     entrypoint: ["/bin/bash", "-l"]
+
+
+  cv-test:
+    container_name: cv-test
+    build: 
+      context: ../..
+      dockerfile: vortex-cv/docker/Dockerfile.test
+      
+    volumes:
+        - "../..:/home/vortex/cv_ws/src"
+        - "/dev:/dev"
+        
+    stdin_open: true    
+    tty: true           
+    network_mode: host  
+    environment:
+      DISPLAY: :0
+    entrypoint: ["/bin/bash", "-l"]
