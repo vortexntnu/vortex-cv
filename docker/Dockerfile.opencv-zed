@@ -1,8 +1,17 @@
-FROM ghcr.io/eirikkolas/vortex-cv:main
+# Copied from https://www.stereolabs.com/docs/docker/configure-opencv-dockerfile/
 
-########################################################################
-#############################    OPENCV    #############################
-########################################################################
+
+
+
+# Build arguments  
+ARG UBUNTU_RELEASE_YEAR=18
+ARG ZED_SDK_MAJOR=3
+ARG ZED_SDK_MINOR=8
+ARG CUDA_MAJOR=11
+ARG CUDA_MINOR=4
+
+# Specify the parent image from which we build
+FROM stereolabs/zed:${ZED_SDK_MAJOR}.${ZED_SDK_MINOR}-gl-devel-cuda${CUDA_MAJOR}.${CUDA_MINOR}-ubuntu${UBUNTU_RELEASE_YEAR}.04
 
 # OpenCV Version 
 ARG OPENCV_VERSION=4.7.0
@@ -46,9 +55,14 @@ RUN git clone --depth 1 --branch ${OPENCV_VERSION} https://github.com/opencv/ope
    make -j"$(nproc)" && \
    make install
 
-########################################################################
-########################################################################
-########################################################################
+# ALternatively, Install from Ubuntu Repository
+###
+#RUN apt-get update -y || true && \
+#	DEBIAN_FRONTEND=noninteractive apt-get install -y   && \
+#	apt-get install -y --no-install-recommends libopencv-dev && \
+#   rm -rf /var/lib/apt/lists/* && apt autoremove && apt clean
+###
 
+WORKDIR /
 
-
+ CMD ["bash"]
