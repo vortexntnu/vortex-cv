@@ -50,6 +50,9 @@ services:
       context: ../..
       dockerfile: vortex-cv/docker/Dockerfile.aruco
 
+    volumes:
+      - "../../vortex-cv:/vortex_ws/src/vortex-cv"
+      - "/dev:/dev"
     stdin_open: true    
     tty: true           
     network_mode: host  
