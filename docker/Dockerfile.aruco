@@ -5,7 +5,7 @@ FROM ghcr.io/eirikkolas/vortex-cv:main
 ########################################################################
 
 # OpenCV Version 
-ARG OPENCV_VERSION=4.7.0
+ARG OPENCV_VERSION=3.4.16
 
 # Install dependencies
 RUN apt-get update || true && apt-get upgrade -y &&\

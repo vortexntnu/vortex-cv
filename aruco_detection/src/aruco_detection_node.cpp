@@ -1,20 +1,39 @@
+#include "aruco_detection_node.h"
 
-#include <opencv2/aruco.hpp>
+#include <aruco_msgs/MarkerArray.h>
+#include <cv_bridge/cv_bridge.h>
+#include <vector>
 
-#include <ros/ros.h>
 
-
-
-ArucoDetectionNode::ArucoDetectionNode ():loop_rate(10) {
+ArucoDetectionNode::ArucoDetectionNode() : loop_rate(10) {
     op_sub = node.subscribe("/zed2/zed_node/rgb/image_rect_color",10, &ArucoDetectionNode::callback, this);
 
-    op_pub = node.advertise<vortex_msgs::ObjectPosition>("object_positions_out",10);
+    op_pub = node.advertise<aruco_msgs::MarkerArray>("arUco_marker_positions_out",10);
+
+    dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_250);
+    parameters = cv::aruco::DetectorParameters::create();
 }
 
-void ArucoDetectionNode::callback(sensor_msgs::Image::ConstPtr& img){
-    
-    objectPositions[objPos.objectID] = objPos.position;
-    op_pub.publish(objPos);            
+void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr& img_source){
+
+    // Convert ROS-image to CV-image
+    ////////////////////////////////
+
+    const cv_bridge::CvImageConstPtr cvImage = cv_bridge::toCvShare(img_source,"");
+
+
+    // Detect markers //////////////
+    ////////////////////////////////
+
+    cv::Mat inputImage;
+
+    std::vector<int> markerIds;
+    std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCandidates;
+
+    cv::aruco::detectMarkers(inputImage, dictionary, markerCorners, markerIds, parameters, rejectedCandidates);
+
+
+    // op_pub.publish(objPos);            
 }
 
 void ArucoDetectionNode::execute(){
@@ -24,13 +43,6 @@ void ArucoDetectionNode::execute(){
     }
 }
 
-void ArucoDetectionNode::printMap(std::map<std::string,geometry_msgs::Point> objectsMap){
-    for(auto elem : objectsMap){
-        ROS_INFO("ID: %s", elem.first.c_str());
-        ROS_INFO("position: %f,%f,%f",elem.second.x,elem.second.y,elem.second.z);
-            
-    }
-}
 
 int main(int argc, char **argv){
     ros::init(argc,argv,"ArucoDetectionNode");

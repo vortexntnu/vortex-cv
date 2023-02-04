@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   vortex_msgs
   roscpp
+  aruco_msgs
 )
 
 ## System dependencies are found with CMake's conventions
