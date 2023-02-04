@@ -61,7 +61,7 @@ RUN pip install opencv-python==3.4.2.17 && \
 ###########
 ## Build ##
 ###########
-RUN echo "hello"
+
 # Assume the root contains vortex-cv, darknet_ros_zed and ddynamic_reconfigure_python
 # This is the case when we build using ghcr
 COPY ./vortex-cv                    /vortex_ws/src/vortex-cv
