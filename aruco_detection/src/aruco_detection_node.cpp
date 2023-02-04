@@ -1,6 +1,6 @@
 #include "aruco_detection_node.h"
 
-#include <aruco_msgs/MarkerArray.h>
+#include <MarkerArray.h>
 #include <cv_bridge/cv_bridge.h>
 #include <vector>
 
