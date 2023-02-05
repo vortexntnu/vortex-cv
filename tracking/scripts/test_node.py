@@ -4,6 +4,12 @@ import rospy
 import numpy as np
 from geometry_msgs.msg import PoseArray, Pose, Point, Quaternion
 
+"""
+
+Simply publish Pose[] to \lidar_clusters.
+
+"""
+
 
 class Clusters:
     def __init__(self):
