@@ -1,0 +1,23 @@
+
+pdaf: 
+
+  time_step: 0.1
+  validation_gate_scaling_param: 2
+  minimal_mahalanobis_distance: 0.01
+  p_no_match: 0.5
+
+  state_post: [0.0, 0.0, 0.0, 0.0]
+  P_post: [[0.0, 0.0, 0.0, 0.0],[0.0, 0.0, 0.0, 0.0],[0.0, 0.0, 0.0, 0.0],[0.0, 0.0, 0.0, 0.0]]
+  Q: [[0.001, 0, 0, 0], [0, 0.001, 0, 0], [0, 0, 50, 0], [0, 0, 0, 50]]
+  R: [[0.1, 0],[0, 0.1]]
+
+
+manager: 
+
+  N: 3
+  M: 8
+
+  max_vel: 10
+  initial_measurement_covariance: 2.0
+
+
