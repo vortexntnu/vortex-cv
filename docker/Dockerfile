@@ -44,8 +44,9 @@ RUN apt update && \
     ros-${distro}-vision-opencv \
     ros-${distro}-image-transport  \
     ros-${distro}-image-transport-plugins \
-    software-properties-common \
-    python-tk
+    software-properties-common
+    
+RUN apt-get install python-tk
 
 # pip install
 RUN pip install opencv-python==3.4.2.17 && \
