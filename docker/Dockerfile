@@ -20,7 +20,8 @@ RUN apt update && \
     apt install -y --no-install-recommends \
     ros-${distro}-tf \
     ros-${distro}-cv-bridge \
-    ros-${distro}-image-transport \
+    ros-${distro}-image-transport
+
 RUN apt update && \
     apt install -y --no-install-recommends \
     apt-utils \
@@ -43,9 +44,8 @@ RUN apt update && \
     libgeographic-dev \
     ros-${distro}-vision-opencv \
     ros-${distro}-image-transport  \
-    ros-${distro}-image-transport-plugins
-    
-RUN apt-get install python-tk \
+    ros-${distro}-image-transport-plugins \
+    python-tk \
     software-properties-common
 
 
