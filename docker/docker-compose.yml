@@ -51,7 +51,7 @@ services:
       dockerfile: vortex-cv/docker/Dockerfile.aruco
 
     volumes:
-      - "../../vortex-cv:/vortex_ws/src/vortex-cv"
+      - "../:/vortex_ws/src/vortex-cv"
       - "/dev:/dev"
     stdin_open: true    
     tty: true           
