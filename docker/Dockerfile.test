@@ -1,4 +1,4 @@
-FROM ghcr.io/eirikkolas/vortex-cv:main
+FROM ghcr.io/vortexntnu/vortex-cv:main
 
 RUN pip install statistics && \
     pip install scipy && \
