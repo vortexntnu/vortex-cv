@@ -22,7 +22,7 @@ RUN apt update && \
     ros-${distro}-cv-bridge \
     ros-${distro}-image-transport \
 RUN apt update && \
-    apt install -y \
+    apt install -y --no-install-recommends \
     apt-utils \
     libeigen3-dev \
     libglfw3-dev \
