@@ -21,13 +21,9 @@ RUN apt update && \
     ros-${distro}-tf \
     ros-${distro}-cv-bridge \
     ros-${distro}-image-transport \
-    ros-${distro}-tf2-geometry-msgs 
-
-#Python dependencies
 RUN apt update && \
     apt install -y \
     apt-utils \
-    libeigen3-dev \
     libeigen3-dev \
     libglfw3-dev \
     libglew-dev \
@@ -48,14 +44,18 @@ RUN apt update && \
     ros-${distro}-vision-opencv \
     ros-${distro}-image-transport  \
     ros-${distro}-image-transport-plugins \
-    software-properties-common
+    software-properties-common \
+    python-tk
 
 # pip install
 RUN pip install opencv-python==3.4.2.17 && \
-    pip install opencv-contrib-python==3.4.2.17 && \
+    pip install opencv-contrib-python==3.4.2.17 \
     pip install statistics && \
     pip install scipy && \
-    pip install matplotlib
+    pip install matplotlib && \
+    pip install sklearn && \
+    pip install scikit-learn && \
+    pip install plumbum
 
 
 ###########
