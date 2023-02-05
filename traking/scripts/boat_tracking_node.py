@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import rospy
+import rospkg
 import numpy as np
 import yaml
 from track_manager import TRACK_MANAGER, TRACK_STATUS
@@ -29,9 +30,11 @@ class Tracker:
         rospy.Subscriber("lidar_clusters", PoseArray, self.cb)
         self.pub = rospy.Publisher("tracked_cv_object", Odometry, queue_size=10)
 
-        #OBS: temp solution
+        r = rospkg.RosPack()
+        path = r.get_path('traking')
+        rospy.loginfo(path)
         with open(
-            "/home/hannahcl/Documents/vortex/ros_ws/src/vortex-cv/traking/scripts/config_traking_sys.yaml",
+            path + "/scripts/config_traking_sys.yaml",
             "r",
         ) as stream:
             config_loaded = yaml.safe_load(stream)
@@ -78,7 +81,6 @@ class Tracker:
         msg.twist.twist.linear = Vector3()
         msg.header = Header()
 
-
         # - - - - header
         msg.header.stamp = rospy.get_rostime()
         #msg.header.seq = ?
@@ -86,24 +88,16 @@ class Tracker:
 
         #- - - -  position
         x = self.track_manager.main_track.pdaf.state_post.reshape(4,)
-
         msg.pose.pose.position.x = x[0]
         msg.pose.pose.position.y = x[1]
-
-        P_post = self.track_manager.main_track.pdaf.P_post
-        # msg.pose.covariance[0][0] = P_post[0][0] #variance in x
-        # msg.pose.covariance[1][1] = P_post[1][1] #variance in y
 
         #- - - -  orientation
         theta = np.arctan2(x[3], x[2]) #rotation about z-axis
         msg.pose.pose.orientation = Quaternion(0,0,theta, 0)
-        #variance of rotation about z-axis ???
 
         #- - - -  velocity
         msg.twist.twist.linear.x = x[2]
         msg.twist.twist.linear.y = x[3]
-        # msg.twist.covariance[0][0] = P_post[2][2]
-        # msg.twist.covariance[1][1] = P_post[3][3]
 
         return msg
 
