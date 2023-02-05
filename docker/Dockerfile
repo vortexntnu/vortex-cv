@@ -43,10 +43,11 @@ RUN apt update && \
     libgeographic-dev \
     ros-${distro}-vision-opencv \
     ros-${distro}-image-transport  \
-    ros-${distro}-image-transport-plugins \
-    software-properties-common
+    ros-${distro}-image-transport-plugins
     
-RUN apt-get install python-tk
+RUN apt-get install python-tk \
+    software-properties-common
+
 
 # pip install
 RUN pip install opencv-python==3.4.2.17 && \
