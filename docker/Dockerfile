@@ -20,8 +20,10 @@ RUN apt update && \
     apt install -y --no-install-recommends \
     ros-${distro}-tf \
     ros-${distro}-cv-bridge \
-    ros-${distro}-image-transport 
-
+    ros-${distro}-image-transport \
+    ros-${distro}-tf2-geometry-msgs \
+    ros-${distro}-ros-numpy \
+    
 #Python dependencies
 RUN apt update && \
     apt install -y \
@@ -47,11 +49,18 @@ RUN apt update && \
     ros-${distro}-vision-opencv \
     ros-${distro}-image-transport  \
     ros-${distro}-image-transport-plugins \
-    software-properties-common
+    software-properties-common \
+    python-tk
 
 # pip install
 RUN pip install opencv-python==3.4.2.17 && \
-    pip install opencv-contrib-python==3.4.2.17
+    pip install opencv-contrib-python==3.4.2.17 \
+    pip install statistics && \
+    pip install scipy && \
+    pip install matplotlib && \
+    pip install sklearn && \
+    pip install scikit-learn && \
+    pip install plumbum
 
 
 ###########

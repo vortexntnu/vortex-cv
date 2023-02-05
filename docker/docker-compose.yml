@@ -47,10 +47,10 @@ services:
     container_name: cv-test
     build: 
       context: ../..
-      dockerfile: vortex-cv/docker/Dockerfile.test
+      dockerfile: Vortex-CV/docker/Dockerfile.test
       
     volumes:
-        - "../..:/home/vortex/cv_ws/src"
+        - "../../Vortex_CV:/home/vortex_ws/src/vortex_cv"
         - "/dev:/dev"
         
     stdin_open: true    
