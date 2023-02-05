@@ -20,7 +20,7 @@ RUN apt update && \
     apt install -y --no-install-recommends \
     ros-${distro}-tf \
     ros-${distro}-cv-bridge \
-    ros-${distro}-image-transport \
+    ros-${distro}-image-transport
 
 RUN apt update && \
     apt install -y --no-install-recommends \
