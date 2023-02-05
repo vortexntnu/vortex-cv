@@ -10,7 +10,7 @@
         name:   Name of the node once it's launched
         output: "screen" means that the node will print to console, while "log" means it's only put in a logfile
         respawn: true or false depending if you want the node to restart after it dies (usually of some error) -->
-    <node pkg="traking" type="boat_tracking_node.py"     name="Tracker" output="screen" respawn="false"/>
+    <node pkg="tracking" type="boat_tracking_node.py"     name="Tracker" output="screen" respawn="false"/>
 
 
 </launch>

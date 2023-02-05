@@ -34,7 +34,7 @@ class Tracker:
         self.seq = 0
 
         r = rospkg.RosPack()
-        path = r.get_path('traking')
+        path = r.get_path('tracking')
         rospy.loginfo(path)
         with open(
             path + "/scripts/config_traking_sys.yaml",
