@@ -4,6 +4,7 @@ import rospy
 import rospkg
 import numpy as np
 import yaml
+from tf.transformations import quaternion_from_euler
 from track_manager import TRACK_MANAGER, TRACK_STATUS
 
 from geometry_msgs.msg import PoseArray, PoseWithCovariance, Pose, Point, Quaternion, TwistWithCovariance, Twist, Vector3
@@ -29,6 +30,8 @@ class Tracker:
         rospy.init_node("Tracker")
         rospy.Subscriber("lidar_clusters", PoseArray, self.cb)
         self.pub = rospy.Publisher("tracked_cv_object", Odometry, queue_size=10)
+
+        self.seq = 0
 
         r = rospkg.RosPack()
         path = r.get_path('traking')
@@ -83,7 +86,8 @@ class Tracker:
 
         # - - - - header
         msg.header.stamp = rospy.get_rostime()
-        #msg.header.seq = ?
+        msg.header.seq = self.seq
+        self.seq += 1
         #msg.header.frame_id = ?
 
         #- - - -  position
@@ -93,7 +97,8 @@ class Tracker:
 
         #- - - -  orientation
         theta = np.arctan2(x[3], x[2]) #rotation about z-axis
-        msg.pose.pose.orientation = Quaternion(0,0,theta, 0)
+        q = quaternion_from_euler(0, 0, theta)
+        msg.pose.pose.orientation = q
 
         #- - - -  velocity
         msg.twist.twist.linear.x = x[2]
