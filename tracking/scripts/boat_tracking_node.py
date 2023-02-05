@@ -7,7 +7,16 @@ import yaml
 from tf.transformations import quaternion_from_euler
 from track_manager import TRACK_MANAGER, TRACK_STATUS
 
-from geometry_msgs.msg import PoseArray, PoseWithCovariance, Pose, Point, Quaternion, TwistWithCovariance, Twist, Vector3
+from geometry_msgs.msg import (
+    PoseArray,
+    PoseWithCovariance,
+    Pose,
+    Point,
+    Quaternion,
+    TwistWithCovariance,
+    Twist,
+    Vector3,
+)
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Header
 
@@ -20,7 +29,7 @@ class Tracker:
     """
     Nodes created: Tracker
     Subscribes to: lidar_clusters of type PoseArray. Will only read pose.x, pose.y and header.stamp.sec.
-    Publishes to: tracked_cv_object of type nav_msgs/odometry. Will write to header.stamp, msg.pose.pose.position.x, 
+    Publishes to: tracked_cv_object of type nav_msgs/odometry. Will write to header.stamp, msg.pose.pose.position.x,
             msg.pose.pose.position.y, pose.pose.orientation around z-axis, twist.twist.linear.x, twist.twist.linear.y.
 
     """
@@ -34,7 +43,7 @@ class Tracker:
         self.seq = 0
 
         r = rospkg.RosPack()
-        path = r.get_path('tracking')
+        path = r.get_path("tracking")
         rospy.loginfo(path)
         with open(
             path + "/scripts/config_traking_sys.yaml",
@@ -77,7 +86,7 @@ class Tracker:
     def pack_odometry_msg(self):
         msg = Odometry()
         msg.pose = PoseWithCovariance()
-        msg.pose.pose= Pose()
+        msg.pose.pose = Pose()
         msg.pose.pose.position = Point()
         msg.twist = TwistWithCovariance()
         msg.twist.twist = Twist()
@@ -88,24 +97,25 @@ class Tracker:
         msg.header.stamp = rospy.get_rostime()
         msg.header.seq = self.seq
         self.seq += 1
-        #msg.header.frame_id = ?
+        # msg.header.frame_id = ?
 
-        #- - - -  position
-        x = self.track_manager.main_track.pdaf.state_post.reshape(4,)
+        # - - - -  position
+        x = self.track_manager.main_track.pdaf.state_post.reshape(
+            4,
+        )
         msg.pose.pose.position.x = x[0]
         msg.pose.pose.position.y = x[1]
 
-        #- - - -  orientation
-        theta = np.arctan2(x[3], x[2]) #rotation about z-axis
+        # - - - -  orientation
+        theta = np.arctan2(x[3], x[2])  # rotation about z-axis
         q = quaternion_from_euler(0, 0, theta)
         msg.pose.pose.orientation = q
 
-        #- - - -  velocity
+        # - - - -  velocity
         msg.twist.twist.linear.x = x[2]
         msg.twist.twist.linear.y = x[3]
 
         return msg
-
 
 
 if __name__ == "__main__":

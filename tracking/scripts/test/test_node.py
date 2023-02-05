@@ -4,13 +4,13 @@ import rospy
 import numpy as np
 from geometry_msgs.msg import PoseArray, Pose, Point, Quaternion
 
-class Clusters:
 
-    def __init__(self):    
+class Clusters:
+    def __init__(self):
         rospy.init_node("Test_tracker")
         self.pub = rospy.Publisher("lidar_clusters", PoseArray, queue_size=10)
 
-        #rospy.init_node()
+        # rospy.init_node()
         self.rate = rospy.Rate(10)
 
         self.x = 5
@@ -35,6 +35,7 @@ class Clusters:
             posearray.poses.append(p)
 
         self.pub.publish(posearray)
+
 
 if __name__ == "__main__":
     try:
