@@ -20,7 +20,7 @@ RUN apt update && \
     apt install -y --no-install-recommends \
     ros-${distro}-tf \
     ros-${distro}-cv-bridge \
-    ros-${distro}-image-transport
+    ros-${distro}-image-transport \
 
 RUN apt update && \
     apt install -y --no-install-recommends \
@@ -31,6 +31,7 @@ RUN apt update && \
     libjsoncpp-dev \
     ros-${distro}-tf \
     ros-${distro}-tf2 \
+    ros-${distro}-tf2-geometry-msgs \
     libtclap-dev \
     wget \
     nano \ 
@@ -45,6 +46,7 @@ RUN apt update && \
     ros-${distro}-vision-opencv \
     ros-${distro}-image-transport  \
     ros-${distro}-image-transport-plugins \
+    ros-${distro}-ros-numpy \
     python-tk \
     software-properties-common
 
