@@ -6,7 +6,7 @@ import numpy as np
 import ros_numpy
 
 # Import msg types
-from cv_msgs.msg import BBoxes, BBOox
+from cv_msgs.msg import BBoxes, BBox
 from sensor_msgs.msg import PointCloud2
 
 # Import classes
