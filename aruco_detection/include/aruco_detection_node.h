@@ -1,7 +1,7 @@
 #include <ros/ros.h>
 #include <opencv2/aruco.hpp>
 #include <sensor_msgs/Image.h>
-#include <aruco_ros>
+#include <aruco_ros/aruco_ros_utils.h>
 #include <aruco_msgs/MarkerArray.h>
 #include <cv_bridge/cv_bridge.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>

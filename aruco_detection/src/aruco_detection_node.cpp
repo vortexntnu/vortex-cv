@@ -22,14 +22,20 @@ void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr& img_source){
 
     // Detect markers //////////////
     ////////////////////////////////
+    aruco::CameraParameters cameraParams = aruco_ros::rosCameraInfo2ArucoCamParams(NULL,false);
+    
+    float errorCorrectionRate = .3;
+    aruco::MarkerDetector detector;
+    detector.setDictionary(cv::aruco::DICT_6X6_50, errorCorrectionRate);
+    detector.setDetectionMode(DM_FAST);
 
-    std::vector<int> markerIds;
-    std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCandidates;
-    cv::aruco::detectMarkers(cvImage->image, dictionary, markerCorners, markerIds, detectorParameters, rejectedCandidates);
+    aruco_msgs::MarekerArray markerMsg = aruco_ros::detectMarkers(cvImage, cameraParams, markerLength, detector)
+    // std::vector<int> markerIds;
+    // std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCandidates;
+    // cv::aruco::detectMarkers(cvImage->image, dictionary, markerCorners, markerIds, detectorParameters, rejectedCandidates);
 
     // Estimate poses //////////////
     ////////////////////////////////
-    aruco_msgs::MarkerArray markerMsg;
     estimateMarkerPoses(markerIds, markerCorners, markerMsg);
 
     op_pub.publish(markerMsg);            
@@ -93,6 +99,7 @@ void ArucoDetectionNode::estimateBoardPose(
     boardPose.orientation = geometry_msgs::Point(tvec);
     boardPose.position    = tvec;
 }
+
 
 
 
