@@ -30,9 +30,22 @@ void ArucoDetectionNode::execute(){
 
         }
 
+        cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
 
+        std::vector<int> ids;
+        std::vector<std::vector<cv::Point2f>> corners;
+        cv::Mat imgCopy;
 
-
+        cv::aruco::detectMarkers(img, &dictionary, corners, ids);
+        // if at least one marker detected
+        if (ids.size() > 0)
+        {
+            cv::aruco::drawDetectedMarkers(imgCopy, corners, ids);
+            ROS_INFO("detected a marker of id: %i", ids.at(0));
+        }
+        else{
+            ROS_INFO("No marker detected");
+        }
 
 
         cv_bridge::CvImage img_bridge;
@@ -59,6 +72,12 @@ void ArucoDetectionNode::execute(){
 
 
 int main(int argc, char **argv){
+
+    // cv::Mat markerImage;
+    // const cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_250);
+    // cv::aruco::drawMarker(dictionary, 23, 200, markerImage, 1);
+    // cv::imwrite("/vortex_ws/src/vortex-cv/aruco_detection/src/")
+
     // Needs config:
     //      Camera calibration
     //      Marker dictionary

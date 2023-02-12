@@ -1,11 +1,11 @@
 #include <ros/ros.h>
-#include <opencv2/aruco.hpp>
 #include <sensor_msgs/Image.h>
 #include <aruco_msgs/MarkerArray.h>
 #include <cv_bridge/cv_bridge.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 // #include <vortex_msgs/LandmarkPose.h>
 
+#include <opencv2/aruco.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
