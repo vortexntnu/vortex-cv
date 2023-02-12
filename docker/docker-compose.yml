@@ -9,6 +9,22 @@ services:
     tty: true           #Keep container from closing
     network_mode: host  #Maps ports in container to same port number on computer
 
+  cv-buoy:
+    container_name: cv-buoy
+    build: 
+      context: ../..
+      dockerfile: vortex-cv/docker/Dockerfile.opencv
+
+    volumes:
+      - "../:/vortex_ws/src/vortex-cv"
+      - "/dev:/dev"
+    stdin_open: true    
+    tty: true           
+    network_mode: host  
+    environment:
+      DISPLAY: :0
+    entrypoint: ["/bin/bash", "-l"]
+
   cv-dev:
     container_name: cv-dev
     image: ghcr.io/vortexntnu/vortex-cv:main
