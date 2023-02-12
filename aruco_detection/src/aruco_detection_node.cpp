@@ -1,109 +1,44 @@
-#include "aruco_detection_node.h"
+#include "aruco_detection_node.hpp"
+
+
 
 
 ArucoDetectionNode::ArucoDetectionNode() 
 : loop_rate(10) 
-, dictionary(cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_250))
-, detectorParameters(cv::aruco::DetectorParameters::create())
-, markerLength(0.05)
-, cameraMatrix(cv::Mat::eye(3, 3, CV_32F))
-, distCoeffs(cv::Mat::zeros(3, 1, CV_32F))
 {
     op_sub = node.subscribe("/udfc/wrapper/camera_rect",10, &ArucoDetectionNode::callback, this);
-    op_pub = node.advertise<aruco_msgs::MarkerArray>("arUco_marker_positions_out",10);
+    op_pub = node.advertise<sensor_msgs::ImageConstPtr>("arUco_marker_positions_out",10);
+
+    // cv::Mat image = cv::imread("./mark_id_09.jpg", cv::IMREAD_COLOR);
+    // cv::namedWindow("arucoMarker", cv::WINDOW_AUTOSIZE);
 }
 
 void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr& img_source){
 
-    // Convert ROS-image to CV-image
-    ////////////////////////////////
-
-    const cv_bridge::CvImageConstPtr cvImage = cv_bridge::toCvShare(img_source, "");
-
-    // Detect markers //////////////
-    ////////////////////////////////
-    aruco::CameraParameters cameraParams = aruco_ros::rosCameraInfo2ArucoCamParams(NULL,false);
-    
-    float errorCorrectionRate = .3;
-    aruco::MarkerDetector detector;
-    detector.setDictionary(cv::aruco::DICT_6X6_50, errorCorrectionRate);
-    detector.setDetectionMode(DM_FAST);
-
-    aruco_msgs::MarekerArray markerMsg = aruco_ros::detectMarkers(cvImage, cameraParams, markerLength, detector)
-    // std::vector<int> markerIds;
-    // std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCandidates;
-    // cv::aruco::detectMarkers(cvImage->image, dictionary, markerCorners, markerIds, detectorParameters, rejectedCandidates);
-
-    // Estimate poses //////////////
-    ////////////////////////////////
-    estimateMarkerPoses(markerIds, markerCorners, markerMsg);
-
-    op_pub.publish(markerMsg);            
 }
 
 void ArucoDetectionNode::execute(){
     while (ros::ok()) {
+
+        // cv::namedWindow("arucoMarker", cv::WINDOW_AUTOSIZE);
+
+
+        cv::Mat img = cv::imread("./mark_id_09.jpg", cv::IMREAD_COLOR);
+        cv_bridge::CvImage img_bridge;
+        sensor_msgs::Image img_msg; // >> message to be sent
+
+        std_msgs::Header header; // empty header
+        static size_t counter{0};
+        header.seq = counter++; // user defined counter
+        header.stamp = ros::Time::now(); // time
+        img_bridge = cv_bridge::CvImage(header, sensor_msgs::image_encodings::RGB8, img);
+        img_bridge.toImageMsg(img_msg); // from cv_bridge to sensor_msgs::Image
+        op_pub.publish(img_msg); // ros::Publisher pub_img = node.advertise<sensor_msgs::Image>("topic", queuesize);
+
         ros::spinOnce();
         loop_rate.sleep();
     }
 }
-
-void ArucoDetectionNode::estimateMarkerPoses(
-    std::vector<int> markerIds, 
-    std::vector<std::vector<cv::Point2f>> markerCorners, 
-    aruco_msgs::MarkerArray& markerMsg) {
-
-    // Estimate poses //////////////
-    ////////////////////////////////
-    std::vector<cv::Vec3d> rvecs, tvecs;
-    cv::aruco::estimatePoseSingleMarkers(markerCorners, 0.05, cameraMatrix, distCoeffs, rvecs, tvecs);
-
-
-    // Put result in a ROS message /
-    ////////////////////////////////    
-
-    std_msgs::Header msgHeader;
-    static size_t seq_id{0};
-    
-    msgHeader.frame_id = "UDFC_frame";
-    msgHeader.seq      = seq_id++;
-    msgHeader.stamp    = ros::Time::now();
-
-    markerMsg.header = msgHeader;
-
-    for (size_t i; i<markerIds.size(); i++) {
-        aruco_msgs::Marker marker;
-        marker.header                = msgHeader;
-        marker.id                    = markerIds.at(i);
-        marker.pose.pose.orientation = rvecs.at(i);
-        marker.pose.pose.position    = tvecs.at(i);
-        markerMsg.markers.push_back(marker);
-    }
-}
-
-void ArucoDetectionNode::estimateBoardPose(
-    std::vector<int> markerIds, 
-    std::vector<std::vector<cv::Point2f>> markerCorners, 
-    geometry_msgs::Pose boardPose) {
-
-    // if at least one marker is detected
-    cv::Vec3d rvec, tvec;
-    int valid{0};
-    if (markerIds.size() > 0) {
-        valid = cv::aruco::estimatePoseBoard(markerCorners, markerIds, &board, cameraMatrix, distCoeffs, rvec, tvec);
-    }
-    if (!valid) return;
-    double angle = cv::norm(rvec);
-    double nu    = 
-
-    boardPose.orientation = geometry_msgs::Point(tvec);
-    boardPose.position    = tvec;
-}
-
-
-
-
-
 
 
 int main(int argc, char **argv){

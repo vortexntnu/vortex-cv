@@ -13,7 +13,6 @@
         "/vortex_ws/src/vortex-cv/aruco_ros/aruco_ros/include/**",
         "/vortex_ws/src/darknet_ros_zed/darknet_ros/include/**",
         "/vortex_ws/src/vortex-cv/image_preprocessing/include/**",
-        "/vortex_ws/src/vortex-cv/udfc_wrapper_node/include/**",
         "/usr/include/**"
       ],
       "name": "ROS",
