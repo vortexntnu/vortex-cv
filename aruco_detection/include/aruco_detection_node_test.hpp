@@ -48,11 +48,10 @@ protected:
     ros::Publisher op_pub;
 
     // Dictionary of accepted ArUco marker-IDs
-    const cv::Ptr<cv::aruco::Dictionary> dictionary;
+    cv::Ptr<cv::aruco::Dictionary> dictionary;
     // Parameters for camera calibration
-    const cv::Ptr<cv::aruco::DetectorParameters> detectorParameters;
-    const cv::Mat cameraMatrix;
-    const cv::Mat distCoeffs;
-    const float   markerLength;
-    const cv::aruco::Board board;
+    cv::Mat cameraMatrix;
+    cv::Mat distCoeffs;
+    float   markerLength;
+    cv::aruco::Board board;
 };

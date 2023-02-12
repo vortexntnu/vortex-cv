@@ -47,6 +47,17 @@ jobs:
       - name: Move darknet_ros_zed
         run: mv ./darknet_ros_zed ../darknet_ros_zed
 
+      # Copy aruco_ros to image
+      - name: Checkout aruco_ros
+        uses: actions/checkout@v3
+        with:
+          repository: 'vortexntnu/aruco_ros'
+          path: './aruco_ros'  
+          submodules: recursive
+          ref: 'melodic' #branchname
+      - name: Move aruco_ros
+        run: mv ./aruco_ros ../aruco_ros
+
       # Upload image to ghcr
       - name: Log in to the Container registry
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9

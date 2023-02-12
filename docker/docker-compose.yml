@@ -48,7 +48,7 @@ services:
     container_name: cv-aruco
     build: 
       context: ../..
-      dockerfile: vortex-cv/docker/Dockerfile.aruco
+      dockerfile: vortex-cv/docker/Dockerfile.opencv
 
     volumes:
       - "../:/vortex_ws/src/vortex-cv"
