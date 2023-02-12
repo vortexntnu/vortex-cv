@@ -37,6 +37,6 @@ protected:
     ros::NodeHandle node;
     ros::Rate loop_rate;
     ros::Subscriber op_sub;
-    ros::Publisher op_pub;
+    ros::Publisher op_image_pub;
 
 };
