@@ -7,7 +7,7 @@ ArucoDetectionNode::ArucoDetectionNode()
 : loop_rate(10) 
 {
     op_sub = node.subscribe("/udfc/wrapper/camera_rect",10, &ArucoDetectionNode::callback, this);
-    op_pub = node.advertise<sensor_msgs::ImageConstPtr>("arUco_marker_positions_out",10);
+    op_image_pub = node.advertise<sensor_msgs::Image>("arUco_image_out",10);
 
     // cv::Mat image = cv::imread("./mark_id_09.jpg", cv::IMREAD_COLOR);
     // cv::namedWindow("arucoMarker", cv::WINDOW_AUTOSIZE);
@@ -22,8 +22,19 @@ void ArucoDetectionNode::execute(){
 
         // cv::namedWindow("arucoMarker", cv::WINDOW_AUTOSIZE);
 
+        
+        cv::Mat img = cv::imread("/vortex_ws/src/vortex-cv/aruco_detection/src/mark_id_09.jpg", cv::IMREAD_COLOR);
+        if( img.empty() )  // Check for invalid input
+        {
+            ROS_INFO("Could not open or find the image");
 
-        cv::Mat img = cv::imread("./mark_id_09.jpg", cv::IMREAD_COLOR);
+        }
+
+
+
+
+
+
         cv_bridge::CvImage img_bridge;
         sensor_msgs::Image img_msg; // >> message to be sent
 
@@ -33,7 +44,13 @@ void ArucoDetectionNode::execute(){
         header.stamp = ros::Time::now(); // time
         img_bridge = cv_bridge::CvImage(header, sensor_msgs::image_encodings::RGB8, img);
         img_bridge.toImageMsg(img_msg); // from cv_bridge to sensor_msgs::Image
-        op_pub.publish(img_msg); // ros::Publisher pub_img = node.advertise<sensor_msgs::Image>("topic", queuesize);
+        op_image_pub.publish(img_msg); // ros::Publisher pub_img = node.advertise<sensor_msgs::Image>("topic", queuesize);
+
+
+
+
+
+
 
         ros::spinOnce();
         loop_rate.sleep();
