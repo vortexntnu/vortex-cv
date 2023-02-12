@@ -1,3 +1,5 @@
+#pragma once
+
 #include <ros/ros.h>
 #include <opencv2/aruco.hpp>
 #include <sensor_msgs/Image.h>
