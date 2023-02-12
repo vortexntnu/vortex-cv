@@ -5,7 +5,6 @@ project(aruco_detection)
 find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   image_transport
-  rospy
   sensor_msgs
   std_msgs
   vortex_msgs
@@ -13,21 +12,15 @@ find_package(catkin REQUIRED COMPONENTS
   aruco_msgs
   aruco_ros
 )
-
 find_package(OpenCV REQUIRED COMPONENTS 
-  core 
-  imgproc 
-  highgui
-  aruco
+core 
+imgproc 
+highgui
+aruco
 )
+find_package(Eigen3 REQUIRED)
 
 
-# Find CUDA enabled OpenCV build on Xavier
-if( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64" )
-  find_package(OpenCV 3.2.0 REQUIRED)
-else()
-  find_package(OpenCV)
-endif()
 
 catkin_package(
   INCLUDE_DIRS include
@@ -45,6 +38,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  SYSTEM ${EIGEN3_INCLUDE_DIRS}
 )
 
 add_executable(${PROJECT_NAME}_node src/aruco_detection_node.cpp)

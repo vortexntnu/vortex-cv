@@ -1,3 +1,5 @@
+#pragma once
+
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
 #include <aruco_msgs/MarkerArray.h>
@@ -38,5 +40,8 @@ protected:
     ros::Rate loop_rate;
     ros::Subscriber op_sub;
     ros::Publisher op_image_pub;
+    ros::Publisher op_pose_pub;
 
 };
+
+cv::Matx41d aa2quaternion(const cv::Matx31d& aa);
