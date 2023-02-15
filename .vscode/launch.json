@@ -3,7 +3,13 @@
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
-    "configurations": [
+    "configurations": [        
+        {
+            "name": "ROS: Attach",
+            "type": "ros",
+            "request": "attach"
+            
+        },
         {
             "name": "Python: Current File",
             "type": "python",
@@ -13,6 +19,14 @@
                 "host": "localhost",
                 "port": 5678
             }
+        },
+        {
+            "name": "ROS: Launch",
+            "type": "ros",
+            "request": "launch",
+            "target": "${workspaceFolder}/image_preprocessing/launch/image_preprocessing.launch", // <<< Configure path to your launch file
+            "preLaunchTask": "make_debug", // <<< This is the task that will run before debugging starts
+            
         }
     ]
 }

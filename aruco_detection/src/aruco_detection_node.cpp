@@ -1,3 +1,7 @@
+#include <ros/ros.h>
+#include <sensor_msgs/Image.h>
+#include <cv_bridge/cv_bridge.h>
+
 #include "aruco_detection_node.hpp"
 // #include <opencv2/imgproc.hpp>
 #include <opencv2/calib3d.hpp>
@@ -29,6 +33,7 @@ ArucoDetectionNode::ArucoDetectionNode()
 
     // cv::Mat image = cv::imread("./mark_id_09.jpg", cv::IMREAD_COLOR);
     // cv::namedWindow("arucoMarker", cv::WINDOW_AUTOSIZE);
+    cv::Mat a;
 }
 
 void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr& img_source){

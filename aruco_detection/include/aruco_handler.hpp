@@ -1,5 +1,10 @@
 #pragma once
 
+#include <ros/ros.h>
+#include <sensor_msgs/Image.h>
+#include <cv_bridge/cv_bridge.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
 #include <opencv2/aruco.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -9,7 +14,6 @@
 #include <vector>
 #include <Eigen/Geometry>
 
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 /**
  * Wrapper class for manipulating aruco markers. 
@@ -20,14 +24,14 @@
 */
 class ArucoHandler {
 public: 
-    ArucoHandler(cv::Ptr<cv::aruco::Dictionary> dictionary, cv::Ptr<cv::Mat> cameraMatrix, cv::Ptr<cv::Mat> distortionCoefficients);
-    ArucoHandler(cv::Ptr<cv::aruco::Dictionary> dictionary);
+    ArucoHandler(const cv::Ptr<cv::aruco::Dictionary> &dictionary, cv::Mat cameraMatrix, cv::Mat distortionCoefficients);
+    ArucoHandler(const cv::Ptr<cv::aruco::Dictionary> &dictionary);
     
     /**
      * Detects arUco markers in image
      * Use markerPoses and boardPose instead
     */
-    void detectMarkers(cv::InputArray img, cv::OutputArrayOfArrays corners, cv::OutputArray ids, cv::OutputArrayOfArrays rejected = cv::noArray());
+    void detectMarkers(cv::InputArray img, cv::OutputArrayOfArrays corners, cv::OutputArray ids, cv::OutputArrayOfArrays rejected);
     
     /**
      * Looks for markers in image and returns poses of the markers detected
@@ -35,7 +39,7 @@ public:
      * @param poses output: estimated poses of detected markers
      * @param ids   ouput: ids of detected markers
     */
-    int markerPoses(cv::InputArray img, std::vector<geometry_msgs::Pose> poses, std::vector<int> ids, double markerLength);
+    int markerPoses(cv::InputArray img, std::vector<geometry_msgs::Pose> &poses, cv::OutputArray ids, double markerLength);
     
     /**
      * Looks for ArUco boards in image and returns its pose if found
@@ -46,7 +50,7 @@ public:
     void drawAxis();
     
     /**
-     * Creates a custom 4 marker board with 
+     * Creates a custom 4 marker board
     */
     cv::aruco::Board createCustomBoard();
     void drawMarker(int id, std::string filepath);
@@ -65,9 +69,9 @@ protected:
     */
     geometry_msgs::Pose tvec_rvec2pose(cv::Vec3d rvec, cv::Vec3d tvec);
 
-    cv::Ptr<cv::aruco::Dictionary> dictionary;
-    cv::Ptr<cv::Mat> cameraMatrix;
-    cv::Ptr<cv::Mat> distortionCoefficients;
+    const cv::Ptr<cv::aruco::Dictionary> &dictionary;
+    cv::Mat cameraMatrix;
+    cv::Mat distortionCoefficients;
     cv::Ptr<cv::aruco::DetectorParameters> detectorParams;
 // markerSize
 

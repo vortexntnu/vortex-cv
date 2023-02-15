@@ -13,15 +13,13 @@ find_package(catkin REQUIRED COMPONENTS
   # aruco_ros
 )
 find_package(OpenCV REQUIRED COMPONENTS 
-core 
-imgproc 
-highgui
-aruco
-calib3d
+  core 
+  imgproc 
+  highgui
+  aruco
+  calib3d
 )
 find_package(Eigen3 REQUIRED)
-
-
 
 catkin_package(
   INCLUDE_DIRS include
@@ -42,12 +40,24 @@ include_directories(
   SYSTEM ${EIGEN3_INCLUDE_DIRS}
 )
 
-add_executable(${PROJECT_NAME}_node src/aruco_detection_node.cpp)
-
-
-# add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_executable(${PROJECT_NAME}_node 
+  src/aruco_detection_node.cpp
+  src/aruco_handler.cpp
+)
 
 target_link_libraries(${PROJECT_NAME}_node
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
+)
+
+add_executable(${PROJECT_NAME}_test 
+  test/test_aruco_handler.cpp
+  src/aruco_handler.cpp
+)
+# add_executable(${PROJECT_NAME}_test 
+#   test/aruco_detection_node.cpp
+# )
+target_link_libraries(${PROJECT_NAME}_test
   ${catkin_LIBRARIES}
   ${OpenCV_LIBS}
 )

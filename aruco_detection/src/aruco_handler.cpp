@@ -1,15 +1,17 @@
 #include "aruco_handler.hpp"
 
-ArucoHandler::ArucoHandler(cv::Ptr<cv::aruco::Dictionary> dictionary)
-: ArucoHandler(dictionary, new cv::Mat, new cv::Mat)
+ArucoHandler::ArucoHandler(const cv::Ptr<cv::aruco::Dictionary>& dictionary)
+: dictionary{dictionary}
+, detectorParams{cv::aruco::DetectorParameters::create()}
 {
     double fx=1, fy=1, cx=0, cy=0;
     double k1=0, k2=0, p1=0, p2=0, k3=0;
-    *cameraMatrix           = (cv::Mat1d(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
-    *distortionCoefficients = (cv::Mat1d(1, 5) << k1, k2, p1, p2, k3);
+    cameraMatrix           = (cv::Mat1d(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
+    distortionCoefficients = (cv::Mat1d(1, 5) << k1, k2, p1, p2, k3);
+    detectorParams->cornerRefinementMethod = cv::aruco::CORNER_REFINE_SUBPIX;
 }
 
-ArucoHandler::ArucoHandler(cv::Ptr<cv::aruco::Dictionary> dictionary, cv::Ptr<cv::Mat> cameraMatrix, cv::Ptr<cv::Mat> distortionCoefficients)
+ArucoHandler::ArucoHandler(const cv::Ptr<cv::aruco::Dictionary> &dictionary, cv::Mat cameraMatrix, cv::Mat distortionCoefficients)
 : dictionary{dictionary}
 , cameraMatrix{cameraMatrix}
 , distortionCoefficients{distortionCoefficients}
@@ -20,25 +22,36 @@ ArucoHandler::ArucoHandler(cv::Ptr<cv::aruco::Dictionary> dictionary, cv::Ptr<cv
 
 void ArucoHandler::detectMarkers(cv::InputArray img, cv::OutputArrayOfArrays corners, cv::OutputArray ids, cv::OutputArrayOfArrays rejected = cv::noArray())
 {
-    cv::aruco::detectMarkers(img, dictionary, corners, ids, detectorParams, rejected, *cameraMatrix, *distortionCoefficients);   
+    cv::aruco::detectMarkers(img, dictionary, corners, ids, detectorParams, rejected, cameraMatrix, distortionCoefficients);   
 }
 
-int ArucoHandler::markerPoses(cv::InputArray img, std::vector<geometry_msgs::Pose> poses, std::vector<int> ids, double markerLength)
+int ArucoHandler::markerPoses(cv::InputArray img, std::vector<geometry_msgs::Pose> &poses, cv::OutputArray ids, double markerLength)
 {
-    std::vector<std::vector<cv::Point2f>> corners, rejected;
-    cv::aruco::detectMarkers(img, dictionary, corners, ids, detectorParams, rejected, *cameraMatrix, *distortionCoefficients);
+    ROS_INFO_STREAM(dictionary.empty());
 
-    if (ids.size() == 0) return 0;
+    std::vector<std::vector<cv::Point2f>> corners, rejected;
+    
+    ROS_INFO_STREAM("num ids: " << ids.size() );
+    ROS_INFO_STREAM(dictionary.empty());
+
+    cv::aruco::detectMarkers(img, dictionary, corners, ids);//, detectorParams, rejected, cameraMatrix, distortionCoefficients);
+    if (ids.depth() == 0) return 0;
 
     std::vector< cv::Vec3d > rvecs, tvecs;
     //REPLACE with cv::solvePnP if opencv is updated to v. 4.5.5 or above. It is more accurate
     //NB! t_vec points to center of marker in v. 4.5.4 and below. To top left corner in ~ 4.5.5 and above
-    cv::aruco::estimatePoseSingleMarkers(corners, markerLength, *cameraMatrix, *distortionCoefficients, rvecs, tvecs);
-    for (size_t i{0}; i<ids.size(); i++)
+    cv::aruco::estimatePoseSingleMarkers(corners, markerLength, cameraMatrix, distortionCoefficients, rvecs, tvecs);
+    
+    ROS_INFO_STREAM("num ids: " << ids.size() );
+    for (size_t i{0}; i<ids.depth(); i++)
     {
-        poses.push_back(tvec_rvec2pose(rvecs[i], tvecs[i]));
+    ROS_INFO_STREAM("num ids: " << ids.size() );
+
+        poses.push_back(tvec_rvec2pose(rvecs.at(i), tvecs.at(i)));
+    ROS_INFO_STREAM("num ids: " << ids.size() );
+
     }
-    return ids.size();
+    return ids.depth();
 }
 
 
