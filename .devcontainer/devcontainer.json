@@ -1,5 +1,9 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/cpp
+
+
+
+// Config for using vscode with the docker-container
 {
 	"name": "Development Container",
 	"dockerComposeFile": "../docker/docker-compose.yml",

@@ -9,14 +9,15 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   vortex_msgs
   roscpp
-  aruco_msgs
-  aruco_ros
+  # aruco_msgs
+  # aruco_ros
 )
 find_package(OpenCV REQUIRED COMPONENTS 
 core 
 imgproc 
 highgui
 aruco
+calib3d
 )
 find_package(Eigen3 REQUIRED)
 
