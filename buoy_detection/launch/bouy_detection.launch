@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+
+<launch>
+    <node name="buoy_detection_node"    pkg="buoy_detection"     type="buoy_detection_node"    output="screen"/>
+</launch>
