@@ -4,22 +4,6 @@ import sys
 
 from pdaf import PDAF
 from test_pdafTester import PDAFTester
-"""
-
-Unit tests for pdaf. 
-ROS independent. 
-Depends on monkey_tracking/data_generation. 
-     !!!! OBS: must clone https://github.com/chrstrom/monkey_tracking and modify PATH_ variabels.
-
-"""
-
-# # ---- modify here: 
-PATH_TO_DATA_GENERATION_REP = "/home/hannahcl/Documents/vortex/monkey_tracking/data_generation"
-
-
-sys.path.insert(0, PATH_TO_DATA_GENERATION_REP)
-from scenarios import BaseScenario
-from load_config import load_yaml_into_dotdict
 
 
 def test_pdaf_zero_velocity():
@@ -32,7 +16,7 @@ def test_pdaf_zero_velocity():
     pdafTester = PDAFTester()
     pdaf = pdafTester.create_pdaf_instance()
 
-    pdaf.validation_gate_scaling_param = 4
+    pdaf.validation_gate_scaling_param = 6
 
     pdaf.prior_state_estimate.mean[0] = 0
     pdaf.prior_state_estimate.mean[1] = 0

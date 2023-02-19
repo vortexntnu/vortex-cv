@@ -4,6 +4,7 @@ import yaml
 
 from pdaf import PDAF
 
+#Modify here: 
 PATH_TO_CONFIG_TRACKING_SYS = "/home/hannahcl/Documents/vortex/ros_ws/src/vortex-cv/tracking/config"
 
 

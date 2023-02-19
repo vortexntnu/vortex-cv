@@ -1,35 +1,25 @@
 import sys
 from test_pdafTester import PDAFTester
 
-"""
 
-Unit tests for pdaf. 
-ROS independent. 
-Depends on monkey_tracking/data_generation. 
-     !!!! OBS: must clone https://github.com/chrstrom/monkey_tracking and modify PATH_ variabels.
+import yaml
+
+from trackManager import TRACK_MANAGER, TRACK_STATUS
+import test_plots
+
+import numpy as np
 
 
-In terminal:
-cd test
-pytest test_track_manager.py::test_plot_interactive -s
-"""
 
 # ---- modify here: 
 PATH_TO_DATA_GENERATION_REP = "/home/hannahcl/Documents/vortex/monkey_tracking"
 PATH_TO_CONFIG_TRACKING_SYS = "/home/hannahcl/Documents/vortex/ros_ws/src/vortex-cv/tracking/config"
-
 
 sys.path.insert(0, PATH_TO_DATA_GENERATION_REP + "/data_generation")
 sys.path.insert(0, PATH_TO_DATA_GENERATION_REP + "/config")
 
 from scenarios import BaseScenario
 from load_config import load_yaml_into_dotdict
-import yaml
-
-from track_manager import TRACK_MANAGER, TRACK_STATUS
-import test_plots
-
-import numpy as np
 
  
 def data_generation():
