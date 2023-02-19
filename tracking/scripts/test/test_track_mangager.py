@@ -64,7 +64,7 @@ def test_cb():
         print("\n timestep", i, "\n")
         o_arr = manager.main_track.pdaf.create_observations_for_one_timestep(x, y)
         print("observations: ", o_arr)
-        manager.cb(o_arr, time_step)
+        manager.step_once(o_arr, time_step)
 
         for track in manager.tentative_tracks:
             print("state: ", track.pdaf.state_pri[:2])
@@ -102,7 +102,7 @@ def test_plot_interactive():
         o_arr = np.array(o_list)
 
         # update
-        manager.cb(o_arr, time_step)
+        manager.step_once(o_arr, time_step)
 
         # add updates to lists that will be plottee
         if manager.main_track.track_status == TRACK_STATUS.tentative_confirm:

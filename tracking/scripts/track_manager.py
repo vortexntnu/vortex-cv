@@ -70,7 +70,7 @@ class TRACK_MANAGER:
 
         self.time_step = 0
 
-    def cb(self, o_arr, time_step):
+    def step_once(self, o_arr, time_step):
         self.time_step = time_step
 
         if self.main_track.track_status == TRACK_STATUS.tentative_confirm:
@@ -98,7 +98,7 @@ class TRACK_MANAGER:
             # print("\n ------------track still confirmed")
             # print("state: ", self.main_track.pdaf.state_post)
 
-            self.main_track.pdaf.cb(o_arr, self.time_step)
+            self.main_track.pdaf.step_once(o_arr, self.time_step)
 
             if len(self.main_track.pdaf.o_within_gate_arr) == 0:
                 self.main_track.track_status = TRACK_STATUS.tentative_delete
@@ -111,7 +111,7 @@ class TRACK_MANAGER:
             # print("state: ", self.main_track.pdaf.state_post)
             # print("n: ", self.main_track.n, "m: ", self.main_track.m)
 
-            self.main_track.pdaf.cb(o_arr, self.time_step)
+            self.main_track.pdaf.step_once(o_arr, self.time_step)
 
             self.main_track.m += 1
             if len(self.main_track.pdaf.o_within_gate_arr) > 0:
@@ -128,7 +128,7 @@ class TRACK_MANAGER:
 
             track.n, track.m = self.update_confirmation_count(track, o_arr)
 
-            track.pdaf.cb(o_arr, self.time_step)
+            track.pdaf.step_once(o_arr, self.time_step)
 
             if track.n == self.N:
                 self.main_track = track

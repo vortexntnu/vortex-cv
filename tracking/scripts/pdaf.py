@@ -65,7 +65,7 @@ class PDAF:
 
         self.o_within_gate_arr = None
 
-    def cb(self, o_arr, time_step):
+    def step_once(self, o_arr, time_step):
         self.update_model(time_step)
         self.prediction_step()
         self.correction_step(o_arr)

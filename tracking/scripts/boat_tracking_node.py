@@ -38,8 +38,8 @@ class Tracker:
     def __init__(self):
 
         rospy.init_node("Tracker")
-        rospy.Subscriber("lidar_clusters", PoseArray, self.cb)
-        self.pub = rospy.Publisher("tracked_cv_object", Odometry, queue_size=10)
+        rospy.Subscriber("/lidar/clusters", PoseArray, self.cb)
+        self.pub = rospy.Publisher("/tracking/tracked_cv_object", Odometry, queue_size=10)
 
         self.seq = 0
 
@@ -61,7 +61,7 @@ class Tracker:
     def cb(self, msg):
 
         self.unpack_pose_array_msg(msg)
-        self.track_manager.cb(self.observations, self.time_step)
+        self.track_manager.step_once(self.observations, self.time_step)
         if (
             self.track_manager.main_track.track_status == TRACK_STATUS.confirmed
             or self.track_manager.main_track.track_status
