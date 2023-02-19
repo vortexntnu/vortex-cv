@@ -31,7 +31,7 @@ public:
      * Detects arUco markers in image
      * Use markerPoses and boardPose instead
     */
-    void detectMarkers(cv::InputArray img, cv::OutputArrayOfArrays corners, cv::OutputArray ids, cv::OutputArrayOfArrays rejected);
+    void detectMarkers(cv::InputArray img, cv::OutputArrayOfArrays corners, std::vector<int> &ids, cv::OutputArrayOfArrays rejected);
     
     /**
      * Looks for markers in image and returns poses of the markers detected
@@ -39,7 +39,7 @@ public:
      * @param poses output: estimated poses of detected markers
      * @param ids   ouput: ids of detected markers
     */
-    int markerPoses(cv::InputArray img, std::vector<geometry_msgs::Pose> &poses, cv::OutputArray ids, double markerLength);
+    int markerPoses(const cv::Mat& img, std::vector<geometry_msgs::Pose> &poses, std::vector<int> &ids, double markerLength);
     
     /**
      * Looks for ArUco boards in image and returns its pose if found
@@ -67,7 +67,7 @@ protected:
      * @param rvec rotation vector
      * @param tvec translation vector
     */
-    geometry_msgs::Pose tvec_rvec2pose(cv::Vec3d rvec, cv::Vec3d tvec);
+    geometry_msgs::Pose tvec_rvec2pose(cv::Vec3d &rvec, cv::Vec3d &tvec);
 
     const cv::Ptr<cv::aruco::Dictionary> &dictionary;
     cv::Mat cameraMatrix;

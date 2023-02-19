@@ -20,22 +20,19 @@ ArucoHandler::ArucoHandler(const cv::Ptr<cv::aruco::Dictionary> &dictionary, cv:
     detectorParams->cornerRefinementMethod = cv::aruco::CORNER_REFINE_SUBPIX;
 }
 
-void ArucoHandler::detectMarkers(cv::InputArray img, cv::OutputArrayOfArrays corners, cv::OutputArray ids, cv::OutputArrayOfArrays rejected = cv::noArray())
+void ArucoHandler::detectMarkers(cv::InputArray img, cv::OutputArrayOfArrays corners, std::vector<int> &ids, cv::OutputArrayOfArrays rejected = cv::noArray())
 {
     cv::aruco::detectMarkers(img, dictionary, corners, ids, detectorParams, rejected, cameraMatrix, distortionCoefficients);   
 }
 
-int ArucoHandler::markerPoses(cv::InputArray img, std::vector<geometry_msgs::Pose> &poses, cv::OutputArray ids, double markerLength)
+int ArucoHandler::markerPoses(const cv::Mat& img, std::vector<geometry_msgs::Pose> &poses, std::vector<int> &ids, double markerLength)
 {
-    ROS_INFO_STREAM(dictionary.empty());
 
     std::vector<std::vector<cv::Point2f>> corners, rejected;
     
-    ROS_INFO_STREAM("num ids: " << ids.size() );
-    ROS_INFO_STREAM(dictionary.empty());
-
     cv::aruco::detectMarkers(img, dictionary, corners, ids);//, detectorParams, rejected, cameraMatrix, distortionCoefficients);
-    if (ids.depth() == 0) return 0;
+    ROS_INFO_STREAM("detectMarkers, num ids: " << ids.size() );
+    if (ids.size() == 0) return 0;
 
     std::vector< cv::Vec3d > rvecs, tvecs;
     //REPLACE with cv::solvePnP if opencv is updated to v. 4.5.5 or above. It is more accurate
@@ -43,15 +40,11 @@ int ArucoHandler::markerPoses(cv::InputArray img, std::vector<geometry_msgs::Pos
     cv::aruco::estimatePoseSingleMarkers(corners, markerLength, cameraMatrix, distortionCoefficients, rvecs, tvecs);
     
     ROS_INFO_STREAM("num ids: " << ids.size() );
-    for (size_t i{0}; i<ids.depth(); i++)
+    for (size_t i{0}; i<ids.size(); i++)
     {
-    ROS_INFO_STREAM("num ids: " << ids.size() );
-
         poses.push_back(tvec_rvec2pose(rvecs.at(i), tvecs.at(i)));
-    ROS_INFO_STREAM("num ids: " << ids.size() );
-
     }
-    return ids.depth();
+    return ids.size();
 }
 
 
@@ -66,7 +59,7 @@ cv::Matx41d ArucoHandler::axisAngle2Quaternion (const cv::Matx31d& aa)
     return q;
 }
 
-geometry_msgs::Pose ArucoHandler::tvec_rvec2pose(cv::Vec3d rvec, cv::Vec3d tvec)
+geometry_msgs::Pose ArucoHandler::tvec_rvec2pose(cv::Vec3d &rvec, cv::Vec3d &tvec)
 {
     cv::Matx41d quaternion = axisAngle2Quaternion(rvec);
     geometry_msgs::Pose pose;

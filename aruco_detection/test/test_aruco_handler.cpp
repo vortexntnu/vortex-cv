@@ -18,12 +18,13 @@ int main()
     std::vector<int> ids;
     double markerLength{5};
     std::vector<std::vector<cv::Point2f>> corners, rejected;
-    ROS_INFO("abs");
 
     // cv::aruco::detectMarkers(img, dictionary, corners, ids);
     // markerHandler.detectMarkers(img, corners, ids, rejected);
     int markernum = markerHandler.markerPoses(img, poses, ids, markerLength);
     // ROS_INFO_STREAM("num ids: " << ids.size() );
-    ROS_INFO_STREAM("num ids: " << markernum);
+    // ROS_INFO_STREAM("num ids: " << markernum);
+    ROS_INFO_STREAM("poses: "  << poses.at(0) << poses.at(1));
 
+    // worldframePose = toWorldframe(poses) 
 }
