@@ -27,6 +27,7 @@ Summary of the packages and their functionalities:
 - NumPy
 - scikit-learn
 - opencv-python
+- debugpy
 
 ### Github dependencies
 - [Dynamic dynamic reconfigure python](https://github.com/pal-robotics/ddynamic_reconfigure_python)
@@ -51,3 +52,53 @@ https://github.com/vortexntnu/Vortex-AUV/wiki/Object-detection
 $ source devel/setup.bash
 $ roslaunch vision_launch vision_launch.launch
 ```
+
+## Use debugger with Python ROS (rospy) in VSCode
+1. In `.vscode` folder, create a file named `launch.json`. E.g.:
+```
+~/vortex_ws/src/vortex-cv/.vscode/launch.json
+```
+
+2. Add a *configuration* to this file:
+```
+"name": "Python: Current File",
+"type": "python",
+"request": "attach",
+"program": "${file}",
+"connect": {
+    "host": "localhost",
+    "port": 5678
+```
+> An example of a `launch.json` file (yours may have more configurations and other stuff):
+```
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "attach",
+            "program": "${file}",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
+            }
+        }
+    ]
+}
+```
+3. Add following lines to the top (after `#! /usr/bin/env python` line) of a ROS python node you wish to debug:
+```
+import debugpy
+print("Waiting for VSCode debugger...")
+debugpy.listen(5678)
+debugpy.wait_for_client()
+```
+
+4. Run python debugger.
+
+Notes: 
+- The debugger server can listen to only a single debugger client - meaning only one node. It is possible to set up so that debugger listens to multiple on clients at the same time, but you have to set up configurations and clients with different ports, meaning, other than `5678`.
