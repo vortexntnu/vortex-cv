@@ -47,7 +47,7 @@ class Tracker:
         path = r.get_path("tracking")
         rospy.loginfo(path)
         with open(
-            path + "/scripts/config_traking_sys.yaml",
+            path + "/config/config_traking_sys.yaml",
             "r",
         ) as stream:
             config_loaded = yaml.safe_load(stream)

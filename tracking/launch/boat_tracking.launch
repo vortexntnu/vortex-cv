@@ -1,15 +1,6 @@
 <?xml version="1.0"?>
 <launch>
 
-
-    <!-- Here we launch nodes directly.
-        pkg:    Name of the package the node is located in
-        type:   The executable that launches the node.
-                    For python this is a .py file (after chmod +x file.py)
-                    For cpp this is the name of the compiled executable as defined in the CMakeLists.txt of the package
-        name:   Name of the node once it's launched
-        output: "screen" means that the node will print to console, while "log" means it's only put in a logfile
-        respawn: true or false depending if you want the node to restart after it dies (usually of some error) -->
     <node pkg="tracking" type="boat_tracking_node.py"     name="Tracker" output="screen" respawn="false"/>
 
 
