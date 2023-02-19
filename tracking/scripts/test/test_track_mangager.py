@@ -67,10 +67,10 @@ def test_cb():
         manager.step_once(o_arr, time_step)
 
         for track in manager.tentative_tracks:
-            print("state: ", track.pdaf.state_pri[:2])
+            print("state: ", track.pdaf.prior_state_estimate.mean[:2])
             print("n: ", track.n, "m: ", track.m)
 
-    print("final estimates: ", manager.main_track.pdaf.state_post)
+    print("final estimates: ", manager.main_track.pdaf.posterior_state_estimate.mean)
 
 
 # @pytest.mark.plot
@@ -108,14 +108,14 @@ def test_plot_interactive():
         if manager.main_track.track_status == TRACK_STATUS.tentative_confirm:
             last_addition_to_tentative_tracks = []
             for track in manager.tentative_tracks:
-                last_addition_to_tentative_tracks.append(track.pdaf.state_post)
+                last_addition_to_tentative_tracks.append(track.pdaf.posterior_state_estimate.mean)
             tentative_estimates.append(last_addition_to_tentative_tracks)
 
         if manager.main_track.track_status == TRACK_STATUS.confirmed:
-            conf_estimates.append(manager.main_track.pdaf.state_post)
+            conf_estimates.append(manager.main_track.pdaf.posterior_state_estimate.mean)
 
         if manager.main_track.track_status == TRACK_STATUS.tentative_delete:
-            tentative_del_estimates.append(manager.main_track.pdaf.state_post)
+            tentative_del_estimates.append(manager.main_track.pdaf.posterior_state_estimate.mean)
 
         estimate_status.append(manager.main_track.track_status)
 

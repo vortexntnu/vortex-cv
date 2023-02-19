@@ -172,7 +172,7 @@ def test_filter_observations_outside_gate():
 
     print("observations: ", observations)
 
-    pdaf.compute_L()
+    pdaf.compute_kalman_gain()
     pdaf.compute_S()
     pdaf.filter_observations_outside_gate(observations)
 
@@ -199,7 +199,7 @@ def test_compute_probability_of_matching_observations():
         observations[i, 0] = x + i * 0.1
         observations[i, 1] = y
 
-    pdaf.compute_L()
+    pdaf.compute_kalman_gain()
     pdaf.compute_S()
     pdaf.filter_observations_outside_gate(observations)
     pdaf.compute_probability_of_matching_observations()
@@ -236,7 +236,7 @@ def test_compute_residual_vector():
     o_1 = [x + 1, y - 1]
     observations.append(o_1)
 
-    pdaf.compute_L()
+    pdaf.compute_kalman_gain()
     pdaf.compute_S()
     pdaf.filter_observations_outside_gate(observations)
     pdaf.compute_probability_of_matching_observations()
@@ -283,7 +283,7 @@ def test_correct_P():
 
         pdaf.prediction_step()
 
-        pdaf.compute_L()
+        pdaf.compute_kalman_gain()
         pdaf.compute_S()
 
         pdaf.filter_observations_outside_gate(observations)

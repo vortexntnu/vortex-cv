@@ -249,7 +249,7 @@ def plot_interactive_velocity(
         if wait_for_btn_press:
             plt.waitforbuttonpress()
         else:
-            plt.pause(0.001)
+            plt.pause(0.0001)
 
     plt.ioff()
     plt.show()

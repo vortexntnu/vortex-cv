@@ -1,4 +1,5 @@
 import numpy as np
+from dataclasses import dataclass
 
 """
 Single object tracking
@@ -9,26 +10,52 @@ Slides from PSU are nice for vizualization. https://www.cse.psu.edu/~rtc12/CSE59
 """
 
 
+@dataclass 
+class MultivariateGaussian:
+    mean: np.ndarray 
+    covariance: np.ndarray
+    timestamp: float
+
 class PDAF:
     def __init__(self, config):
         # x = [x, y, x', y']
 
         self.time_step = config["pdaf"]["time_step"]  # can vary for each time step
-        self.state_post = np.array(config["pdaf"]["state_post"]).reshape(
-            (4, 1)
-        )  # posterior state estiamte
-        self.P_post = np.array(config["pdaf"]["P_post"]).reshape(
-            (4, 4)
-        )  # posterior error covariance estimate
 
-        self.state_pri = self.state_post  # prior state estiamte
-        self.P_pri = self.P_post  # prior error covariance estimate
+        self.posterior_state_estimate = MultivariateGaussian(
+            np.array(config["pdaf"]["state_post"]).reshape((4, 1)),
+            np.array(config["pdaf"]["P_post"]).reshape((4, 4)),
+            self.time_step
+        )
 
-        self.L = np.zeros((4, 2))  # kalam gain
+        self.prior_state_estimate = MultivariateGaussian(
+            self.posterior_state_estimate.mean, 
+            self.posterior_state_estimate.covariance,
+            self.time_step
+        )
 
-        self.C = np.array(
+        self.predited_observation = MultivariateGaussian(
+            np.zeros((2,1)),
+            np.zeros((2,2)),
+            self.time_step 
+        )
+
+        self.model_disturbance = MultivariateGaussian(
+            np.zeros((4,1)), 
+            np.array(config["pdaf"]["Q"]) , 
+            self.time_step
+        )
+
+        self.measurment_noise = MultivariateGaussian(
+            np.zeros((2,1)), 
+            np.array(config["pdaf"]["R"]), 
+            self.time_step
+        )
+
+
+        self.C = np.array( # C as in, y = C @ x
             [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]]
-        )  # C as in, y = C @ x
+        )  
 
         self.A = np.array(  # A as in, x' = A @ x
             [
@@ -39,14 +66,6 @@ class PDAF:
             ]
         )
 
-        self.o_pri = np.zeros((2, 1))  # predicted observation
-
-        self.Q = np.array(config["pdaf"]["Q"])  # covariance of disturbance
-
-        self.R = np.array(config["pdaf"]["R"])  # covariance of noise
-
-        self.S = np.zeros((2, 2))  # covariance of predicted measurment
-
         self.validation_gate_scaling_param = config["pdaf"][
             "validation_gate_scaling_param"
         ]
@@ -55,13 +74,9 @@ class PDAF:
             "minimal_mahalanobis_distance"
         ]  # observations that are closer then this, will be set to min distance
 
-        self.residual_vector = np.zeros((2, 1))
-
         self.p_no_match = config["pdaf"][
             "p_no_match"
         ]  # probabiity that no observations originates from the track
-
-        self.p_match_arr = None  # probability the respective observations orriginate from the track. p_math_arr[0] always equal to probability that no observation originates from the track.
 
         self.o_within_gate_arr = None
 
@@ -71,27 +86,28 @@ class PDAF:
         self.correction_step(o_arr)
 
     def prediction_step(self):
-        self.state_pri = self.A @ self.state_post
-        self.P_pri = self.A @ self.P_post @ self.A.T + self.Q
-        self.o_pri = self.C @ self.state_pri
+
+        self.prior_state_estimate.mean = self.A @ self.posterior_state_estimate.mean
+        self.prior_state_estimate.covariance = self.A @ self.posterior_state_estimate.covariance @ self.A.T + self.model_disturbance.covariance
+
+        self.predited_observation.mean = self.C @ self.prior_state_estimate.mean
+        self.predited_observation.covariance = self.C @ self.prior_state_estimate.covariance @ self.C.T + self.measurment_noise.covariance
 
     def correction_step(self, o):
 
-        self.compute_L()
-        self.compute_S()
+        L = self.compute_kalman_gain()
 
         self.filter_observations_outside_gate(o)
 
         if len(self.o_within_gate_arr) == 0:
-            self.state_post = self.state_pri
-            self.P_post = self.P_pri
+            self.posterior_state_estimate = self.prior_state_estimate
 
         else:
-            self.compute_probability_of_matching_observations()
-            self.compute_residual_vector()
+            p_match_arr = self.compute_probability_of_matching_observations()
+            residual_vector = self.compute_residual_vector(p_match_arr)
 
-            self.correct_state_vector()
-            self.correct_P()
+            self.correct_state_vector(L, residual_vector)
+            self.correct_P(L, residual_vector, p_match_arr)
 
     def filter_observations_outside_gate(self, o):
 
@@ -108,8 +124,8 @@ class PDAF:
     def compute_mah_dist(self, o):
         "Compute mahaloanobis distance between observation and predicted observation."
 
-        diff = o - self.o_pri
-        mah_dist = diff.T @ np.linalg.inv(self.S) @ diff
+        diff = o - self.predited_observation.mean
+        mah_dist = diff.T @ np.linalg.inv(self.predited_observation.covariance) @ diff
 
         return mah_dist
 
@@ -117,12 +133,12 @@ class PDAF:
 
         score = np.zeros((len(self.o_within_gate_arr),))
 
-        self.p_match_arr = np.zeros((len(self.o_within_gate_arr) + 1,))
+        p_match_arr = np.zeros((len(self.o_within_gate_arr) + 1,))
 
         if len(self.o_within_gate_arr) == 0:
-            self.p_match_arr[0] = 1.0
+            p_match_arr[0] = 1.0
         else:
-            self.p_match_arr[0] = self.p_no_match
+            p_match_arr[0] = self.p_no_match
 
         for i, o_i in enumerate(self.o_within_gate_arr):
 
@@ -134,7 +150,9 @@ class PDAF:
 
         score_sum = np.sum(score)
         for i in range(len(self.o_within_gate_arr)):
-            self.p_match_arr[i + 1] = (score[i] / score_sum) * (1 - self.p_no_match)
+            p_match_arr[i + 1] = (score[i] / score_sum) * (1 - self.p_no_match)
+
+        return p_match_arr
 
     def update_model(self, time_step):
         self.time_step = time_step
@@ -147,43 +165,43 @@ class PDAF:
             ]
         )
 
-    def compute_residual_vector(self):
-        self.residual_vector = self.residual_vector * 0
+    def compute_residual_vector(self, p_match_arr):
+        residual_vector = np.zeros((2,1))
         for i in range(len(self.o_within_gate_arr)):
-            self.residual_vector += self.p_match_arr[i + 1] * (
-                self.o_within_gate_arr[i] - self.o_pri
+            residual_vector += p_match_arr[i + 1] * (
+                self.o_within_gate_arr[i] - self.predited_observation.mean
             )
 
-    def compute_S(self):
-        self.S = self.C @ self.P_pri @ self.C.T + self.R
+        return residual_vector
 
-    def compute_L(self):
-        C_P_CT = self.C @ self.P_pri @ self.C.T
-        self.L = self.P_pri @ self.C.T @ np.linalg.inv(C_P_CT + self.R)
+    def compute_kalman_gain(self):
+        C_P_CT = self.C @ self.prior_state_estimate.covariance @ self.C.T
+        L = self.prior_state_estimate.covariance @ self.C.T @ np.linalg.inv(C_P_CT + self.measurment_noise.covariance)
+        return L
 
-    def correct_state_vector(self):
-        self.state_post = self.state_pri + self.L @ self.residual_vector
+    def correct_state_vector(self, L, residual_vector):
+        self.posterior_state_estimate.mean = self.prior_state_estimate.mean + L @ residual_vector
 
-    def correct_P(self):
+    def correct_P(self, L, residual_vector, p_match_arr):
         # qf - quadratic form
         qf_weighted_residual_vector = np.zeros((2, 2))
         for i, o_i in enumerate(self.o_within_gate_arr):
-            conditional_innovations = o_i - self.o_pri
+            conditional_innovations = o_i - self.predited_observation.mean
 
             qf_weighted_residual_vector += (
-                self.p_match_arr[i + 1]
+                p_match_arr[i + 1]
                 * conditional_innovations
                 @ conditional_innovations.T
             )
 
-        qf_residual_vector = self.residual_vector @ self.residual_vector.T
+        qf_residual_vector = residual_vector @ residual_vector.T
         diff = qf_weighted_residual_vector - qf_residual_vector
-        spread_of_innovations = self.L @ diff @ self.L.T  # given by (7.26) Brekke
+        spread_of_innovations = L @ diff @ L.T  # given by (7.26) Brekke
 
-        L_S_LT = self.L @ self.S @ self.L.T
+        L_S_LT = L @ self.predited_observation.covariance @ L.T
 
-        self.P_post = (
-            self.P_pri - (1 - self.p_no_match) * L_S_LT + spread_of_innovations
+        self.posterior_state_estimate.covariance = (
+            self.prior_state_estimate.covariance - (1 - self.p_no_match) * L_S_LT + spread_of_innovations
         )  # given by (7.25) Brekke
 
     def create_observations_for_one_timestep(self, x, y):
@@ -200,8 +218,8 @@ class PDAF:
         # add obs that corresponds to the acctual track (1-p_no_match)*100 prosent of the time.
         random_int = np.random.randint(0, 100)
         if (random_int < 100 * (1 - self.p_no_match)) and (n_obs > 0):
-            obs[-1, 0] = x + np.random.randn(1) * self.R[0, 0]
-            obs[-1, 1] = y + np.random.randn(1) * self.R[1, 1]
+            obs[-1, 0] = x + np.random.randn(1) * self.measurment_noise.covariance[0, 0]
+            obs[-1, 1] = y + np.random.randn(1) * self.measurment_noise.covariance[1, 1]
 
         return obs
 
@@ -212,7 +230,7 @@ class PDAF:
 
         obs = np.ndarray((n_obs, 2), dtype=float)
         for i in range(n_obs):
-            obs[i, 0] = x + np.random.randn(1) * self.R[0, 0]
-            obs[i, 1] = y + np.random.randn(1) * self.R[1, 1]
+            obs[i, 0] = x + np.random.randn(1) * self.measurment_noise.covariance[0, 0]
+            obs[i, 1] = y + np.random.randn(1) * self.measurment_noise.covariance[1, 1]
 
         return obs
