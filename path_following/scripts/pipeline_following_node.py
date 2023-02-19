@@ -29,6 +29,7 @@ import cv2
 from os.path import join
 
 import feature_detection
+import image_extraction
 
 """
 Node made to publish data to the landmarkserver of type "Objectposition", which is an own defined Vortex msg and can be found in the vortex-msgs respository.
