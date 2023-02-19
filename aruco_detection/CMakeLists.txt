@@ -54,10 +54,17 @@ add_executable(${PROJECT_NAME}_test
   test/test_aruco_handler.cpp
   src/aruco_handler.cpp
 )
-# add_executable(${PROJECT_NAME}_test 
-#   test/aruco_detection_node.cpp
-# )
 target_link_libraries(${PROJECT_NAME}_test
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBS}
+${catkin_LIBRARIES}
+${OpenCV_LIBS}
 )
+
+
+# if(CATKIN_ENABLE_TESTING)
+# find_package(rostest REQUIRED)
+# add_rostest_gtest(tests_mynode test/mynode.test src/test/test_mynode.cpp [more cpp files])
+#   target_link_libraries(${PROJECT_NAME}_test
+#     ${catkin_LIBRARIES}
+#     ${OpenCV_LIBS}
+#   )
+# endif()
