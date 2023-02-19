@@ -1,4 +1,5 @@
 import sys
+from test_pdafTester import PDAFTester
 
 """
 
@@ -15,7 +16,8 @@ pytest test_track_manager.py::test_plot_interactive -s
 
 # ---- modify here: 
 PATH_TO_DATA_GENERATION_REP = "/home/hannahcl/Documents/vortex/monkey_tracking"
-PATH_TO_CONFIG_TRACKING_SYS = "/home/hannahcl/Documents/vortex/asv_ws/src/vortex-asv/navigation/tracking/scripts"
+PATH_TO_CONFIG_TRACKING_SYS = "/home/hannahcl/Documents/vortex/ros_ws/src/vortex-cv/tracking/config"
+
 
 sys.path.insert(0, PATH_TO_DATA_GENERATION_REP + "/data_generation")
 sys.path.insert(0, PATH_TO_DATA_GENERATION_REP + "/config")
@@ -25,7 +27,7 @@ from load_config import load_yaml_into_dotdict
 import yaml
 
 from track_manager import TRACK_MANAGER, TRACK_STATUS
-import plots
+import test_plots
 
 import numpy as np
 
@@ -51,7 +53,9 @@ def test_cb():
     ) as stream:
         config_loaded = yaml.safe_load(stream)
 
+
     manager = TRACK_MANAGER(config_loaded)
+    pdafTester = PDAFTester()
 
     x = 0
     y = 0
@@ -62,7 +66,7 @@ def test_cb():
 
     for i in range(n_timesteps):
         print("\n timestep", i, "\n")
-        o_arr = manager.main_track.pdaf.create_observations_for_one_timestep(x, y)
+        o_arr = pdafTester.create_observations_for_one_timestep(x, y)
         print("observations: ", o_arr)
         manager.step_once(o_arr, time_step)
 
@@ -119,7 +123,7 @@ def test_plot_interactive():
 
         estimate_status.append(manager.main_track.track_status)
 
-    plots.plot_interactive_velocity(
+    test_plots.plot_interactive_velocity(
         scenario,
         measurements,
         ground_truths,

@@ -14,7 +14,7 @@ pdaf:
 
 manager: 
 
-  N: 3
+  N: 5
   M: 8
 
   max_vel: 10

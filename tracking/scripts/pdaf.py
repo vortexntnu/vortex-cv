@@ -93,6 +93,8 @@ class PDAF:
         self.predited_observation.mean = self.C @ self.prior_state_estimate.mean
         self.predited_observation.covariance = self.C @ self.prior_state_estimate.covariance @ self.C.T + self.measurment_noise.covariance
 
+        print(self.predited_observation.covariance)
+
     def correction_step(self, o):
 
         L = self.compute_kalman_gain()
@@ -204,33 +206,6 @@ class PDAF:
             self.prior_state_estimate.covariance - (1 - self.p_no_match) * L_S_LT + spread_of_innovations
         )  # given by (7.25) Brekke
 
-    def create_observations_for_one_timestep(self, x, y):
-        "Only used for testing. Not part of the tracker algorithm."
 
-        n_obs = 10  # np.random.randint(0, 10)
 
-        obs = np.ndarray((n_obs, 2), dtype=float)
-        # add obs that are scaterd far apart
-        for i in range(n_obs):
-            obs[i, 0] = x + np.random.randn(1) * 1
-            obs[i, 1] = y + np.random.randn(1) * 1
 
-        # add obs that corresponds to the acctual track (1-p_no_match)*100 prosent of the time.
-        random_int = np.random.randint(0, 100)
-        if (random_int < 100 * (1 - self.p_no_match)) and (n_obs > 0):
-            obs[-1, 0] = x + np.random.randn(1) * self.measurment_noise.covariance[0, 0]
-            obs[-1, 1] = y + np.random.randn(1) * self.measurment_noise.covariance[1, 1]
-
-        return obs
-
-    def create_observations_for_one_timestep_simple_version(self, x, y):
-        "Only used for testing. Not part of the tracker algorithm."
-
-        n_obs = np.random.randint(0, 10)
-
-        obs = np.ndarray((n_obs, 2), dtype=float)
-        for i in range(n_obs):
-            obs[i, 0] = x + np.random.randn(1) * self.measurment_noise.covariance[0, 0]
-            obs[i, 1] = y + np.random.randn(1) * self.measurment_noise.covariance[1, 1]
-
-        return obs

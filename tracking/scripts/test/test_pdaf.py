@@ -1,9 +1,9 @@
-from pdaf import PDAF
 import numpy as np
 import yaml
-
 import sys
 
+from pdaf import PDAF
+from test_pdafTester import PDAFTester
 """
 
 Unit tests for pdaf. 
@@ -13,9 +13,9 @@ Depends on monkey_tracking/data_generation.
 
 """
 
-# ---- modify here: 
+# # ---- modify here: 
 PATH_TO_DATA_GENERATION_REP = "/home/hannahcl/Documents/vortex/monkey_tracking/data_generation"
-PATH_TO_CONFIG_TRACKING_SYS = "/home/hannahcl/Documents/vortex/asv_ws/src/vortex-asv/navigation/tracking/scripts"
+
 
 sys.path.insert(0, PATH_TO_DATA_GENERATION_REP)
 from scenarios import BaseScenario
@@ -24,61 +24,46 @@ from load_config import load_yaml_into_dotdict
 
 def test_pdaf_zero_velocity():
 
-    with open(
-        PATH_TO_CONFIG_TRACKING_SYS + "/config_traking_sys.yaml",
-        "r",
-    ) as stream:
-        config_loaded = yaml.safe_load(stream)
-
     x = 1
     y = 1
     tollerance = 0.5
     n_timesteps = 200
 
-    pdaf = PDAF(config_loaded)
+    pdafTester = PDAFTester()
+    pdaf = pdafTester.create_pdaf_instance()
 
     pdaf.validation_gate_scaling_param = 4
 
-    pdaf.state_pri[0] = 0
-    pdaf.state_pri[1] = 0
-    pdaf.state_pri[2] = 10
-    pdaf.state_pri[3] = 5
+    pdaf.prior_state_estimate.mean[0] = 0
+    pdaf.prior_state_estimate.mean[1] = 0
+    pdaf.prior_state_estimate.mean[2] = 10
+    pdaf.prior_state_estimate.mean[3] = 5
 
-    for i in range(len(pdaf.state_post)):
-        pdaf.Q[i, i] = 0.1
+    for i in range(len(pdaf.posterior_state_estimate.mean)):
+        pdaf.model_disturbance.covariance[i, i] = 0.1
 
     for i in range(len(pdaf.C)):
-        pdaf.R[i, i] = 0.1
+        pdaf.measurment_noise.covariance[i, i] = 0.1
 
     for k in range(n_timesteps):
 
-        o_time_k = pdaf.create_observations_for_one_timestep_simple_version(x, y)
-
-        pdaf.correction_step(o_time_k)
+        o_time_k = pdafTester.create_observations_for_one_timestep_simple_version(x, y)
 
         pdaf.prediction_step()
+        pdaf.correction_step(o_time_k)
 
-        # print("observations: ", o_time_k)
-        # print("estimates: ", pdaf.x_post)
+    print(pdaf.posterior_state_estimate.mean)
 
-    print(pdaf.state_post)
-
-    assert abs(pdaf.state_post[0] - x) < tollerance
-    assert abs(pdaf.state_post[1] - y) < tollerance
-    assert abs(pdaf.state_post[2]) < tollerance
-    assert abs(pdaf.state_post[3]) < tollerance
+    assert abs(pdaf.posterior_state_estimate.mean[0] - x) < tollerance
+    assert abs(pdaf.posterior_state_estimate.mean[1] - y) < tollerance
+    assert abs(pdaf.posterior_state_estimate.mean[2]) < tollerance
+    assert abs(pdaf.posterior_state_estimate.mean[3]) < tollerance
 
 
 def test_pdaf_constant_vel():
     """
     We simulate a boat with constant velocity in both x and y.
     """
-
-    with open(
-        PATH_TO_CONFIG_TRACKING_SYS + "/config_traking_sys.yaml",
-        "r",
-    ) as stream:
-        config_loaded = yaml.safe_load(stream)
 
     x = 5
     x_der = 0.9
@@ -87,30 +72,32 @@ def test_pdaf_constant_vel():
     tollerance = 0.5
     n_timesteps = 200
 
-    pdaf = PDAF(config_loaded)
+
+    pdafTester = PDAFTester()
+    pdaf = pdafTester.create_pdaf_instance()
 
     pdaf.validation_gate_scaling_param = 5
 
-    pdaf.state_pri[0] = 0
-    pdaf.state_pri[1] = 0
-    pdaf.state_pri[2] = 10
-    pdaf.state_pri[3] = 10
+    pdaf.prior_state_estimate.mean[0] = 0
+    pdaf.prior_state_estimate.mean[1] = 0
+    pdaf.prior_state_estimate.mean[2] = 10
+    pdaf.prior_state_estimate.mean[3] = 10
 
-    for i in range(len(pdaf.state_post)):
-        pdaf.Q[i, i] = 0.1
+    for i in range(len(pdaf.posterior_state_estimate.mean)):
+        pdaf.model_disturbance.covariance[i, i] = 0.1
 
     for i in range(len(pdaf.C)):
-        pdaf.R[i, i] = 0.1
+        pdaf.measurment_noise.covariance[i, i] = 0.1
 
     for k in range(n_timesteps):
 
-        o_time_k = pdaf.create_observations_for_one_timestep_simple_version(
+        o_time_k = pdafTester.create_observations_for_one_timestep_simple_version(
             x + k * x_der * pdaf.time_step, y + k * y_der * pdaf.time_step
         )
 
+        pdaf.prediction_step()
         pdaf.correction_step(o_time_k)
 
-        pdaf.prediction_step()
 
     print(
         "final true state: ",
@@ -122,18 +109,18 @@ def test_pdaf_constant_vel():
 
     print("final observations: ", o_time_k)
 
-    print("final estimates: ", pdaf.state_post)
+    print("final estimates: ", pdaf.posterior_state_estimate.mean)
 
     assert (
-        abs(pdaf.state_post[0] - (x + x_der * (n_timesteps - 1) * pdaf.time_step))
+        abs(pdaf.posterior_state_estimate.mean[0] - (x + x_der * (n_timesteps - 1) * pdaf.time_step))
         < tollerance
     )
     assert (
-        abs(pdaf.state_post[1] - (y + y_der * (n_timesteps - 1) * pdaf.time_step))
+        abs(pdaf.posterior_state_estimate.mean[1] - (y + y_der * (n_timesteps - 1) * pdaf.time_step))
         < tollerance
     )
-    assert abs(pdaf.state_post[2] - x_der) < tollerance
-    assert abs(pdaf.state_post[3] - y_der) < tollerance
+    assert abs(pdaf.posterior_state_estimate.mean[2] - x_der) < tollerance
+    assert abs(pdaf.posterior_state_estimate.mean[3] - y_der) < tollerance
 
 
 def data_generation():
@@ -149,13 +136,9 @@ def data_generation():
 
 def test_filter_observations_outside_gate():
 
-    with open(
-        PATH_TO_CONFIG_TRACKING_SYS + "/config_traking_sys.yaml",
-        "r",
-    ) as stream:
-        config_loaded = yaml.safe_load(stream)
 
-    pdaf = PDAF(config_loaded)
+    pdafTester = PDAFTester()
+    pdaf = pdafTester.create_pdaf_instance()
 
     n_obs = 10
     x = 1
@@ -173,7 +156,7 @@ def test_filter_observations_outside_gate():
     print("observations: ", observations)
 
     pdaf.compute_kalman_gain()
-    pdaf.compute_S()
+    pdaf.predited_observation.covariance = pdaf.C @ pdaf.prior_state_estimate.covariance @ pdaf.C.T + pdaf.measurment_noise.covariance
     pdaf.filter_observations_outside_gate(observations)
 
     print("observations within gate: ", pdaf.o_within_gate_arr)
@@ -181,13 +164,9 @@ def test_filter_observations_outside_gate():
 
 def test_compute_probability_of_matching_observations():
 
-    with open(
-        PATH_TO_CONFIG_TRACKING_SYS + "/config_traking_sys.yaml",
-        "r",
-    ) as stream:
-        config_loaded = yaml.safe_load(stream)
 
-    pdaf = PDAF(config_loaded)
+    pdafTester = PDAFTester()
+    pdaf = pdafTester.create_pdaf_instance()
 
     n_obs = 10
     x = 1
@@ -200,96 +179,43 @@ def test_compute_probability_of_matching_observations():
         observations[i, 1] = y
 
     pdaf.compute_kalman_gain()
-    pdaf.compute_S()
+    pdaf.predited_observation.covariance = pdaf.C @ pdaf.prior_state_estimate.covariance @ pdaf.C.T + pdaf.measurment_noise.covariance
     pdaf.filter_observations_outside_gate(observations)
-    pdaf.compute_probability_of_matching_observations()
+    p_arr = pdaf.compute_probability_of_matching_observations()
 
-    print("p of matches: ", pdaf.p_match_arr)
-    print("p sum: ", np.sum(pdaf.p_match_arr))
+    print("p of matches: ", p_arr)
+    print("p sum: ", np.sum(p_arr))
 
-    assert abs(np.sum(pdaf.p_match_arr) - 1) < 0.00001
-    assert pdaf.p_match_arr[0] == pdaf.p_no_match or len(pdaf.o_within_gate_arr) == 0
+    assert abs(np.sum(p_arr) - 1) < 0.00001
+    assert p_arr[0] == pdaf.p_no_match or len(pdaf.o_within_gate_arr) == 0
 
 
-def test_compute_residual_vector():
-
-    with open(
-        PATH_TO_CONFIG_TRACKING_SYS + "/config_traking_sys.yaml",
-        "r",
-    ) as stream:
-        config_loaded = yaml.safe_load(stream)
-
-    n_obs = 2
-    x = 4
-    y = 0.5
-
-    pdaf = PDAF(config_loaded)
-
-    pdaf.state_pri[0] = x
-    pdaf.state_pri[1] = y
-
-    pdaf.validation_gate_scaling_param = 50
-    pdaf.p_no_match = 0.1
-
-    observations = []
-
-    o_1 = [x + 1, y - 1]
-    observations.append(o_1)
-
-    pdaf.compute_kalman_gain()
-    pdaf.compute_S()
-    pdaf.filter_observations_outside_gate(observations)
-    pdaf.compute_probability_of_matching_observations()
-    pdaf.compute_residual_vector()
-
-    print("obs: \n ", pdaf.o_within_gate_arr)
-    print("p arr: ", pdaf.p_match_arr)
-    print("residual vector: ", pdaf.residual_vector)
-
-    o_2 = [10, 5]
-    observations.append(o_2)
-    o_3 = [0, 0]
-    observations.append(o_3)
-    o_4 = [10, 5]
-    observations.append(o_4)
-
-    pdaf.filter_observations_outside_gate(observations)
-    pdaf.compute_probability_of_matching_observations()
-    pdaf.compute_residual_vector()
-
-    print("obs: ", pdaf.o_within_gate_arr)
-    print("p arr: ", pdaf.p_match_arr)
-    print("residual vector: ", pdaf.residual_vector)
 
 
 def test_correct_P():
 
-    with open(
-        PATH_TO_CONFIG_TRACKING_SYS + "/config_traking_sys.yaml",
-        "r",
-    ) as stream:
-        config_loaded = yaml.safe_load(stream)
 
-    pdaf = PDAF(config_loaded)
+    pdafTester = PDAFTester()
+    pdaf = pdafTester.create_pdaf_instance()
 
     x = 4
     y = 0.5
 
-    pdaf.state_post[0] = x
-    pdaf.state_post[1] = y
+    pdaf.posterior_state_estimate.mean[0] = x
+    pdaf.posterior_state_estimate.mean[1] = y
 
     for i in range(20):
-        observations = pdaf.create_observations_for_one_timestep(x, y)
+        observations = pdafTester.create_observations_for_one_timestep(x, y)
 
         pdaf.prediction_step()
 
-        pdaf.compute_kalman_gain()
-        pdaf.compute_S()
+        L = pdaf.compute_kalman_gain()
+        pdaf.predited_observation.covariance = pdaf.C @ pdaf.prior_state_estimate.covariance @ pdaf.C.T + pdaf.measurment_noise.covariance
 
         pdaf.filter_observations_outside_gate(observations)
-        pdaf.compute_probability_of_matching_observations()
-        pdaf.compute_residual_vector()
-        pdaf.correct_state_vector()
+        p_arr = pdaf.compute_probability_of_matching_observations()
+        res_vec = pdaf.compute_residual_vector(p_arr)
+        pdaf.correct_state_vector(L, res_vec)
 
-        pdaf.correct_P()
+        pdaf.correct_P(L, res_vec, p_arr)
 
