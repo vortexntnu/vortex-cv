@@ -50,15 +50,23 @@ target_link_libraries(${PROJECT_NAME}_node
   ${OpenCV_LIBS}
 )
 
-add_executable(${PROJECT_NAME}_test 
+add_executable(${PROJECT_NAME}_test_handler 
   test/test_aruco_handler.cpp
   src/aruco_handler.cpp
 )
-target_link_libraries(${PROJECT_NAME}_test
+target_link_libraries(${PROJECT_NAME}_test_handler
 ${catkin_LIBRARIES}
 ${OpenCV_LIBS}
 )
 
+add_executable(${PROJECT_NAME}_test_node
+  test/test_aruco_node.cpp
+  src/aruco_handler.cpp
+)
+target_link_libraries(${PROJECT_NAME}_test_node
+${catkin_LIBRARIES}
+${OpenCV_LIBS}
+)
 
 # if(CATKIN_ENABLE_TESTING)
 # find_package(rostest REQUIRED)

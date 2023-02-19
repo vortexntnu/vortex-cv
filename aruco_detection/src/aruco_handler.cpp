@@ -1,8 +1,7 @@
 #include "aruco_handler.hpp"
 
-ArucoHandler::ArucoHandler(const cv::Ptr<cv::aruco::Dictionary>& dictionary)
-: dictionary{dictionary}
-, detectorParams{cv::aruco::DetectorParameters::create()}
+ArucoHandler::ArucoHandler()
+: detectorParams{cv::aruco::DetectorParameters::create()}
 {
     double fx=1, fy=1, cx=0, cy=0;
     double k1=0, k2=0, p1=0, p2=0, k3=0;
@@ -11,31 +10,25 @@ ArucoHandler::ArucoHandler(const cv::Ptr<cv::aruco::Dictionary>& dictionary)
     detectorParams->cornerRefinementMethod = cv::aruco::CORNER_REFINE_SUBPIX;
 }
 
-ArucoHandler::ArucoHandler(const cv::Ptr<cv::aruco::Dictionary> &dictionary, cv::Mat cameraMatrix, cv::Mat distortionCoefficients)
-: dictionary{dictionary}
-, cameraMatrix{cameraMatrix}
+ArucoHandler::ArucoHandler(cv::Mat cameraMatrix, cv::Mat distortionCoefficients)
+: cameraMatrix{cameraMatrix}
 , distortionCoefficients{distortionCoefficients}
 , detectorParams{cv::aruco::DetectorParameters::create()}
 {
     detectorParams->cornerRefinementMethod = cv::aruco::CORNER_REFINE_SUBPIX;
 }
 
-void ArucoHandler::detectMarkers(cv::InputArray img, cv::OutputArrayOfArrays corners, std::vector<int> &ids, cv::OutputArrayOfArrays rejected = cv::noArray())
-{
-    cv::aruco::detectMarkers(img, dictionary, corners, ids, detectorParams, rejected, cameraMatrix, distortionCoefficients);   
-}
 
-int ArucoHandler::markerPoses(const cv::Mat& img, std::vector<geometry_msgs::Pose> &poses, std::vector<int> &ids, double markerLength)
+int ArucoHandler::detectMarkerPoses(const cv::Mat& img, cv::Ptr<cv::aruco::Dictionary> dictionary, std::vector<geometry_msgs::Pose> &poses, std::vector<int> &ids, double markerLength)
 {
 
     std::vector<std::vector<cv::Point2f>> corners, rejected;
     
-    cv::aruco::detectMarkers(img, dictionary, corners, ids);//, detectorParams, rejected, cameraMatrix, distortionCoefficients);
-    ROS_INFO_STREAM("detectMarkers, num ids: " << ids.size() );
+    cv::aruco::detectMarkers(img, dictionary, corners, ids, detectorParams, rejected, cameraMatrix, distortionCoefficients);
     if (ids.size() == 0) return 0;
 
     std::vector< cv::Vec3d > rvecs, tvecs;
-    //REPLACE with cv::solvePnP if opencv is updated to v. 4.5.5 or above. It is more accurate
+    //REPLACE with cv::solvePnP if Open-cv is updated to v. 4.5.5 or above. It is more accurate
     //NB! t_vec points to center of marker in v. 4.5.4 and below. To top left corner in ~ 4.5.5 and above
     cv::aruco::estimatePoseSingleMarkers(corners, markerLength, cameraMatrix, distortionCoefficients, rvecs, tvecs);
     
@@ -71,6 +64,59 @@ geometry_msgs::Pose ArucoHandler::tvec_rvec2pose(cv::Vec3d &rvec, cv::Vec3d &tve
     pose.orientation.y = quaternion(1);
     pose.orientation.z = quaternion(2);
     pose.orientation.w = quaternion(3);
+    
+    return pose;
+}
+
+cv::Ptr<cv::aruco::Board> ArucoHandler::createRectangularBoard(float markerSize, float xDist, float yDist, cv::Ptr<cv::aruco::Dictionary> &dictionary, const std::vector<int>& ids)
+{
+    const float markerHalf{markerSize/2}, xHalf{xDist/2}, yHalf{yDist/2};
+
+    // Define center of each marker
+    std::vector<cv::Point3f> markerCenters;
+    markerCenters.push_back({-xHalf-markerHalf,  yHalf+markerHalf, 0});
+    markerCenters.push_back({ xHalf+markerHalf,  yHalf+markerHalf, 0});
+    markerCenters.push_back({ xHalf+markerHalf, -yHalf-markerHalf, 0});
+    markerCenters.push_back({-xHalf-markerHalf, -yHalf-markerHalf, 0});
+
+    // Place marker at each marker center
+    std::vector<std::vector<cv::Point3f>> markerPoints;
+    for (size_t i{0}; i<markerCenters.size(); i++)
+    {
+        std::vector<cv::Point3f> marker;
+        float xOffset{markerCenters.at(i).x};
+        float yOffset{markerCenters.at(i).y};
+
+        // Marker corners need to be added clockwise from top left corner
+        marker.push_back({xOffset-markerHalf, yOffset+markerHalf, 0});
+        marker.push_back({xOffset+markerHalf, yOffset+markerHalf, 0});
+        marker.push_back({xOffset+markerHalf, yOffset-markerHalf, 0});
+        marker.push_back({xOffset-markerHalf, yOffset-markerHalf, 0});
+        markerPoints.push_back(marker);
+    }
+    cv::Ptr<cv::aruco::Board> board = new cv::aruco::Board;
+    board = cv::aruco::Board::create(markerPoints, dictionary, ids);
+    return board;
+}
+
+int ArucoHandler::detectBoardPose(cv::Mat& img, cv::Ptr<cv::aruco::Board>& board, geometry_msgs::Pose& pose)
+{
+
+    std::vector<std::vector<cv::Point2f>> corners, rejected;
+    std::vector<int> ids;
+
+    cv::aruco::detectMarkers(img, board->dictionary, corners, ids, detectorParams, rejected, cameraMatrix, distortionCoefficients);
+    if (ids.size() == 0) return ids.size();
+
+    cv::Vec3d rvec, tvec;
+    cv::aruco::estimatePoseBoard(corners, ids, board, cameraMatrix, distortionCoefficients, rvec, tvec);
+    pose = tvec_rvec2pose(rvec, tvec);
+    ROS_INFO_STREAM(rvec << tvec << pose);
+
+    cv::aruco::drawDetectedMarkers(img, corners, ids);
+    cv::aruco::drawAxis(img, cameraMatrix, distortionCoefficients, rvec, tvec, 1);
+
+    return ids.size();
 }
 
 // void ArucoHandler::findCenter(cv::Mat img, 

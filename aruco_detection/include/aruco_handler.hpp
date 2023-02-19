@@ -23,15 +23,11 @@
  * 
 */
 class ArucoHandler {
+
 public: 
-    ArucoHandler(const cv::Ptr<cv::aruco::Dictionary> &dictionary, cv::Mat cameraMatrix, cv::Mat distortionCoefficients);
-    ArucoHandler(const cv::Ptr<cv::aruco::Dictionary> &dictionary);
+    ArucoHandler(cv::Mat cameraMatrix, cv::Mat distortionCoefficients);
+    ArucoHandler();
     
-    /**
-     * Detects arUco markers in image
-     * Use markerPoses and boardPose instead
-    */
-    void detectMarkers(cv::InputArray img, cv::OutputArrayOfArrays corners, std::vector<int> &ids, cv::OutputArrayOfArrays rejected);
     
     /**
      * Looks for markers in image and returns poses of the markers detected
@@ -39,41 +35,48 @@ public:
      * @param poses output: estimated poses of detected markers
      * @param ids   ouput: ids of detected markers
     */
-    int markerPoses(const cv::Mat& img, std::vector<geometry_msgs::Pose> &poses, std::vector<int> &ids, double markerLength);
+    int detectMarkerPoses(const cv::Mat& img, cv::Ptr<cv::aruco::Dictionary> dictionary, std::vector<geometry_msgs::Pose> &poses, std::vector<int> &ids, double markerLength);
     
     /**
      * Looks for ArUco boards in image and returns its pose if found
      * @param img input: image
      * @param pose output: estimated pose of board
     */
-    void boardPose(cv::InputArray img, geometry_msgs::Pose pose);
+    int detectBoardPose(cv::Mat& img, cv::Ptr<cv::aruco::Board>& board, geometry_msgs::Pose& pose);
+
     void drawAxis();
     
     /**
-     * Creates a custom 4 marker board
+     * Creates a rectangular aruco-board with a marker in each corner
+     * @param markerSize size of marker side in millimeters
+     * @param xDist distance between markers in x-direction
+     * @param yDist distance between markers in y-direction
+     * @param dictionary the dictionary of markers employed for this board
+     * @param ids of the 4 markers. Added clockwise from the top-left corner
     */
-    cv::aruco::Board createCustomBoard();
-    void drawMarker(int id, std::string filepath);
-    void drawBoard(cv::Ptr<cv::aruco::Board> board, std::string filepath);
+    cv::Ptr<cv::aruco::Board> createRectangularBoard(float markerSize, float xDist, float yDist, cv::Ptr<cv::aruco::Dictionary>& dictionary, const std::vector<int>& ids);
+
 protected:
     void findCenter();
     /**
      * Converts a rotation in the axis-angle representation to a quaternion
      * @param aa rotation vector with rotation axis in the direction it points and angle "norm(aa)"
+     * @returns quaternion of the rotation vector
     */
     cv::Matx41d axisAngle2Quaternion (const cv::Matx31d& aa);
+
     /**
      * Converts OpenCV position- and rotation-representation to pose
-     * @param rvec rotation vector
+     * @param rvec rotation vector in axis-angle representation. This is what Open-cv uses
      * @param tvec translation vector
+     * @returns geometry_msgs pose
     */
     geometry_msgs::Pose tvec_rvec2pose(cv::Vec3d &rvec, cv::Vec3d &tvec);
 
-    const cv::Ptr<cv::aruco::Dictionary> &dictionary;
+
+    // todo: make below members const
     cv::Mat cameraMatrix;
     cv::Mat distortionCoefficients;
     cv::Ptr<cv::aruco::DetectorParameters> detectorParams;
-// markerSize
-
 
 };
