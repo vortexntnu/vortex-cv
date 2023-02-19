@@ -93,7 +93,6 @@ class PDAF:
         self.predited_observation.mean = self.C @ self.prior_state_estimate.mean
         self.predited_observation.covariance = self.C @ self.prior_state_estimate.covariance @ self.C.T + self.measurment_noise.covariance
 
-        print(self.predited_observation.covariance)
 
     def correction_step(self, o):
 
