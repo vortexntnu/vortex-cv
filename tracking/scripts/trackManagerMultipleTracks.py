@@ -59,11 +59,11 @@ class TRACK_MANAGER:
         self.update_status_on_confirmed_tracks()
 
         print("rm o: ")
-  
+
         self.remove_o_incorporated_in_tracks(self.confirmed_tracks)
 
         print("update status on tentative tracks: ")
-        
+
         self.update_status_on_tentative_tracks()
 
         print("rm o: ")
@@ -81,7 +81,9 @@ class TRACK_MANAGER:
     def update_status_on_confirmed_tracks(self):
 
         for track in self.confirmed_tracks:
-            track.pdaf.step_once(self.observations_not_incorporated_in_track, self.time_step)
+            track.pdaf.step_once(
+                self.observations_not_incorporated_in_track, self.time_step
+            )
 
             if track.track_status == TRACK_STATUS.confirmed:
 
@@ -100,13 +102,16 @@ class TRACK_MANAGER:
                 elif track.m == self.M:
                     self.confirmed_tracks.remove(track)
 
-
     def update_status_on_tentative_tracks(self):
         for track in self.tentative_tracks:
 
-            track.n, track.m = self.update_confirmation_count(track, self.observations_not_incorporated_in_track)
+            track.n, track.m = self.update_confirmation_count(
+                track, self.observations_not_incorporated_in_track
+            )
 
-            track.pdaf.step_once(self.observations_not_incorporated_in_track, self.time_step)
+            track.pdaf.step_once(
+                self.observations_not_incorporated_in_track, self.time_step
+            )
 
             if track.n == self.N:
                 track.track_status = TRACK_STATUS.confirmed
@@ -136,17 +141,24 @@ class TRACK_MANAGER:
 
         self.observations_not_incorporated_in_track = temp_list
 
-
-
     def add_tentative_tracks(self):
         for prev_o in self.prev_observations:
-            there_are_obs_within_gate, an_obs_within_gate =  self.are_there_observations_inside_max_size_gate(prev_o, self.observations_not_incorporated_in_track) 
+            (
+                there_are_obs_within_gate,
+                an_obs_within_gate,
+            ) = self.are_there_observations_inside_max_size_gate(
+                prev_o, self.observations_not_incorporated_in_track
+            )
             if there_are_obs_within_gate:
 
                 tentative_track = PDAF_2MN(self.config)
 
-                tentative_track.pdaf.posterior_state_estimate.mean[0] = an_obs_within_gate[0]
-                tentative_track.pdaf.posterior_state_estimate.mean[1] = an_obs_within_gate[1]
+                tentative_track.pdaf.posterior_state_estimate.mean[
+                    0
+                ] = an_obs_within_gate[0]
+                tentative_track.pdaf.posterior_state_estimate.mean[
+                    1
+                ] = an_obs_within_gate[1]
 
                 self.tentative_tracks.append(tentative_track)
 
@@ -157,8 +169,11 @@ class TRACK_MANAGER:
         m = track.m + 1
 
         predicted_o = track.pdaf.C @ track.pdaf.prior_state_estimate.mean
-        there_are_obs_within_gate, an_obs_within_gate =  self.are_there_observations_inside_max_size_gate(predicted_o, o_arr) 
-        if there_are_obs_within_gate :
+        (
+            there_are_obs_within_gate,
+            an_obs_within_gate,
+        ) = self.are_there_observations_inside_max_size_gate(predicted_o, o_arr)
+        if there_are_obs_within_gate:
             n = track.n + 1
         else:
             n = track.n
@@ -176,10 +191,8 @@ class TRACK_MANAGER:
 
             if (
                 dist
-                < self.max_vel * self.time_step
-                + self.initial_measurement_covariance
+                < self.max_vel * self.time_step + self.initial_measurement_covariance
             ):
                 return True, o
-                
 
         return False, np.nan

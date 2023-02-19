@@ -39,7 +39,9 @@ class Tracker:
 
         rospy.init_node("Tracker")
         rospy.Subscriber("/lidar/clusters", PoseArray, self.cb)
-        self.pub = rospy.Publisher("/tracking/tracked_cv_object", Odometry, queue_size=10)
+        self.pub = rospy.Publisher(
+            "/tracking/tracked_cv_object", Odometry, queue_size=10
+        )
 
         self.seq = 0
 

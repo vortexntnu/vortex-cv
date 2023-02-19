@@ -10,11 +10,12 @@ Slides from PSU are nice for vizualization. https://www.cse.psu.edu/~rtc12/CSE59
 """
 
 
-@dataclass 
+@dataclass
 class MultivariateGaussian:
-    mean: np.ndarray 
+    mean: np.ndarray
     covariance: np.ndarray
     timestamp: float
+
 
 class PDAF:
     def __init__(self, config):
@@ -25,37 +26,30 @@ class PDAF:
         self.posterior_state_estimate = MultivariateGaussian(
             np.array(config["pdaf"]["state_post"]).reshape((4, 1)),
             np.array(config["pdaf"]["P_post"]).reshape((4, 4)),
-            self.time_step
+            self.time_step,
         )
 
         self.prior_state_estimate = MultivariateGaussian(
-            self.posterior_state_estimate.mean, 
+            self.posterior_state_estimate.mean,
             self.posterior_state_estimate.covariance,
-            self.time_step
+            self.time_step,
         )
 
         self.predited_observation = MultivariateGaussian(
-            np.zeros((2,1)),
-            np.zeros((2,2)),
-            self.time_step 
+            np.zeros((2, 1)), np.zeros((2, 2)), self.time_step
         )
 
         self.model_disturbance = MultivariateGaussian(
-            np.zeros((4,1)), 
-            np.array(config["pdaf"]["Q"]) , 
-            self.time_step
+            np.zeros((4, 1)), np.array(config["pdaf"]["Q"]), self.time_step
         )
 
         self.measurment_noise = MultivariateGaussian(
-            np.zeros((2,1)), 
-            np.array(config["pdaf"]["R"]), 
-            self.time_step
+            np.zeros((2, 1)), np.array(config["pdaf"]["R"]), self.time_step
         )
 
-
-        self.C = np.array( # C as in, y = C @ x
+        self.C = np.array(  # C as in, y = C @ x
             [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]]
-        )  
+        )
 
         self.A = np.array(  # A as in, x' = A @ x
             [
@@ -88,11 +82,16 @@ class PDAF:
     def prediction_step(self):
 
         self.prior_state_estimate.mean = self.A @ self.posterior_state_estimate.mean
-        self.prior_state_estimate.covariance = self.A @ self.posterior_state_estimate.covariance @ self.A.T + self.model_disturbance.covariance
+        self.prior_state_estimate.covariance = (
+            self.A @ self.posterior_state_estimate.covariance @ self.A.T
+            + self.model_disturbance.covariance
+        )
 
         self.predited_observation.mean = self.C @ self.prior_state_estimate.mean
-        self.predited_observation.covariance = self.C @ self.prior_state_estimate.covariance @ self.C.T + self.measurment_noise.covariance
-
+        self.predited_observation.covariance = (
+            self.C @ self.prior_state_estimate.covariance @ self.C.T
+            + self.measurment_noise.covariance
+        )
 
     def correction_step(self, o):
 
@@ -167,7 +166,7 @@ class PDAF:
         )
 
     def compute_residual_vector(self, p_match_arr):
-        residual_vector = np.zeros((2,1))
+        residual_vector = np.zeros((2, 1))
         for i in range(len(self.o_within_gate_arr)):
             residual_vector += p_match_arr[i + 1] * (
                 self.o_within_gate_arr[i] - self.predited_observation.mean
@@ -177,11 +176,17 @@ class PDAF:
 
     def compute_kalman_gain(self):
         C_P_CT = self.C @ self.prior_state_estimate.covariance @ self.C.T
-        L = self.prior_state_estimate.covariance @ self.C.T @ np.linalg.inv(C_P_CT + self.measurment_noise.covariance)
+        L = (
+            self.prior_state_estimate.covariance
+            @ self.C.T
+            @ np.linalg.inv(C_P_CT + self.measurment_noise.covariance)
+        )
         return L
 
     def correct_state_vector(self, L, residual_vector):
-        self.posterior_state_estimate.mean = self.prior_state_estimate.mean + L @ residual_vector
+        self.posterior_state_estimate.mean = (
+            self.prior_state_estimate.mean + L @ residual_vector
+        )
 
     def correct_P(self, L, residual_vector, p_match_arr):
         # qf - quadratic form
@@ -190,9 +195,7 @@ class PDAF:
             conditional_innovations = o_i - self.predited_observation.mean
 
             qf_weighted_residual_vector += (
-                p_match_arr[i + 1]
-                * conditional_innovations
-                @ conditional_innovations.T
+                p_match_arr[i + 1] * conditional_innovations @ conditional_innovations.T
             )
 
         qf_residual_vector = residual_vector @ residual_vector.T
@@ -202,9 +205,7 @@ class PDAF:
         L_S_LT = L @ self.predited_observation.covariance @ L.T
 
         self.posterior_state_estimate.covariance = (
-            self.prior_state_estimate.covariance - (1 - self.p_no_match) * L_S_LT + spread_of_innovations
+            self.prior_state_estimate.covariance
+            - (1 - self.p_no_match) * L_S_LT
+            + spread_of_innovations
         )  # given by (7.25) Brekke
-
-
-
-

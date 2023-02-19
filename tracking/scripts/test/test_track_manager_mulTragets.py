@@ -10,10 +10,11 @@ import test_plots
 import numpy as np
 
 
-
-# ---- modify here: 
+# ---- modify here:
 PATH_TO_DATA_GENERATION_REP = "/home/hannahcl/Documents/vortex/monkey_tracking"
-PATH_TO_CONFIG_TRACKING_SYS = "/home/hannahcl/Documents/vortex/ros_ws/src/vortex-cv/tracking/config"
+PATH_TO_CONFIG_TRACKING_SYS = (
+    "/home/hannahcl/Documents/vortex/ros_ws/src/vortex-cv/tracking/config"
+)
 
 sys.path.insert(0, PATH_TO_DATA_GENERATION_REP + "/data_generation")
 sys.path.insert(0, PATH_TO_DATA_GENERATION_REP + "/config")
@@ -21,7 +22,7 @@ sys.path.insert(0, PATH_TO_DATA_GENERATION_REP + "/config")
 from scenarios import BaseScenario
 from load_config import load_yaml_into_dotdict
 
- 
+
 def data_generation():
 
     config = load_yaml_into_dotdict(
@@ -42,7 +43,6 @@ def test_cb():
         "r",
     ) as stream:
         config_loaded = yaml.safe_load(stream)
-
 
     manager = TRACK_MANAGER(config_loaded)
     pdafTester = PDAFTester()

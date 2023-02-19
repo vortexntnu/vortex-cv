@@ -1,6 +1,6 @@
-#How to test the tracking algorithm
+# How to test the tracking algorithm
 
-##Test pdaf
+## Test pdaf
 
 The pdaf can be tested by running the tests in test_pdaf.py.
 The tests are independent from ROS and from the track manager. 
@@ -13,10 +13,9 @@ Step 2: Run pytest
     pytest test_pdaf.py (to run all tests)
     pytest test_pdaf.py::test_pdaf_constant_vel (to run a spesific test)
     pytest test_pdaf.py::test_pdaf_constant_vel -s (to print to terminal)
-
     Pytest can also be configured in vs code to get a nice API.
 
-##Test track manager
+## Test track manager
 
 When you are sure the pdaf works as intended you can test the track manager by running the tests in test_track_manager.py.
 The tests are independent on ROS.
@@ -27,7 +26,7 @@ Step 2: Clone this [repo] (https://github.com/chrstrom/monkey_tracking)
 Step 3: Go to test_track_manager.py and modify modify the absolute path to tracking/config/config_tracking_sys.yaml, and to monkey tracking. 
 Step 4: Run pytest
 
-##Test boat tracking node
+## Test boat tracking node
 
 The rosnode can be tested with
     rosrun tracking test_node
