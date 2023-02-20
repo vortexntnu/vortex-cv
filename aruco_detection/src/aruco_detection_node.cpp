@@ -11,7 +11,7 @@ ArucoDetectionNode::ArucoDetectionNode()
     
     dictionary = new cv::aruco::Dictionary;
     dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100);
-    board = arucoHandler.createRectangularBoard(2, 4, 6, dictionary, {28,7,96,19});
+    board = arucoHandler.createRectangularBoard(200, 400, 600, dictionary, {28,7,96,19});
 }
 
 void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr& img_source){
