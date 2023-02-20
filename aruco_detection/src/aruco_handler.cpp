@@ -64,7 +64,7 @@ geometry_msgs::Pose ArucoHandler::tvec_rvec2pose(cv::Vec3d &rvec, cv::Vec3d &tve
     pose.orientation.y = quaternion(1);
     pose.orientation.z = quaternion(2);
     pose.orientation.w = quaternion(3);
-    
+
     return pose;
 }
 
@@ -97,6 +97,28 @@ cv::Ptr<cv::aruco::Board> ArucoHandler::createRectangularBoard(float markerSize,
     cv::Ptr<cv::aruco::Board> board = new cv::aruco::Board;
     board = cv::aruco::Board::create(markerPoints, dictionary, ids);
     return board;
+    
+    /*
+    
+    X---O               X---O
+    |id0|---- xDist ----|id1|
+    O---O               O---O
+      |                   |
+      |                   |
+      |                   |
+    yDist               yDist
+      |                   |
+      |                   |
+      |                   |
+    X---O               X---O
+    |id3|---- xDist ----|id2|
+    O---O               O---O    
+    |   |
+    markerSize
+
+    */
+
+
 }
 
 int ArucoHandler::detectBoardPose(cv::Mat& img, cv::Ptr<cv::aruco::Board>& board, geometry_msgs::Pose& pose)
@@ -113,8 +135,9 @@ int ArucoHandler::detectBoardPose(cv::Mat& img, cv::Ptr<cv::aruco::Board>& board
     pose = tvec_rvec2pose(rvec, tvec);
     ROS_INFO_STREAM(rvec << tvec << pose);
 
+    // Draw Markers and board pose
     cv::aruco::drawDetectedMarkers(img, corners, ids);
-    cv::aruco::drawAxis(img, cameraMatrix, distortionCoefficients, rvec, tvec, 1);
+    cv::aruco::drawAxis(img, cameraMatrix, distortionCoefficients, rvec, tvec, 10);
 
     return ids.size();
 }
