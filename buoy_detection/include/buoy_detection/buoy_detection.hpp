@@ -2,6 +2,7 @@
 #include <opencv2/imgproc.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <ros/console.h>
+#include <iostream>
 
 class BouyDetection
 {
@@ -10,7 +11,8 @@ class BouyDetection
 
     public:
 
-        void threshold(); 
+        cv::Mat threshold(cv::Mat img); 
         
 
 };
+
