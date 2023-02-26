@@ -48,7 +48,8 @@ RUN apt update && \
     ros-${distro}-image-transport-plugins \
     ros-${distro}-ros-numpy \
     python-tk \
-    software-properties-common
+    software-properties-common \
+    tk
 
 
 # pip install
