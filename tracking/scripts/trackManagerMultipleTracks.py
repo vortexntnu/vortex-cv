@@ -28,7 +28,7 @@ class PDAF_2MN:
         self.track_status = TRACK_STATUS.tentative_confirm
 
 
-class TRACK_MANAGER:
+class MULTI_TARGET_TRACK_MANAGER:
     def __init__(self, config):
 
         self.config = config
@@ -122,7 +122,6 @@ class TRACK_MANAGER:
                     < self.max_vel * self.time_step
                     + self.initial_measurement_covariance
                 ):
-                    print("remove ", temp_list[i])
                     temp_list.pop(i)
 
         self.observations_not_incorporated_in_track = temp_list
@@ -149,7 +148,6 @@ class TRACK_MANAGER:
                 self.tentative_tracks.append(tentative_track)
 
                 self.observations_not_incorporated_in_track.remove(an_obs_within_gate)
-                print(an_obs_within_gate, "is removed from list")
 
     def update_confirmation_count(self, track: PDAF_2MN, o_arr):
         m = track.m + 1

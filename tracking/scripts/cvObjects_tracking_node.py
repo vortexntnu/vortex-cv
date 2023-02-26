@@ -5,7 +5,7 @@ import rospkg
 import numpy as np
 import yaml
 from tf.transformations import quaternion_from_euler
-from trackManager import TRACK_MANAGER, TRACK_STATUS
+from trackManager import SINGEL_TARGET_TRACK_MANAGER, TRACK_STATUS
 
 
 from geometry_msgs.msg import (
@@ -54,7 +54,7 @@ class Tracker:
         ) as stream:
             config_loaded = yaml.safe_load(stream)
 
-        self.track_manager = TRACK_MANAGER(config_loaded)
+        self.track_manager = SINGEL_TARGET_TRACK_MANAGER(config_loaded)
 
         self.time_step = 0.1
         self.prev_time = 0
@@ -103,7 +103,7 @@ class Tracker:
         # msg.header.frame_id = ?
 
         # - - - -  position
-        x = self.track_manager.main_track.pdaf.state_post.reshape(
+        x = self.track_manager.main_track.pdaf.posterior_state_estimate.mean.reshape(
             4,
         )
         msg.pose.pose.position.x = x[0]
@@ -112,7 +112,10 @@ class Tracker:
         # - - - -  orientation
         theta = np.arctan2(x[3], x[2])  # rotation about z-axis
         q = quaternion_from_euler(0, 0, theta)
-        msg.pose.pose.orientation = q
+        msg.pose.pose.orientation.x = q[0]
+        msg.pose.pose.orientation.y = q[1]
+        msg.pose.pose.orientation.z = q[2]
+        msg.pose.pose.orientation.w = q[3]
 
         # - - - -  velocity
         msg.twist.twist.linear.x = x[2]

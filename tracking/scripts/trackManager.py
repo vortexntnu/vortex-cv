@@ -27,7 +27,7 @@ class PDAF_2MN:
         self.track_status = TRACK_STATUS.tentative_confirm
 
 
-class TRACK_MANAGER:
+class SINGEL_TARGET_TRACK_MANAGER:
     def __init__(self, config):
         # subscribe to topic with detections from point cloud
         # publish state of main track if status is confirmed

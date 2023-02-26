@@ -14,7 +14,7 @@ Simply publish Pose[] to \lidar_clusters.
 class Clusters:
     def __init__(self):
         rospy.init_node("Test_tracker")
-        self.pub = rospy.Publisher("lidar_clusters", PoseArray, queue_size=10)
+        self.pub = rospy.Publisher("/lidar/clusters", PoseArray, queue_size=10)
 
         # rospy.init_node()
         self.rate = rospy.Rate(10)

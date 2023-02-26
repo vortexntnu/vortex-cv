@@ -4,7 +4,7 @@ from test_pdafTester import PDAFTester
 
 import yaml
 
-from trackManager import TRACK_MANAGER, TRACK_STATUS
+from trackManager import SINGEL_TARGET_TRACK_MANAGER, TRACK_STATUS
 import test_plots
 
 import numpy as np
@@ -44,7 +44,7 @@ def test_cb():
     ) as stream:
         config_loaded = yaml.safe_load(stream)
 
-    manager = TRACK_MANAGER(config_loaded)
+    manager = SINGEL_TARGET_TRACK_MANAGER(config_loaded)
     pdafTester = PDAFTester()
 
     x = 0
@@ -77,7 +77,7 @@ def test_plot_interactive():
 
     wait_for_btn_press = False
 
-    manager = TRACK_MANAGER(config_loaded)
+    manager = SINGEL_TARGET_TRACK_MANAGER(config_loaded)
 
     scenario, measurements, ground_truths = data_generation()
 

@@ -5,7 +5,7 @@ import rospkg
 import numpy as np
 import yaml
 from tf.transformations import quaternion_from_euler
-from trackManager import TRACK_MANAGER, TRACK_STATUS
+from trackManagerMultipleTracks import MULTI_TARGET_TRACK_MANAGER, PDAF_2MN
 
 
 from geometry_msgs.msg import (
@@ -22,15 +22,15 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import Header
 
 """
-Estimate position and velocity for each boat realtive to the vessel (given measurements for the boats position).
+Estimate position and velocity for each object realtive to the vessel (given measurements for the objects position).
 """
 
 
 class Tracker:
     """
-    Nodes created: Tracker
+    Nodes created: MultiTargetTracker
     Subscribes to: lidar_clusters of type PoseArray. Will only read pose.x, pose.y and header.stamp.sec.
-    Publishes to: tracked_cv_object of type nav_msgs/odometry. Will write to header.stamp, msg.pose.pose.position.x,
+    Publishes to: mul_tracked_cv_objects of type nav_msgs/odometry array. Will write to header.stamp, msg.pose.pose.position.x,
             msg.pose.pose.position.y, pose.pose.orientation around z-axis, twist.twist.linear.x, twist.twist.linear.y.
 
     """
@@ -40,7 +40,7 @@ class Tracker:
         rospy.init_node("MultiTargetTracker")
         rospy.Subscriber("/lidar/clusters", PoseArray, self.cb)
         self.pub = rospy.Publisher(
-            "/tracking/tracked_cv_object", Odometry, queue_size=10
+            "/tracking/mul_tracked_cv_objects", Odometry, queue_size=10
         )
 
         self.seq = 0
@@ -54,7 +54,7 @@ class Tracker:
         ) as stream:
             config_loaded = yaml.safe_load(stream)
 
-        self.track_manager = TRACK_MANAGER(config_loaded)
+        self.track_manager = MULTI_TARGET_TRACK_MANAGER(config_loaded)
 
         self.time_step = 0.1
         self.prev_time = 0
@@ -64,16 +64,13 @@ class Tracker:
 
         self.unpack_pose_array_msg(msg)
         self.track_manager.step_once(self.observations, self.time_step)
-        if (
-            self.track_manager.main_track.track_status == TRACK_STATUS.confirmed
-            or self.track_manager.main_track.track_status
-            == TRACK_STATUS.tentative_delete
-        ):
+        if len(self.track_manager.confirmed_tracks) > 0:
             self.publish()
 
     def publish(self):
-        odometry_msg = self.pack_odometry_msg()
-        self.pub.publish(odometry_msg)
+        for track in self.track_manager.confirmed_tracks:
+            odometry_msg = self.pack_odometry_msg(track)
+            self.pub.publish(odometry_msg)
 
     def unpack_pose_array_msg(self, msg):
 
@@ -86,11 +83,12 @@ class Tracker:
 
         self.observations = np.array(observations_list)
 
-    def pack_odometry_msg(self):
+    def pack_odometry_msg(self, track: PDAF_2MN):
         msg = Odometry()
         msg.pose = PoseWithCovariance()
         msg.pose.pose = Pose()
         msg.pose.pose.position = Point()
+        msg.pose.pose.orientation = Quaternion()
         msg.twist = TwistWithCovariance()
         msg.twist.twist = Twist()
         msg.twist.twist.linear = Vector3()
@@ -103,7 +101,7 @@ class Tracker:
         # msg.header.frame_id = ?
 
         # - - - -  position
-        x = self.track_manager.main_track.pdaf.state_post.reshape(
+        x = track.pdaf.posterior_state_estimate.mean.reshape(
             4,
         )
         msg.pose.pose.position.x = x[0]
@@ -112,7 +110,10 @@ class Tracker:
         # - - - -  orientation
         theta = np.arctan2(x[3], x[2])  # rotation about z-axis
         q = quaternion_from_euler(0, 0, theta)
-        msg.pose.pose.orientation = q
+        msg.pose.pose.orientation.x = q[0]
+        msg.pose.pose.orientation.y = q[1]
+        msg.pose.pose.orientation.z = q[2]
+        msg.pose.pose.orientation.w = q[3]
 
         # - - - -  velocity
         msg.twist.twist.linear.x = x[2]
