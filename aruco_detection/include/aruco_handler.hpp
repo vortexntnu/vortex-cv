@@ -35,26 +35,26 @@ public:
      * @param poses output: estimated poses of detected markers
      * @param ids   ouput: ids of detected markers
     */
-    int detectMarkerPoses(const cv::Mat& img, cv::Ptr<cv::aruco::Dictionary> dictionary, std::vector<geometry_msgs::Pose> &poses, std::vector<int> &ids, double markerLength);
+    int detectMarkerPoses(const cv::Mat& img, const cv::Ptr<cv::aruco::Dictionary> dictionary, std::vector<geometry_msgs::Pose> &poses, const std::vector<int> &ids, double markerLength);
     
     /**
      * Looks for ArUco boards in image and returns its pose if found
-     * @param img input: image
+     * @param img input: image (Will be modified)
      * @param pose output: estimated pose of board
     */
-    int detectBoardPose(cv::Mat& img, cv::Ptr<cv::aruco::Board>& board, geometry_msgs::Pose& pose);
+    size_t detectBoardPose(cv::Mat& img, const cv::Ptr<cv::aruco::Board>& board, geometry_msgs::Pose& pose);
 
     void drawAxis();
     
     /**
      * Creates a rectangular aruco-board with a marker in each corner
-     * @param markerSize size of marker side in millimeters
-     * @param xDist distance between markers in x-direction
-     * @param yDist distance between markers in y-direction
+     * @param markerSize size [m] of marker side in meters
+     * @param xDist distance [m] between markers in x-direction
+     * @param yDist distance [m] between markers in y-direction
      * @param dictionary the dictionary of markers employed for this board
      * @param ids ids of the 4 markers. Added clockwise from the top-left corner. All markers have the default orientation
     */
-    cv::Ptr<cv::aruco::Board> createRectangularBoard(float markerSize, float xDist, float yDist, cv::Ptr<cv::aruco::Dictionary>& dictionary, const std::vector<int>& ids);
+    cv::Ptr<cv::aruco::Board> createRectangularBoard(float markerSize, float xDist, float yDist, const cv::Ptr<cv::aruco::Dictionary>& dictionary, const std::vector<int>& ids);
 
 protected:
     void findCenter();
@@ -71,7 +71,7 @@ protected:
      * @param tvec translation vector
      * @returns geometry_msgs pose
     */
-    geometry_msgs::Pose tvec_rvec2pose(cv::Vec3d &rvec, cv::Vec3d &tvec);
+    geometry_msgs::Pose tvec_rvec2pose(const cv::Vec3d &rvec, const cv::Vec3d &tvec);
 
 
     // todo: make below members const

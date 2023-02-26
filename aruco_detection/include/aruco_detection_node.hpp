@@ -37,6 +37,10 @@ public:
      */
     void execute();
 
+    void publishCVImg(const cv::Mat& img);
+    void publishPose(const geometry_msgs::Pose& pose);
+
+
 protected:
     ros::NodeHandle node;
     ros::Rate loop_rate;

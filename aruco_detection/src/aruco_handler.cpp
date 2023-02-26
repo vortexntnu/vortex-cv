@@ -19,7 +19,7 @@ ArucoHandler::ArucoHandler(cv::Mat cameraMatrix, cv::Mat distortionCoefficients)
 }
 
 
-int ArucoHandler::detectMarkerPoses(const cv::Mat& img, cv::Ptr<cv::aruco::Dictionary> dictionary, std::vector<geometry_msgs::Pose> &poses, std::vector<int> &ids, double markerLength)
+int ArucoHandler::detectMarkerPoses(const cv::Mat& img, const cv::Ptr<cv::aruco::Dictionary> dictionary, std::vector<geometry_msgs::Pose> &poses, const std::vector<int> &ids, double markerLength)
 {
 
     std::vector<std::vector<cv::Point2f>> corners, rejected;
@@ -32,7 +32,6 @@ int ArucoHandler::detectMarkerPoses(const cv::Mat& img, cv::Ptr<cv::aruco::Dicti
     //NB! t_vec points to center of marker in v. 4.5.4 and below. To top left corner in ~ 4.5.5 and above
     cv::aruco::estimatePoseSingleMarkers(corners, markerLength, cameraMatrix, distortionCoefficients, rvecs, tvecs);
     
-    ROS_INFO_STREAM("num ids: " << ids.size() );
     for (size_t i{0}; i<ids.size(); i++)
     {
         poses.push_back(tvec_rvec2pose(rvecs.at(i), tvecs.at(i)));
@@ -52,7 +51,7 @@ cv::Matx41d ArucoHandler::axisAngle2Quaternion (const cv::Matx31d& aa)
     return q;
 }
 
-geometry_msgs::Pose ArucoHandler::tvec_rvec2pose(cv::Vec3d &rvec, cv::Vec3d &tvec)
+geometry_msgs::Pose ArucoHandler::tvec_rvec2pose(const cv::Vec3d &rvec, const cv::Vec3d &tvec)
 {
     cv::Matx41d quaternion = axisAngle2Quaternion(rvec);
     geometry_msgs::Pose pose;
@@ -68,7 +67,7 @@ geometry_msgs::Pose ArucoHandler::tvec_rvec2pose(cv::Vec3d &rvec, cv::Vec3d &tve
     return pose;
 }
 
-cv::Ptr<cv::aruco::Board> ArucoHandler::createRectangularBoard(float markerSize, float xDist, float yDist, cv::Ptr<cv::aruco::Dictionary> &dictionary, const std::vector<int>& ids)
+cv::Ptr<cv::aruco::Board> ArucoHandler::createRectangularBoard(float markerSize, float xDist, float yDist, const cv::Ptr<cv::aruco::Dictionary> &dictionary, const std::vector<int>& ids)
 {
     const float markerHalf{markerSize/2}, xHalf{xDist/2}, yHalf{yDist/2};
 
@@ -121,7 +120,7 @@ cv::Ptr<cv::aruco::Board> ArucoHandler::createRectangularBoard(float markerSize,
 
 }
 
-int ArucoHandler::detectBoardPose(cv::Mat& img, cv::Ptr<cv::aruco::Board>& board, geometry_msgs::Pose& pose)
+size_t ArucoHandler::detectBoardPose(cv::Mat& img, const cv::Ptr<cv::aruco::Board>& board, geometry_msgs::Pose& pose)
 {
 
     std::vector<std::vector<cv::Point2f>> corners, rejected;
@@ -133,13 +132,14 @@ int ArucoHandler::detectBoardPose(cv::Mat& img, cv::Ptr<cv::aruco::Board>& board
     cv::Vec3d rvec, tvec;
     cv::aruco::estimatePoseBoard(corners, ids, board, cameraMatrix, distortionCoefficients, rvec, tvec);
     pose = tvec_rvec2pose(rvec, tvec);
-    // ROS_INFO_STREAM(rvec << tvec << pose);
+    ROS_INFO_STREAM("tvec: " << tvec << "    rvec: " << rvec);
 
+    
     // Draw Markers and board pose (for debugging and visualization)
     cv::aruco::drawDetectedMarkers(img, corners, ids);
-    cv::aruco::drawAxis(img, cameraMatrix, distortionCoefficients, rvec, tvec, 10);
 
-
+    float length = cv::norm(board->objPoints[0][0] - board->objPoints[0][1]);
+    cv::aruco::drawAxis(img, cameraMatrix, distortionCoefficients, rvec, tvec, length);
 
 
     return ids.size();
