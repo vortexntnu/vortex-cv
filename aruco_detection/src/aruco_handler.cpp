@@ -87,7 +87,7 @@ cv::Ptr<cv::aruco::Board> ArucoHandler::createRectangularBoard(float markerSize,
         float xOffset{markerCenters.at(i).x};
         float yOffset{markerCenters.at(i).y};
 
-        // Marker corners need to be added clockwise from top left corner
+        // Marker corners need to be added CLOCKWISE from top left corner
         marker.push_back({xOffset-markerHalf, yOffset+markerHalf, 0});
         marker.push_back({xOffset+markerHalf, yOffset+markerHalf, 0});
         marker.push_back({xOffset+markerHalf, yOffset-markerHalf, 0});
@@ -106,9 +106,9 @@ cv::Ptr<cv::aruco::Board> ArucoHandler::createRectangularBoard(float markerSize,
       |                   |
       |                   |
       |                   |
-    yDist               yDist
-      |                   |
-      |                   |
+    yDist       O       yDist
+      |         |         |
+      |      origin       |
       |                   |
     X---O               X---O
     |id3|---- xDist ----|id2|
@@ -133,25 +133,14 @@ int ArucoHandler::detectBoardPose(cv::Mat& img, cv::Ptr<cv::aruco::Board>& board
     cv::Vec3d rvec, tvec;
     cv::aruco::estimatePoseBoard(corners, ids, board, cameraMatrix, distortionCoefficients, rvec, tvec);
     pose = tvec_rvec2pose(rvec, tvec);
-    ROS_INFO_STREAM(rvec << tvec << pose);
+    // ROS_INFO_STREAM(rvec << tvec << pose);
 
-    // Draw Markers and board pose
+    // Draw Markers and board pose (for debugging and visualization)
     cv::aruco::drawDetectedMarkers(img, corners, ids);
     cv::aruco::drawAxis(img, cameraMatrix, distortionCoefficients, rvec, tvec, 10);
 
+
+
+
     return ids.size();
 }
-
-// void ArucoHandler::findCenter(cv::Mat img, 
-//                               cv::InputArray rvec,
-//                               cv::InputArray estimatedTvec, 
-//                               float axisLength,
-//                               cv::Point3f center = cv::Point3f(0.f, 0.f, 0.f), 
-//                               cv::Point3f axes = cv::Point3f(1.f, -1.f, -1.f)) 
-// {
-//     std::vector<cv::Point3f> ax = {center, 
-//                                    center + cv::Point3f(axes.x, 0.f, 0.f)*axisLength,
-//                                    center + cv::Point3f(0.f, axes.y, 0.f)*axisLength,
-//                                    center + cv::Point3f(0.f, 0.f, axes.z)*axisLength};
-//     cv::transform()
-// }
