@@ -47,14 +47,19 @@ def test_cb():
     manager = TRACK_MANAGER(config_loaded)
     pdafTester = PDAFTester()
 
-    x = 5
-    y = 7
+    x1 = 5
+    y1 = 7
+
+    x2 = 0
+    y2 = -7
     n_timesteps = 15
     time_step = 0.1
 
     for i in range(n_timesteps):
         print("\n timestep", i, "\n")
-        o_arr = pdafTester.create_observations_for_one_timestep(x, y)
+        o_arr1 = pdafTester.create_observations_for_one_timestep(x1, y1)
+        o_arr2 = pdafTester.create_observations_for_one_timestep(x2, y2)
+        o_arr = np.concatenate((o_arr1, o_arr2))
         manager.step_once(o_arr, time_step)
 
         for track in manager.tentative_tracks:
