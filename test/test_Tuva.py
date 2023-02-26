@@ -34,18 +34,23 @@ img_hsv_processor, a, b = x.hsv_processor(
 
 img_hsv_processor_gr = cv2.cvtColor(img_hsv_processor, cv2.COLOR_BGR2RGB)
 
-#plt.figure(1, figsize=(10,10))
-#y.get_histogram(img)
+plt.figure(1)
+
+y.get_histogram(img_hsv_processor)
 
 lower_bgr, upper_bgr = y.define_useful_colors(img_hsv_processor)
 
-fitline = y.extract_useful_colors(img_hsv_processor, lower_bgr,upper_bgr)
+plt.figure(3)
+fitLine = y.extract_useful_colors(img_hsv_processor, lower_bgr, upper_bgr)
+line_image = y.drawline(img_hsv_processor, fitLine)
 
-plt.figure(2, figsize=(10,10))
-#y.get_histogram(img_hsv_processor)
+#Vektor gaar feil vei ass.
+plt.figure(2)
+plt.imshow(line_image)
 
-plt.imshow(fitline)
+
+lower_rgb = np.array([lower_bgr[2], lower_bgr[1], lower_bgr[0]])
+upper_rgb = np.array([upper_bgr[2], upper_bgr[1], upper_bgr[0]])
 
 print('hello world')
-
 plt.show()
