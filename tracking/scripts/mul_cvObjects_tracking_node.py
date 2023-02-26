@@ -37,7 +37,7 @@ class Tracker:
 
     def __init__(self):
 
-        rospy.init_node("Tracker")
+        rospy.init_node("MultiTargetTracker")
         rospy.Subscriber("/lidar/clusters", PoseArray, self.cb)
         self.pub = rospy.Publisher(
             "/tracking/tracked_cv_object", Odometry, queue_size=10

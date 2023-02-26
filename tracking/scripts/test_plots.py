@@ -150,8 +150,8 @@ def plot_interactive_velocity(
     plt.subplot(1, 2, 2)
     plt.ion()
 
-    plt.xlabel("x'[m]")
-    plt.ylabel("y' [m]")
+    plt.xlabel("x'[m/s]")
+    plt.ylabel("y' [m/s]")
 
     plt.gca().set_aspect("equal")
     plt.grid()
@@ -255,51 +255,131 @@ def plot_interactive_velocity(
     plt.show()
 
 
-# def plot_vel(
-#     ground_truths,
-#     conf_estimates,
-#     estimate_status,
-# ):
+def plot_mul_tragets(
+    scenario,
+    measurements,
+    ground_truths,
+    tentative_estimates,
+    conf_estimates,
+    wait_for_btn_press,
+):
 
-#     #----------init pos plot
-#     plt.subplot(1,2,1)
-#     plt.xlabel("t")
-#     plt.ylabel("x' [m/s]")
+    # ----------init pos plot
+    plt.subplot(1, 2, 1)
+    plt.ion()
 
-#     plt.subplot(1,2,2)
-#     plt.xlabel("t")
-#     plt.ylabel("y' [m/s]")
+    end_time = time_from_step(scenario.k, scenario.config.dt)
+    min_alpha = 0.5
 
-#     # Ground truths
-#     x_dot_gt = []
-#     y_dot_gt = []
-#     for target in ground_truths:
-#         track = target.track
-#         x_dot_gt.append(track[:, 3])
-#         y_dot_gt.append(track[:, 4])
+    plt.xlabel("x [m]")
+    plt.ylabel("y [m]")
 
-#     #estimates
-#     x_dot_est = []
-#     y_dot_est = []
-#     i_conf = 0
-#     for i in range(len(ground_truths)):
-#         if estimate_status[i] == TRACK_STATUS.confirmed:
-#             print(conf_estimates[i_conf][2])
-#             x_dot_est.append(conf_estimates[i_conf][2])
-#             y_dot_est.append(conf_estimates[i_conf][3])
-#             i_conf +=1
-#         else:
-#             x_dot_est.append(0)
-#             y_dot_est.append(0)
+    plt.gca().set_aspect("equal")
+    plt.grid()
+    plt.show()
 
-#     t = np.linspace(0, len(ground_truths))
+    # Ground truths
+    for target in ground_truths:
+        track = target.track
 
-#     plt.subplot(1,2,1)
-#     plt.plot(t, x_dot_est)
-#     plt.plot(t, x_dot_gt)
+        x = track[:, 1]
+        y = track[:, 2]
+        # alpha = 1 - np.vectorize(max)(min_alpha, 1 - track[:, 5] / end_time)
+        alpha = None
+        plt.scatter(x, y, alpha=alpha)
 
-#     plt.subplot(1,2,2)
-#     plt.plot(t, y_dot_est)
-#     plt.plot(t, y_dot_gt)
+    # -----------init vel plot
+    plt.subplot(1, 2, 2)
+    plt.ion()
 
-#     plt.show()
+    plt.xlabel("x'[m]")
+    plt.ylabel("y' [m]")
+
+    plt.gca().set_aspect("equal")
+    plt.grid()
+    plt.show()
+
+    # Ground truths
+    for target in ground_truths:
+        track = target.track
+
+        x = track[:, 3]
+        y = track[:, 4]
+        alpha = 1 - np.vectorize(max)(min_alpha, 1 - track[:, 5] / end_time)
+        plt.scatter(x, y, alpha=alpha)
+
+    # ------------- plot each step
+    for k in range(len(measurements)):
+
+        for measurement in measurements[k]:
+            alpha = 1 - max(min_alpha, 1 - measurement.t / end_time)
+            color = "r" if measurement.is_clutter else "k"
+
+            plt.subplot(1, 2, 1)
+            plt.scatter(
+                measurement.pos[0],
+                measurement.pos[1],
+                marker="x",
+                color=color,
+                alpha=alpha,
+            )
+
+        for tentative_estimate in tentative_estimates[k]:
+            # alpha = 1 - max(min_alpha, 1 - measurement.t / end_time)
+            color = "y"
+
+            plt.subplot(1, 2, 1)
+            plt.scatter(
+                tentative_estimate[0],
+                tentative_estimate[1],
+                marker="+",
+                color=color,
+                # alpha=alpha,
+            )
+
+            plt.subplot(1, 2, 2)
+            plt.scatter(
+                tentative_estimate[2],
+                tentative_estimate[3],
+                color=color,
+                # alpha=alpha,
+            )
+
+        for conf_estimate in conf_estimates[k]:
+
+            color = "g"
+
+            plt.subplot(1, 2, 1)
+            plt.scatter(
+                conf_estimate[0],
+                conf_estimate[1],
+                marker="+",
+                color=color,
+                # alpha=alpha,
+            )
+
+            plt.subplot(1, 2, 2)
+            plt.scatter(
+                conf_estimate[2],
+                conf_estimate[3],
+                color=color,
+                # alpha=alpha,
+            )
+
+        # draw update to bloth plots
+        plt.subplot(1, 2, 1)
+        plt.draw()
+        if wait_for_btn_press:
+            plt.waitforbuttonpress()
+        else:
+            plt.pause(0.01)
+
+        plt.subplot(1, 2, 2)
+        plt.draw()
+        if wait_for_btn_press:
+            plt.waitforbuttonpress()
+        else:
+            plt.pause(0.0001)
+
+    plt.ioff()
+    plt.show()

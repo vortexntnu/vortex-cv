@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<launch>
-
-    <node pkg="tracking" type="boat_tracking_node.py"     name="Tracker" output="screen" respawn="false"/>
-
-
-</launch>

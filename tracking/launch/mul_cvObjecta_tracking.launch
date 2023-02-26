@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+
+    <node pkg="tracking" type="mul_cvObjects_tracking_node.py"     name="MultiTargetTracker" output="screen" respawn="false"/>
+
+
+</launch>

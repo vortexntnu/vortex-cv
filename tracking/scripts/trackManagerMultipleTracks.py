@@ -11,8 +11,6 @@ Track manager - Manage multiple object tracking based on M/N method. Assuming tr
 
 Implementation based on section 7.4.3 in chapter 7 in "Fundementals in Sensor Fusion" by Brekke, 2021 edition.
 
-TODO:
- - Now there are exp many tracks confirmed with the same state. must delete obs as soon as they are incorporated in track
 """
 
 
@@ -54,29 +52,17 @@ class TRACK_MANAGER:
         self.time_step = time_step
         self.observations_not_incorporated_in_track = o_arr.tolist()
 
-        print("update_status_on_confirmed_tracks: ")
-
         self.update_status_on_confirmed_tracks()
-
-        print("rm o: ")
 
         self.remove_o_incorporated_in_tracks(self.confirmed_tracks)
 
-        print("update status on tentative tracks: ")
-
         self.update_status_on_tentative_tracks()
 
-        print("rm o: ")
-
         self.remove_o_incorporated_in_tracks(self.tentative_tracks)
-
-        print("add tentative tracks")
 
         self.add_tentative_tracks()
 
         self.prev_observations = self.observations_not_incorporated_in_track
-
-        print("remaining obs: ", self.observations_not_incorporated_in_track)
 
     def update_status_on_confirmed_tracks(self):
 

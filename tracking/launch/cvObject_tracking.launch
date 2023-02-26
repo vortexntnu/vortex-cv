@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+
+    <node pkg="tracking" type="cvObject_tracking_node.py"     name="SingelTargetTracker" output="screen" respawn="false"/>
+
+
+</launch>
