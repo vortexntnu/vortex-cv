@@ -52,7 +52,7 @@ public:
      * @param xDist distance between markers in x-direction
      * @param yDist distance between markers in y-direction
      * @param dictionary the dictionary of markers employed for this board
-     * @param ids of the 4 markers. Added clockwise from the top-left corner
+     * @param ids ids of the 4 markers. Added clockwise from the top-left corner. All markers have the default orientation
     */
     cv::Ptr<cv::aruco::Board> createRectangularBoard(float markerSize, float xDist, float yDist, cv::Ptr<cv::aruco::Dictionary>& dictionary, const std::vector<int>& ids);
 

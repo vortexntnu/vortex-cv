@@ -21,14 +21,22 @@ void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr& img_source){
 void ArucoDetectionNode::execute()
 {
     while (ros::ok()) {
-
-        // cv::namedWindow("arucoMarker", cv::WINDOW_AUTOSIZE);
         
+        // IMAGE
         cv::Mat img = cv::imread("/vortex_ws/src/vortex-cv/aruco_detection/test/pictures/TACboard3.jpg", cv::IMREAD_COLOR);
         if( img.empty() )  // Check for invalid input
         {
             ROS_INFO("Could not open or find the image");
         }
+
+        // // WEBCAM
+        // static cv::Mat img;
+        // // cv::namedWindow("Display window");
+        // static cv::VideoCapture cap(0);
+        // if (!cap.isOpened()) {
+        //     ROS_INFO("cannot open camera");
+        // }   
+        // cap >> img;
 
         std::vector<int> ids;
         std::vector<geometry_msgs::Pose> poses;
