@@ -6,8 +6,8 @@ ArucoDetectionNode::ArucoDetectionNode()
 , arucoHandler{}
 {
     op_sub = node.subscribe("/udfc/wrapper/camera_rect",10, &ArucoDetectionNode::callback, this);
-    op_image_pub = node.advertise<sensor_msgs::Image>("aruco_image_out",10);
-    op_pose_pub  = node.advertise<geometry_msgs::PoseStamped>("aruco_poses_out",10);
+    op_image_pub = node.advertise<sensor_msgs::Image>("aruco_image_out",100);
+    op_pose_pub  = node.advertise<geometry_msgs::PoseStamped>("aruco_poses_out",100);
     
     dictionary = new cv::aruco::Dictionary;
     dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100);
@@ -44,12 +44,13 @@ void ArucoDetectionNode::publishCVImg(const cv::Mat& img)
 
 void ArucoDetectionNode::publishPose(const geometry_msgs::Pose& pose)
 {
-        static size_t counter{0};
-        geometry_msgs::PoseStamped poseMsg;
-        poseMsg.header.frame_id = "udfc_link";
-        poseMsg.header.seq = counter++;
-        poseMsg.header.stamp = ros::Time::now();
-        poseMsg.pose = pose;
+    static size_t counter{0};
+    geometry_msgs::PoseStamped poseMsg;
+    poseMsg.header.frame_id = "udfc_link";
+    poseMsg.header.seq = counter++;
+    poseMsg.header.stamp = ros::Time::now();
+    poseMsg.pose = pose;
+    op_pose_pub.publish(poseMsg);
 }
 
 void ArucoDetectionNode::execute()
@@ -81,11 +82,10 @@ void ArucoDetectionNode::execute()
         // }
 
         geometry_msgs::Pose pose;
-        int markernum = arucoHandler.detectBoardPose(img, board, pose);
+        int markersDetected = arucoHandler.detectBoardPose(img, board, pose);
 
-        if (markernum > 0) publishPose(pose);
+        if (markersDetected > 0) publishPose(pose);
 
-        publishCVImg(img);
 
         ros::spinOnce();
         loop_rate.sleep();
