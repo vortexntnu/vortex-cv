@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
 
-    <node pkg="tracking" type="cvObject_tracking_node.py"     name="SingelTargetTracker" output="screen" respawn="false"/>
+    <node pkg="tracking" type="cvObjects_tracking_node.py"     name="SingelTargetTracker" output="screen" respawn="false"/>
 
 
-</launch>
+</launch>                print(an_obs_within_gate, "is removed from list")
