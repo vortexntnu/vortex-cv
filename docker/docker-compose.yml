@@ -59,6 +59,8 @@ services:
     environment:
       DISPLAY: :0
     entrypoint: ["/bin/bash", "-l"]
+    devices:
+      - /dev/video0:/dev/video0
 
 
   cv-test:
