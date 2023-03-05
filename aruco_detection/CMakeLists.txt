@@ -12,24 +12,26 @@ find_package(catkin REQUIRED COMPONENTS
   # aruco_msgs
   # aruco_ros
 )
-find_package(OpenCV REQUIRED COMPONENTS 
-  core 
-  imgproc 
-  highgui
-  aruco
-  calib3d
+find_package(OpenCV REQUIRED 
+  COMPONENTS 
+    core 
+    imgproc 
+    highgui
+    aruco
+    calib3d
 )
 find_package(Eigen3 REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES aruco_detection
-  CATKIN_DEPENDS cv_bridge 
-                 image_transport 
-                 roscpp 
-                 sensor_msgs 
-                 std_msgs 
-                 vortex_msgs
+  CATKIN_DEPENDS 
+    cv_bridge 
+    image_transport 
+    roscpp 
+    sensor_msgs 
+    std_msgs 
+    vortex_msgs
   DEPENDS OpenCV
 )
 
@@ -37,7 +39,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
-  SYSTEM ${EIGEN3_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
 )
 
 add_executable(${PROJECT_NAME}_node 
@@ -55,8 +57,8 @@ add_executable(${PROJECT_NAME}_test_handler
   src/aruco_handler.cpp
 )
 target_link_libraries(${PROJECT_NAME}_test_handler
-${catkin_LIBRARIES}
-${OpenCV_LIBS}
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
 )
 
 add_executable(${PROJECT_NAME}_test_node
@@ -64,8 +66,8 @@ add_executable(${PROJECT_NAME}_test_node
   src/aruco_handler.cpp
 )
 target_link_libraries(${PROJECT_NAME}_test_node
-${catkin_LIBRARIES}
-${OpenCV_LIBS}
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
 )
 
 # if(CATKIN_ENABLE_TESTING)
