@@ -5,7 +5,8 @@ FROM ghcr.io/vortexntnu/vortex-cv:main
 ########################################################################
 
 # OpenCV Version 
-ARG OPENCV_VERSION=3.2.0
+ARG OPENCV_VERSION=4.2.0
+# ARG OPENCV_VERSION=3.2.0
 
 # Install dependencies
 RUN apt-get update || true && apt-get upgrade -y &&\
@@ -30,6 +31,7 @@ RUN git clone --depth 1 --branch ${OPENCV_VERSION} https://github.com/opencv/ope
     mkdir build && \
     cd build && \
     cmake \
+	-D WITH_CUDA=ON \
 	-D CMAKE_BUILD_TYPE=RELEASE \
 	-D CMAKE_INSTALL_PREFIX=/usr/ \
 	-D PYTHON3_PACKAGES_PATH=/usr/lib/python3/dist-packages \
