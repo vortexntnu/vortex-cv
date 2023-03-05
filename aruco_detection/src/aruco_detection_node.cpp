@@ -4,7 +4,13 @@ ArucoDetectionNode::ArucoDetectionNode()
 : loop_rate{10}
 , arucoHandler{}
 {
-    op_sub = node.subscribe("/udfc/wrapper/camera_rect",10, &ArucoDetectionNode::callback, this);
+    double fx=531.75, fy=532.04, cx=632.77, cy=356.759;
+    double k1=-0.04568, k2=0.0180176, p1=0.000246693, p2=-8.1439e-05, k3=-0.00783292;
+    cv::Mat cameraMatrix           = (cv::Mat1d(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
+    cv::Mat distortionCoefficients = (cv::Mat1d(1, 5) << k1, k2, p1, p2, k3);
+    arucoHandler.cameraMatrix = cameraMatrix;
+    arucoHandler.distortionCoefficients = distortionCoefficients;
+    op_sub = node.subscribe("/zed2i/zed_node/left/image_rect_color",10, &ArucoDetectionNode::callback, this);
     op_image_pub = node.advertise<sensor_msgs::Image>("aruco_image_out",100);
     op_pose_pub  = node.advertise<geometry_msgs::PoseStamped>("aruco_poses_out",100);
     
@@ -46,7 +52,7 @@ void ArucoDetectionNode::publishPose(const geometry_msgs::Pose& pose)
 {
     static size_t counter{0};
     geometry_msgs::PoseStamped poseMsg;
-    poseMsg.header.frame_id = "udfc_link";
+    poseMsg.header.frame_id = "zed2i_left_camera_frame";
     poseMsg.header.seq = counter++;
     poseMsg.header.stamp = ros::Time::now(); // Should the time now be used, or the time the image was taken be used?
     poseMsg.pose = pose;
@@ -64,14 +70,14 @@ void ArucoDetectionNode::execute()
         //     ROS_INFO("Could not open or find the image");
         // }
 
-        // WEBCAM INPUT
-        static cv::Mat img;
-        // cv::namedWindow("Display window");
-        static cv::VideoCapture cap(0);
-        if (!cap.isOpened()) {
-            ROS_INFO("cannot open camera");
-        }   
-        cap >> img;
+        // // WEBCAM INPUT
+        // static cv::Mat img;
+        // // cv::namedWindow("Display window");
+        // static cv::VideoCapture cap(0);
+        // if (!cap.isOpened()) {
+        //     ROS_INFO("cannot open camera");
+        // }   
+        // cap >> img;
 
         // std::vector<int> ids;
         // std::vector<geometry_msgs::Pose> poses;
@@ -81,10 +87,10 @@ void ArucoDetectionNode::execute()
         //     op_pose_pub.publish(pose);
         // }
 
-        geometry_msgs::Pose pose;
-        int markersDetected = arucoHandler.detectBoardPose(img, board, pose);
-        publishCVImg(img);
-        if (markersDetected > 0) publishPose(pose);
+        // geometry_msgs::Pose pose;
+        // int markersDetected = arucoHandler.detectBoardPose(img, board, pose);
+        // publishCVImg(img);
+        // if (markersDetected > 0) publishPose(pose);
 
 
         ros::spinOnce();
