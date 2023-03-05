@@ -11,8 +11,9 @@ ArucoDetectionNode::ArucoDetectionNode()
     
     dictionary = new cv::aruco::Dictionary;
     dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100);
-    board = arucoHandler.createRectangularBoard(.09, .18, .135, dictionary, {28,7,96,19});
-    // board = arucoHandler.createRectangularBoard(.2, .4, .6, dictionary, {28,7,96,19});
+    board = arucoHandler.createRectangularBoard(9, 18, 13.5, dictionary, {28,7,96,19});
+    // board = arucoHandler.createRectangularBoard(.09, .18, .135, dictionary, {28,7,96,19});   //A4 paper
+    // board = arucoHandler.createRectangularBoard(.2, .4, .6, dictionary, {28,7,96,19});       //Actual dimensions
 }
 
 void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr& img_source)
@@ -36,7 +37,7 @@ void ArucoDetectionNode::publishCVImg(const cv::Mat& img)
 
     std_msgs::Header header;
     header.seq = counter++; 
-    header.stamp = ros::Time::now(); 
+    header.stamp = ros::Time::now(); // Should the time now be used, or the time the image was taken be used?
     img_bridge = cv_bridge::CvImage(header, sensor_msgs::image_encodings::BGR8, img);
     img_bridge.toImageMsg(img_msg); 
     op_image_pub.publish(img_msg);
@@ -48,7 +49,7 @@ void ArucoDetectionNode::publishPose(const geometry_msgs::Pose& pose)
     geometry_msgs::PoseStamped poseMsg;
     poseMsg.header.frame_id = "udfc_link";
     poseMsg.header.seq = counter++;
-    poseMsg.header.stamp = ros::Time::now();
+    poseMsg.header.stamp = ros::Time::now(); // Should the time now be used, or the time the image was taken be used?
     poseMsg.pose = pose;
     op_pose_pub.publish(poseMsg);
 }
@@ -83,7 +84,7 @@ void ArucoDetectionNode::execute()
 
         geometry_msgs::Pose pose;
         int markersDetected = arucoHandler.detectBoardPose(img, board, pose);
-
+        publishCVImg(img);
         if (markersDetected > 0) publishPose(pose);
 
 
