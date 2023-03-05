@@ -1,6 +1,5 @@
 #include "aruco_detection_node.hpp"
 
-
 ArucoDetectionNode::ArucoDetectionNode() 
 : loop_rate{10}
 , arucoHandler{}
@@ -11,8 +10,8 @@ ArucoDetectionNode::ArucoDetectionNode()
     
     dictionary = new cv::aruco::Dictionary;
     dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100);
-    board = arucoHandler.createRectangularBoard(9, 18, 13.5, dictionary, {28,7,96,19});
-    // board = arucoHandler.createRectangularBoard(.09, .18, .135, dictionary, {28,7,96,19});   //A4 paper
+    // board = arucoHandler.createRectangularBoard(9, 18, 13.5, dictionary, {28,7,96,19});
+    board = arucoHandler.createRectangularBoard(.09, .18, .135, dictionary, {28,7,96,19});   //A4 paper
     // board = arucoHandler.createRectangularBoard(.2, .4, .6, dictionary, {28,7,96,19});       //Actual dimensions
 }
 
