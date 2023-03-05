@@ -9,10 +9,11 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   vortex_msgs
   roscpp
+  tf2_ros
   # aruco_msgs
   # aruco_ros
 )
-find_package(OpenCV REQUIRED 
+find_package(OpenCV 4.2.0 REQUIRED 
   COMPONENTS 
     core 
     imgproc 

@@ -1,7 +1,14 @@
 <?xml version="1.0"?>
 
 <launch>
-    <node name="aruco_detection_node" type="aruco_detection_node" pkg="aruco_detection" output="screen" />
+    <node name="aruco_detection_node" 
+        type="aruco_detection_node" 
+        pkg="aruco_detection" 
+        respawn="false" output="screen" 
+    />
+
     <!-- <test name="aruco_detection_test" type="aruco_detection_test" pkg="aruco_detection" output="screen" test_name="test_aruco_handler" /> -->
     <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_udfc" args="0 0 0 0 0 0 base_link udfc_link" />
 </launch>
+
+<!-- launch-prefix="gdb -ex run tty=/dev/pts/43 args" -->

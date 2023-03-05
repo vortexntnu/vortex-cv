@@ -59,8 +59,10 @@ services:
     environment:
       DISPLAY: :0
     entrypoint: ["/bin/bash", "-l"]
-    devices:
-      - /dev/video0:/dev/video0
+    # devices:
+      # - /dev/video0:/dev/video0
+    cap_add:
+      - SYS_PTRACE # Add capability to debug with gdb
 
 
   cv-test:

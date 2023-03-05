@@ -7,19 +7,14 @@ ArucoHandler::ArucoHandler()
     double k1=0, k2=0, p1=0, p2=0, k3=0;
     cameraMatrix           = (cv::Mat1d(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
     distortionCoefficients = (cv::Mat1d(1, 5) << k1, k2, p1, p2, k3);
-    // detectorParams->cornerRefinementMethod = cv::aruco::CORNER_REFINE_SUBPIX;
-}
-
-ArucoHandler::ArucoHandler(cv::Mat cameraMatrix, cv::Mat distortionCoefficients)
-: cameraMatrix{cameraMatrix}
-, distortionCoefficients{distortionCoefficients}
-, detectorParams{cv::aruco::DetectorParameters::create()}
-{
-    // detectorParams->cornerRefinementMethod = cv::aruco::CORNER_REFINE_SUBPIX;
+    detectorParams->cornerRefinementMethod = cv::aruco::CORNER_REFINE_SUBPIX;
+    
 }
 
 
-int ArucoHandler::detectMarkerPoses(const cv::Mat& img, const cv::Ptr<cv::aruco::Dictionary> dictionary, std::vector<geometry_msgs::Pose> &poses, const std::vector<int> &ids, double markerLength)
+
+
+int ArucoHandler::detectMarkerPoses(cv::Mat& img, const cv::Ptr<cv::aruco::Dictionary> dictionary, std::vector<geometry_msgs::Pose> &poses, std::vector<int> &ids, double markerLength)
 {
 
     std::vector<std::vector<cv::Point2f>> corners, rejected;
@@ -130,16 +125,7 @@ size_t ArucoHandler::detectBoardPose(cv::Mat& img, const cv::Ptr<cv::aruco::Boar
     cv::aruco::detectMarkers(img, board->dictionary, corners, ids, detectorParams, rejected);//, cameraMatrix, distortionCoefficients);
     if (ids.size() == 0) return ids.size();
 
-    // Lucas-Kanade algorithm for subpixel refinement
-    cv::Mat gray;
-    cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
-    cv::Size windowSize{5, 5};
-    cv::Size zeroZone{-1, -1};
-    cv::TermCriteria criteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.1);
-    for (size_t i = 0; i < corners.size(); i++)
-    {
-        cv::cornerSubPix(gray, corners.at(i), windowSize, zeroZone, criteria);
-    }
+    
 
 
 
@@ -147,7 +133,7 @@ size_t ArucoHandler::detectBoardPose(cv::Mat& img, const cv::Ptr<cv::aruco::Boar
     //replace with cv::solvePnP if Open-cv is updated to v. 4.5.5 or above. It is more accurate
     cv::aruco::estimatePoseBoard(corners, ids, board, cameraMatrix, distortionCoefficients, rvec, tvec);
     pose = tvec_rvec2pose(rvec, tvec);
-    ROS_INFO_STREAM("tvec: " << tvec << "    rvec: " << rvec);
+    // ROS_INFO_STREAM("tvec: " << tvec << "    rvec: " << rvec);
 
     
     // Draw Markers and board pose (for debugging and visualization)
