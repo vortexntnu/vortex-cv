@@ -10,7 +10,7 @@ int main(int argc, char** argv){
     std::string child_frame = "udfc_link";
 
     // Create a point transformer object
-    tf2_geometry_msgs::TransformStamped point_transformer;
+    geometry_msgs::TransformStamped point_transformer;
 
     // Create a buffer, listener, and broadcaster for transformations
     tf2_ros::Buffer tfBuffer;
