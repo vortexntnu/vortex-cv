@@ -147,7 +147,7 @@ size_t ArucoHandler::detectBoardPose(cv::Mat& img, const cv::Ptr<cv::aruco::Boar
     //replace with cv::solvePnP if Open-cv is updated to v. 4.5.5 or above. It is more accurate
     cv::aruco::estimatePoseBoard(corners, ids, board, cameraMatrix, distortionCoefficients, rvec, tvec);
     pose = tvec_rvec2pose(rvec, tvec);
-    ROS_INFO_STREAM("tvec: " << tvec << "    rvec: " << rvec);
+    // ROS_INFO_STREAM("tvec: " << tvec << "    rvec: " << rvec);
 
     
     // Draw Markers and board pose (for debugging and visualization)

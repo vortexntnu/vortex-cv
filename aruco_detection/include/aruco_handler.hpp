@@ -55,7 +55,8 @@ public:
      * @param ids ids of the 4 markers. Added clockwise from the top-left corner. All markers have the default orientation
     */
     cv::Ptr<cv::aruco::Board> createRectangularBoard(float markerSize, float xDist, float yDist, const cv::Ptr<cv::aruco::Dictionary>& dictionary, const std::vector<int>& ids);
-
+    cv::Mat cameraMatrix;
+    cv::Mat distortionCoefficients;
 protected:
     void findCenter();
     /**
@@ -75,8 +76,7 @@ protected:
 
 
     // todo: make below members const
-    cv::Mat cameraMatrix;
-    cv::Mat distortionCoefficients;
+
     cv::Ptr<cv::aruco::DetectorParameters> detectorParams;
 
 };
