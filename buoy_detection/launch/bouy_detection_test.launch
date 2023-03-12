@@ -2,4 +2,5 @@
 
 <launch>
     <node name="buoy_detection_node"    pkg="buoy_detection"     type="buoy_detection_node"    output="screen"/>
+    <node name="buoy_detection_test_node"    pkg="buoy_detection"     type="buoy_detection_test_node"    output="screen"/>
 </launch>

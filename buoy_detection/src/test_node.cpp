@@ -15,17 +15,15 @@ class BuoyDetectionTestNode
     image_transport::Subscriber img_sub; 
     
     public:
-    BuoyDetectionTestNode(ros::NodeHandle *nh){
-        image_transport::ImageTransport it(nh);
+    BuoyDetectionTestNode(ros::NodeHandle& nh){
 
+        image_transport::ImageTransport it(nh);
         img_sub = it.subscribe("/images/out", 10, &BuoyDetectionTestNode::callback); 
         img_pub = it.advertise("/images/raw", 10); 
 
-        ros::NodeHandle
-
     }
 
-    void callback(sensor_msgs::Image msg){
+    void callback(sensor_msgs::ImageConstPtr& img_source){
 
         // try
         // {
@@ -52,7 +50,7 @@ class BuoyDetectionTestNode
 
     void spin(){
         ros::Rate loop_rate(5); 
-        while (nh.ok){
+        while (ros::ok){
 
             static cv::Mat raw_image = cv::imread("/vortex_ws/src/vortex-cv/buoy_detection/test/images.png"); 
             publish_cvImg(raw_image); 
@@ -68,7 +66,7 @@ int main(int argc, char **argv)
 {   
     ros::init(argc, argv, "buoy_detection_test_node");
     ros::NodeHandle nh; 
-    BuoyDetectionTestNode wrapper(&nh);
+    BuoyDetectionTestNode wrapper(nh);
     wrapper.spin(); 
 
     return 0;
