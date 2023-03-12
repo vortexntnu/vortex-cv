@@ -3,7 +3,7 @@ import yaml
 import sys
 
 from pdaf import PDAF
-from test_pdafTester import PDAFTester
+from test_pdaf_test_setup import PDAFTester
 
 
 def test_pdaf_zero_velocity():

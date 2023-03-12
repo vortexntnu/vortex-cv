@@ -1,10 +1,10 @@
 import sys
-from test_pdafTester import PDAFTester
+from test_pdaf_test_setup import PDAFTester
 
 
 import yaml
 
-from trackManager import SINGEL_TARGET_TRACK_MANAGER, TRACK_STATUS
+from track_manager_multiple_tracks import MULTI_TARGET_TRACK_MANAGER, TRACK_STATUS
 import test_plots
 
 import numpy as np
@@ -44,31 +44,40 @@ def test_cb():
     ) as stream:
         config_loaded = yaml.safe_load(stream)
 
-    manager = SINGEL_TARGET_TRACK_MANAGER(config_loaded)
+    manager = MULTI_TARGET_TRACK_MANAGER(config_loaded)
     pdafTester = PDAFTester()
 
-    x = 0
-    y = 0
-    n_timesteps = 50
-    time_step = 0.1
+    x1 = 5
+    y1 = 7
 
-    manager.main_track.pdaf.p_no_match = 0.01
+    x2 = 0
+    y2 = -7
+    n_timesteps = 15
+    time_step = 0.1
 
     for i in range(n_timesteps):
         print("\n timestep", i, "\n")
-        o_arr = pdafTester.create_observations_for_one_timestep(x, y)
-        print("observations: ", o_arr)
+        o_arr1 = pdafTester.create_observations_for_one_timestep(x1, y1)
+        o_arr2 = pdafTester.create_observations_for_one_timestep(x2, y2)
+        o_arr = np.concatenate((o_arr1, o_arr2))
         manager.step_once(o_arr, time_step)
 
         for track in manager.tentative_tracks:
+            print("\n tentive tracks \n")
             print("state: ", track.pdaf.prior_state_estimate.mean[:2])
             print("n: ", track.n, "m: ", track.m)
 
-    print("final estimates: ", manager.main_track.pdaf.posterior_state_estimate.mean)
+        for track in manager.confirmed_tracks:
+            print("\n confirmed \n")
+            print("state: ", track.pdaf.prior_state_estimate.mean[:2])
+            print("n: ", track.n, "m: ", track.m)
+
+    for track in manager.confirmed_tracks:
+        print("final estimates: ", track.pdaf.posterior_state_estimate.mean)
 
 
 # @pytest.mark.plot
-def test_plot_interactive():
+def test_plot():
     with open(
         PATH_TO_CONFIG_TRACKING_SYS + "/config_traking_sys.yaml",
         "r",
@@ -77,14 +86,12 @@ def test_plot_interactive():
 
     wait_for_btn_press = False
 
-    manager = SINGEL_TARGET_TRACK_MANAGER(config_loaded)
+    manager = MULTI_TARGET_TRACK_MANAGER(config_loaded)
 
     scenario, measurements, ground_truths = data_generation()
 
     tentative_estimates = []
     conf_estimates = []
-    tentative_del_estimates = []
-    estimate_status = []
 
     time_step = 0.1
 
@@ -98,40 +105,31 @@ def test_plot_interactive():
         # update
         manager.step_once(o_arr, time_step)
 
-        # add updates to lists that will be plottee
-        if manager.main_track.track_status == TRACK_STATUS.tentative_confirm:
-            last_addition_to_tentative_tracks = []
-            for track in manager.tentative_tracks:
-                last_addition_to_tentative_tracks.append(
-                    track.pdaf.posterior_state_estimate.mean
-                )
-            tentative_estimates.append(last_addition_to_tentative_tracks)
+        # add updates to lists that will be plotted
 
-        if manager.main_track.track_status == TRACK_STATUS.confirmed:
-            conf_estimates.append(manager.main_track.pdaf.posterior_state_estimate.mean)
-
-        if manager.main_track.track_status == TRACK_STATUS.tentative_delete:
-            tentative_del_estimates.append(
-                manager.main_track.pdaf.posterior_state_estimate.mean
+        # add tentative tracks
+        last_addition_to_tentative_tracks = []
+        for track in manager.tentative_tracks:
+            last_addition_to_tentative_tracks.append(
+                track.pdaf.posterior_state_estimate.mean
             )
+        tentative_estimates.append(last_addition_to_tentative_tracks)
 
-        estimate_status.append(manager.main_track.track_status)
+        # add confirmed tracks
+        last_addition_to_conf_tracks = []
+        for track in manager.confirmed_tracks:
+            last_addition_to_conf_tracks.append(
+                track.pdaf.posterior_state_estimate.mean
+            )
+        conf_estimates.append(last_addition_to_tentative_tracks)
 
-    test_plots.plot_interactive_velocity(
+    test_plots.plot_mul_tragets(
         scenario,
         measurements,
         ground_truths,
         tentative_estimates,
         conf_estimates,
-        tentative_del_estimates,
-        estimate_status,
         wait_for_btn_press,
     )
-
-    # plots.plot_vel(
-    # ground_truths,
-    # conf_estimates,
-    # estimate_status,
-    # )
 
     assert True

@@ -4,7 +4,7 @@ sys.path.insert(0, "/home/hannahcl/Documents/vortex/monkey_tracking/data_generat
 from scenarios import BaseScenario
 from utility import time_from_step
 
-from trackManager import TRACK_STATUS
+from track_manager_single_track import TRACK_STATUS
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
