@@ -5,7 +5,7 @@ import rospkg
 import numpy as np
 import yaml
 from tf.transformations import quaternion_from_euler
-from track_manager_single_track import SINGEL_TARGET_TRACK_MANAGER, TRACK_STATUS
+from track_manager_single_track import SingleTargetTrackManager, TrackStatus
 
 
 from geometry_msgs.msg import (
@@ -54,7 +54,7 @@ class Tracker:
         ) as stream:
             config_loaded = yaml.safe_load(stream)
 
-        self.track_manager = SINGEL_TARGET_TRACK_MANAGER(config_loaded)
+        self.track_manager = SingleTargetTrackManager(config_loaded)
 
         self.time_step = 0.1
         self.prev_time = 0
@@ -65,9 +65,9 @@ class Tracker:
         self.unpack_pose_array_msg(msg)
         self.track_manager.step_once(self.observations, self.time_step)
         if (
-            self.track_manager.main_track.track_status == TRACK_STATUS.confirmed
+            self.track_manager.main_track.track_status == TrackStatus.confirmed
             or self.track_manager.main_track.track_status
-            == TRACK_STATUS.tentative_delete
+            == TrackStatus.tentative_delete
         ):
             self.publish()
 

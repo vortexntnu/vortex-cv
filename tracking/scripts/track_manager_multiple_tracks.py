@@ -14,29 +14,29 @@ Implementation based on section 7.4.3 in chapter 7 in "Fundementals in Sensor Fu
 """
 
 
-class TRACK_STATUS(Enum):
+class TrackStatus(Enum):
     tentative_confirm = 1
     confirmed = 2
     tentative_delete = 3
 
 
-class PDAF_2MN:
+class PDAF2MN:
     def __init__(self, config):
         self.pdaf = PDAF(config)
         self.m = 0
         self.n = 0
-        self.track_status = TRACK_STATUS.tentative_confirm
+        self.track_status = TrackStatus.tentative_confirm
 
 
-class MULTI_TARGET_TRACK_MANAGER:
+class MultiTargetTrackManager:
     def __init__(self, config):
 
         self.config = config
 
         self.prev_observations: List[np.ndarray] = []
         self.observations_not_incorporated_in_track: List[np.ndarray] = []
-        self.tentative_tracks: List[PDAF_2MN] = []
-        self.confirmed_tracks: List[PDAF_2MN] = []
+        self.tentative_tracks: List[PDAF2MN] = []
+        self.confirmed_tracks: List[PDAF2MN] = []
 
         self.N = config["manager"]["N"]
         self.M = config["manager"]["M"]
@@ -71,19 +71,19 @@ class MULTI_TARGET_TRACK_MANAGER:
                 self.observations_not_incorporated_in_track, self.time_step
             )
 
-            if track.track_status == TRACK_STATUS.confirmed:
+            if track.track_status == TrackStatus.confirmed:
 
                 if len(track.pdaf.o_within_gate_arr) == 0:
-                    track.track_status = TRACK_STATUS.tentative_delete
+                    track.track_status = TrackStatus.tentative_delete
                     track.m = 0
                     track.n = 0
 
-            if track.track_status == TRACK_STATUS.tentative_delete:
+            if track.track_status == TrackStatus.tentative_delete:
                 if len(track.pdaf.o_within_gate_arr) > 0:
                     track.n += 1
 
                 if track.n == self.N:
-                    track.track_status = TRACK_STATUS.confirmed
+                    track.track_status = TrackStatus.confirmed
 
                 elif track.m == self.M:
                     self.confirmed_tracks.remove(track)
@@ -100,7 +100,7 @@ class MULTI_TARGET_TRACK_MANAGER:
             )
 
             if track.n == self.N:
-                track.track_status = TRACK_STATUS.confirmed
+                track.track_status = TrackStatus.confirmed
                 self.confirmed_tracks.append(track)
 
             elif track.m == self.M:
@@ -136,7 +136,7 @@ class MULTI_TARGET_TRACK_MANAGER:
             )
             if there_are_obs_within_gate:
 
-                tentative_track = PDAF_2MN(self.config)
+                tentative_track = PDAF2MN(self.config)
 
                 tentative_track.pdaf.posterior_state_estimate.mean[
                     0
@@ -149,7 +149,7 @@ class MULTI_TARGET_TRACK_MANAGER:
 
                 self.observations_not_incorporated_in_track.remove(an_obs_within_gate)
 
-    def update_confirmation_count(self, track: PDAF_2MN, o_arr):
+    def update_confirmation_count(self, track: PDAF2MN, o_arr):
         m = track.m + 1
 
         predicted_o = track.pdaf.C @ track.pdaf.prior_state_estimate.mean

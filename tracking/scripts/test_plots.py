@@ -4,7 +4,7 @@ sys.path.insert(0, "/home/hannahcl/Documents/vortex/monkey_tracking/data_generat
 from scenarios import BaseScenario
 from utility import time_from_step
 
-from track_manager_single_track import TRACK_STATUS
+from track_manager_single_track import TrackStatus
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
@@ -62,7 +62,7 @@ def plot_interactive(
                 alpha=alpha,
             )
 
-        if estimate_status[k] == TRACK_STATUS.tentative_confirm:
+        if estimate_status[k] == TrackStatus.tentative_confirm:
             for tentative_estimate in tentative_estimates[k_ten]:
                 # alpha = 1 - max(min_alpha, 1 - measurement.t / end_time)
                 color = "y"
@@ -76,7 +76,7 @@ def plot_interactive(
                 )
             k_ten += 1
 
-        if estimate_status[k] == TRACK_STATUS.confirmed:
+        if estimate_status[k] == TrackStatus.confirmed:
             estimates_at_t = conf_estimates[k_conf]
             color = "g"
 
@@ -89,7 +89,7 @@ def plot_interactive(
             )
             k_conf += 1
 
-        if estimate_status[k] == TRACK_STATUS.tentative_delete:
+        if estimate_status[k] == TrackStatus.tentative_delete:
             del_estimates_at_t = tentative_del_estimates[k_del]
             color = "r"
             plt.scatter(
@@ -186,7 +186,7 @@ def plot_interactive_velocity(
                 alpha=alpha,
             )
 
-        if estimate_status[k] == TRACK_STATUS.tentative_confirm:
+        if estimate_status[k] == TrackStatus.tentative_confirm:
             for tentative_estimate in tentative_estimates[k_ten]:
                 # alpha = 1 - max(min_alpha, 1 - measurement.t / end_time)
                 color = "y"
@@ -201,7 +201,7 @@ def plot_interactive_velocity(
                 )
             k_ten += 1
 
-        if estimate_status[k] == TRACK_STATUS.confirmed:
+        if estimate_status[k] == TrackStatus.confirmed:
             estimates_at_t = conf_estimates[k_conf]
             color = "g"
 
@@ -223,7 +223,7 @@ def plot_interactive_velocity(
             )
             k_conf += 1
 
-        if estimate_status[k] == TRACK_STATUS.tentative_delete:
+        if estimate_status[k] == TrackStatus.tentative_delete:
             del_estimates_at_t = tentative_del_estimates[k_del]
             color = "r"
 

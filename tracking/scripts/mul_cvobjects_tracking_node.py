@@ -5,7 +5,7 @@ import rospkg
 import numpy as np
 import yaml
 from tf.transformations import quaternion_from_euler
-from track_manager_multiple_tracks import MULTI_TARGET_TRACK_MANAGER, PDAF_2MN
+from track_manager_multiple_tracks import MultiTargetTrackManager, PDAF2MN
 
 
 from geometry_msgs.msg import (
@@ -54,7 +54,7 @@ class Tracker:
         ) as stream:
             config_loaded = yaml.safe_load(stream)
 
-        self.track_manager = MULTI_TARGET_TRACK_MANAGER(config_loaded)
+        self.track_manager = MultiTargetTrackManager(config_loaded)
 
         self.time_step = 0.1
         self.prev_time = 0
@@ -83,7 +83,7 @@ class Tracker:
 
         self.observations = np.array(observations_list)
 
-    def pack_odometry_msg(self, track: PDAF_2MN):
+    def pack_odometry_msg(self, track: PDAF2MN):
         msg = Odometry()
         msg.pose = PoseWithCovariance()
         msg.pose.pose = Pose()

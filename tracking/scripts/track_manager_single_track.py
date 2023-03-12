@@ -13,21 +13,21 @@ Implementation based on section 7.4.3 in chapter 7 in "Fundementals in Sensor Fu
 """
 
 
-class TRACK_STATUS(Enum):
+class TrackStatus(Enum):
     tentative_confirm = 1
     confirmed = 2
     tentative_delete = 3
 
 
-class PDAF_2MN:
+class PDAF2MN:
     def __init__(self, config):
         self.pdaf = PDAF(config)
         self.m = 0
         self.n = 0
-        self.track_status = TRACK_STATUS.tentative_confirm
+        self.track_status = TrackStatus.tentative_confirm
 
 
-class SINGEL_TARGET_TRACK_MANAGER:
+class SingleTargetTrackManager:
     def __init__(self, config):
         # subscribe to topic with detections from point cloud
         # publish state of main track if status is confirmed
@@ -36,11 +36,11 @@ class SINGEL_TARGET_TRACK_MANAGER:
 
         self.prev_observations: List[np.ndarray] = []
         self.observations_not_incorporated_in_track: List[np.ndarray] = []
-        self.tentative_tracks: List[PDAF_2MN] = []
+        self.tentative_tracks: List[PDAF2MN] = []
 
         self.N = config["manager"]["N"]
         self.M = config["manager"]["M"]
-        self.main_track = PDAF_2MN(config)
+        self.main_track = PDAF2MN(config)
 
         self.max_vel = config["manager"]["max_vel"]  # [m/s]
         self.initial_measurement_covariance = config["manager"][
@@ -52,7 +52,7 @@ class SINGEL_TARGET_TRACK_MANAGER:
     def step_once(self, o_arr, time_step):
         self.time_step = time_step
 
-        if self.main_track.track_status == TRACK_STATUS.tentative_confirm:
+        if self.main_track.track_status == TrackStatus.tentative_confirm:
 
             # print(
             #     "\n ------------ tentative confirm with ",
@@ -72,7 +72,7 @@ class SINGEL_TARGET_TRACK_MANAGER:
             self.add_tentative_tracks()
             self.prev_observations = self.observations_not_incorporated_in_track
 
-        elif self.main_track.track_status == TRACK_STATUS.confirmed:
+        elif self.main_track.track_status == TrackStatus.confirmed:
 
             # print("\n ------------track still confirmed")
             # print("state: ", self.main_track.pdaf.state_post)
@@ -80,11 +80,11 @@ class SINGEL_TARGET_TRACK_MANAGER:
             self.main_track.pdaf.step_once(o_arr, self.time_step)
 
             if len(self.main_track.pdaf.o_within_gate_arr) == 0:
-                self.main_track.track_status = TRACK_STATUS.tentative_delete
+                self.main_track.track_status = TrackStatus.tentative_delete
                 self.main_track.m = 0
                 self.main_track.n = 0
 
-        elif self.main_track.track_status == TRACK_STATUS.tentative_delete:
+        elif self.main_track.track_status == TrackStatus.tentative_delete:
 
             # print("\n ------------tentative delete")
             # print("state: ", self.main_track.pdaf.state_post)
@@ -97,10 +97,10 @@ class SINGEL_TARGET_TRACK_MANAGER:
                 self.main_track.n += 1
 
             if self.main_track.n == self.N:
-                self.main_track.track_status = TRACK_STATUS.confirmed
+                self.main_track.track_status = TrackStatus.confirmed
 
             elif self.main_track.m == self.M:
-                self.main_track.track_status = TRACK_STATUS.tentative_confirm
+                self.main_track.track_status = TrackStatus.tentative_confirm
 
     def update_status_on_tentative_tracks(self, o_arr):
         for track in self.tentative_tracks:
@@ -111,7 +111,7 @@ class SINGEL_TARGET_TRACK_MANAGER:
 
             if track.n == self.N:
                 self.main_track = track
-                self.main_track.track_status = TRACK_STATUS.confirmed
+                self.main_track.track_status = TrackStatus.confirmed
                 self.tentative_tracks = []
             elif track.m == self.M:
                 self.tentative_tracks.remove(track)
@@ -142,7 +142,7 @@ class SINGEL_TARGET_TRACK_MANAGER:
             )
             if n > 0:
 
-                tentative_track = PDAF_2MN(self.config)
+                tentative_track = PDAF2MN(self.config)
 
                 # tentative_track.pdaf.state_post[0] = prev_o[0]
                 # tentative_track.pdaf.state_post[1] = prev_o[1]
@@ -151,7 +151,7 @@ class SINGEL_TARGET_TRACK_MANAGER:
 
                 self.tentative_tracks.append(tentative_track)
 
-    def update_confirmation_count(self, track: PDAF_2MN, o_arr):
+    def update_confirmation_count(self, track: PDAF2MN, o_arr):
         m = track.m + 1
 
         predicted_o = track.pdaf.C @ track.pdaf.prior_state_estimate.mean

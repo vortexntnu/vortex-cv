@@ -4,7 +4,7 @@ from test_pdaf_test_setup import PDAFTester
 
 import yaml
 
-from track_manager_single_track import SINGEL_TARGET_TRACK_MANAGER, TRACK_STATUS
+from track_manager_single_track import SingleTargetTrackManager, TrackStatus
 import test_plots
 
 import numpy as np
@@ -44,7 +44,7 @@ def test_cb():
     ) as stream:
         config_loaded = yaml.safe_load(stream)
 
-    manager = SINGEL_TARGET_TRACK_MANAGER(config_loaded)
+    manager = SingleTargetTrackManager(config_loaded)
     pdafTester = PDAFTester()
 
     x = 0
@@ -77,7 +77,7 @@ def test_plot_interactive():
 
     wait_for_btn_press = False
 
-    manager = SINGEL_TARGET_TRACK_MANAGER(config_loaded)
+    manager = SingleTargetTrackManager(config_loaded)
 
     scenario, measurements, ground_truths = data_generation()
 
@@ -99,7 +99,7 @@ def test_plot_interactive():
         manager.step_once(o_arr, time_step)
 
         # add updates to lists that will be plottee
-        if manager.main_track.track_status == TRACK_STATUS.tentative_confirm:
+        if manager.main_track.track_status == TrackStatus.tentative_confirm:
             last_addition_to_tentative_tracks = []
             for track in manager.tentative_tracks:
                 last_addition_to_tentative_tracks.append(
@@ -107,10 +107,10 @@ def test_plot_interactive():
                 )
             tentative_estimates.append(last_addition_to_tentative_tracks)
 
-        if manager.main_track.track_status == TRACK_STATUS.confirmed:
+        if manager.main_track.track_status == TrackStatus.confirmed:
             conf_estimates.append(manager.main_track.pdaf.posterior_state_estimate.mean)
 
-        if manager.main_track.track_status == TRACK_STATUS.tentative_delete:
+        if manager.main_track.track_status == TrackStatus.tentative_delete:
             tentative_del_estimates.append(
                 manager.main_track.pdaf.posterior_state_estimate.mean
             )

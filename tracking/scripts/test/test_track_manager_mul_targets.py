@@ -4,7 +4,7 @@ from test_pdaf_test_setup import PDAFTester
 
 import yaml
 
-from track_manager_multiple_tracks import MULTI_TARGET_TRACK_MANAGER, TRACK_STATUS
+from track_manager_multiple_tracks import MultiTargetTrackManager, TrackStatus
 import test_plots
 
 import numpy as np
@@ -44,7 +44,7 @@ def test_cb():
     ) as stream:
         config_loaded = yaml.safe_load(stream)
 
-    manager = MULTI_TARGET_TRACK_MANAGER(config_loaded)
+    manager = MultiTargetTrackManager(config_loaded)
     pdafTester = PDAFTester()
 
     x1 = 5
@@ -86,7 +86,7 @@ def test_plot():
 
     wait_for_btn_press = False
 
-    manager = MULTI_TARGET_TRACK_MANAGER(config_loaded)
+    manager = MultiTargetTrackManager(config_loaded)
 
     scenario, measurements, ground_truths = data_generation()
 
