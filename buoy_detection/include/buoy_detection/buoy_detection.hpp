@@ -9,7 +9,7 @@ class BouyDetection
     private:
         cv::Mat lab_image, dst; 
 
-        cv::Mat normalize_channel(cv::Mat img, int channel); 
+        void normalize_channel(const cv::Mat& src, cv::Mat& dst, int channel);  
 
     public:
 
