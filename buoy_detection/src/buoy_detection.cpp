@@ -1,36 +1,35 @@
 #include "buoy_detection/buoy_detection.hpp"
 
-cv::Mat BouyDetection::threshold(cv::Mat img){
+cv::Mat BouyDetection::threshold_channel(cv::Mat img, int channel){
 
-    
     if (img.empty()){
         ROS_INFO("Image is empty"); 
     }
     cv::Mat dst; 
+    // cv::Mat different_Channels[3];
+
+    // cv::split(img, different_Channels);//splitting images into 3 different channels//  
+    // cv::Mat mono_image = different_Channels[channel];//loading blue channels//
     
-    // Basic threhold example 
-    //cv::threshold(img,dst,200, 255, cv::THRESH_BINARY); 
+    cv::Mat mono_normal_image = normalize_channel(img, channel); 
 
-    // uint8_t *myData = image.data;
-    // int width = image.cols;
-    // int height = image.rows;
-    // ROS_INFO("w %i, h %i", width, height); 
+    cv::threshold(mono_normal_image, dst, 1, 255, CV_THRESH_BINARY); 
 
-    // uint8_t *myNewData = dst.data;
-    // width = image.cols;
-    // height = image.rows;
-    // ROS_INFO("w %i, h %i", width, height); 
+    return dst; 
 
-    // int _stride = image.step;//in case cols != strides
-    // for(int i = 0; i < 5; i++)
-    // {
-    //     for(int j = 0; j < 5; j++)
-    //     {
-    //         uint8_t val = myNewData[ i * _stride + j];
-    //         ROS_INFO("%i", val); 
-    //         //do whatever you want with your value
-    //     }
-    // }
+}; 
+
+cv::Mat BouyDetection::normalize_channel(cv::Mat img, int channel){
+
+    cv::Mat dst;
+    dst.create(img.rows, img.cols, CV_8UC1); //belive that this is for 8 bits, unsigned, depth = 1. 
+
+    for (int r=0; r++; r < img.rows){
+        for (int c=0; c++; c < img.cols){
+            cv::Vec3b pixel = img.at<cv::Vec3b>(r, c);
+            dst.at<uchar>(r, c) = 100*pixel[channel]/(pixel[0] + pixel[1] + pixel[2]); 
+        }
+    }
 
     return dst; 
 

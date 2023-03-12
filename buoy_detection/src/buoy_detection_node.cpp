@@ -16,27 +16,27 @@ class BuoyDetectionNode
     private:
     ros::NodeHandle nh;
     image_transport::ImageTransport it; 
-    image_transport::Publisher img_pub; 
+    image_transport::Publisher img_pub_BRG8; 
+    image_transport::Publisher img_pub_MONO8; 
     image_transport::Subscriber img_sub; 
 
     BouyDetection bd; 
 
-
     public:
     BuoyDetectionNode(): it(nh){
 
-        img_sub = it.subscribe("/images/raw", 10, &BuoyDetectionNode::callback, this); //dont need "this" ? 
-        img_pub = it.advertise("/images/out", 10); //dont need type? 
+        img_sub = it.subscribe("image_in", 10, &BuoyDetectionNode::callback, this); 
+        img_pub_BRG8 = it.advertise("brg_image_out", 10); 
+        img_pub_MONO8 = it.advertise("mono_image_out", 10); 
     }
 
     void callback(const sensor_msgs::ImageConstPtr& img_source){
 
-        // cv::Mat raw_image = cv_bridge::toCvShare(img_source, "bgr8")->image;
 
         cv_bridge::CvImageConstPtr raw_image_ptr;
         try
         {
-        raw_image_ptr= cv_bridge::toCvShare(img_source, "bgr8");
+        raw_image_ptr= cv_bridge::toCvShare(img_source, sensor_msgs::image_encodings::BGR8);
         }
         catch (cv_bridge::Exception& e)
         {
@@ -44,33 +44,43 @@ class BuoyDetectionNode
         return;
         }
 
-        //cv::Mat threholded_img = bd.threshold(raw_image_ptr->image); 
-        publish_cvImg(raw_image_ptr->image); 
+        cv::Mat thresholded_green_image = bd.threshold_channel(raw_image_ptr->image, 1); 
+        publish_MONO8_cvImg(thresholded_green_image); 
+        publish_BRG8_cvImg(raw_image_ptr->image); 
 
     }
 
 
-    void publish_cvImg(const cv::Mat& img_out){
+    void publish_BRG8_cvImg(const cv::Mat& img_out){
 
         std_msgs::Header header; // empty header
         static size_t counter{0};
         header.seq = counter++; // user defined counter
         header.stamp = ros::Time::now(); // time
 
-        sensor_msgs::ImagePtr msg = cv_bridge::CvImage(header, "brg8", img_out).toImageMsg();
-        img_pub.publish(msg); 
+        sensor_msgs::ImagePtr msg = cv_bridge::CvImage(header, sensor_msgs::image_encodings::BGR8, img_out).toImageMsg();
+        img_pub_BRG8.publish(msg); 
     }
 
-    // void spin(){
-    //     static cv::Mat raw_image = cv::imread("/vortex_ws/src/vortex-cv/buoy_detection/test/images.png"); 
-    // }
+    void publish_MONO8_cvImg(const cv::Mat& img_out){
+
+        std_msgs::Header header; // empty header
+        static size_t counter{0};
+        header.seq = counter++; // user defined counter
+        header.stamp = ros::Time::now(); // time
+
+        sensor_msgs::ImagePtr msg = cv_bridge::CvImage(header, sensor_msgs::image_encodings::MONO8, img_out).toImageMsg();
+        img_pub_MONO8.publish(msg); 
+    }
+
 }; 
 
 
 int main(int argc, char **argv)
 {   
+
     ros::init(argc, argv, "buoy_detection_node"); 
-    BuoyDetectionNode wrapper();
+    BuoyDetectionNode wrapper;
     ros::spin();
 
     return 0;

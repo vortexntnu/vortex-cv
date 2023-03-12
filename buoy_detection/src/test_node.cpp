@@ -19,8 +19,8 @@ class BuoyDetectionTestNode
     public:
     BuoyDetectionTestNode(): it(nh){
 
-        img_sub = it.subscribe("/images/out", 10, &BuoyDetectionTestNode::callback, this); 
-        img_pub = it.advertise("/images/raw", 10); 
+        img_sub = it.subscribe("image_out", 10, &BuoyDetectionTestNode::callback, this); 
+        img_pub = it.advertise("image_in", 10); 
 
     }
 
@@ -45,7 +45,7 @@ class BuoyDetectionTestNode
         header.seq = counter++; // user defined counter
         header.stamp = ros::Time::now(); // time
 
-        sensor_msgs::ImagePtr msg = cv_bridge::CvImage(header, "brg8", img_out).toImageMsg();
+        sensor_msgs::ImagePtr msg = cv_bridge::CvImage(header, sensor_msgs::image_encodings::BGR8, img_out).toImageMsg();
         img_pub.publish(msg); 
     }
 
@@ -66,9 +66,8 @@ class BuoyDetectionTestNode
 int main(int argc, char **argv)
 {   
     ros::init(argc, argv, "buoy_detection_test_node");
-    BuoyDetectionTestNode wrapper();
-    ros::spin(); 
-    //wrapper.spin(); 
+    BuoyDetectionTestNode wrapper;
+    wrapper.spin(); 
 
     return 0;
-}
+}    

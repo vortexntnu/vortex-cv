@@ -4,7 +4,7 @@ FROM ghcr.io/vortexntnu/vortex-cv:main
 #############################    OPENCV    #############################
 ########################################################################
 # OpenCV Version 
-ARG OPENCV_VERSION=3.2.0
+ARG OPENCV_VERSION=4.2.0
 
 # Install dependencies
 RUN apt-get update || true && apt-get upgrade -y &&\

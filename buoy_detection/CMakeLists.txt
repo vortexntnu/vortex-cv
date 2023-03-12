@@ -15,7 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
 )
 
-find_package(OpenCV REQUIRED COMPONENTS 
+find_package(OpenCV 4.2.0 REQUIRED COMPONENTS 
 core 
 imgproc 
 highgui
@@ -160,18 +160,24 @@ include_directories(
 
 ## Specify libraries to link a library or executable target against
 
-# old version: target_link_libraries(${PROJECT_NAME}_node
-#    ${catkin_LIBRARIES}
-#    ${OpenCV_LIBS}
-#  )
 
 # Node 1
-add_executable(buoy_detection_node src/buoy_detection_node.cpp)
-target_link_libraries(buoy_detection_node ${catkin_LIBRARIES})
+add_executable(${PROJECT_NAME}_node 
+  src/buoy_detection_node.cpp 
+  src/buoy_detection.cpp)
+target_link_libraries(buoy_detection_node 
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
+)
 
 # Node 2
-add_executable(test_node src/test_node.cpp)
-target_link_libraries(test_node ${catkin_LIBRARIES})
+add_executable(${PROJECT_NAME}_test_node 
+  src/test_node.cpp
+  src/buoy_detection.cpp)
+target_link_libraries(${PROJECT_NAME}_test_node
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
+  )
 
 # Node 3
 #add_executable(buoy_detection src/buoy_detection.cpp)

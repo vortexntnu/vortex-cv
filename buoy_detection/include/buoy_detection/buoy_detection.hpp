@@ -9,10 +9,11 @@ class BouyDetection
     private:
         cv::Mat lab_image, dst; 
 
+        cv::Mat normalize_channel(cv::Mat img, int channel); 
+
     public:
 
-        cv::Mat threshold(cv::Mat img); 
+        cv::Mat threshold_channel(cv::Mat img, int channel); 
         
-
 };
 
