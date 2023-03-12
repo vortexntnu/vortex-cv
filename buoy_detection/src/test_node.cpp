@@ -11,19 +11,20 @@
 class BuoyDetectionTestNode
 {
     private:
+    ros::NodeHandle nh;
+    image_transport::ImageTransport it; 
     image_transport::Publisher img_pub; 
     image_transport::Subscriber img_sub; 
     
     public:
-    BuoyDetectionTestNode(ros::NodeHandle& nh){
+    BuoyDetectionTestNode(): it(nh){
 
-        image_transport::ImageTransport it(nh);
-        img_sub = it.subscribe("/images/out", 10, &BuoyDetectionTestNode::callback); 
+        img_sub = it.subscribe("/images/out", 10, &BuoyDetectionTestNode::callback, this); 
         img_pub = it.advertise("/images/raw", 10); 
 
     }
 
-    void callback(sensor_msgs::ImageConstPtr& img_source){
+    void callback(const sensor_msgs::ImageConstPtr& img_source){
 
         // try
         // {
@@ -65,9 +66,9 @@ class BuoyDetectionTestNode
 int main(int argc, char **argv)
 {   
     ros::init(argc, argv, "buoy_detection_test_node");
-    ros::NodeHandle nh; 
-    BuoyDetectionTestNode wrapper(nh);
-    wrapper.spin(); 
+    BuoyDetectionTestNode wrapper();
+    ros::spin(); 
+    //wrapper.spin(); 
 
     return 0;
 }

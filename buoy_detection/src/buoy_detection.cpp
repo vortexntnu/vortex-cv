@@ -9,7 +9,7 @@ cv::Mat BouyDetection::threshold(cv::Mat img){
     cv::Mat dst; 
     
     // Basic threhold example 
-    cv::threshold(img,dst,200, 255, cv::THRESH_BINARY); 
+    //cv::threshold(img,dst,200, 255, cv::THRESH_BINARY); 
 
     // uint8_t *myData = image.data;
     // int width = image.cols;

@@ -147,7 +147,9 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node src/buoy_detection_node.cpp src/buoy_detection.cpp src/test_node.cpp)
+
+# old version: add_executable(${PROJECT_NAME}_node src/buoy_detection_node.cpp src/buoy_detection.cpp src/test_node.cpp)
+
 ## target back to the shorter version for ease of user use
 ## e.g. "rosrun someones_pkg node" instead of "rosrun someones_pkg someones_pkg_node"
 # set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX "")
@@ -157,10 +159,23 @@ add_executable(${PROJECT_NAME}_node src/buoy_detection_node.cpp src/buoy_detecti
 #add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(${PROJECT_NAME}_node
-   ${catkin_LIBRARIES}
-   ${OpenCV_LIBS}
- )
+
+# old version: target_link_libraries(${PROJECT_NAME}_node
+#    ${catkin_LIBRARIES}
+#    ${OpenCV_LIBS}
+#  )
+
+# Node 1
+add_executable(buoy_detection_node src/buoy_detection_node.cpp)
+target_link_libraries(buoy_detection_node ${catkin_LIBRARIES})
+
+# Node 2
+add_executable(test_node src/test_node.cpp)
+target_link_libraries(test_node ${catkin_LIBRARIES})
+
+# Node 3
+#add_executable(buoy_detection src/buoy_detection.cpp)
+#target_link_libraries(buoy_detection ${catkin_LIBRARIES})
 
 #############
 ## Install ##
