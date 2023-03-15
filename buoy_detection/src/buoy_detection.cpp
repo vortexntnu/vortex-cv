@@ -16,7 +16,8 @@ cv::Mat BouyDetection::threshold_channel(cv::Mat img, int channel){
     
     normalize_channel(img, mono_normal_image, channel); 
 
-    cv::threshold(mono_normal_image, thresholded_mg, 250, 255, CV_THRESH_BINARY); 
+    //cv::threshold(mono_normal_image, thresholded_mg, 250, 255, CV_THRESH_BINARY); 
+    cv::adaptiveThreshold(mono_normal_image, thresholded_mg, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY,5,2); 
 
     return thresholded_mg; 
 
@@ -32,7 +33,7 @@ void BouyDetection::normalize_channel(const cv::Mat& src, cv::Mat& dst, int chan
     cv::Mat different_Channels[3];
     cv::split(src, different_Channels);//splitting images into 3 different channels// 
 
-    cv::Mat intensity_f((different_Channels[0] + different_Channels[1] + different_Channels[2]));     // er det riktig å dele på 3? 
+    cv::Mat intensity_f((different_Channels[0] + different_Channels[1] + different_Channels[2])/3);     // er det riktig å dele på 3? 
 
     cv::Mat normalized_f; 
     cv::divide(different_Channels[channel], intensity_f, normalized_f);
