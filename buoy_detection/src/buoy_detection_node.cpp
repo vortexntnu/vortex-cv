@@ -44,7 +44,7 @@ class BuoyDetectionNode
         return;
         }
 
-        cv::Mat thresholded_green_image = bd.threshold_channel(raw_image_ptr->image, 1); 
+        cv::Mat thresholded_green_image = bd.threshold_channel(raw_image_ptr->image, 1); // 0 - blue, 2 - red
         publish_MONO8_cvImg(thresholded_green_image); 
         publish_BRG8_cvImg(raw_image_ptr->image); 
 

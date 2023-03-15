@@ -53,7 +53,7 @@ class BuoyDetectionTestNode
         ros::Rate loop_rate(5); 
         while (ros::ok){
 
-            static cv::Mat raw_image = cv::imread("/vortex_ws/src/vortex-cv/buoy_detection/test/images.png"); 
+            static cv::Mat raw_image = cv::imread("/vortex_ws/src/vortex-cv/buoy_detection/test/boating_in_fall_channel_markers.jpg"); 
             publish_cvImg(raw_image); 
 
             ros::spinOnce(); 
