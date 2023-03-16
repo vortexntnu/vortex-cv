@@ -11,8 +11,7 @@
         "/vortex_ws/src/darknet_ros_zed/darknet_ros/include/**",
         "/vortex_ws/src/vortex-cv/image_preprocessing/include/**",
         "/vortex_ws/src/vortex-cv/aruco_detection/include/**",
-        "/usr/include/opencv4/**",
-        "/usr/include/**"
+        "usr/include/**"
       ],
       "name": "ROS",
       "intelliSenseMode": "gcc-x64",

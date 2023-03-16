@@ -12,7 +12,7 @@
 
 #include <string>
 #include <vector>
-#include <Eigen/Geometry>
+// #include <Eigen/Geometry>
 
 
 /**
@@ -25,17 +25,14 @@
 class ArucoHandler {
 
 public: 
-    ArucoHandler(cv::Mat cameraMatrix, cv::Mat distortionCoefficients);
     ArucoHandler();
-    
-    
     /**
      * Looks for markers in image and returns poses of the markers detected
      * @param img   input: image
      * @param poses output: estimated poses of detected markers
      * @param ids   ouput: ids of detected markers
     */
-    int detectMarkerPoses(const cv::Mat& img, const cv::Ptr<cv::aruco::Dictionary> dictionary, std::vector<geometry_msgs::Pose> &poses, const std::vector<int> &ids, double markerLength);
+    int detectMarkerPoses(cv::Mat& img, const cv::Ptr<cv::aruco::Dictionary> dictionary, std::vector<geometry_msgs::Pose> &poses, std::vector<int> &ids, double markerLength);
     
     /**
      * Looks for ArUco boards in image and returns its pose if found
