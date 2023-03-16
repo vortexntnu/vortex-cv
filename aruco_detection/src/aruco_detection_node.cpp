@@ -63,34 +63,34 @@ void ArucoDetectionNode::execute()
 {
     while (ros::ok()) {
 
-        // // IMAGE INPUT
+        // IMAGE INPUT
         // cv::Mat img = cv::imread("/vortex_ws/src/vortex-cv/aruco_detection/test/pictures/TACboard3.jpg", cv::IMREAD_COLOR);
         // if( img.empty() )  // Check for invalid input
         // {
         //     ROS_INFO("Could not open or find the image");
         // }
 
-        // // WEBCAM INPUT
-        // static cv::Mat img;
-        // // cv::namedWindow("Display window");
-        // static cv::VideoCapture cap(0);
-        // if (!cap.isOpened()) {
-        //     ROS_INFO("cannot open camera");
-        // }   
-        // cap >> img;
+        // WEBCAM INPUT
+        static cv::Mat img;
+        // cv::namedWindow("Display window");
+        static cv::VideoCapture cap(0);
+        if (!cap.isOpened()) {
+            ROS_INFO("cannot open camera");
+        }   
+        cap >> img;
 
-        // std::vector<int> ids;
-        // std::vector<geometry_msgs::Pose> poses;
-        // arucoHandler.detectMarkerPoses(img, dictionary, poses, ids, 5);
+        std::vector<int> ids;
+        std::vector<geometry_msgs::Pose> poses;
+        arucoHandler.detectMarkerPoses(img, dictionary, poses, ids, 5);
 
-        // for (geometry_msgs::Pose pose: poses) {
-        //     op_pose_pub.publish(pose);
-        // }
+        for (geometry_msgs::Pose pose: poses) {
+            op_pose_pub.publish(pose);
+        }
 
-        // geometry_msgs::Pose pose;
-        // int markersDetected = arucoHandler.detectBoardPose(img, board, pose);
-        // publishCVImg(img);
-        // if (markersDetected > 0) publishPose(pose);
+        geometry_msgs::Pose pose;
+        int markersDetected = arucoHandler.detectBoardPose(img, board, pose);
+        publishCVImg(img);
+        if (markersDetected > 0) publishPose(pose);
 
 
         ros::spinOnce();

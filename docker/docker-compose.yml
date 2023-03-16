@@ -61,6 +61,8 @@ services:
     entrypoint: ["/bin/bash", "-l"]
     devices:
       - /dev/video0:/dev/video0
+    cap_add:
+      - SYS_PTRACE
 
 
   cv-test:

@@ -8,25 +8,8 @@
             "name": "ROS: Attach",
             "type": "ros",
             "request": "attach"
-            
-        },
-        {
-            "name": "Python: Current File",
-            "type": "python",
-            "request": "attach",
-            "program": "${file}",
-            "connect": {
-                "host": "localhost",
-                "port": 5678
-            }
-        },
-        {
-            "name": "ROS: Launch",
-            "type": "ros",
-            "request": "launch",
-            "target": "${workspaceFolder}/image_preprocessing/launch/image_preprocessing.launch", // <<< Configure path to your launch file
-            "preLaunchTask": "make_debug", // <<< This is the task that will run before debugging starts
-            
+
+
         }
     ]
 }
