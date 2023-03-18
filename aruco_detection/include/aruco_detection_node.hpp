@@ -40,18 +40,18 @@ public:
      */
     void execute();
 
-    void publishCVImg(const cv::Mat& img);
-    void publishPose(const geometry_msgs::Pose& pose);
+    void publishCVImg(const cv::Mat& img, ros::Time timestamp);
+    void publishPose(const geometry_msgs::Pose& pose, ros::Time timestamp);
 
 
 protected:
     // ROS stuff
     ros::NodeHandle node;
     ros::Rate loop_rate;
-    ros::Subscriber op_sub;
-    ros::Publisher op_image_pub;
-    ros::Publisher op_pose_pub;
-    ros::Publisher op_pose_pub_tf;
+    ros::Subscriber opSub;
+    ros::Publisher opImagePub;
+    ros::Publisher opPosePub;
+    ros::Publisher opPosePubTf;
 
     // ArUco stuff
     ArucoHandler arucoHandler;
