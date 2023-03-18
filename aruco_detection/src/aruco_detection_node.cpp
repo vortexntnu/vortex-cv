@@ -12,10 +12,10 @@ ArucoDetectionNode::ArucoDetectionNode()
     cv::Mat distortionCoefficients = (cv::Mat1d(1, 5) << k1, k2, p1, p2, k3);
     arucoHandler.cameraMatrix = cameraMatrix;
     arucoHandler.distortionCoefficients = distortionCoefficients;
-    op_sub = node.subscribe("/zed2i/zed_node/left_raw/image_raw_color",10, &ArucoDetectionNode::callback, this);
-    op_image_pub = node.advertise<sensor_msgs::Image>("aruco_image_out",100);
-    op_pose_pub  = node.advertise<geometry_msgs::PoseStamped>("aruco_poses_out",100);
-    op_pose_pub_tf  = node.advertise<geometry_msgs::PoseStamped>("aruco_tf_poses_out",100);
+    opSub = node.subscribe("/zed2i/zed_node/left_raw/image_raw_color",10, &ArucoDetectionNode::callback, this);
+    opImagePub = node.advertise<sensor_msgs::Image>("aruco_image_out",100);
+    opPosePub  = node.advertise<geometry_msgs::PoseStamped>("aruco_poses_out",100);
+    opPosePubTf  = node.advertise<geometry_msgs::PoseStamped>("aruco_tf_poses_out",100);
     
     dictionary = new cv::aruco::Dictionary;
     dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100);
@@ -27,13 +27,13 @@ ArucoDetectionNode::ArucoDetectionNode()
     ////////////////////////////
     //// Init Transforms ///////
     ////////////////////////////
-    std::string parent_frame = "odom"; 
-    std::string child_frame = "udfc_link";
+    std::string parentFrame = "odom"; 
+    std::string childFrame = "udfc_link";
 
     // Initialize the node, wait for a transform to be available
-    while (!tfBuffer.canTransform(parent_frame, child_frame, ros::Time(0))) {
+    while (!tfBuffer.canTransform(parentFrame, childFrame, ros::Time(0))) {
         try {
-            ROS_INFO_STREAM("No transform between " << parent_frame << " and " << child_frame);
+            ROS_INFO_STREAM("No transform between " << parentFrame << " and " << childFrame);
             ros::Duration(2.0).sleep();
         }
         catch(tf2::TransformException &ex) {
@@ -41,7 +41,7 @@ ArucoDetectionNode::ArucoDetectionNode()
             ros::Duration(2.0).sleep();
         }
     }
-    ROS_INFO_STREAM("Transform between " << parent_frame << " and " << child_frame << " found.");
+    ROS_INFO_STREAM("Transform between " << parentFrame << " and " << childFrame << " found.");
 
 
 }
@@ -54,34 +54,34 @@ void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr& img_source)
     geometry_msgs::Pose pose;
     size_t markersDetected = arucoHandler.detectBoardPose(img, board, pose);
 
-    if (markersDetected > 0) publishPose(pose);
+    if (markersDetected > 0) publishPose(pose, cvImage->header.stamp);
 
-    publishCVImg(img);
+    publishCVImg(img, cvImage->header.stamp);
 }
 
-void ArucoDetectionNode::publishCVImg(const cv::Mat& img)
+void ArucoDetectionNode::publishCVImg(const cv::Mat& img, ros::Time timestamp)
 {
     static size_t counter{0};
-    cv_bridge::CvImage img_bridge;
-    sensor_msgs::Image img_msg; 
+    cv_bridge::CvImage imgBridge;
+    sensor_msgs::Image imgMsg; 
 
     std_msgs::Header header;
     header.seq = counter++; 
-    header.stamp = ros::Time::now(); // Should the time now be used, or the time the image was taken be used?
-    img_bridge = cv_bridge::CvImage(header, sensor_msgs::image_encodings::BGR8, img);
-    img_bridge.toImageMsg(img_msg); 
-    op_image_pub.publish(img_msg);
+    header.stamp = timestamp; // Should the time now be used, or the time the image was taken be used?
+    imgBridge = cv_bridge::CvImage(header, sensor_msgs::image_encodings::BGR8, img);
+    imgBridge.toImageMsg(imgMsg); 
+    opImagePub.publish(imgMsg);
 }
 
-void ArucoDetectionNode::publishPose(const geometry_msgs::Pose& pose)
+void ArucoDetectionNode::publishPose(const geometry_msgs::Pose& pose, ros::Time timestamp)
 {
     static size_t counter{0};
     geometry_msgs::PoseStamped poseMsg;
     poseMsg.header.frame_id = "zed2i_left_camera_frame";
     poseMsg.header.seq = counter++;
-    poseMsg.header.stamp = ros::Time::now(); // Should the time now be used, or the time the image was taken be used?
+    poseMsg.header.stamp = timestamp; // Should the time now be used, or the time the image was taken be used?
     poseMsg.pose = pose;
-    op_pose_pub.publish(poseMsg);
+    opPosePub.publish(poseMsg);
     
 
     geometry_msgs::Pose poseTF;
@@ -89,9 +89,9 @@ void ArucoDetectionNode::publishPose(const geometry_msgs::Pose& pose)
     geometry_msgs::PoseStamped poseTFMsg;
     poseTFMsg.header.frame_id = "odom";
     poseTFMsg.header.seq = counter;
-    poseTFMsg.header.stamp = ros::Time::now(); // Should work :)
+    poseTFMsg.header.stamp = timestamp;
     poseTFMsg.pose = poseTF;
-    op_pose_pub_tf.publish(poseMsg);
+    opPosePubTf.publish(poseMsg);
 
 }
 
@@ -120,7 +120,7 @@ void ArucoDetectionNode::execute()
         // arucoHandler.detectMarkerPoses(img, dictionary, poses, ids, 5);
 
         // for (geometry_msgs::Pose pose: poses) {
-        //     op_pose_pub.publish(pose);
+        //     opPosePub.publish(pose);
         // }
 
         // geometry_msgs::Pose pose;
