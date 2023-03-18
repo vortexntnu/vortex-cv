@@ -3,14 +3,15 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <ros/ros.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 
-int main(int argc, char** argv){
+int main(int argc, char** argv) {
     std::string parent_frame = "odom"; 
     std::string child_frame = "udfc_link";
 
     // Create a point transformer object
-    geometry_msgs::TransformStamped point_transformer;
+    geometry_msgs::TransformStamped odom_udfc_transform;
 
     // Create a buffer, listener, and broadcaster for transformations
     tf2_ros::Buffer tfBuffer;
@@ -29,6 +30,11 @@ int main(int argc, char** argv){
         }
     }
     ROS_INFO_STREAM("Transform between " << parent_frame << " and " << child_frame << " found.");
+
+    geometry_msgs::Pose inputPose;
+    geometry_msgs::Pose outputPose;
+
+    tf2::doTransform(inputPose, outputPose, odom_udfc_transform);
 };
 
 

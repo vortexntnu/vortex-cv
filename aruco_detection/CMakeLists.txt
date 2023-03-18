@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   vortex_msgs
   roscpp
+  tf2_ros
   # aruco_msgs
   # aruco_ros
 )
