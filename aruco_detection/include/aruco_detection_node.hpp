@@ -62,7 +62,7 @@ protected:
     // TF stuff
     geometry_msgs::TransformStamped odom_udfc_transform;
     tf2_ros::Buffer tfBuffer;
-    tf2_ros::TransformListener listener;
+    tf2_ros::TransformListener tfListener;
     tf2_ros::TransformBroadcaster tfBroadcaster;
 };
 
