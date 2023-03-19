@@ -15,10 +15,10 @@ ArucoDetectionNode::ArucoDetectionNode()
     arucoHandler.cameraMatrix = cameraMatrix;
     arucoHandler.distortionCoefficients = distortionCoefficients;
     opSub = node.subscribe("/zed2i/zed_node/left_raw/image_raw_color",10, &ArucoDetectionNode::callback, this);
-    opImagePub          = node.advertise<sensor_msgs  ::Image         >("aruco_image_out"   ,100);
-    opPosePub           = node.advertise<geometry_msgs::PoseStamped   >("aruco_poses_out"   ,100);
-    opPosePubTf         = node.advertise<geometry_msgs::PoseStamped   >("aruco_tf_poses_out",100);
-    opPosePubTfLandmark = node.advertise<vortex_msgs  ::ObjectPosition>("object_position_in",100);
+    opImagePub          = node.advertise<sensor_msgs  ::Image         >("aruco_image_out"     ,100);
+    opPosePub           = node.advertise<geometry_msgs::PoseStamped   >("aruco_poses_out"     ,100);
+    opPosePubTf         = node.advertise<geometry_msgs::PoseStamped   >("aruco_tf_poses_out"  ,100);
+    opPosePubTfLandmark = node.advertise<vortex_msgs  ::ObjectPosition>("object_positions_in" ,100);
     
     dictionary = new cv::aruco::Dictionary;
     dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100);
@@ -96,8 +96,8 @@ void ArucoDetectionNode::publishPose(const geometry_msgs::Pose& pose, ros::Time 
     poseTFMsg.header.frame_id = "odom";
     poseTFMsg.header.seq      = counter;
     poseTFMsg.header.stamp    = timestamp;
-    poseTFMsg.pose            = poseTF;
-    opPosePubTf.publish(poseMsg);
+    poseTFMsg.pose            = pose;
+    opPosePubTf.publish(poseTFMsg);
 
     vortex_msgs::ObjectPosition vortexPoseMsg;
     vortexPoseMsg.objectID          = "docking_point";
