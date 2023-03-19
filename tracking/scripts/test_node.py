@@ -30,8 +30,8 @@ class Clusters:
 
     def spin(self):
         while not rospy.is_shutdown():
-            self.publish_pos_from_single_source()
-            #self.publish_pos_from_multiple_sources()
+            #self.publish_pos_from_single_source()
+            self.publish_pos_from_multiple_sources()
             self.rate.sleep()
 
     def publish_pos_from_single_source(self):
@@ -41,15 +41,14 @@ class Clusters:
         now = rospy.get_rostime()
         posearray.header.stamp.secs = now.secs
 
-        for i in range(5):
 
-            self.x0 += 0.01
-            self.y0 += 0.01
+        self.x0 += 0.01
+        self.y0 += 0.01
 
-            p = Pose()
-            p.position = Point(self.x0, self.y0, 0)
+        p = Pose()
+        p.position = Point(self.x0, self.y0, 0)
 
-            posearray.poses.append(p)
+        posearray.poses.append(p)
 
         self.pub.publish(posearray)
 
@@ -60,20 +59,20 @@ class Clusters:
         now = rospy.get_rostime()
         posearray.header.stamp.secs = now.secs
 
-        self.x0 += 0.01
-        self.y0 += 0.01
+        self.x0 += 0.1
+        self.y0 += 0.1
         p = Pose()
         p.position = Point(self.x0, self.y0, 0)
         posearray.poses.append(p)
 
-        self.x1 -= 0.01
-        self.y1 += 0.01
+        self.x1 -= 0.1
+        self.y1 += 0.00
         p = Pose()
         p.position = Point(self.x1, self.y1, 0)
         posearray.poses.append(p)
 
-        self.x2 += 0.01
-        self.y2 += 0.00
+        self.x2 += 0.15
+        self.y2 += 0.2
         p = Pose()
         p.position = Point(self.x2, self.y2, 0)
         posearray.poses.append(p)
