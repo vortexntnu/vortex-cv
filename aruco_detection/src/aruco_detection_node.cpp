@@ -36,10 +36,19 @@ ArucoDetectionNode::ArucoDetectionNode()
     // Wait for a transform to be available
     while (!tfBuffer.canTransform(parentFrame, childFrame, ros::Time(0))) 
     {
+        geometry_msgs::TransformStamped transform;
+        try 
+        {
+            transform = tfBuffer.lookupTransform(parentFrame, childFrame, ros::Time(0));
+        }
+        catch(tf2::TransformException &ex) 
+        {
+            ROS_WARN_STREAM(ex.what());
+            continue;
+        }
         ros::Duration(1.0).sleep();
-        ROS_INFO_STREAM("Transform between " << parentFrame << " and " << childFrame << " found yet");
     }
-    ROS_INFO_STREAM("Transform between " << parentFrame << " and " << childFrame << " found");
+    ROS_INFO_STREAM("Transform between " << parentFrame << " and " << childFrame << " found.");
 
 
 }
@@ -131,11 +140,6 @@ void ArucoDetectionNode::execute()
             ROS_INFO("cannot open camera");
         }   
         cap >> img;
-
-        // std::vector<std::vector<cv::Point2f>> corners, rejected;
-        // std::vector<int> ids;
-        // cv::Ptr<cv::aruco::DetectorParameters> dtParams = cv::aruco::DetectorParameters::create();
-        // cv::aruco::detectMarkers(img, board->dictionary, corners, ids, dtParams, rejected);//, cameraMatrix, distortionCoefficients);
 
 
         geometry_msgs::Pose pose;
