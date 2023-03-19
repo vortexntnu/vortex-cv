@@ -13,9 +13,10 @@ ArucoDetectionNode::ArucoDetectionNode()
     arucoHandler.cameraMatrix = cameraMatrix;
     arucoHandler.distortionCoefficients = distortionCoefficients;
     opSub = node.subscribe("/zed2i/zed_node/left_raw/image_raw_color",10, &ArucoDetectionNode::callback, this);
-    opImagePub = node.advertise<sensor_msgs::Image>("aruco_image_out",100);
-    opPosePub  = node.advertise<geometry_msgs::PoseStamped>("aruco_poses_out",100);
-    opPosePubTf  = node.advertise<geometry_msgs::PoseStamped>("aruco_tf_poses_out",100);
+    opImagePub          = node.advertise<sensor_msgs  ::Image         >("aruco_image_out"   ,100);
+    opPosePub           = node.advertise<geometry_msgs::PoseStamped   >("aruco_poses_out"   ,100);
+    opPosePubTf         = node.advertise<geometry_msgs::PoseStamped   >("aruco_tf_poses_out",100);
+    opPosePubTfLandmark = node.advertise<vortex_msgs  ::ObjectPosition>("object_position_in",100);
     
     dictionary = new cv::aruco::Dictionary;
     dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100);
@@ -88,25 +89,32 @@ void ArucoDetectionNode::publishPose(const geometry_msgs::Pose& pose, ros::Time 
     tf2::doTransform(pose, poseTF, odom_udfc_transform);
     geometry_msgs::PoseStamped poseTFMsg;
     poseTFMsg.header.frame_id = "odom";
-    poseTFMsg.header.seq = counter;
-    poseTFMsg.header.stamp = timestamp;
-    poseTFMsg.pose = poseTF;
+    poseTFMsg.header.seq      = counter;
+    poseTFMsg.header.stamp    = timestamp;
+    poseTFMsg.pose            = poseTF;
     opPosePubTf.publish(poseMsg);
 
+    vortex_msgs::ObjectPosition vortexPoseMsg;
+    vortexPoseMsg.objectID          = "docking_point";
+    vortexPoseMsg.objectPose        = poseTFMsg;
+    vortexPoseMsg.isDetected        = true;
+    vortexPoseMsg.estimateConverged = true;
+    vortexPoseMsg.estimateFucked    = false;
+    opPosePubTfLandmark.publish(vortexPoseMsg);
 }
 
 void ArucoDetectionNode::execute()
 {
     while (ros::ok()) {
 
-        // IMAGE INPUT
+        // // IMAGE INPUT
         // cv::Mat img = cv::imread("/vortex_ws/src/vortex-cv/aruco_detection/test/pictures/TACboard3.jpg", cv::IMREAD_COLOR);
         // if( img.empty() )  // Check for invalid input
         // {
         //     ROS_INFO("Could not open or find the image");
         // }
 
-        // WEBCAM INPUT
+        // // WEBCAM INPUT
         // static cv::Mat img;
         // // cv::namedWindow("Display window");
         // static cv::VideoCapture cap(0);
@@ -125,8 +133,8 @@ void ArucoDetectionNode::execute()
 
         // geometry_msgs::Pose pose;
         // int markersDetected = arucoHandler.detectBoardPose(img, board, pose);
-        // publishCVImg(img);
-        // if (markersDetected > 0) publishPose(pose);
+        // publishCVImg(img, ros::Time::now());
+        // if (markersDetected > 0) publishPose(pose, ros::Time::now());
 
 
         ros::spinOnce();
