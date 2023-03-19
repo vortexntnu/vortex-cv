@@ -6,8 +6,10 @@ ArucoDetectionNode::ArucoDetectionNode()
 , arucoHandler{}
 {
     // zed2i left
-    double fx=531.75, fy=532.04, cx=632.77, cy=356.759;
-    double k1=-0.04568, k2=0.0180176, p1=0.000246693, p2=-8.1439e-05, k3=-0.00783292;
+    // double fx=531.75, fy=532.04, cx=632.77, cy=356.759;
+    // double k1=-0.04568, k2=0.0180176, p1=0.000246693, p2=-8.1439e-05, k3=-0.00783292;
+    double fx=1, fy=1, cx=0, cy=0;
+    double k1=-0, k2=0, p1=0, p2=0, k3=0;
     cv::Mat cameraMatrix           = (cv::Mat1d(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
     cv::Mat distortionCoefficients = (cv::Mat1d(1, 5) << k1, k2, p1, p2, k3);
     arucoHandler.cameraMatrix = cameraMatrix;
@@ -29,15 +31,18 @@ ArucoDetectionNode::ArucoDetectionNode()
     //// Init Transforms ///////
     ////////////////////////////
     std::string parentFrame = "odom"; 
-    std::string childFrame = "udfc_link";
+    std::string childFrame  = "udfc_link";
 
-    // Initialize the node, wait for a transform to be available
-    while (!tfBuffer.canTransform(parentFrame, childFrame, ros::Time(0))) {
-        try {
+    // Wait for a transform to be available
+    while (!tfBuffer.canTransform(parentFrame, childFrame, ros::Time(0))) 
+    {
+        try 
+        {
             ROS_INFO_STREAM("No transform between " << parentFrame << " and " << childFrame);
             ros::Duration(2.0).sleep();
         }
-        catch(tf2::TransformException &ex) {
+        catch(tf2::TransformException &ex) 
+        {
             ROS_WARN_STREAM("TransformException: " << ex.what());
             ros::Duration(2.0).sleep();
         }
@@ -114,27 +119,29 @@ void ArucoDetectionNode::execute()
         //     ROS_INFO("Could not open or find the image");
         // }
 
-        // // WEBCAM INPUT
-        // static cv::Mat img;
-        // // cv::namedWindow("Display window");
-        // static cv::VideoCapture cap(0);
-        // if (!cap.isOpened()) {
-        //     ROS_INFO("cannot open camera");
-        // }   
-        // cap >> img;
+        // WEBCAM INPUT
+        static cv::Mat img;
 
+        // cv::namedWindow("Display window");
+        static cv::VideoCapture cap(0);
+        if (!cap.isOpened()) {
+            ROS_INFO("cannot open camera");
+        }   
+        cap >> img;
+
+        // std::vector<std::vector<cv::Point2f>> corners, rejected;
         // std::vector<int> ids;
-        // std::vector<geometry_msgs::Pose> poses;
-        // arucoHandler.detectMarkerPoses(img, dictionary, poses, ids, 5);
+        // cv::Ptr<cv::aruco::DetectorParameters> dtParams = cv::aruco::DetectorParameters::create();
+        // cv::aruco::detectMarkers(img, board->dictionary, corners, ids, dtParams, rejected);//, cameraMatrix, distortionCoefficients);
 
-        // for (geometry_msgs::Pose pose: poses) {
-        //     opPosePub.publish(pose);
-        // }
 
-        // geometry_msgs::Pose pose;
-        // int markersDetected = arucoHandler.detectBoardPose(img, board, pose);
-        // publishCVImg(img, ros::Time::now());
-        // if (markersDetected > 0) publishPose(pose, ros::Time::now());
+        geometry_msgs::Pose pose;
+        int markersDetected = arucoHandler.detectBoardPose(img, board, pose);
+        publishCVImg(img, ros::Time::now());
+        if (markersDetected > 0) 
+        {
+            publishPose(pose, ros::Time::now());
+        }
 
 
         ros::spinOnce();

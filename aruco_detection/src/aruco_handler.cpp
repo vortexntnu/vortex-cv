@@ -121,9 +121,13 @@ size_t ArucoHandler::detectBoardPose(cv::Mat& img, const cv::Ptr<cv::aruco::Boar
 
     std::vector<std::vector<cv::Point2f>> corners, rejected;
     std::vector<int> ids;
-
-    cv::aruco::detectMarkers(img, board->dictionary, corners, ids, detectorParams, rejected);//, cameraMatrix, distortionCoefficients);
-    if (ids.size() == 0) return ids.size();
+    try {
+        cv::aruco::detectMarkers(img, board->dictionary, corners, ids, detectorParams, rejected);//, cameraMatrix, distortionCoefficients);
+    }
+    catch (...) {
+        ROS_INFO("Error detecting marker");
+    }
+    if (ids.size() == 0) return 0;
 
     
 
@@ -139,7 +143,7 @@ size_t ArucoHandler::detectBoardPose(cv::Mat& img, const cv::Ptr<cv::aruco::Boar
     // Draw Markers and board pose (for debugging and visualization)
     cv::aruco::drawDetectedMarkers(img, corners, ids);
 
-    float length = cv::norm(board->objPoints[0][0] - board->objPoints[0][1]);
+    float length = cv::norm(board->objPoints[0][0] - board->objPoints[0][1]); // Visual length of the drawn axis
     cv::aruco::drawAxis(img, cameraMatrix, distortionCoefficients, rvec, tvec, length);
 
 
