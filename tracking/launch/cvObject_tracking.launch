@@ -1,7 +1,8 @@
 <?xml version="1.0"?>
 <launch>
 
-    <node pkg="tracking" type="cvObjects_tracking_node.py"     name="SingelTargetTracker" output="screen" respawn="false"/>
+    <node pkg="tracking" type="single_cvobject_tracking_node.py"     name="SingelTargetTracker" output="screen" respawn="false"/>
+    <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_lidar" args="1 0 0 0 0 0 lidar_link base_link " />
 
 
-</launch>                print(an_obs_within_gate, "is removed from list")
+</launch>              

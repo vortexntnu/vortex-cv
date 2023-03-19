@@ -19,8 +19,8 @@ class Clusters:
         # rospy.init_node()
         self.rate = rospy.Rate(10)
 
-        self.x = 5
-        self.y = 10
+        self.x = 0
+        self.y = 0
 
     def spin(self):
         while not rospy.is_shutdown():
@@ -35,6 +35,10 @@ class Clusters:
         posearray.header.stamp.secs = now.secs
 
         for i in range(5):
+
+            self.x += 0.01
+            self.y += 0.01
+
             p = Pose()
             p.position = Point(self.x, self.y, 0)
 

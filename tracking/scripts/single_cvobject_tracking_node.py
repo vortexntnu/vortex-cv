@@ -60,7 +60,11 @@ class Tracker:
         self.prev_time = 0
         self.observations = None
 
+        rospy.loginfo('init ok')
+
     def cb(self, msg):
+
+        rospy.loginfo('msg recived')
 
         self.unpack_pose_array_msg(msg)
         self.track_manager.step_once(self.observations, self.time_step)
@@ -70,6 +74,9 @@ class Tracker:
             == TrackStatus.tentative_delete
         ):
             self.publish()
+            rospy.loginfo('publiched')
+        else:
+            rospy.loginfo('no confirmed tracks')
 
     def publish(self):
         odometry_msg = self.pack_odometry_msg()
@@ -100,7 +107,7 @@ class Tracker:
         msg.header.stamp = rospy.get_rostime()
         msg.header.seq = self.seq
         self.seq += 1
-        # msg.header.frame_id = ?
+        msg.header.frame_id = 'lidar_link'
 
         # - - - -  position
         x = self.track_manager.main_track.pdaf.posterior_state_estimate.mean.reshape(
