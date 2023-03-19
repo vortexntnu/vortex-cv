@@ -60,11 +60,7 @@ class Tracker:
         self.prev_time = 0
         self.observations = None
 
-        rospy.loginfo('init ok')
-
     def cb(self, msg):
-
-        rospy.loginfo('msg recived')
 
         self.unpack_pose_array_msg(msg)
         self.track_manager.step_once(self.observations, self.time_step)
@@ -74,9 +70,6 @@ class Tracker:
             == TrackStatus.tentative_delete
         ):
             self.publish()
-            rospy.loginfo('publiched')
-        else:
-            rospy.loginfo('no confirmed tracks')
 
     def publish(self):
         odometry_msg = self.pack_odometry_msg()
