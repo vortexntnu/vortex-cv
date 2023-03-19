@@ -100,7 +100,7 @@ class Tracker:
         msg.header.stamp = rospy.get_rostime()
         msg.header.seq = self.seq
         self.seq += 1
-        msg.header.frame_id = 'lidar_link'
+        msg.header.frame_id = 'os_lidar'
 
         # - - - -  position
         x = self.track_manager.main_track.pdaf.posterior_state_estimate.mean.reshape(

@@ -2,7 +2,7 @@
 <launch>
 
     <node pkg="tracking" type="single_cvobject_tracking_node.py"     name="SingelTargetTracker" output="screen" respawn="false"/>
-    <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_lidar" args="1 0 0 0 0 0 lidar_link base_link " />
+    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_os_lidar" args="1 0 0 0 0 0 os_lidar base_link " /> -->
 
 
 </launch>              
