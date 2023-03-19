@@ -12,12 +12,12 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/core.hpp>
 #include <opencv2/aruco.hpp>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/calib3d.hpp>
+// #include <opencv2/imgcodecs.hpp>
+// #include <opencv2/highgui.hpp>
+// #include <opencv2/calib3d.hpp>
 // #include <opencv2/imgproc.hpp>
 #include <vector>
-
+#include <vortex_msgs/ObjectPosition.h>
 // #include <vortex_msgs/LandmarkPose.h>
 #include <aruco_handler.hpp>
 
@@ -52,6 +52,7 @@ protected:
     ros::Publisher opImagePub;
     ros::Publisher opPosePub;
     ros::Publisher opPosePubTf;
+    ros::Publisher opPosePubTfLandmark;
 
     // ArUco stuff
     ArucoHandler arucoHandler;
