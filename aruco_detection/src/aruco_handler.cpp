@@ -8,7 +8,6 @@ ArucoHandler::ArucoHandler()
     cameraMatrix           = (cv::Mat1d(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
     distortionCoefficients = (cv::Mat1d(1, 5) << k1, k2, p1, p2, k3);
     detectorParams->cornerRefinementMethod = cv::aruco::CORNER_REFINE_SUBPIX;
-    
 }
 
 
@@ -16,7 +15,7 @@ ArucoHandler::ArucoHandler()
 
 int ArucoHandler::detectMarkerPoses(cv::Mat& img, const cv::Ptr<cv::aruco::Dictionary> dictionary, std::vector<geometry_msgs::Pose> &poses, std::vector<int> &ids, double markerLength)
 {
-
+    ROS_WARN("THIS FUNCTION MAY FAIL! (is currently unused)");
     std::vector<std::vector<cv::Point2f>> corners, rejected;
     
     cv::aruco::detectMarkers(img, dictionary, corners, ids, detectorParams, rejected);//, cameraMatrix, distortionCoefficients);
@@ -121,12 +120,9 @@ size_t ArucoHandler::detectBoardPose(cv::Mat& img, const cv::Ptr<cv::aruco::Boar
 
     std::vector<std::vector<cv::Point2f>> corners, rejected;
     std::vector<int> ids;
-    try {
-        cv::aruco::detectMarkers(img, board->dictionary, corners, ids, detectorParams, rejected);//, cameraMatrix, distortionCoefficients);
-    }
-    catch (...) {
-        ROS_INFO("Error detecting marker");
-    }
+
+    cv::aruco::detectMarkers(img, board->dictionary, corners, ids, detectorParams, rejected);//, cameraMatrix, distortionCoefficients);
+  
     if (ids.size() == 0) return 0;
 
     

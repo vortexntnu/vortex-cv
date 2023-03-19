@@ -2,7 +2,7 @@
 
 ArucoDetectionNode::ArucoDetectionNode() 
 : loop_rate{10}
-, listener{tfBuffer}
+, tfListener{tfBuffer}
 , arucoHandler{}
 {
     // zed2i left
@@ -36,18 +36,10 @@ ArucoDetectionNode::ArucoDetectionNode()
     // Wait for a transform to be available
     while (!tfBuffer.canTransform(parentFrame, childFrame, ros::Time(0))) 
     {
-        try 
-        {
-            ROS_INFO_STREAM("No transform between " << parentFrame << " and " << childFrame);
-            ros::Duration(2.0).sleep();
-        }
-        catch(tf2::TransformException &ex) 
-        {
-            ROS_WARN_STREAM("TransformException: " << ex.what());
-            ros::Duration(2.0).sleep();
-        }
+        ros::Duration(1.0).sleep();
+        ROS_INFO_STREAM("Transform between " << parentFrame << " and " << childFrame << " found yet");
     }
-    ROS_INFO_STREAM("Transform between " << parentFrame << " and " << childFrame << " found.");
+    ROS_INFO_STREAM("Transform between " << parentFrame << " and " << childFrame << " found");
 
 
 }
@@ -89,14 +81,25 @@ void ArucoDetectionNode::publishPose(const geometry_msgs::Pose& pose, ros::Time 
     poseMsg.pose = pose;
     opPosePub.publish(poseMsg);
     
+    // Transform udfc pose to world frame
+
+
+    try {
+        odom_udfc_transform = tfBuffer.lookupTransform("odom", "udfc_link", timestamp);
+    }
+    catch(tf2::TransformException &ex) {
+        ROS_WARN_STREAM(ex.what());
+    }
 
     geometry_msgs::Pose poseTF;
     tf2::doTransform(pose, poseTF, odom_udfc_transform);
+
+
     geometry_msgs::PoseStamped poseTFMsg;
     poseTFMsg.header.frame_id = "odom";
     poseTFMsg.header.seq      = counter;
     poseTFMsg.header.stamp    = timestamp;
-    poseTFMsg.pose            = pose;
+    poseTFMsg.pose            = poseTF;
     opPosePubTf.publish(poseTFMsg);
 
     vortex_msgs::ObjectPosition vortexPoseMsg;
