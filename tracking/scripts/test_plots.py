@@ -11,7 +11,17 @@ from matplotlib.patches import Ellipse
 import numpy as np
 
 
-def plot_interactive(
+'''
+3 plots to choose from: 
+Plot position of sigle track, 
+Plot position and velocity of single track, or
+Plot position and velocity of multiple tracks. 
+
+
+'''
+
+
+def plot_pos_single_track(
     scenario,
     measurements,
     ground_truths,
@@ -111,7 +121,7 @@ def plot_interactive(
     plt.show()
 
 
-def plot_interactive_velocity(
+def plot_pos_and_vel_single_track(
     scenario,
     measurements,
     ground_truths,
@@ -255,7 +265,7 @@ def plot_interactive_velocity(
     plt.show()
 
 
-def plot_mul_tragets(
+def plot_pos_and_vel_multiple_tracks(
     scenario,
     measurements,
     ground_truths,

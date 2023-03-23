@@ -117,7 +117,7 @@ def test_plot_interactive():
 
         estimate_status.append(manager.main_track.track_status)
 
-    test_plots.plot_interactive_velocity(
+    test_plots.plot_pos_and_vel_single_track(
         scenario,
         measurements,
         ground_truths,

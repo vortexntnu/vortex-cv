@@ -123,7 +123,7 @@ def test_plot():
             )
         conf_estimates.append(last_addition_to_tentative_tracks)
 
-    test_plots.plot_mul_tragets(
+    test_plots.plot_pos_and_vel_multiple_tracks(
         scenario,
         measurements,
         ground_truths,

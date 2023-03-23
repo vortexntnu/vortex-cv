@@ -144,11 +144,6 @@ class SingleTargetTrackManager:
 
                 tentative_track = PDAF2MN(self.config)
 
-                # tentative_track.pdaf.state_post[0] = prev_o[0]
-                # tentative_track.pdaf.state_post[1] = prev_o[1]
-                # tentative_track.pdaf.state_post[2] = 0
-                # tentative_track.pdaf.state_post[3] = 0
-
                 self.tentative_tracks.append(tentative_track)
 
     def update_confirmation_count(self, track: PDAF2MN, o_arr):

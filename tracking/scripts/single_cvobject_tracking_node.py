@@ -29,8 +29,8 @@ Estimate position and velocity for each boat realtive to the vessel (given measu
 class Tracker:
     """
     Nodes created: SingelTargetTracker
-    Subscribes to: lidar_clusters of type PoseArray. Will only read pose.x, pose.y and header.stamp.sec.
-    Publishes to: tracked_cv_object of type nav_msgs/odometry. Will write to header.stamp, msg.pose.pose.position.x,
+    Subscribes to: lidar/clusters of type PoseArray. Will only read pose.x, pose.y and header.stamp.sec.
+    Publishes to: tracking/tracked_cv_object of type nav_msgs/Odometry. Will write to header.stamp, msg.pose.pose.position.x,
             msg.pose.pose.position.y, pose.pose.orientation around z-axis, twist.twist.linear.x, twist.twist.linear.y.
 
     """
@@ -100,7 +100,7 @@ class Tracker:
         msg.header.stamp = rospy.get_rostime()
         msg.header.seq = self.seq
         self.seq += 1
-        msg.header.frame_id = 'os_lidar'
+        msg.header.frame_id = "os_lidar"
 
         # - - - -  position
         x = self.track_manager.main_track.pdaf.posterior_state_estimate.mean.reshape(

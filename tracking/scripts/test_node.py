@@ -6,7 +6,8 @@ from geometry_msgs.msg import PoseArray, Pose, Point, Quaternion
 
 """
 
-Simply publish Pose[] to \lidar_clusters.
+Simply publish Pose[] to /lidar/clusters.
+Choose between publish_pos_from_single_source() and publish_pos_from_multiple_sources(). 
 
 """
 
@@ -30,7 +31,7 @@ class Clusters:
 
     def spin(self):
         while not rospy.is_shutdown():
-            #self.publish_pos_from_single_source()
+            # self.publish_pos_from_single_source()
             self.publish_pos_from_multiple_sources()
             self.rate.sleep()
 
@@ -41,9 +42,8 @@ class Clusters:
         now = rospy.get_rostime()
         posearray.header.stamp.secs = now.secs
 
-
-        self.x0 += 0.01
-        self.y0 += 0.01
+        self.x0 += 0.0
+        self.y0 += 0.1
 
         p = Pose()
         p.position = Point(self.x0, self.y0, 0)

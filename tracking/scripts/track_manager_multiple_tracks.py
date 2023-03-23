@@ -52,13 +52,7 @@ class MultiTargetTrackManager:
         self.time_step = time_step
         self.observations_not_incorporated_in_track = o_arr.tolist()
 
-        #print('\n ---- step once --------- \n')
-
-        #print('obs pre udapte conf tracks \n', self.observations_not_incorporated_in_track)
-
         self.update_status_on_confirmed_tracks()
-
-        #print('obs post udapte conf tracks \n', self.observations_not_incorporated_in_track)
 
         self.remove_o_incorporated_in_tracks(self.confirmed_tracks)
 
@@ -70,8 +64,10 @@ class MultiTargetTrackManager:
 
         self.prev_observations = self.observations_not_incorporated_in_track
 
+        # print('\n ---- step once --------- \n')
+
         # print('traking', len(self.confirmed_tracks), 'objects')
-        
+
         # for track in self.tentative_tracks:
         #     print("status", track.track_status)
         #     print("state: ", track.pdaf.prior_state_estimate.mean[:2])
@@ -81,9 +77,6 @@ class MultiTargetTrackManager:
         #     print("status", track.track_status)
         #     print("state: ", track.pdaf.prior_state_estimate.mean[:2])
         #     print("n: ", track.n, "m: ", track.m)
-
-
-
 
     def update_status_on_confirmed_tracks(self):
 
@@ -96,7 +89,7 @@ class MultiTargetTrackManager:
             # for o in track.pdaf.o_within_gate_arr:
             #     for obs in self.observations_not_incorporated_in_track:
             #         if (abs(o[0] - obs[0]) < 0.01) and (abs(o[1] - obs[1]) < 0.01):
-            #             self.observations_not_incorporated_in_track.remove(obs)  
+            #             self.observations_not_incorporated_in_track.remove(obs)
 
             if track.track_status == TrackStatus.confirmed:
 
@@ -128,7 +121,7 @@ class MultiTargetTrackManager:
                 self.observations_not_incorporated_in_track, self.time_step
             )
 
-            # #remove obs incorporated in track
+            # #Remove obs incorporated in track
             # temp_list = self.observations_not_incorporated_in_track
 
             # for i, o in enumerate(temp_list):
@@ -195,7 +188,7 @@ class MultiTargetTrackManager:
 
                 self.tentative_tracks.append(tentative_track)
 
-                #Remove observation incorporated in new tentative track
+                # Remove observation incorporated in new tentative track
                 self.observations_not_incorporated_in_track.remove(an_obs_within_gate)
 
     def update_confirmation_count(self, track: PDAF2MN, o_arr):
