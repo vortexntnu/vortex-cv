@@ -5,11 +5,18 @@ ArucoDetectionNode::ArucoDetectionNode()
 , tfListener{tfBuffer}
 , arucoHandler{}
 {
-    // zed2i left
-    // double fx=531.75, fy=532.04, cx=632.77, cy=356.759;
+    // zed2i left HD 720p
+    double fx=531.75, fy=532.04, cx=632.77, cy=356.759;
+    double k1=-0.04568, k2=0.0180176, p1=0.000246693, p2=-8.1439e-05, k3=-0.00783292;
+
+    // zed2i left VGA 640p
+    // double fx=265.875, fy=266.02, cx=331.885, cy=185.8795;
     // double k1=-0.04568, k2=0.0180176, p1=0.000246693, p2=-8.1439e-05, k3=-0.00783292;
-    double fx=1, fy=1, cx=0, cy=0;
-    double k1=-0, k2=0, p1=0, p2=0, k3=0;
+
+    // unit camera matrix
+    // double fx=1, fy=1, cx=0, cy=0;
+    // double k1=-0, k2=0, p1=0, p2=0, k3=0;
+
     cv::Mat cameraMatrix           = (cv::Mat1d(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
     cv::Mat distortionCoefficients = (cv::Mat1d(1, 5) << k1, k2, p1, p2, k3);
     arucoHandler.cameraMatrix = cameraMatrix;
@@ -44,9 +51,10 @@ ArucoDetectionNode::ArucoDetectionNode()
         catch(tf2::TransformException &ex) 
         {
             ROS_WARN_STREAM(ex.what());
+
+            ros::Duration(1.0).sleep();
             continue;
         }
-        ros::Duration(1.0).sleep();
     }
     ROS_INFO_STREAM("Transform between " << parentFrame << " and " << childFrame << " found.");
 
@@ -82,6 +90,14 @@ void ArucoDetectionNode::publishCVImg(const cv::Mat& img, ros::Time timestamp)
 
 void ArucoDetectionNode::publishPose(const geometry_msgs::Pose& pose, ros::Time timestamp)
 {
+    float scale = cv::norm(pose.position.z-1);
+    geometry_msgs::Pose poseScaled{};
+    
+    poseScaled.position.x = pose.position.x/scale;
+    poseScaled.position.y = pose.position.y/scale;
+    poseScaled.position.z = 1;
+    poseScaled.orientation = pose.orientation;
+
     static size_t counter{0};
     geometry_msgs::PoseStamped poseMsg;
     poseMsg.header.frame_id = "zed2i_left_camera_frame";
@@ -101,7 +117,7 @@ void ArucoDetectionNode::publishPose(const geometry_msgs::Pose& pose, ros::Time 
     }
 
     geometry_msgs::Pose poseTF;
-    tf2::doTransform(pose, poseTF, odom_udfc_transform);
+    tf2::doTransform(poseScaled, poseTF, odom_udfc_transform);
 
 
     geometry_msgs::PoseStamped poseTFMsg;
@@ -131,24 +147,24 @@ void ArucoDetectionNode::execute()
         //     ROS_INFO("Could not open or find the image");
         // }
 
-        // WEBCAM INPUT
-        static cv::Mat img;
+        // // WEBCAM INPUT
+        // static cv::Mat img;
 
-        // cv::namedWindow("Display window");
-        static cv::VideoCapture cap(0);
-        if (!cap.isOpened()) {
-            ROS_INFO("cannot open camera");
-        }   
-        cap >> img;
+        // // cv::namedWindow("Display window");
+        // static cv::VideoCapture cap(0);
+        // if (!cap.isOpened()) {
+        //     ROS_INFO("cannot open camera");
+        // }   
+        // cap >> img;
 
 
-        geometry_msgs::Pose pose;
-        int markersDetected = arucoHandler.detectBoardPose(img, board, pose);
-        publishCVImg(img, ros::Time::now());
-        if (markersDetected > 0) 
-        {
-            publishPose(pose, ros::Time::now());
-        }
+        // geometry_msgs::Pose pose;
+        // int markersDetected = arucoHandler.detectBoardPose(img, board, pose);
+        // publishCVImg(img, ros::Time::now());
+        // if (markersDetected > 0) 
+        // {
+        //     publishPose(pose, ros::Time::now());
+        // }
 
 
         ros::spinOnce();

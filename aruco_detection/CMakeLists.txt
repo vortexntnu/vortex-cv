@@ -79,3 +79,15 @@ target_link_libraries(${PROJECT_NAME}_test_node
 #     ${OpenCV_LIBS}
 #   )
 # endif()
+
+# find_package(Armadillo REQUIRED)
+# include_directories(/usr/include/python2.7)
+
+# add_executable(KF_example examples/kf_example.cpp kalman_filter.h)
+# target_link_libraries(KF_example ${ARMADILLO_LIBRARIES} libpython2.7.so)
+
+# add_executable(EKF_example examples/ekf_example.cpp extended_kalman_filter.h)
+# target_link_libraries(EKF_example ${ARMADILLO_LIBRARIES} libpython2.7.so)
+
+# add_executable(UKF_example examples/ukf_example.cpp unscented_kalman_filter.h)
+# target_link_libraries(UKF_example ${ARMADILLO_LIBRARIES} libpython2.7.so)

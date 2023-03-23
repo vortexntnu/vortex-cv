@@ -121,8 +121,8 @@ size_t ArucoHandler::detectBoardPose(cv::Mat& img, const cv::Ptr<cv::aruco::Boar
     std::vector<std::vector<cv::Point2f>> corners, rejected;
     std::vector<int> ids;
 
-    cv::aruco::detectMarkers(img, board->dictionary, corners, ids, detectorParams, rejected);//, cameraMatrix, distortionCoefficients);
-  
+    cv::aruco::detectMarkers(img, board->dictionary, corners, ids, detectorParams, rejected);//, cameraMatrix, distortionCoefficients); // extra parameters for openCV 3.2.0
+    
     if (ids.size() == 0) return 0;
 
     
@@ -130,7 +130,7 @@ size_t ArucoHandler::detectBoardPose(cv::Mat& img, const cv::Ptr<cv::aruco::Boar
 
 
     cv::Vec3d rvec, tvec;
-    //replace with cv::solvePnP if Open-cv is updated to v. 4.5.5 or above. It is more accurate
+    //replace with cv::solvePnP if OpenCV is updated to v. 4.5.5 or above. It is more accurate
     cv::aruco::estimatePoseBoard(corners, ids, board, cameraMatrix, distortionCoefficients, rvec, tvec);
     pose = tvec_rvec2pose(rvec, tvec);
     // ROS_INFO_STREAM("tvec: " << tvec << "    rvec: " << rvec);
