@@ -103,6 +103,8 @@ class MultiTargetTrackManager:
                 track.track_status = TrackStatus.confirmed
                 self.confirmed_tracks.append(track)
 
+                print('track added')
+
             elif track.m == self.M:
                 self.tentative_tracks.remove(track)
 

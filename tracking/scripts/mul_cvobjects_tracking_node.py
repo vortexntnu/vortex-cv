@@ -43,6 +43,9 @@ class Tracker:
         self.pub = rospy.Publisher(
             "/tracking/mul_tracked_cv_objects", OdometryArray, queue_size=10
         )
+        self.pub_for_visualization = rospy.Publisher(
+            "/tracking/viz_mul_tracked_cv_objects", Odometry, queue_size=10
+        )
 
         self.seq = 0
 
@@ -67,27 +70,19 @@ class Tracker:
         self.track_manager.step_once(self.observations, self.time_step)
         if len(self.track_manager.confirmed_tracks) > 0:
             rospy.loginfo('%d objects are being tracked', len(self.track_manager.confirmed_tracks))
-            rospy.loginfo('%d potatial new tracks', len(self.track_manager.tentative_tracks))
+            rospy.loginfo('%d potential new tracks', len(self.track_manager.tentative_tracks))
             self.publish()
-
-    # def publish(self):
-    #     for track in self.track_manager.confirmed_tracks:
-    #         odometry_msg = self.pack_odometry_msg(track)
-    #         self.pub.publish(odometry_msg)
+            self.publish_to_viz()
 
     def publish(self):
 
-        
         odometry_msgs = []
         for track in self.track_manager.confirmed_tracks:
             odometry_msg = self.pack_odometry_msg(track)
             odometry_msgs.append(odometry_msg)
 
-        rospy.loginfo('before odom array')
-
         odometry_array_msg = OdometryArray()
 
-        rospy.loginfo('after odom array')
         odometry_array_msg.header = Header()
         odometry_array_msg.header.stamp = rospy.get_rostime()
         odometry_array_msg.header.seq = self.seq
@@ -97,6 +92,13 @@ class Tracker:
         odometry_array_msg.odometry_array = odometry_msgs
 
         self.pub.publish(odometry_array_msg)
+
+    def publish_to_viz(self):
+
+        for track in self.track_manager.confirmed_tracks:
+            odometry_msg = self.pack_odometry_msg(track)
+            self.pub_for_visualization.publish(odometry_msg)
+
 
     def unpack_pose_array_msg(self, msg):
 
