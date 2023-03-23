@@ -82,7 +82,7 @@ class Tracker:
 
         observations_list = []
         for pose in msg.poses:
-            observations_list.append(np.array([pose.position.x, pose.position.y]))
+            observations_list.append(np.array([-pose.position.x, -pose.position.y]))
 
         self.observations = np.array(observations_list)
 

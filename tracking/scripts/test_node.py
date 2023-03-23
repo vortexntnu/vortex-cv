@@ -30,8 +30,8 @@ class Clusters:
 
     def spin(self):
         while not rospy.is_shutdown():
-            #self.publish_pos_from_single_source()
-            self.publish_pos_from_multiple_sources()
+            self.publish_pos_from_single_source()
+            #self.publish_pos_from_multiple_sources()
             self.rate.sleep()
 
     def publish_pos_from_single_source(self):

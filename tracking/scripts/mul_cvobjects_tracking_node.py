@@ -20,6 +20,7 @@ from geometry_msgs.msg import (
 )
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Header
+from cv_msgs.msg import OdometryArray
 
 """
 Estimate position and velocity for each object realtive to the vessel (given measurements for the objects position).
@@ -40,7 +41,7 @@ class Tracker:
         rospy.init_node("MultiTargetTracker")
         rospy.Subscriber("/lidar/clusters", PoseArray, self.cb)
         self.pub = rospy.Publisher(
-            "/tracking/mul_tracked_cv_objects", Odometry, queue_size=10
+            "/tracking/mul_tracked_cv_objects", OdometryArray, queue_size=10
         )
 
         self.seq = 0
@@ -65,12 +66,37 @@ class Tracker:
         self.unpack_pose_array_msg(msg)
         self.track_manager.step_once(self.observations, self.time_step)
         if len(self.track_manager.confirmed_tracks) > 0:
+            rospy.loginfo('%d objects are being tracked', len(self.track_manager.confirmed_tracks))
+            rospy.loginfo('%d potatial new tracks', len(self.track_manager.tentative_tracks))
             self.publish()
 
+    # def publish(self):
+    #     for track in self.track_manager.confirmed_tracks:
+    #         odometry_msg = self.pack_odometry_msg(track)
+    #         self.pub.publish(odometry_msg)
+
     def publish(self):
+
+        
+        odometry_msgs = []
         for track in self.track_manager.confirmed_tracks:
             odometry_msg = self.pack_odometry_msg(track)
-            self.pub.publish(odometry_msg)
+            odometry_msgs.append(odometry_msg)
+
+        rospy.loginfo('before odom array')
+
+        odometry_array_msg = OdometryArray()
+
+        rospy.loginfo('after odom array')
+        odometry_array_msg.header = Header()
+        odometry_array_msg.header.stamp = rospy.get_rostime()
+        odometry_array_msg.header.seq = self.seq
+        self.seq += 1
+
+        # Add odometry messages to the array message
+        odometry_array_msg.odometry_array = odometry_msgs
+
+        self.pub.publish(odometry_array_msg)
 
     def unpack_pose_array_msg(self, msg):
 
@@ -79,7 +105,7 @@ class Tracker:
 
         observations_list = []
         for pose in msg.poses:
-            observations_list.append(np.array([pose.position.x, pose.position.y]))
+            observations_list.append(np.array([-pose.position.x, -pose.position.y]))
 
         self.observations = np.array(observations_list)
 
