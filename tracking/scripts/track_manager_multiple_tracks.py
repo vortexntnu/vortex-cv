@@ -52,7 +52,13 @@ class MultiTargetTrackManager:
         self.time_step = time_step
         self.observations_not_incorporated_in_track = o_arr.tolist()
 
+        #print('\n ---- step once --------- \n')
+
+        #print('obs pre udapte conf tracks \n', self.observations_not_incorporated_in_track)
+
         self.update_status_on_confirmed_tracks()
+
+        #print('obs post udapte conf tracks \n', self.observations_not_incorporated_in_track)
 
         self.remove_o_incorporated_in_tracks(self.confirmed_tracks)
 
@@ -64,12 +70,33 @@ class MultiTargetTrackManager:
 
         self.prev_observations = self.observations_not_incorporated_in_track
 
+        # print('traking', len(self.confirmed_tracks), 'objects')
+        
+        # for track in self.tentative_tracks:
+        #     print("status", track.track_status)
+        #     print("state: ", track.pdaf.prior_state_estimate.mean[:2])
+        #     print("n: ", track.n, "m: ", track.m)
+
+        # for track in self.confirmed_tracks:
+        #     print("status", track.track_status)
+        #     print("state: ", track.pdaf.prior_state_estimate.mean[:2])
+        #     print("n: ", track.n, "m: ", track.m)
+
+
+
+
     def update_status_on_confirmed_tracks(self):
 
         for track in self.confirmed_tracks:
             track.pdaf.step_once(
                 self.observations_not_incorporated_in_track, self.time_step
             )
+
+            # #Remove observation incorporated in this confirmed track
+            # for o in track.pdaf.o_within_gate_arr:
+            #     for obs in self.observations_not_incorporated_in_track:
+            #         if (abs(o[0] - obs[0]) < 0.01) and (abs(o[1] - obs[1]) < 0.01):
+            #             self.observations_not_incorporated_in_track.remove(obs)  
 
             if track.track_status == TrackStatus.confirmed:
 
@@ -78,7 +105,9 @@ class MultiTargetTrackManager:
                     track.m = 0
                     track.n = 0
 
-            if track.track_status == TrackStatus.tentative_delete:
+            elif track.track_status == TrackStatus.tentative_delete:
+                track.m += 1
+
                 if len(track.pdaf.o_within_gate_arr) > 0:
                     track.n += 1
 
@@ -99,11 +128,28 @@ class MultiTargetTrackManager:
                 self.observations_not_incorporated_in_track, self.time_step
             )
 
+            # #remove obs incorporated in track
+            # temp_list = self.observations_not_incorporated_in_track
+
+            # for i, o in enumerate(temp_list):
+
+            #     dist = np.sqrt(
+            #         (o[0] - track.pdaf.prior_state_estimate.mean[0]) ** 2
+            #         + (o[1] - track.pdaf.prior_state_estimate.mean[1]) ** 2
+            #     )
+            #     if (
+            #         dist
+            #         < self.max_vel * self.time_step
+            #         + self.initial_measurement_covariance
+            #     ):
+            #         temp_list.pop(i)
+
+            # self.observations_not_incorporated_in_track = temp_list
+
             if track.n == self.N:
                 track.track_status = TrackStatus.confirmed
                 self.confirmed_tracks.append(track)
-
-                print('track added')
+                self.tentative_tracks.remove(track)
 
             elif track.m == self.M:
                 self.tentative_tracks.remove(track)
@@ -149,6 +195,7 @@ class MultiTargetTrackManager:
 
                 self.tentative_tracks.append(tentative_track)
 
+                #Remove observation incorporated in new tentative track
                 self.observations_not_incorporated_in_track.remove(an_obs_within_gate)
 
     def update_confirmation_count(self, track: PDAF2MN, o_arr):
