@@ -38,8 +38,12 @@ class SingleTargetTrackManager:
         self.observations_not_incorporated_in_track: List[np.ndarray] = []
         self.tentative_tracks: List[PDAF2MN] = []
 
-        self.N = config["manager"]["N"]
-        self.M = config["manager"]["M"]
+        self.N_resurrect = config["manager"]["N_resurrect"]
+        self.M_resurrect = config["manager"]["M_resurrect"]
+
+        self.N_kill = config["manager"]["N_kill"]
+        self.M_kill = config["manager"]["M_resurrect"]
+
         self.main_track = PDAF2MN(config)
 
         self.max_vel = config["manager"]["max_vel"]  # [m/s]
@@ -96,10 +100,10 @@ class SingleTargetTrackManager:
             if len(self.main_track.pdaf.o_within_gate_arr) > 0:
                 self.main_track.n += 1
 
-            if self.main_track.n == self.N:
+            if self.main_track.n == self.N_kill:
                 self.main_track.track_status = TrackStatus.confirmed
 
-            elif self.main_track.m == self.M:
+            elif self.main_track.m == self.M_kill:
                 self.main_track.track_status = TrackStatus.tentative_confirm
 
     def update_status_on_tentative_tracks(self, o_arr):
@@ -109,11 +113,11 @@ class SingleTargetTrackManager:
 
             track.pdaf.step_once(o_arr, self.time_step)
 
-            if track.n == self.N:
+            if track.n == self.N_resurrect:
                 self.main_track = track
                 self.main_track.track_status = TrackStatus.confirmed
                 self.tentative_tracks = []
-            elif track.m == self.M:
+            elif track.m == self.M_resurrect:
                 self.tentative_tracks.remove(track)
 
     def remove_o_incorporated_in_tracks(self, o_arr):

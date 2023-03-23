@@ -14,8 +14,11 @@ pdaf:
 
 manager: 
 
-  N: 5
-  M: 8
+  N_resurrect: 5
+  M_resurrect: 8
+
+  N_kill: 5
+  M_kill: 8
 
   max_vel: 10
   initial_measurement_covariance: 2.0

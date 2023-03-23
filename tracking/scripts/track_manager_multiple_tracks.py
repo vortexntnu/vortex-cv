@@ -38,8 +38,11 @@ class MultiTargetTrackManager:
         self.tentative_tracks: List[PDAF2MN] = []
         self.confirmed_tracks: List[PDAF2MN] = []
 
-        self.N = config["manager"]["N"]
-        self.M = config["manager"]["M"]
+        self.N_resurrect = config["manager"]["N_resurrect"]
+        self.M_ressurect = config["manager"]["M_resurrect"]
+
+        self.N_kill = config["manager"]["N_kill"]
+        self.M_kill = config["manager"]["M_resurrect"]
 
         self.max_vel = config["manager"]["max_vel"]  # [m/s]
         self.initial_measurement_covariance = config["manager"][
@@ -104,10 +107,10 @@ class MultiTargetTrackManager:
                 if len(track.pdaf.o_within_gate_arr) > 0:
                     track.n += 1
 
-                if track.n == self.N:
+                if track.n == self.N_kill:
                     track.track_status = TrackStatus.confirmed
 
-                elif track.m == self.M:
+                elif track.m == self.M_kill:
                     self.confirmed_tracks.remove(track)
 
     def update_status_on_tentative_tracks(self):
@@ -139,12 +142,12 @@ class MultiTargetTrackManager:
 
             # self.observations_not_incorporated_in_track = temp_list
 
-            if track.n == self.N:
+            if track.n == self.N_resurrect:
                 track.track_status = TrackStatus.confirmed
                 self.confirmed_tracks.append(track)
                 self.tentative_tracks.remove(track)
 
-            elif track.m == self.M:
+            elif track.m == self.M_ressurect:
                 self.tentative_tracks.remove(track)
 
     def remove_o_incorporated_in_tracks(self, tracks):
