@@ -1,5 +1,21 @@
 # How to test the tracking algorithm
 
+## Test ros nodes
+
+The rosnode can be tested with
+    roslaunch tracking vizualize_tracking_node.launch 
+
+This launches: 
+    test_node - which plublishes pose arrays from one or multiple sources.
+    visualizer_node - which lets you visualize a path from a single source, or odometry from multiple sources in rviz.
+    A frame os_lidar which should only be launched if this package is tested in isolation. 
+
+    single_cvobject_tracking_node - runs tracking algorithm tracking only one target.
+    mul_cvobjects_tracking_node - runs tracking algorithm tracking multiple targets. 
+
+
+Obs: this is not a good test of the tracker. Its just to see that the program work as intented when integrated with ros. Traget algorithm must be tested with pytests described below. 
+
 ## Test pdaf
 
 The pdaf can be tested by running the tests in test_pdaf.py.
@@ -39,9 +55,3 @@ Step 3: Go to test_track_manager_mulTargets.py and modify modify the absolute pa
 Step 4: Go to monkey_tracking/config/scenario.yaml and modify "n_starting_targets" to the numbers of targets you want to test with. 
 Step 5: Run pytest
 
-## Test boat tracking node
-
-The rosnode can be tested with
-    rosrun tracking test_node
-
-This node only tests for syntax errors in boat_tracking_node.py. Functionallity of tracking algorithm must be tested with pytest. 
