@@ -47,6 +47,8 @@ class PipelineFollowingNode():
     
     3 main problems need to be solved by the node, and they are associated to the possible states for path:
 
+    Doesnt currently make any difference which state we are in
+
         path_search:        During path search the node uses ZED camera feed to detect the path. After path is detected, the coordinates are published to Autonomous
                             and we request switch to converge.
 
@@ -81,7 +83,7 @@ class PipelineFollowingNode():
         self.lower_hue = 20
         self.upper_hue = 80
 
-        # Parameters for the algorithm: Needs adaption?
+        """# Parameters for the algorithm: Needs adaption?
         self.hsv_params = [0,       #hsv_hue_min
                            53,     #hsv_hue_max
                            71,       #hsv_sat_min
@@ -101,7 +103,7 @@ class PipelineFollowingNode():
         self.erosion_dilation_ksize     = 5
         self.erosion_iterations         = 1
         self.dilation_iterations        = 1
-        self.noise_rm_params = [self.ksize1, self.ksize2, self.sigma, self.thresholding_blocksize, self.thresholding_C, self.erosion_dilation_ksize, self.erosion_iterations, self.dilation_iterations]
+        self.noise_rm_params = [self.ksize1, self.ksize2, self.sigma, self.thresholding_blocksize, self.thresholding_C, self.erosion_dilation_ksize, self.erosion_iterations, self.dilation_iterations]"""
 
         # Subscribers
         self.udfcSub = rospy.Subscriber("/cv/image_preprocessing/CLAHE/udfc", Image, self.path_following_udfc_cb)
@@ -121,8 +123,7 @@ class PipelineFollowingNode():
         self.estimateFucked        = False
 
         self.batch_line_params = np.zeros((1,3))
-        self.uppest_y_coords = []
-
+        
         # TODO: find realistic values for these. Needs to be field tested.
         # Huseby 20.07.2022 patch: these should now be useless!!!
         self.H_pool_prior       = 2     # Depth of pool
@@ -140,24 +141,11 @@ class PipelineFollowingNode():
             rospy.logerr("CvBridge Error: {0}".format(e))
 
         self.extractor = image_extraction()
-
         self.__tfBuffer = tf2_ros.Buffer()
-        """
-        Here is some objects for classes and transformations stuffs, consider necesity, you probably need it.
-        Have also skipped some subscribers
-        """
-
-        """
-        Functions from the OG, not yet included:
-        cv_image_publisher
-        publish_error
-        local_path_errors
-        dynam_reconfigure_callback - sets  new parameters  and thresholds
-        """
 
     def publish_waypoint(self, publisher, objectID, waypoint):
         """
-        Publishes one waypoint as an Objectposition-msg, using the given publisher. Object ID is part of the msg. 
+        Publishes a waypoint as an Objectposition-msg, using the given publisher. The interesting components are the Object Id, x and y positions and whether anything is detected or not.
         """
 
         #P is the object to be sent on the "/fsm/state"-topic, ObjectPosition is a Vortex-defined msg. 
@@ -167,7 +155,7 @@ class PipelineFollowingNode():
 
         p.objectPose.pose.position.x = waypoint[0]
         p.objectPose.pose.position.y = waypoint[1]
-        p.objectPose.pose.position.z = waypoint[2]
+        p.objectPose.pose.position.z = waypoint[2] #z is set to zero as default, we need to ignore depth data comming from this class.
         p.objectPose.pose.orientation.x = 0
         p.objectPose.pose.orientation.y = 0
         p.objectPose.pose.orientation.z = 0
@@ -177,22 +165,18 @@ class PipelineFollowingNode():
         p.estimateConverged     = self.estimateConverged
         p.estimateFucked        = self.estimateFucked
         
-        # When we publish the buoy we set everything to false again
-        if objectID == "buoy":
-            p.isDetected            = False
-            p.estimateConverged     = False
-            p.estimateFucked        = False
 
         #Function-call, takes in a publisher as a variable.
         publisher.publish(p)
 
         rospy.loginfo("Object published: %s", objectID)
-
+       
     def update_mission(self, mission):
         """
         Updates current_state 
         """
         self.current_state = mission.data
+       
 
     def map_to_odom(self, point_cam, trans_udfc_odom, dp_ref=None):
 
@@ -219,10 +203,9 @@ class PipelineFollowingNode():
         else:
             point_odom = np.array([X, Y, z_over_path]) + trans_udfc_odom
         return point_odom
-
-    """Lasse: I think this function needs to be replaced by the ransac. 
     
-    def find_contour_line(self, contour, img_drawn=None):
+    
+    def find_line(self, contour, img_drawn=None):
         
         #Finds the line in image coordinates, and computes two points that are later to be stored in world.
 
@@ -246,7 +229,17 @@ class PipelineFollowingNode():
             return p_line, p0, img_drawn
         
         else:
-            return p_line, p0"""
+            return p_line, p0
+
+    def estimate_next_waypoint(self,line, p0):
+        """Brainstorming:
+        -Assuming we have line fromfind line-function.
+        -Needs to be found from current position
+        -Cameraframe: line
+        -Odomframe: current position, output position
+        -Output
+        """
+        e
 
     """def batch_estimate_waypoint(self, t_udfc_odom):
         
@@ -290,7 +283,9 @@ class PipelineFollowingNode():
         
         if  self.isDetected ==  True:
             return contour
-        
+        return None #Will probably be changed
+
+
 
     #The function to rule them  all
     def path_following_udfc_cb(self, img_msg):
@@ -307,84 +302,16 @@ class PipelineFollowingNode():
                                     tf_lookup_wc.transform.translation.y,
                                     tf_lookup_wc.transform.translation.z])
 
-        #When enough data is gathered, estimates waypoint and publishes to "/fsm/state"-topic"
-        #Probably have to change this part for TAC
-        if np.shape(self.batch_line_params)[0] > 200:
-            # In case we have gathered enough information
-            next_waypoint = self.batch_estimate_waypoint(t_udfc_odom)
-            self.publish_waypoint(self.wpPub, "buoy", next_waypoint)
-            return None
-
         udfc_img = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
         
         # Extracting the contour
-        """_, hsv_mask, hsv_val_img = self.feature_detector.hsv_processor(udfc_img, *self.hsv_params)
-        self.cv_image_publisher(self.hsvPub, hsv_val_img, msg_encoding="bgr8")
+        contour  = self.findContour()
 
-        noise_filtered_img = self.feature_detector.noise_removal_processor(hsv_mask, *self.noise_rm_params)
-        self.cv_image_publisher(self.noise_filteredPub, noise_filtered_img, msg_encoding="8UC1")
-
-        self.path_contour = self.feature_detector.contour_processing(noise_filtered_img, contour_area_threshold=3000, pfps=True, coloured_img=udfc_img, return_image=False)
-        try:
-            self.path_contour[:,0]
-        except:
-            return None
-
-        path_area, img_drawn, self.path_centroid = self.path_calculations(udfc_img)
-        self.path_contour = self.path_contour[:,0]
-
-        # Contour detection, if area of detection is large enough, continues to next phase, consider tweeking
-        if self.isDetected == False and path_area > self.detection_area_threshold:
-            self.isDetected == True"""
-
-        
-
-        """
-        This part needs adaption for pipeline following!! Look at the findContour-function
-        """
-
-        
+        #Approximating the line
+        line, p0 = self.find_line(contour)
 
 
-        # Undistort centroid point
-        # These should be redundant, if the idea of local relative regulation work. Remove after that
-        # has been shown to work in lab 
-        #path_centroid_cam = np.matmul(self.K_opt_inv, np.append(self.path_centroid,1))
-        #dp_ref = self.map_to_odom(path_centroid_cam[:2], t_udfc_odom, dp_ref=True)
 
-
-        """Lasse and  Tuva: we  will not have to take upper contour in consideration I  (Tuva) thinks, but we have to make sure that the drone get a point in front of it on the path, not behind"""
-        
-        # Get the upper contour
-        upper_inds = np.where((self.path_contour[:,1] < self.path_centroid[1]) == True)[0]
-        upper_contour_image = self.path_contour[upper_inds]
-
-        uppest_y_ind = np.argmin(upper_contour_image[:,1])
-        self.uppest_y_coords.append(upper_contour_image[uppest_y_ind, :])
-        
-        # Get line, eventually as 2 points in odom and store those
-        p_line, p0, img_drawn   = self.find_contour_line(upper_contour_image, img_drawn)
-        p_line                  = np.append(p_line, 1)
-        p0                      = np.append(p0, 1)
-
-        # Map the points along the line to camera coordinates
-        p_line_cam      = np.matmul(self.K_opt_inv, p_line)
-        p0_cam          = np.matmul(self.K_opt_inv, p0)
-
-        # Map the points along the line to odom:
-        p_line_odom     = self.map_to_odom(p_line_cam, t_udfc_odom)
-        p0_odom         = self.map_to_odom(p0_cam, t_udfc_odom)
-
-        if self.current_state == "path_execute":
-            uppest_y_ind = np.argmin(upper_contour_image[:,1])
-            self.uppest_y_coords.append(upper_contour_image[uppest_y_ind, :])
-            self.batch_line_params = np.vstack((self.batch_line_params, np.vstack((p_line_odom, p0_odom))))
-        
-        local_error = self.local_path_errors()
-
-        # Publish error and drawn-on image
-        self.cv_image_publisher(self.udfcPub, img_drawn, "bgr8")
-        self.publish_error(local_error)
 
 if __name__ == '__main__':
     try:
