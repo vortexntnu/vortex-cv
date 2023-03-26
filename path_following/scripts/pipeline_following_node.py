@@ -36,7 +36,7 @@ Node made to publish data to the landmarkserver of type "Objectposition", which 
 It takes in data from the UDFC (Monocamera facing downwards under Beluga). The "mission_topic_sub"-subscriber controls if our node is running.
 It is running if the state = "path/search", "path/converge" or "path/execute".
 For the TAC 2023, the execute state will be the most relevant, but we dont have to get as good data to estimate direction as they did in the 2022 Robosub.
-This node is mainly a hard copy of thepath_following_node, used at Robosub 2022, but with adaptions for the  TAC2023"
+This node is mainly a hard copy of thepath_following_node, used at Robosub 2022, but with adaptions for the TAC2023"
 Tuva  
 """
 
@@ -83,28 +83,6 @@ class PipelineFollowingNode():
         self.lower_hue = 20
         self.upper_hue = 80
 
-        """# Parameters for the algorithm: Needs adaption?
-        self.hsv_params = [0,       #hsv_hue_min
-                           53,     #hsv_hue_max
-                           71,       #hsv_sat_min
-                           131,     #hsv_sat_max
-                           175,       #hsv_val_min
-                           248]     #hsv_val_max
-    
-        self.ksize1     = 7
-        self.ksize2     = 7
-        self.sigma      = 0.8
-        
-        # Thresholding params, consider adapting to match physical condition
-        self.thresholding_blocksize     = 11
-        self.thresholding_C             = 2
-
-        # Erosion and dilation params, consider adapting to match physical condition,we probably have more erosion
-        self.erosion_dilation_ksize     = 5
-        self.erosion_iterations         = 1
-        self.dilation_iterations        = 1
-        self.noise_rm_params = [self.ksize1, self.ksize2, self.sigma, self.thresholding_blocksize, self.thresholding_C, self.erosion_dilation_ksize, self.erosion_iterations, self.dilation_iterations]"""
-
         # Subscribers
         self.udfcSub = rospy.Subscriber("/cv/image_preprocessing/CLAHE/udfc", Image, self.path_following_udfc_cb)
         self.mission_topic_sub = rospy.Subscriber("/fsm/state", String, self.update_mission)
@@ -142,6 +120,8 @@ class PipelineFollowingNode():
 
         self.extractor = image_extraction()
         self.__tfBuffer = tf2_ros.Buffer()
+
+        self.past_waypoint = []
 
     def publish_waypoint(self, publisher, objectID, waypoint):
         """
@@ -207,71 +187,30 @@ class PipelineFollowingNode():
     
     def find_line(self, contour, img_drawn=None):
         
-        #Finds the line in image coordinates, and computes two points that are later to be stored in world.
+        """Her Lasse"""
 
-        #Output:         p0 - a point on the line
-                        #p1 - another point in the line, exactly [vx, vy] along the line from p0, s.t. colin_vec = p_line - p0
-        
-        #Figure out where  the contour comes from when called
-        #Use the  fitLine() function, that gives back the vectorcoordinates vx and vy accumulated from the contours. and the startpoints y0 and x0.
-        vx, vy, x0, y0 = cv2.fitLine(contour, cv2.DIST_L2, 0, 0.1, 0.1)
 
-        colin_vec   = np.ravel(np.array((vx, vy)))
-        p0          = np.ravel(np.array((x0, y0)))
-        p_line      = p0 + colin_vec
-        
-        #draws a line through the vector, across the image.
-        if img_drawn is not None:
-            p1 = p0 + 1000*colin_vec
-            p2 = p0 - 1000*colin_vec
-            cv2.line(img_drawn, tuple(p1), tuple(p2), color=(0, 255, 0), thickness=2)
+        return colin_vec, p0
 
-            return p_line, p0, img_drawn
-        
-        else:
-            return p_line, p0
-
-    def estimate_next_waypoint(self,line, p0):
-        """Brainstorming:
+    def estimate_next_waypoint(self, t_udfc_odom, colin_vec, p0):
+        """
+        Not ftested in any way!
+        Brainstorming:
         -Assuming we have line fromfind line-function.
         -Needs to be found from current position
         -Cameraframe: line
         -Odomframe: current position, output position
-        -Output
+        -Output:  waypoint, 3 state array, z = 0
+
+
         """
-        e
+        #Getting the point 
+        p1 = p0 - 100* np.abs(colin_vec)
 
-    """def batch_estimate_waypoint(self, t_udfc_odom):
-        
-        uppestest_y_coord = np.average(self.uppest_y_coords, 0)
-        vx, vy, x0, y0 = cv2.fitLine(self.batch_line_params[:,:2], cv2.DIST_L2, 0, 0.1, 0.1)
-        
-        colin_vec   = np.ravel(np.array((vx, vy)))
-        p0          = np.ravel(np.array((x0, y0)))
-        
-        p1 = np.append(p0 + 50*colin_vec, 1)
-        p2 = np.append(p0 - 50*colin_vec, 1)
-        
-        #Finds product between the transform matrix(default parameters) 
-        p1_img = np.matmul(self.K_opt, p1 - t_udfc_odom)
-        p2_img = np.matmul(self.K_opt, p2 - t_udfc_odom)
+        waypoint = self.map_to_odom(p1,t_udfc_odom)
 
+        return np.array(waypoint,0)
 
-        points      = [p1, p2]
-        points_img  = [p1_img, p2_img]
-        
-        errors          = [np.linalg.norm(uppestest_y_coord - points_img[i][:2]) for i in range(len(points_img))]
-        next_waypoint   = points[np.argmin(errors)]
-
-        #Uncomment for visualization of batch line estimation
-        #fig, ax = plt.subplots()
-        #ax.scatter(self.batch_line_params[:,0], self.batch_line_params[:,1], c="k", label="batch line params")
-        #ax.scatter(next_waypoint[0], next_waypoint[1], c="g", label="next waypoint")
-        #ax.scatter(points[np.argmax(errors)][0], points[np.argmax(errors)][1], c="r", label="wrong direction waypoint")
-        #plt.legend()
-        #plt.show()
-
-        return np.append(next_waypoint, 0)"""
         
     def findContour(self,img):
 
@@ -283,14 +222,15 @@ class PipelineFollowingNode():
         
         if  self.isDetected ==  True:
             return contour
-        return None #Will probably be changed
+        return None 
 
 
 
     #The function to rule them  all
     def path_following_udfc_cb(self, img_msg):
+        """Callbackfunction for the camera subscriber """
 
-        #self.waypoint_header = img_msg.header
+        self.waypoint_header = img_msg.header
 
         #Killing the  node if it is not in its operating state(Given by the state machine-Subscribernode). 
         if self.current_state not in self.possible_states:
@@ -305,12 +245,17 @@ class PipelineFollowingNode():
         udfc_img = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
         
         # Extracting the contour
-        contour  = self.findContour()
+        contour = self.findContour(udfc_img)
 
-        #Approximating the line
-        line, p0 = self.find_line(contour)
+        if contour is not None:
+            #Approximating the line
+            colin_vec, p0 = self.find_line(contour)
 
+            #Estimating the next waypoint
+            waypoint  = self.estimate_next_waypoint(t_udfc_odom, colin_vec, p0)
 
+            #Publishing the next waypoint
+            self.publish_waypoint(self.wpPub, "Pipeline",  waypoint)
 
 
 if __name__ == '__main__':
