@@ -14,7 +14,7 @@ services:
     image: ghcr.io/vortexntnu/vortex-cv:main
     privileged: true  #Give the container access to all your files and all connected devices
     environment:
-      - "DISPLAY=:1"
+      - "DISPLAY=$DISPLAY"
     volumes:
       - "../..:/vortex_ws/src"
       - "/dev:/dev"
