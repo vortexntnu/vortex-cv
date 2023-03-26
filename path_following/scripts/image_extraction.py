@@ -5,9 +5,12 @@ import matplotlib.pyplot as plt
 import cv2 as cv
 
 
-class image_extraction():
+class Image_extraction():
     """Extracting various useful data from images. Class made to compare different methods of approach.
     Preprocessing can be done with functions from ImageFeatureProcessing"""
+
+    def __init__(self):
+        pass
     
     #Default values for variuos functions, not recommended
     # Houghlines  
@@ -25,74 +28,34 @@ class image_extraction():
     upper_bgr = [255,255,255]
 
 
-    def get_histogram(self, image):
+    def get_histogram(self, img):
         """Gives a colorhistogram of an image."""
-        img = cv.imread(image)
+        #img = cv.imread(image)
         color = ('b','g','r')
 
         for i,col in enumerate(color):
             histr = cv.calcHist([img],[i],None,[256],[0,256])
             plt.plot(histr,color = col)
-            plt.xlim([0,256])
+            plt.xlim([0,255])
+
+    def  get_HSV_histogram(self, img):
+        """Gives a histogram to be used for tuning hue-values."""
+        # Convert the image from BGR to HSV color space
+        hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+
+        # Extract the hue channel
+        hue = hsv[:,:,0]
+
+        # Calculate the histogram of hue values
+        hist, bins = np.histogram(hue.ravel(), 180, [0,180])
+
+        # Plot the histogram
+        plt.plot(hist)
+        plt.xlim([0,180])
+        plt.xlabel('Hue value')
+        plt.ylabel('Pixel count')
         plt.show()
 
-    def define_useful_colors(self,image):
-        """In development. Takes colored image, returns threshold values as a bgr-array.
-        To be used when in new,unfamiliar enviroment, and looking at known object, filling more than 1/2 of object. Returns the interval of most detected rgb-intensity.
-        The hope is that we now can use colorextraction to track an object under water."""
-        img = cv.imread(image)
-
-        #hist is an array containing number of appearings for the different colorintensity, 256x3 array
-        hist_b = cv.calcHist(img,[0], 256, [0,255])
-        hist_g = cv.calcHist(img,[1], 256, [0,255])
-        hist_r = cv.calcHist(img,[2], 256, [0,255])
-
-        threshold_num_constant = 0.7
-
-        """
-        #Expecting problem with 0.7* value doesnt perfectly match list-value 
-        
-        lower_b = hist_b.index(max(hist_b)*threshold_num_constant)
-        upper_b = hist_b[lower_b+1,:].index(max(hist_b)*threshold_num_constant)
-
-        lower_g = hist_g.index(max(hist_g)*threshold_num_constant)
-        upper_g = hist_g[lower_g+1,:].index(max(hist_g)*threshold_num_constant)
-
-        lower_r = hist_r.index(max(hist_r)*threshold_num_constant)
-        upper_r = hist_r[lower_r+1,:].index(max(hist_r)*threshold_num_constant)
-
-        Should manage this method, the one below relies on intensity-distance from max-appearance, this one on number of apperance compared to max apperances. 
-        """
-
-        lower_b = int(max(hist_b) * threshold_num_constant)
-        upper_b = int(max(hist_b)* (1 + (1-threshold_num_constant)))
-
-        lower_g = int(max(hist_g) * threshold_num_constant)
-        upper_g = int(max(hist_g)* (1 + (1-threshold_num_constant)))
-
-        lower_r = int(max(hist_r) * threshold_num_constant)
-        upper_r = int(max(hist_r)* (1 + (1-threshold_num_constant)))
-
-        lower_bgr = [lower_b,lower_g,lower_r]
-        upper_bgr = [upper_b,upper_g,upper_r]
-
-        return lower_bgr, upper_bgr
-
-    
-    def extract_useful_colors(self,image, lower_bgr, upper_bgr):
-        """In development. Takes a lower_bgr from define_useful_colors. Desired function: Returns a binary image with pixels = 1 for those with correct color. 
-        Note, the define-color functions has to be used once to get the threshold, which can be used multiple times in this function."""
-
-        img = cv.imread(image)
-        #Computes binary image, with ones for pixels between lower and upper bgr
-        valid_colors_img = cv.threshold(img, lower_bgr, upper_bgr, cv.THRESH_BINARY)
-
-        points = np.where(valid_colors_img > 0)
-
-        #pathlines is a tuple of (vx, vy, x and y), which represents a vector x y and a point of origin. 
-        path_line = cv.fitline(points, cv.DIST_L1)
-
-        return path_line
 
     def apply_HoughlinesP(self,image):
         """Takes a grayscale image, and returns an image with lines. In theory is better for straight lines, worse if lines are inperfect"""
@@ -106,15 +69,17 @@ class image_extraction():
         #Draw lines on the image
         if lines is not None:
             for i in range(0, len(lines)):
-                l = lines[i][0]
-                cv.line(image,(l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv.LINE_AA)
+                max_array_length = lines[i][0]
+                cv.line(image,(max_array_length[0], max_array_length[1]), (max_array_length[2], max_array_length[3]), (0,0,255), 3, cv.LINE_AA)
         return image
 
     def contours_from_colors(self,image,lower_rgb, upper_rgb):
         """Takes a colored Image, and returns an image with lines. Lower and upper rgb is 1X3-arrays representing the colors rgb to be used. The histogram will help finding values.
-        NB! Here is RGB, cv2 default is BGR"""
+        NB! Here is RGB, cv default is BGR"""
         # Convert image to HSV color space
         hsv = cv.cvtColor(image, cv.COLOR_BGR2HSV)
+
+        
 
         # Threshold the image to get only wanted colors
         mask = cv.inRange(hsv, lower_rgb, upper_rgb)
@@ -123,13 +88,77 @@ class image_extraction():
         contours = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
 
         # Extract the points within the blue color range
+        """
         points = []
         for contour in contours:
             for point in contour:
                 points.append(point[0])
-
+        """
         # Draw the contours on the original image
         cv.drawContours(image, contours, -1, (0, 255, 0), 3)
 
+    def drawline(self, img, vector):
+        """Made to draw the line from fitLine."""
+        start_point = (int(vector[2]),int(vector[3]))
+        end_point  = (  int(vector[2]) + int(vector[0]*10000)   ,   int(vector[3]) + int(vector[1]*10000)  ) 
+        line_image = cv.line(img,start_point,end_point, (0,0,255), 4)
+
+        return line_image
+
+    def  YellowEdgesHSV(self, img, lower_yellow, upper_yellow):
+        """Takes in an cv-image, lower_yellow threshold and upper level threshold."""
+
+        # Convert the image to HSV color space
+        hsv_img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+
+        # Threshold the hue channel to extract yellow color pixels
+        yellow_hue_range_low = np.array([lower_yellow, 100, 100])
+        yellow_hue_range_high = np.array([upper_yellow, 255, 255])
+        yellow_mask = cv.inRange(hsv_img, yellow_hue_range_low, yellow_hue_range_high)
+
+        # Apply the mask to the hue channel to focus on yellow colors
+        hue_channel = cv.bitwise_and(hsv_img[:, :, 0], hsv_img[:, :, 0], mask=yellow_mask)
+
+        # Compute the gradient of the hue channel
+        sobelx = cv.Sobel(hue_channel, cv.CV_64F, 1, 0, ksize=5)
+        sobely = cv.Sobel(hue_channel, cv.CV_64F, 0, 1, ksize=5)
+        grad = cv.magnitude(sobelx, sobely)
+
+        # Apply thresholding to highlight the edges
+        thresh = cv.threshold(grad, 50, 255, cv.THRESH_BINARY)[1]
+        return thresh
 
 
+
+    def  EdgesHSV_adapting(self, img):
+        # Convert the image to HSV color space
+        hsv_img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+
+        # Extract the hue channel from the HSV image
+        hue_channel = hsv_img[:, :, 0]
+
+        # Compute the gradient of the hue channel
+        sobelx = cv.Sobel(hue_channel, cv.CV_64F, 1, 0, ksize=5)
+        sobely = cv.Sobel(hue_channel, cv.CV_64F, 0, 1, ksize=5)
+        grad = cv.magnitude(sobelx, sobely)
+
+        # Apply thresholding to highlight the edges
+        thresh = cv.threshold(grad, 50, 255, cv.THRESH_BINARY)[1]
+        return thresh
+        
+
+    def onlyYellow(self, img, lower_yellow, upper_yellow):
+        # Convert the image to HSV color space
+        hsv_img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+
+        # Threshold the hue channel to extract yellow color pixels
+        yellow_hue_range_low = np.array([lower_yellow, 100, 100])
+        yellow_hue_range_high = np.array([upper_yellow, 255, 255])
+        yellow_mask = cv.inRange(hsv_img, yellow_hue_range_low, yellow_hue_range_high)
+
+        # Apply the mask to the hue channel to focus on yellow colors
+        hue_channel = cv.bitwise_and(hsv_img[:, :, 0], hsv_img[:, :, 0], mask=yellow_mask)
+
+        # Apply thresholding to highlight the edges
+        thresh = cv.threshold(hue_channel, 50, 255, cv.THRESH_BINARY)[1]
+        return thresh

@@ -306,7 +306,7 @@ class PathFollowingNode():
         #ax.scatter(next_waypoint[0], next_waypoint[1], c="g", label="next waypoint")
         #ax.scatter(points[np.argmax(errors)][0], points[np.argmax(errors)][1], c="r", label="wrong direction waypoint")
         #plt.legend()
-        #plt.show()
+        #plt.show()hsvPub
 
         return np.append(next_waypoint, 0)
     
@@ -360,7 +360,7 @@ class PathFollowingNode():
         #dp_ref = self.map_to_odom(path_centroid_cam[:2], t_udfc_odom, dp_ref=True)
 
         # Get the upper contour
-        upper_inds          = np.where((self.path_contour[:,1] < self.path_centroid[1]) == True)[0]
+        upper_inds          = np.where((self.pathcontour_contour[:,1] < self.path_centroid[1]) == True)[0]
         upper_contour_image = self.path_contour[upper_inds]
 
         uppest_y_ind = np.argmin(upper_contour_image[:,1])

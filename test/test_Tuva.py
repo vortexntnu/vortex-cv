@@ -7,17 +7,38 @@ import matplotlib.pyplot as plt
 from feature_detection  import ImageFeatureProcessing as ifp
 from image_extraction import Image_extraction as IE
 
-img = cv2.imread("./data/path_bendy_full.png")
+"""
+#images
+"./data/yellowcylinder.jpeg"
+"./data/yellowsubandmore.jpg"
+"./data/yellowsubmarine.jpeg"
+"./data/boaty.jpeg"
+"./data/differentcoloredpipe.jpeg"
+"./data/diffusePipe.jpeg"
+"./data/fishy.jpeg"
+"./data/noisy.jpeg"
+"./data/path_bendy_full.png"
+"./data/thindiffusepipe.jpeg"
+"./data/veryclean.jpeg"
+"./data/yellowcylinder.jpeg"
+"./data/dockingst.png"
+"""
+
+
+
+img = cv2.imread("./data/dockingst.png")
 img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+img_gr =  cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-#plt.figure(1, figsize=(10, 10))
-#plt.imshow(img_rgb)
-
+#class instances to access feature detection and image extraction
 x = ifp(img)
 y =  IE()
 
-hsv_hue_min = 1
-hsv_hue_max = 50
+
+#Tuning parameters
+
+hsv_hue_min = 60
+hsv_hue_max = 80
 hsv_sat_min = 1
 hsv_sat_max = 50
 hsv_val_min = 1
@@ -32,25 +53,22 @@ img_hsv_processor, a, b = x.hsv_processor(
     hsv_val_min,
     hsv_val_max)
 
-img_hsv_processor_gr = cv2.cvtColor(img_hsv_processor, cv2.COLOR_BGR2RGB)
 
-plt.figure(1)
+#Hue-limits
+lower_yellow = 20
+upper_yellow = 60
 
-y.get_histogram(img_hsv_processor)
+#Plotting edges found with
+yellow_img  = y.YellowEdgesHSV(img,lower_yellow, upper_yellow)
+plt.figure("HSV_adaption", figsize=(10,10))
+plt.imshow(yellow_img)
 
-lower_bgr, upper_bgr = y.define_useful_colors(img_hsv_processor)
+only_img  = y.onlyYellow(img, lower_yellow, upper_yellow)
+plt.figure("Only_yellow", figsize=(10,10))
+plt.imshow(only_img)
 
-plt.figure(3)
-fitLine = y.extract_useful_colors(img_hsv_processor, lower_bgr, upper_bgr)
-line_image = y.drawline(img_hsv_processor, fitLine)
+plt.figure("Histogram", figsize=(10,10))
+y.get_HSV_histogram(img)
 
-#Vektor gaar feil vei ass.
-plt.figure(2)
-plt.imshow(line_image)
-
-
-lower_rgb = np.array([lower_bgr[2], lower_bgr[1], lower_bgr[0]])
-upper_rgb = np.array([upper_bgr[2], upper_bgr[1], upper_bgr[0]])
-
-print('hello world')
 plt.show()
+

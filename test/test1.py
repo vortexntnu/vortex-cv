@@ -1,10 +1,11 @@
+
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
 from feature_detection  import ImageFeatureProcessing as ifp
 
-img = cv2.imread("./data/path_bendy_full.png")
+"""img = cv2.imread("./data/path_bendy_full.png")
 img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 plt.figure(1, figsize=(10, 10))
@@ -35,4 +36,5 @@ plt.imshow(img2_rgb)
 
 print('hello world')
 
+plt.show()"""
 plt.show()

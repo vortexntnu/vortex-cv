@@ -77,7 +77,11 @@ class PipelineFollowingNode():
 
         self.K_opt_inv = np.linalg.inv(self.K_opt)
 
-        # Parameters for the algorithm:
+        #Parameters for pipe color (lower-> more red, higher -> more green, yellow is around 60)
+        self.lower_hue = 20
+        self.upper_hue = 80
+
+        # Parameters for the algorithm: Needs adaption?
         self.hsv_params = [0,       #hsv_hue_min
                            53,     #hsv_hue_max
                            71,       #hsv_sat_min
@@ -134,6 +138,8 @@ class PipelineFollowingNode():
 
         except CvBridgeError:
             rospy.logerr("CvBridge Error: {0}".format(e))
+
+        self.extractor = image_extraction()
 
         self.__tfBuffer = tf2_ros.Buffer()
         """
@@ -214,13 +220,15 @@ class PipelineFollowingNode():
             point_odom = np.array([X, Y, z_over_path]) + trans_udfc_odom
         return point_odom
 
+    """Lasse: I think this function needs to be replaced by the ransac. 
+    
     def find_contour_line(self, contour, img_drawn=None):
-        """
-        Finds the line in image coordinates, and computes two points that are later to be stored in world.
+        
+        #Finds the line in image coordinates, and computes two points that are later to be stored in world.
 
-        Output:         p0 - a point on the line
-                        p1 - another point in the line, exactly [vx, vy] along the line from p0, s.t. colin_vec = p_line - p0
-        """
+        #Output:         p0 - a point on the line
+                        #p1 - another point in the line, exactly [vx, vy] along the line from p0, s.t. colin_vec = p_line - p0
+        
         #Figure out where  the contour comes from when called
         #Use the  fitLine() function, that gives back the vectorcoordinates vx and vy accumulated from the contours. and the startpoints y0 and x0.
         vx, vy, x0, y0 = cv2.fitLine(contour, cv2.DIST_L2, 0, 0.1, 0.1)
@@ -238,9 +246,9 @@ class PipelineFollowingNode():
             return p_line, p0, img_drawn
         
         else:
-            return p_line, p0
+            return p_line, p0"""
 
-    def batch_estimate_waypoint(self, t_udfc_odom):
+    """def batch_estimate_waypoint(self, t_udfc_odom):
         
         uppestest_y_coord = np.average(self.uppest_y_coords, 0)
         vx, vy, x0, y0 = cv2.fitLine(self.batch_line_params[:,:2], cv2.DIST_L2, 0, 0.1, 0.1)
@@ -270,27 +278,19 @@ class PipelineFollowingNode():
         #plt.legend()
         #plt.show()
 
-        return np.append(next_waypoint, 0)
+        return np.append(next_waypoint, 0)"""
+        
+    def findContour(self,img):
 
-    def path_calculations(self, img):
-        """
-        Takes in an image and finds the path contour and centroid. Also returns the original image with these drawn.
+        contour = self.extractor.YellowEdgesHSV(img,self.lower_hue, self.upper_hue)
 
-        """
-        cv2.drawContours(img, self.path_contour, -1, (0,0,255), 5)
-        path_area = cv2.contourArea(self.path_contour[:,0])
-
-        # This is just for the purposes of visualization on the image
-        #Finding centroids
-        M = cv2.moments(self.path_contour[:,0])
-        cx = int(M['m10']/M['m00'])
-        cy = int(M['m01']/M['m00'])
-        path_centroid = np.array([cx, cy])
-
-        img_drawn = cv2.circle(img, (cx,cy), radius=1, color=(0, 255, 0), thickness=3)
-
-        return path_area, img_drawn, path_centroid
-
+        if self.isDetected == False:
+            if contour.size() >  self.detection_area_threshold:
+                self.isDetected == True
+        
+        if  self.isDetected ==  True:
+            return contour
+        
 
     #The function to rule them  all
     def path_following_udfc_cb(self, img_msg):
@@ -318,7 +318,7 @@ class PipelineFollowingNode():
         udfc_img = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
         
         # Extracting the contour
-        _, hsv_mask, hsv_val_img = self.feature_detector.hsv_processor(udfc_img, *self.hsv_params)
+        """_, hsv_mask, hsv_val_img = self.feature_detector.hsv_processor(udfc_img, *self.hsv_params)
         self.cv_image_publisher(self.hsvPub, hsv_val_img, msg_encoding="bgr8")
 
         noise_filtered_img = self.feature_detector.noise_removal_processor(hsv_mask, *self.noise_rm_params)
@@ -335,11 +335,16 @@ class PipelineFollowingNode():
 
         # Contour detection, if area of detection is large enough, continues to next phase, consider tweeking
         if self.isDetected == False and path_area > self.detection_area_threshold:
-            self.isDetected == True
+            self.isDetected == True"""
+
+        
 
         """
-        This part needs adaption for pipeline following!!
+        This part needs adaption for pipeline following!! Look at the findContour-function
         """
+
+        
+
 
         # Undistort centroid point
         # These should be redundant, if the idea of local relative regulation work. Remove after that
@@ -347,6 +352,9 @@ class PipelineFollowingNode():
         #path_centroid_cam = np.matmul(self.K_opt_inv, np.append(self.path_centroid,1))
         #dp_ref = self.map_to_odom(path_centroid_cam[:2], t_udfc_odom, dp_ref=True)
 
+
+        """Lasse and  Tuva: we  will not have to take upper contour in consideration I  (Tuva) thinks, but we have to make sure that the drone get a point in front of it on the path, not behind"""
+        
         # Get the upper contour
         upper_inds = np.where((self.path_contour[:,1] < self.path_centroid[1]) == True)[0]
         upper_contour_image = self.path_contour[upper_inds]
