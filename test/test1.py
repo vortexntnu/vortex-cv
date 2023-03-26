@@ -1,12 +1,22 @@
+<<<<<<< HEAD
 import cv2 as cv
+=======
+
+import cv2
+>>>>>>> f8306c20f35ea5d0751b2aac956058d2d14fe687
 import numpy as np
 import matplotlib.pyplot as plt
 from test_RANSAC import RANSAC, LinearRegressor
 
 from feature_detection  import ImageFeatureProcessing as ifp
 
+<<<<<<< HEAD
 img = cv.imread("./data/path_bendy_full.png")
 img_rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+=======
+"""img = cv2.imread("./data/path_bendy_full.png")
+img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+>>>>>>> f8306c20f35ea5d0751b2aac956058d2d14fe687
 
 plt.figure(1, figsize=(10, 10))
 plt.imshow(img_rgb)
@@ -89,3 +99,8 @@ plt.plot(line, y, c="peru")
 
 plt.show()
 
+<<<<<<< HEAD
+=======
+plt.show()"""
+plt.show()
+>>>>>>> f8306c20f35ea5d0751b2aac956058d2d14fe687
