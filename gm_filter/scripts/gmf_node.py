@@ -32,8 +32,8 @@ import tf2_ros
 # GMF imports
 from scipy.stats import chi2
 
+
 class GMFNode:
-    
 
     def __init__(self, name):
         ########################################
@@ -46,7 +46,7 @@ class GMFNode:
 
         #Frame names, e.g. "odom" and "cam"
 
-        self.parent_frame = 'odom' 
+        self.parent_frame = 'odom'
         self.child_frame = 'zed2_left_camera_frame'
         self.object_frame = ""
 
@@ -62,7 +62,6 @@ class GMFNode:
         #### GMF stuff ###
         ##################
 
-
         # Tuning Parameters for the GMF scheme:
         self.init_prob = 0.2
         self.boost_prob = 0.25
@@ -73,7 +72,6 @@ class GMFNode:
         # TODO: find a good number for these by looking at how many iterrations it takes to get that low
         self.covariance_norm_convergence = 1
         self.max_kf_iterrations = 30
-
 
         # Measurement gate, in GMF we are only looking at position
         ndim = 3
@@ -96,24 +94,24 @@ class GMFNode:
         ##################
 
         # Tuning parameters
-        self.sigma_a = 0*np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
-        self.sigma_z = 2*np.array([1, 0.5, 0.5, 5 * np.pi/180, 5 * np.pi/180, 5 * np.pi/180])
+        self.sigma_a = 0 * np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
+        self.sigma_z = 2 * np.array(
+            [1, 0.5, 0.5, 5 * np.pi / 180, 5 * np.pi / 180, 5 * np.pi / 180])
 
         self.R = np.diag(self.sigma_z)
 
         # Making filtering objects: dynamic model, measurement model and ekf
-        
+
         self.search_dynamic_model = landmark_search_model(self.sigma_a[:3])
-        
-        
+
         self.landmark_model = landmark_pose_world(self.sigma_a)
         self.sensor_model = measurement_linear_landmark(self.sigma_z)
         self.my_ekf = EKF(self.landmark_model, self.sensor_model)
 
         # Initialization covariance for a new hypothesis
-        init_vars = np.ones((6,))
+        init_vars = np.ones((6, ))
         self.P_hat0 = 100 * np.diag(init_vars)
-        
+
         self.testing_kf_update = None
         ################
         ###ROS stuff####
@@ -131,16 +129,23 @@ class GMFNode:
         # We always start in _search state. This will later be updated from first measurement arrival
         self.mission_topic = self.current_object + "/search"
         self.mission_topic_old = self.mission_topic[:]
-        self.mission_topic_sub = rospy.Subscriber(mission_topic_subscribe, String, self.update_mission)
+        self.mission_topic_sub = rospy.Subscriber(mission_topic_subscribe,
+                                                  String, self.update_mission)
 
-        # Subscriber to gate pose and orientation 
-        self.object_pose_sub = rospy.Subscriber(object_topic_subscribe, PoseStamped, self.gmf_callback, queue_size=1)
-      
+        # Subscriber to gate pose and orientation
+        self.object_pose_sub = rospy.Subscriber(object_topic_subscribe,
+                                                PoseStamped,
+                                                self.gmf_callback,
+                                                queue_size=1)
+
         # Publisher to Autonomous
-        self.gate_pose_pub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
+        self.gate_pose_pub = rospy.Publisher('/fsm/object_positions_in',
+                                             ObjectPosition,
+                                             queue_size=1)
 
         #TF stuff
-        self.__tfBuffer = tf2_ros.Buffer() # TODO Add a tf buffer length? tf2_ros.Buffer(rospy.Duration(1200.0)) (Kristian)
+        self.__tfBuffer = tf2_ros.Buffer(
+        )  # TODO Add a tf buffer length? tf2_ros.Buffer(rospy.Duration(1200.0)) (Kristian)
         self.__listener = tf2_ros.TransformListener(self.__tfBuffer)
         self.__tfBroadcaster = tf2_ros.TransformBroadcaster()
 
@@ -148,16 +153,21 @@ class GMFNode:
         self.pose_transformer = tf2_geometry_msgs.tf2_geometry_msgs
 
         #The init will only continue if a transform between parent frame and child frame can be found
-        while self.__tfBuffer.can_transform(self.parent_frame, self.child_frame, rospy.Time()) == 0:
+        while self.__tfBuffer.can_transform(self.parent_frame,
+                                            self.child_frame,
+                                            rospy.Time()) == 0:
             try:
-                rospy.loginfo("No transform between "+str(self.parent_frame) +' and ' + str(self.child_frame))
+                rospy.loginfo("No transform between " +
+                              str(self.parent_frame) + ' and ' +
+                              str(self.child_frame))
                 rospy.sleep(2)
-            except: #, tf2_ros.ExtrapolationException  (tf2_ros.LookupException, tf2_ros.ConnectivityException)
+            except:  #, tf2_ros.ExtrapolationException  (tf2_ros.LookupException, tf2_ros.ConnectivityException)
                 rospy.sleep(2)
                 continue
 
-        rospy.loginfo("Transform between "+str(self.parent_frame) +' and ' + str(self.child_frame) + ' found.')
-        
+        rospy.loginfo("Transform between " + str(self.parent_frame) + ' and ' +
+                      str(self.child_frame) + ' found.')
+
         ############
         ##Init end##
         ############
@@ -169,10 +179,11 @@ class GMFNode:
         last_time = hypothesis.last_update
         Ts = rospy.get_time() - last_time
         return Ts
-    
+
     def kf_function(self, z, ass_hypothesis, ekf, Ts):
 
-        gauss_x_pred, gauss_z_pred, gauss_est = ekf.step_with_info(ass_hypothesis, z, Ts)
+        gauss_x_pred, gauss_z_pred, gauss_est = ekf.step_with_info(
+            ass_hypothesis, z, Ts)
         gauss_est.last_update = rospy.get_time()
 
         return gauss_x_pred, gauss_z_pred, gauss_est
@@ -205,7 +216,7 @@ class GMFNode:
         reduced_mean = 0
         cov_internal = np.zeros(np.shape(gated_hypotheses[0].cov))
         cov_external = np.zeros(np.shape(gated_hypotheses[0].cov))
-        update_times = np.empty((M,))
+        update_times = np.empty((M, ))
         for i in range(M):
             reduced_mean += gated_hypotheses[i].mean * gated_weights[i]
             update_times[i] = gated_hypotheses[i].last_update
@@ -214,7 +225,7 @@ class GMFNode:
             weight_n = gated_weights[i]
             diff = np.array(gated_hypotheses[i].mean - reduced_mean)
 
-            cov_internal += weight_n*gated_hypotheses[i].cov
+            cov_internal += weight_n * gated_hypotheses[i].cov
             cov_external = weight_n * np.matmul(diff, diff.T)
 
         reduced_cov = cov_internal + cov_external
@@ -227,24 +238,24 @@ class GMFNode:
         Predicts y from x
         returns a list of predicted means
         """
-        predicted_states = np.empty((self.active_hypotheses_count,), dtype=object)
+        predicted_states = np.empty((self.active_hypotheses_count, ),
+                                    dtype=object)
 
         for i in range(self.active_hypotheses_count):
             predicted_states[i] = self.active_hypotheses[i].mean
         return predicted_states
-        
+
     def predict_measurements(self, states_pred, Rot_wc, pos_wc):
-        
+
         predicted_measurements = np.empty_like(states_pred)
         for i, x_pred in enumerate(states_pred):
-            predicted_measurements[i] = np.matmul(Rot_wc.T, (x_pred[0:3] - pos_wc[0:3]))
+            predicted_measurements[i] = np.matmul(Rot_wc.T,
+                                                  (x_pred[0:3] - pos_wc[0:3]))
 
         return predicted_measurements
 
-
     def gate_hypotheses(self, z_gauss, predicted_zs):
         # Tested, works
-
         """
         Inputs: z - MultiVarGauss of measurement
                 predicted_zs - array of predicted measurement locations
@@ -253,22 +264,24 @@ class GMFNode:
         """
         gated_inds = []
 
-
         for i in range(self.active_hypotheses_count):
-            mahalanobis_distance = z_gauss.mahalanobis_distance_sq(predicted_zs[i])
+            mahalanobis_distance = z_gauss.mahalanobis_distance_sq(
+                predicted_zs[i])
             if mahalanobis_distance <= self.gate_size_sq:
                 gated_inds.append(i)
                 #m_distances.append(mahalanobis_distance)
         g = len(gated_inds)
-        gated_hypotheses = [self.active_hypotheses[gated_inds[j]] for j in range(g)]
-        gated_weights = np.array([self.gmf_weights[gated_inds[k] + 1] for k in range(g)])
-        
+        gated_hypotheses = [
+            self.active_hypotheses[gated_inds[j]] for j in range(g)
+        ]
+        gated_weights = np.array(
+            [self.gmf_weights[gated_inds[k] + 1] for k in range(g)])
+
         return gated_hypotheses, gated_weights, gated_inds
-    
-    
-    def associate_and_update(self, gated_hypotheses, gated_weights, gated_inds, z, pos_wc, Rot_wc):
+
+    def associate_and_update(self, gated_hypotheses, gated_weights, gated_inds,
+                             z, pos_wc, Rot_wc):
         # Tested, works
-        
         """
         Inputs: 
             gated_hypotheses: a list of MultiVarGauss of the active hypotheses which have been gated.
@@ -286,43 +299,50 @@ class GMFNode:
             c) 0 associated hypotheses: initiate a hypothesis with the mean of the measurement and P_hat0 cov
             matrix
         """
-        search_measurement_model = LTV_search_measurement_model(self.sigma_z[:3], pos_wc, Rot_wc)
+        search_measurement_model = LTV_search_measurement_model(
+            self.sigma_z[:3], pos_wc, Rot_wc)
         search_ekf = EKF(self.search_dynamic_model, search_measurement_model)
-        
+
         if len(gated_hypotheses) == 1:
             ass_ind = gated_inds[0]
             Ts = self.get_Ts(self.active_hypotheses[ass_ind])
-            _, _, upd_hypothesis = self.kf_function(z, self.active_hypotheses[ass_ind], search_ekf, Ts)
+            _, _, upd_hypothesis = self.kf_function(
+                z, self.active_hypotheses[ass_ind], search_ekf, Ts)
             self.active_hypotheses[ass_ind] = upd_hypothesis
 
-            self.gmf_weights[ass_ind + 1] = self.gmf_weights[ass_ind + 1] + self.boost_prob
-            
+            self.gmf_weights[ass_ind +
+                             1] = self.gmf_weights[ass_ind +
+                                                   1] + self.boost_prob
+
         elif len(gated_hypotheses) > 1:
-            
+
             # Perform mixture reduction on gated hypotheses to produce associated hypothesis. Sum weights, boost
             ass_weight = np.sum(gated_weights)
             ass_weight += self.boost_prob
-            ass_hypothesis = self.reduce_mixture(gated_hypotheses, gated_weights)
+            ass_hypothesis = self.reduce_mixture(gated_hypotheses,
+                                                 gated_weights)
             Ts = self.get_Ts(ass_hypothesis)
-            _, _, upd_hypothesis = self.kf_function(z, ass_hypothesis, search_ekf, Ts)
+            _, _, upd_hypothesis = self.kf_function(z, ass_hypothesis,
+                                                    search_ekf, Ts)
 
             # Remove the gated hypotheses from the list, replace with reduced associated hypothesis. normalize
-            for ind in sorted(gated_inds, reverse = True): 
+            for ind in sorted(gated_inds, reverse=True):
                 self.gmf_weights = np.delete(self.gmf_weights, ind + 1)
                 del self.active_hypotheses[ind]
-            
+
             self.active_hypotheses.append(upd_hypothesis)
             self.gmf_weights = np.append(self.gmf_weights, ass_weight)
 
-            
         else:
             # In case of no gated hypotheses initiate a new KF with mean of measurement
-            ass_hypothesis = MultiVarGaussian(self.detection_position_odom, self.P_hat0[:3,:3], rospy.get_time())
+            ass_hypothesis = MultiVarGaussian(self.detection_position_odom,
+                                              self.P_hat0[:3, :3],
+                                              rospy.get_time())
             ass_weight = self.init_prob
 
             self.active_hypotheses.append(ass_hypothesis)
             self.gmf_weights = np.append(self.gmf_weights, ass_weight)
-        
+
         self.gmf_weights = self.gmf_weights / sum(self.gmf_weights)
         self.active_hypotheses_count = len(self.active_hypotheses)
 
@@ -350,8 +370,7 @@ class GMFNode:
 
             if self.gmf_weights[i] <= self.survival_threshold and i != 0:
                 remove_inds.append(i)
-                
-        
+
         for remove_ind in sorted(remove_inds, reverse=True):
             self.gmf_weights = np.delete(self.gmf_weights, remove_ind)
             del self.active_hypotheses[remove_ind - 1]
@@ -363,25 +382,27 @@ class GMFNode:
             hypotheses_weights = np.delete(hypotheses_weights, 0)
 
             k_smallest_inds = np.argpartition(hypotheses_weights, nr_remove)
-            termination_weights = hypotheses_weights[k_smallest_inds[:nr_remove]]
+            termination_weights = hypotheses_weights[
+                k_smallest_inds[:nr_remove]]
             new_null_weight = self.gmf_weights[0] + sum(termination_weights)
 
-            termination_weights = np.delete(hypotheses_weights, k_smallest_inds[:nr_remove])
-            termination_weights = np.concatenate(([new_null_weight], termination_weights))
+            termination_weights = np.delete(hypotheses_weights,
+                                            k_smallest_inds[:nr_remove])
+            termination_weights = np.concatenate(
+                ([new_null_weight], termination_weights))
             self.gmf_weights = termination_weights
-            
 
         self.gmf_weights = self.gmf_weights / sum(self.gmf_weights)
         self.active_hypotheses_count = len(self.active_hypotheses)
 
         self.best_ind = np.argmax(self.gmf_weights)
 
-        rospy.loginfo("Number of active hypotheses is now: %s", self.active_hypotheses_count)
-        rospy.loginfo("Highest probability for a hypothesis is: %s", np.max(self.gmf_weights))
+        rospy.loginfo("Number of active hypotheses is now: %s",
+                      self.active_hypotheses_count)
+        rospy.loginfo("Highest probability for a hypothesis is: %s",
+                      np.max(self.gmf_weights))
         rospy.loginfo("Most likely hypothesis is: %s", self.best_ind)
-    
-    
-    
+
     def gmf_reset(self):
         """
         Resets the GMF variables to what they are in the init function. This happens on transition from converge to search or from execute
@@ -394,7 +415,7 @@ class GMFNode:
         self.active_hypotheses = []
         self.active_hypotheses_count = 0
         self.nr_of_kf_updates = 0
-        
+
         # Reset booleans
         self.termination_bool = False
         self.estimateConverged = False
@@ -411,9 +432,9 @@ class GMFNode:
 
         rospy.loginfo("GMF converged at hypothesis %s", self.best_ind)
         rospy.loginfo("With Frobenius norm: %s", Fnorm_P)
-        rospy.loginfo("Nr of KF updates since convergence: %s", self.nr_of_kf_updates)
-        
-        
+        rospy.loginfo("Nr of KF updates since convergence: %s",
+                      self.nr_of_kf_updates)
+
         # TODO: simulate what it takes for the F norm to reach certain values
         if Fnorm_P <= self.covariance_norm_convergence:
             # We tell Autonomous to execute
@@ -444,44 +465,54 @@ class GMFNode:
                 cam_pose_position_wc    : position of camera in odom (world), needed for the LTV sensor model for the Kalman Filters
         """
         # Gets the transform from odom to camera
-        self.tf_lookup_wc = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5))
+        self.tf_lookup_wc = self.__tfBuffer.lookup_transform(
+            self.parent_frame, self.child_frame, rospy.Time(),
+            rospy.Duration(5))
 
         # Run the measurement back through tf tree to get the object in odom
-        msg_transformed_wg = self.pose_transformer.do_transform_pose(msg, self.tf_lookup_wc)
+        msg_transformed_wg = self.pose_transformer.do_transform_pose(
+            msg, self.tf_lookup_wc)
 
         #Broadcast to tf to make sure we get the correct transform
         #self.transformbroadcast("odom", msg_transformed_wg)
-        
+
         # Extract measurement of transformed and camera message
 
         # We need the position from the camera measurement
-        obj_pose_position_cg = np.array([msg.pose.position.x, 
-                                         msg.pose.position.y, 
-                                         msg.pose.position.z])
+        obj_pose_position_cg = np.array(
+            [msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
 
         # We need the orientation from the world measruement
-        obj_pose_quat_wg = np.array([msg_transformed_wg.pose.orientation.x,
-                                     msg_transformed_wg.pose.orientation.y,
-                                     msg_transformed_wg.pose.orientation.z,
-                                     msg_transformed_wg.pose.orientation.w])
-        
+        obj_pose_quat_wg = np.array([
+            msg_transformed_wg.pose.orientation.x,
+            msg_transformed_wg.pose.orientation.y,
+            msg_transformed_wg.pose.orientation.z,
+            msg_transformed_wg.pose.orientation.w
+        ])
+
         # We need to detection in world frame for creating new hypotheses
-        self.detection_position_odom = np.array([msg_transformed_wg.pose.position.x,
-                                                 msg_transformed_wg.pose.position.y,
-                                                 msg_transformed_wg.pose.position.z])
+        self.detection_position_odom = np.array([
+            msg_transformed_wg.pose.position.x,
+            msg_transformed_wg.pose.position.y,
+            msg_transformed_wg.pose.position.z
+        ])
 
         # Get time-varying transformation from world to camera
 
         # We need the position for the EKF
-        cam_pose_position_wc = np.array([self.tf_lookup_wc.transform.translation.x, 
-                                         self.tf_lookup_wc.transform.translation.y, 
-                                         self.tf_lookup_wc.transform.translation.z])
-        
+        cam_pose_position_wc = np.array([
+            self.tf_lookup_wc.transform.translation.x,
+            self.tf_lookup_wc.transform.translation.y,
+            self.tf_lookup_wc.transform.translation.z
+        ])
+
         # We need the quaternion to make into a Rot matrix for the EKF
-        cam_pose_quat_wc = np.array([self.tf_lookup_wc.transform.rotation.x,
-                                     self.tf_lookup_wc.transform.rotation.y,
-                                     self.tf_lookup_wc.transform.rotation.z,
-                                     self.tf_lookup_wc.transform.rotation.w])
+        cam_pose_quat_wc = np.array([
+            self.tf_lookup_wc.transform.rotation.x,
+            self.tf_lookup_wc.transform.rotation.y,
+            self.tf_lookup_wc.transform.rotation.z,
+            self.tf_lookup_wc.transform.rotation.w
+        ])
 
         # Rotation from world to camera, needed for the LTV model
         R_wc = tft.quaternion_matrix(cam_pose_quat_wc)
@@ -489,10 +520,10 @@ class GMFNode:
 
         #rospy.loginfo(self.active_hypotheses_count)
         #rospy.loginfo(R_wc)
-        
 
         # Prepare measurement vector
-        z_phi, z_theta, z_psi = tft.euler_from_quaternion(obj_pose_quat_wg, axes='sxyz')
+        z_phi, z_theta, z_psi = tft.euler_from_quaternion(obj_pose_quat_wg,
+                                                          axes='sxyz')
 
         z = obj_pose_position_cg
         z = np.append(z, [z_phi, z_theta, z_psi])
@@ -514,13 +545,13 @@ class GMFNode:
         t.transform.rotation.w = p.objectPose.pose.orientation.w
         self.__tfBroadcaster.sendTransform(t)
 
-
     def publish_function(self, objectID, search=None):
-        
+
         x_hat_best = self.best_hypothesis.mean
         best_position, best_pose = self.est_to_pose(x_hat_best, search)
-        best_pose_quaternion = tft.quaternion_from_euler(best_pose[0], best_pose[1], best_pose[2])
-        
+        best_pose_quaternion = tft.quaternion_from_euler(
+            best_pose[0], best_pose[1], best_pose[2])
+
         p = ObjectPosition()
         #p.pose.header[]
         p.objectID = self.object_name
@@ -528,17 +559,16 @@ class GMFNode:
         p.objectPose.pose.position.x = best_position[0]
         p.objectPose.pose.position.y = best_position[1]
         p.objectPose.pose.position.z = best_position[2]
-        
+
         p.objectPose.pose.orientation.x = best_pose_quaternion[0]
         p.objectPose.pose.orientation.y = best_pose_quaternion[1]
         p.objectPose.pose.orientation.z = best_pose_quaternion[2]
         p.objectPose.pose.orientation.w = best_pose_quaternion[3]
 
-        p.isDetected            = self.termination_bool
-        p.estimateConverged     = self.estimateConverged
-        p.estimateFucked        = self.estimateFucked
+        p.isDetected = self.termination_bool
+        p.estimateConverged = self.estimateConverged
+        p.estimateFucked = self.estimateFucked
 
-        
         self.gate_pose_pub.publish(p)
         rospy.loginfo("Object published: %s", objectID)
         self.transformbroadcast(self.parent_frame, p)
@@ -566,8 +596,6 @@ class GMFNode:
         t.transform.rotation.w = ori_quaternion[3]
         self.__tfBroadcaster.sendTransform(t)
 
-
-        
     def gmf_callback(self, msg):
         """
         Main GMF callback. Extracts measurement, checks the fsm state of the object and performs the GMF/Kalman Filter update on the basis of that.
@@ -576,12 +604,13 @@ class GMFNode:
         """
         # Process the measurement, extracting what we need
         z, R_wc, cam_pose_position_wc = self.process_measurement_message(msg)
-        z_search_gauss = MultiVarGaussian(z[:3], self.R[:3, :3], msg.header.stamp)
-        
-        # Full model EKF, used only after convergence of GMF. The search EKF is made in the Association Function
-        full_measurement_model = LTV_full_measurement_model(self.sigma_z, cam_pose_position_wc, R_wc)
-        full_ekf = EKF(self.landmark_model, full_measurement_model)
+        z_search_gauss = MultiVarGaussian(z[:3], self.R[:3, :3],
+                                          msg.header.stamp)
 
+        # Full model EKF, used only after convergence of GMF. The search EKF is made in the Association Function
+        full_measurement_model = LTV_full_measurement_model(
+            self.sigma_z, cam_pose_position_wc, R_wc)
+        full_ekf = EKF(self.landmark_model, full_measurement_model)
 
         # Uncomment for testing the ekf-update
         #if self.testing_kf_update == None:
@@ -591,13 +620,13 @@ class GMFNode:
         #Ts = self.get_Ts(self.testing_hypothesis)
         #_,_,self.testing_hypothesis = self.kf_function(z=z, ass_hypothesis=self.testing_hypothesis, ekf=full_ekf, Ts=Ts)
         #self.publish_hypothesis_transformation(self.testing_hypothesis)
-        
+
         # In the case of failed convergence validation from the VKF, we will go from current_object + "converge" to current_object + "search"
         current_action = self.mission_topic.split("/")[1]
         old_action = self.mission_topic_old.split("/")[1]
 
         ObjectID = self.mission_topic.split("/")[0]
-        
+
         # Reset GMF on going from converge back to search
         if old_action == "converge" and current_action == "search":
             self.gmf_reset()
@@ -618,10 +647,12 @@ class GMFNode:
             if self.nr_of_kf_updates == 0:
                 # First time we run this code (just after GMF convergence) we initiate with the last position estimate and last orientational measurement
                 x_conv_init = np.append(self.best_hypothesis.mean[:3], z[3:])
-                self.best_hypothesis = MultiVarGaussian(x_conv_init, self.P_hat0, self.best_hypothesis.last_update)
+                self.best_hypothesis = MultiVarGaussian(
+                    x_conv_init, self.P_hat0, self.best_hypothesis.last_update)
 
             Ts = self.get_Ts(self.best_hypothesis)
-            _, _, self.best_hypothesis = self.kf_function(z, self.best_hypothesis, full_ekf, Ts)
+            _, _, self.best_hypothesis = self.kf_function(
+                z, self.best_hypothesis, full_ekf, Ts)
             self.mission_topic_old = self.mission_topic[:]
             #self.evaluate_filter_convergence("gate")
             self.evaluate_filter_convergence(ObjectID)
@@ -635,7 +666,9 @@ class GMFNode:
         if len(self.active_hypotheses) == 0:
             # Initialize hypothesis from measurement
             z_search_odom = self.detection_position_odom
-            self.active_hypotheses.append(MultiVarGaussian(z_search_odom, self.P_hat0[:3,:3], rospy.get_time()))
+            self.active_hypotheses.append(
+                MultiVarGaussian(z_search_odom, self.P_hat0[:3, :3],
+                                 rospy.get_time()))
 
             self.gmf_weights = np.append(self.gmf_weights, self.init_prob)
             self.gmf_weights = self.gmf_weights / sum(self.gmf_weights)
@@ -645,11 +678,14 @@ class GMFNode:
             return None
 
         pred_states = self.predict_states()
-        pred_zs = self.predict_measurements(pred_states, R_wc, cam_pose_position_wc)
+        pred_zs = self.predict_measurements(pred_states, R_wc,
+                                            cam_pose_position_wc)
 
-        gated_hypotheses, gated_weights, gated_inds = self.gate_hypotheses(z_search_gauss, pred_zs)
+        gated_hypotheses, gated_weights, gated_inds = self.gate_hypotheses(
+            z_search_gauss, pred_zs)
 
-        self.associate_and_update(gated_hypotheses, gated_weights, gated_inds, z[:3], cam_pose_position_wc, R_wc)
+        self.associate_and_update(gated_hypotheses, gated_weights, gated_inds,
+                                  z[:3], cam_pose_position_wc, R_wc)
         self.gmf_eval()
 
         if self.best_ind == 0:
@@ -666,8 +702,6 @@ class GMFNode:
 if __name__ == '__main__':
     name = sys.argv[1]
     print("Node name:" + name)
-   
+
     gm_filter = GMFNode(name)
     rospy.spin()
-
-    
