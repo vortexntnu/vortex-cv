@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Pointcloud processing node -->
+    <node name="path_following_perception_node"    pkg="path_following_perception"     type="pipeline_following_node.py"    output="screen"/>
+    <node name="CVOD_cfg"    pkg="feature_detection"     type="dynam_recfg.py"    output="screen"/>
+    <node pkg="tf2_ros" type="static_transform_publisher" name="detection" args="0 0 0 0 0 0 zed2_left_camera_frame detection" />
+    <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_udfc" args="-0.029 -0.07652 -0.14025 0 0 0 base_link udfc_link" />
+    <rosparam command="load" file="$(find path_following_perception)/params/udfc_cam_params.yaml" />
+</launch>

@@ -30,6 +30,8 @@ from os.path import join
 
 import feature_detection
 import image_extraction
+from RANSAC import RANSAC, LinearRegressor
+from sympy import *
 
 """
 Node made to publish data to the landmarkserver of type "Objectposition", which is an own defined Vortex msg and can be found in the vortex-msgs respository.
@@ -186,9 +188,42 @@ class PipelineFollowingNode():
     
     
     def find_line(self, contour, img_drawn=None):
-        
-        """Her Lasse"""
+        """
+        Uses RANSAC to find line and returns direction vector "colin_vec"
+        and start point "p0"
+        """
+        points = np.argwhere(contour == 255)
+        X = points[:,0].reshape(-1,1)
+        y = points[:,1].reshape(-1,1)
 
+        def square_error_loss(y_true, y_pred):
+            return (y_true - y_pred) ** 2
+
+        def mean_square_error(y_true, y_pred):
+            return np.sum(square_error_loss(y_true, y_pred)) / y_true.shape[0]
+
+        n=5
+        k=1000
+        t=4500
+        d=np.size(points)/2.3
+        regressor = RANSAC(n,k,t,d,model=LinearRegressor(), loss=square_error_loss, metric=mean_square_error)
+
+        regressor.fit(X,y)
+
+        params = regressor.best_fit.params
+        alpha = params[1]
+        beta = params[0]
+        x, y = symbols('x y')
+
+        line = Eq(y = alpha*x + beta)
+
+        x0 = solve(Eq(y,0))
+        y0 = solve(Eq(x,0))
+        vx = 1
+        vy = alpha
+
+        colin_vec   = np.ravel(np.array((vx, vy)))
+        p0          = np.ravel(np.array((x0, y0)))
 
         return colin_vec, p0
 

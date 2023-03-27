@@ -2,6 +2,14 @@ from copy import copy
 import numpy as np
 rng = np.random.RandomState(123)
 
+"""
+Implementation of Random Sample Consensus (RANSAC). It is a method to fit data according
+to a model, in this case linear. It itarates and chooses random samples and fits points
+based on a treshold. The random samples that produces a result with most points within the 
+treshold is the final best fit.
+source: https://en.wikipedia.org/wiki/Random_sample_consensus 
+- Lasse Moen Guttormsen
+"""
 
 class RANSAC:
     def __init__(self, n, k, t, d, model=None, loss=None, metric=None):
