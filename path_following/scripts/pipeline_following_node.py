@@ -125,14 +125,17 @@ class PipelineFollowingNode():
         #The init will only continue if a transform between parent frame and child frame can be found
         while self.__tfBuffer.can_transform(self.parent_frame, self.child_frame, rospy.Time()) == 0:
             try:
-                rospy.loginfo("No transform between "+str(self.parent_frame) +' and ' + str(self.child_frame))
+                rospy.loginfo("No transform between " +
+                              str(self.parent_frame) + ' and ' +
+                              str(self.child_frame))
                 rospy.sleep(2)
-            except: #, tf2_ros.ExtrapolationException  (tf2_ros.LookupException, tf2_ros.ConnectivityException)
+            except:  #, tf2_ros.ExtrapolationException  (tf2_ros.LookupException, tf2_ros.ConnectivityException)
                 rospy.sleep(2)
                 continue
 
-        rospy.loginfo("Transform between "+str(self.parent_frame) +' and ' + str(self.child_frame) + 'found.')
-        
+        rospy.loginfo("Transform between " + str(self.parent_frame) + ' and ' +
+                      str(self.child_frame) + 'found.')
+
         # Wait for first image
         self.bridge = CvBridge()
         img = rospy.wait_for_message("/cv/image_preprocessing/CLAHE_single/udfc", Image)
@@ -203,8 +206,7 @@ class PipelineFollowingNode():
         else:
             point_odom = np.array([X, Y, z_over_path]) + trans_udfc_odom
         return point_odom
-    
-    
+
     def find_line(self, contour):
         """
         Uses RANSAC to find line and returns direction vector "colin_vec"
@@ -291,13 +293,13 @@ class PipelineFollowingNode():
     #The function to rule them  all
     def path_following_udfc_cb(self, img_msg):
         """Callbackfunction for the camera subscriber """
-        
+
         self.waypoint_header = img_msg.header
 
-        #Killing the  node if it is not in its operating state(Given by the state machine-Subscribernode). 
+        #Killing the  node if it is not in its operating state(Given by the state machine-Subscribernode).
         # if self.current_state not in self.possible_states:
         #     return None
-     
+
         #Convertes from camera coordinates to odom/Beluga coordinates
         tf_lookup_wc = self.__tfBuffer.lookup_transform(
             self.parent_frame, self.child_frame, rospy.Time(),
