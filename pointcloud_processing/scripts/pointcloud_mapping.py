@@ -6,11 +6,14 @@ import math
 from sensor_msgs import point_cloud2
 from sensor_msgs.msg import PointCloud2
 
+
 class PointCloudMapping():
     """
     Class used for various tasks surrounding pointcloud mappng
     """
-    def object_orientation_from_xy_area(self, area_with_limits, pointcloud_data):
+
+    def object_orientation_from_xy_area(self, area_with_limits,
+                                        pointcloud_data):
         """
         Reads the point cloud data from a given area
 
@@ -32,9 +35,11 @@ class PointCloudMapping():
 
         # loops through the area data and adds points to a list
         point_list = []
-        for x in range(xmin  -1, xmax -1):
+        for x in range(xmin - 1, xmax - 1):
             for y in range(ymin - 1, ymax - 1):
-                pt_gen = point_cloud2.read_points(pointcloud_data, skip_nans=True, uvs=[[x,y]])
+                pt_gen = point_cloud2.read_points(pointcloud_data,
+                                                  skip_nans=True,
+                                                  uvs=[[x, y]])
                 for pt in pt_gen:
                     point_list.append([pt[0], pt[1], pt[2]])
 
@@ -57,7 +62,9 @@ class PointCloudMapping():
         is_pointcloud = isinstance(pointcloud_data, PointCloud2)
         if is_pointcloud:
             # Reads the point cloud data at given uvs: u = x cord, v = y cord
-            pt_gen = point_cloud2.read_points(pointcloud_data, skip_nans=False, uvs=[[x_pixel, y_pixel]])
+            pt_gen = point_cloud2.read_points(pointcloud_data,
+                                              skip_nans=False,
+                                              uvs=[[x_pixel, y_pixel]])
             for pt in pt_gen:
                 self.pointcloud_x = pt[0]
                 self.pointcloud_y = pt[1]
@@ -81,11 +88,13 @@ class PointCloudMapping():
         assert isinstance(pointcloud_data, PointCloud2)
         new_point_list = []
         for point in point_list:
-            pt_gen = point_cloud2.read_points(pointcloud_data, skip_nans=True, uvs=[[point[0],point[1]]])
+            pt_gen = point_cloud2.read_points(pointcloud_data,
+                                              skip_nans=True,
+                                              uvs=[[point[0], point[1]]])
             for pt in pt_gen:
                 # new_point_list.append(pt)
                 new_point_list.append([pt[0], pt[1], pt[2]])
-        
+
         orientationdata, positiondata = self.points_to_plane(new_point_list)
         return orientationdata, positiondata
 
@@ -108,7 +117,6 @@ class PointCloudMapping():
             ys.append(point[1])
             zs.append(point[2])
 
-
         # do fit
         tmp_A = []
         tmp_b = []
@@ -121,10 +129,10 @@ class PointCloudMapping():
         errors = b - A * fit
         residual = np.linalg.norm(errors)
         planar_equation = ("%f x + %f y + %f = z" % (fit[0], fit[1], fit[2]))
-        
+
         vectordata = []
         for i in range(3):
-            numb = np.matrix.item(fit,i)
+            numb = np.matrix.item(fit, i)
             if not math.isnan(numb):
                 vectordata.append(numb)
 
@@ -149,11 +157,11 @@ class PointCloudMapping():
             x_sum += point[0]
             y_sum += point[1]
             z_sum += point[2]
-        
+
         n_points = len(points_list)
-        x_middle_pos = x_sum/n_points
-        y_middle_pos = y_sum/n_points
-        z_middle_pos = z_sum/n_points
+        x_middle_pos = x_sum / n_points
+        y_middle_pos = y_sum / n_points
+        z_middle_pos = z_sum / n_points
 
         middle_point = [x_middle_pos, y_middle_pos, z_middle_pos]
         return middle_point

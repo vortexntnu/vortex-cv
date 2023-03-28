@@ -32,7 +32,6 @@ import feature_detection
 from image_extraction import Image_extraction
 from RANSAC import RANSAC, LinearRegressor
 from sympy import *
-
 """
 Node made to publish data to the landmarkserver of type "Objectposition", which is an own defined Vortex msg and can be found in the vortex-msgs respository.
 It takes in data from the UDFC (Monocamera facing downwards under Beluga). The "mission_topic_sub"-subscriber controls if our node is running.
@@ -41,6 +40,7 @@ For the TAC 2023, the execute state will be the most relevant, but we dont have 
 This node is mainly a hard copy of thepath_following_node, used at Robosub 2022, but with adaptions for the TAC2023"
 Tuva  
 """
+
 
 class PipelineFollowingNode():
     """
@@ -71,13 +71,15 @@ class PipelineFollowingNode():
         # For publishing results for Auto, parameters for converging data to odor frame. 
         self.parent_frame = 'odom' 
         self.child_frame = 'udfc_link'
-        
-        fx_opt, fy_opt, cx_opt, cy_opt = rospy.get_param("fx_opt"), rospy.get_param("fy_opt"), rospy.get_param("cx_opt"), rospy.get_param("cy_opt")
+
+        fx_opt, fy_opt, cx_opt, cy_opt = rospy.get_param(
+            "fx_opt"), rospy.get_param("fy_opt"), rospy.get_param(
+                "cx_opt"), rospy.get_param("cy_opt")
         self.K_opt = np.eye(3)
-        self.K_opt[0,0] = fx_opt
-        self.K_opt[1,1] = fy_opt
-        self.K_opt[0,2] = cx_opt
-        self.K_opt[1,2] = cy_opt
+        self.K_opt[0, 0] = fx_opt
+        self.K_opt[1, 1] = fy_opt
+        self.K_opt[0, 2] = cx_opt
+        self.K_opt[1, 2] = cy_opt
 
         self.K_opt_inv = np.linalg.inv(self.K_opt)
 
@@ -86,11 +88,15 @@ class PipelineFollowingNode():
         self.upper_hue = 80
 
         # Subscribers
-        self.udfcSub = rospy.Subscriber("/cv/image_preprocessing/CLAHE/udfc", Image, self.path_following_udfc_cb)
-        self.mission_topic_sub = rospy.Subscriber("/fsm/state", String, self.update_mission)
+        self.udfcSub = rospy.Subscriber("/cv/image_preprocessing/CLAHE/udfc",
+                                        Image, self.path_following_udfc_cb)
+        self.mission_topic_sub = rospy.Subscriber("/fsm/state", String,
+                                                  self.update_mission)
 
         #Topic to be subscribed by the landmark server
-        self.wpPub = rospy.Publisher('/fsm/object_positions_in', ObjectPosition, queue_size=1)
+        self.wpPub = rospy.Publisher('/fsm/object_positions_in',
+                                     ObjectPosition,
+                                     queue_size=1)
 
         # Initialize state and bools
         self.possible_states = ["path/search", "path/converge", "path/execute"]
@@ -98,17 +104,17 @@ class PipelineFollowingNode():
         self.objectID = "pipeline"
         self.detection_area_threshold = 2000
 
-        self.isDetected            = False
-        self.estimateConverged     = False
-        self.estimateFucked        = False
+        self.isDetected = False
+        self.estimateConverged = False
+        self.estimateFucked = False
 
-        self.batch_line_params = np.zeros((1,3))
-        
+        self.batch_line_params = np.zeros((1, 3))
+
         # TODO: find realistic values for these. Needs to be field tested.
         # Huseby 20.07.2022 patch: these should now be useless!!!
-        self.H_pool_prior       = 2     # Depth of pool
-        self.h_path_prior       = 0.1   # Height of path
-        self.Z_prior_ref        = 1  # Optimal z-coordinate for performing pfps,will be regulated for TAC 
+        self.H_pool_prior = 2  # Depth of pool
+        self.h_path_prior = 0.1  # Height of path
+        self.Z_prior_ref = 1  # Optimal z-coordinate for performing pfps,will be regulated for TAC
 
         self.extractor = Image_extraction()
 
@@ -131,7 +137,8 @@ class PipelineFollowingNode():
         try:
             cv_image = self.bridge.imgmsg_to_cv2(img, "passthrough")
             self.image_shape = cv_image.shape
-            self.img_center = np.array([self.image_shape[0]/2, self.image_shape[1]/2])
+            self.img_center = np.array(
+                [self.image_shape[0] / 2, self.image_shape[1] / 2])
 
         except CvBridgeError:
             rospy.logerr("CvBridge Error: {0}".format(e))
@@ -141,38 +148,36 @@ class PipelineFollowingNode():
         Publishes a waypoint as an Objectposition-msg, using the given publisher. The interesting components are the Object Id, x and y positions and whether anything is detected or not.
         """
 
-        #P is the object to be sent on the "/fsm/state"-topic, ObjectPosition is a Vortex-defined msg. 
+        #P is the object to be sent on the "/fsm/state"-topic, ObjectPosition is a Vortex-defined msg.
         p = ObjectPosition()
         #p.pose.header[]
         p.objectID = objectID
 
         p.objectPose.pose.position.x = waypoint[0]
         p.objectPose.pose.position.y = waypoint[1]
-        p.objectPose.pose.position.z = waypoint[2] #z is set to zero as default, we need to ignore depth data comming from this class.
+        p.objectPose.pose.position.z = waypoint[
+            2]  #z is set to zero as default, we need to ignore depth data comming from this class.
         p.objectPose.pose.orientation.x = 0
         p.objectPose.pose.orientation.y = 0
         p.objectPose.pose.orientation.z = 0
         p.objectPose.pose.orientation.w = 1
 
-        p.isDetected            = self.isDetected
-        p.estimateConverged     = self.estimateConverged
-        p.estimateFucked        = self.estimateFucked
-        
+        p.isDetected = self.isDetected
+        p.estimateConverged = self.estimateConverged
+        p.estimateFucked = self.estimateFucked
 
         #Function-call, takes in a publisher as a variable.
         publisher.publish(p)
 
         rospy.loginfo("Object published: %s", objectID)
-       
+
     def update_mission(self, mission):
         """
         Updates current_state 
         """
         self.current_state = mission.data
-       
 
     def map_to_odom(self, point_cam, trans_udfc_odom, dp_ref=None):
-
         """
         Takes in a point in homogenious camera coordinates and calculates the X, Y, Z in odom frame using the similarity 
         triangles equations through the dp assumptions of no roll and pitch and known height over ground.
@@ -185,8 +190,9 @@ class PipelineFollowingNode():
             point_odom - estimate of point in odom frame [X, Y, Z]^T
         """
 
-        z_over_path = self.H_pool_prior - abs(trans_udfc_odom[2]) - self.h_path_prior
-        
+        z_over_path = self.H_pool_prior - abs(
+            trans_udfc_odom[2]) - self.h_path_prior
+
         # Map X and Y to world frame
         X = z_over_path * point_cam[0]
         Y = z_over_path * point_cam[1]
@@ -204,37 +210,43 @@ class PipelineFollowingNode():
         and start point "p0"
         """
         points = np.argwhere(contour == 255)
-        X = points[:,0].reshape(-1,1)
-        y = points[:,1].reshape(-1,1)
+        X = points[:, 0].reshape(-1, 1)
+        y = points[:, 1].reshape(-1, 1)
 
         def square_error_loss(y_true, y_pred):
-            return (y_true - y_pred) ** 2
+            return (y_true - y_pred)**2
 
         def mean_square_error(y_true, y_pred):
             return np.sum(square_error_loss(y_true, y_pred)) / y_true.shape[0]
 
-        n=5
-        k=1000
-        t=4500
-        d=np.size(points)/2.3
-        regressor = RANSAC(n,k,t,d,model=LinearRegressor(), loss=square_error_loss, metric=mean_square_error)
+        n = 5
+        k = 1000
+        t = 4500
+        d = np.size(points) / 2.3
+        regressor = RANSAC(n,
+                           k,
+                           t,
+                           d,
+                           model=LinearRegressor(),
+                           loss=square_error_loss,
+                           metric=mean_square_error)
 
-        regressor.fit(X,y)
+        regressor.fit(X, y)
 
         params = regressor.best_fit.params
         alpha = params[1]
         beta = params[0]
         x, y = symbols('x y')
 
-        line = Eq(y = alpha*x + beta)
+        line = Eq(y=alpha * x + beta)
 
         x0 = solve(line(y,0))
         y0 = solve(line(x,0))
         vx = 1
         vy = alpha
 
-        colin_vec   = np.ravel(np.array((vx, vy)))
-        p0          = np.ravel(np.array((x0, y0)))
+        colin_vec = np.ravel(np.array((vx, vy)))
+        p0 = np.ravel(np.array((x0, y0)))
 
         return colin_vec, p0
 
@@ -250,27 +262,25 @@ class PipelineFollowingNode():
 
 
         """
-        #Getting the point 
-        p1 = p0 - 100* np.abs(colin_vec)
+        #Getting the point
+        p1 = p0 - 100 * np.abs(colin_vec)
 
-        waypoint = self.map_to_odom(p1,t_udfc_odom)
+        waypoint = self.map_to_odom(p1, t_udfc_odom)
 
-        return np.array(waypoint,0)
+        return np.array(waypoint, 0)
 
-        
-    def findContour(self,img):
+    def findContour(self, img):
 
-        contour = self.extractor.YellowEdgesHSV(img,self.lower_hue, self.upper_hue)
+        contour = self.extractor.YellowEdgesHSV(img, self.lower_hue,
+                                                self.upper_hue)
 
         if self.isDetected == False:
-            if contour.size() >  self.detection_area_threshold:
+            if contour.size() > self.detection_area_threshold:
                 self.isDetected == True
-        
-        if  self.isDetected ==  True:
+
+        if self.isDetected == True:
             return contour
-        return None 
-
-
+        return None
 
     #The function to rule them  all
     def path_following_udfc_cb(self, img_msg):
@@ -283,13 +293,17 @@ class PipelineFollowingNode():
         #     return None
      
         #Convertes from camera coordinates to odom/Beluga coordinates
-        tf_lookup_wc    = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5))
-        t_udfc_odom     = np.array([tf_lookup_wc.transform.translation.x,
-                                    tf_lookup_wc.transform.translation.y,
-                                    tf_lookup_wc.transform.translation.z])
+        tf_lookup_wc = self.__tfBuffer.lookup_transform(
+            self.parent_frame, self.child_frame, rospy.Time(),
+            rospy.Duration(5))
+        t_udfc_odom = np.array([
+            tf_lookup_wc.transform.translation.x,
+            tf_lookup_wc.transform.translation.y,
+            tf_lookup_wc.transform.translation.z
+        ])
 
         udfc_img = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
-        
+
         # Extracting the contour
         contour = self.findContour(udfc_img)
 
@@ -298,10 +312,10 @@ class PipelineFollowingNode():
             colin_vec, p0 = self.find_line(contour)
 
             #Estimating the next waypoint
-            waypoint  = self.estimate_next_waypoint(t_udfc_odom, colin_vec, p0)
+            waypoint = self.estimate_next_waypoint(t_udfc_odom, colin_vec, p0)
 
             #Publishing the next waypoint
-            self.publish_waypoint(self.wpPub, "Pipeline",  waypoint)
+            self.publish_waypoint(self.wpPub, "Pipeline", waypoint)
 
 
 if __name__ == '__main__':
