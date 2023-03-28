@@ -67,9 +67,9 @@ class PipelineFollowingNode():
 
     def __init__(self):
         rospy.init_node('pointcloud_processing_node')
-        
-        # For publishing results for Auto, parameters for converging data to odor frame. 
-        self.parent_frame = 'base_link' 
+
+        # For publishing results for Auto, parameters for converging data to odor frame.
+        self.parent_frame = 'base_link'
         self.child_frame = 'udfc_link'
 
         fx_opt, fy_opt, cx_opt, cy_opt = rospy.get_param(
@@ -123,7 +123,9 @@ class PipelineFollowingNode():
         self.__tfBroadcaster = tf2_ros.TransformBroadcaster()
 
         #The init will only continue if a transform between parent frame and child frame can be found
-        while self.__tfBuffer.can_transform(self.parent_frame, self.child_frame, rospy.Time()) == 0:
+        while self.__tfBuffer.can_transform(self.parent_frame,
+                                            self.child_frame,
+                                            rospy.Time()) == 0:
             try:
                 rospy.loginfo("No transform between " +
                               str(self.parent_frame) + ' and ' +
@@ -138,7 +140,8 @@ class PipelineFollowingNode():
 
         # Wait for first image
         self.bridge = CvBridge()
-        img = rospy.wait_for_message("/cv/image_preprocessing/CLAHE_single/udfc", Image)
+        img = rospy.wait_for_message(
+            "/cv/image_preprocessing/CLAHE_single/udfc", Image)
         try:
             cv_image = self.bridge.imgmsg_to_cv2(img, "passthrough")
             self.image_shape = cv_image.shape
@@ -160,7 +163,8 @@ class PipelineFollowingNode():
 
         p.objectPose.pose.position.x = waypoint[0]
         p.objectPose.pose.position.y = waypoint[1]
-        p.objectPose.pose.position.z = waypoint[2]  #z is set to zero as default, we need to ignore depth data comming from this class.
+        p.objectPose.pose.position.z = waypoint[
+            2]  #z is set to zero as default, we need to ignore depth data comming from this class.
         p.objectPose.pose.orientation.x = 0
         p.objectPose.pose.orientation.y = 0
         p.objectPose.pose.orientation.z = 0
@@ -225,7 +229,7 @@ class PipelineFollowingNode():
         n = 5
         k = 1000
         t = 10000
-        d = np.size(points)/10
+        d = np.size(points) / 10
         regressor = RANSAC(n,
                            k,
                            t,
@@ -242,15 +246,15 @@ class PipelineFollowingNode():
         x, y = symbols('x y')
 
         y = alpha * x + beta
-        sol = solve(Eq(y,620))
+        sol = solve(Eq(y, 620))
 
         vx = 1
         vy = alpha
 
         colin_vec = np.ravel(np.array((vx, vy)))
         colin_vec /= np.linalg.norm(colin_vec)
-        p0 = [620,float(sol[0])]
-        print('colin_vec:',colin_vec)
+        p0 = [620, float(sol[0])]
+        print('colin_vec:', colin_vec)
         print('p0:', p0)
 
         return colin_vec, p0
@@ -279,9 +283,9 @@ class PipelineFollowingNode():
         contour = self.extractor.YellowEdgesHSV(img, self.lower_hue,
                                                 self.upper_hue)
         points = np.argwhere(contour > 1)
-        print('Number of points in contour: ', points[:,0].size)
+        print('Number of points in contour: ', points[:, 0].size)
 
-        if points[:,0].size > self.detection_area_threshold:
+        if points[:, 0].size > self.detection_area_threshold:
             print('isDetected = True')
             self.isDetected = True
             return contour
@@ -314,7 +318,7 @@ class PipelineFollowingNode():
 
         # Extracting the contour
         contour = self.findContour(udfc_img)
-        
+
         if contour is not None:
             #Approximating the line
             colin_vec, p0 = self.find_line(contour)
