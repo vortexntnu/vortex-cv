@@ -12,7 +12,7 @@ from cv_msgs.msg import Point2, PointArray
 #from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
 
 from cv_bridge import CvBridge, CvBridgeError
-import dynamic_reconfigure.client
+#import dynamic_reconfigure.client
 
 #from geometry_msgs.msg import PointStamped
 from vortex_msgs.msg import ObjectPosition
@@ -29,7 +29,7 @@ import cv2
 from os.path import join
 
 import feature_detection
-import image_extraction
+from image_extraction import Image_extraction
 from RANSAC import RANSAC, LinearRegressor
 from sympy import *
 
@@ -67,7 +67,7 @@ class PipelineFollowingNode():
 
     def __init__(self):
         rospy.init_node('pointcloud_processing_node')
-
+        
         # For publishing results for Auto, parameters for converging data to odor frame. 
         self.parent_frame = 'odom' 
         self.child_frame = 'udfc_link'
@@ -95,7 +95,7 @@ class PipelineFollowingNode():
         # Initialize state and bools
         self.possible_states = ["path/search", "path/converge", "path/execute"]
         self.current_state = ""
-        self.objectID = "path"
+        self.objectID = "pipeline"
         self.detection_area_threshold = 2000
 
         self.isDetected            = False
@@ -110,8 +110,24 @@ class PipelineFollowingNode():
         self.h_path_prior       = 0.1   # Height of path
         self.Z_prior_ref        = 1  # Optimal z-coordinate for performing pfps,will be regulated for TAC 
 
+        self.extractor = Image_extraction()
+
+        self.__tfBuffer = tf2_ros.Buffer()
+
+        #The init will only continue if a transform between parent frame and child frame can be found
+        while self.__tfBuffer.can_transform(self.parent_frame, self.child_frame, rospy.Time()) == 0 and not rospy.is_shutdown():
+            try:
+                rospy.loginfo("No transform between "+str(self.parent_frame) +' and ' + str(self.child_frame))
+                rospy.sleep(2)
+            except: #, tf2_ros.ExtrapolationException  (tf2_ros.LookupException, tf2_ros.ConnectivityException)
+                rospy.sleep(2)
+                continue
+
+        rospy.loginfo("Transform between "+str(self.parent_frame) +' and ' + str(self.child_frame) + 'found.')
+        
         # Wait for first image
         img = rospy.wait_for_message("/cv/image_preprocessing/CLAHE_single/udfc", Image)
+        self.bridge = CvBridge()
         try:
             cv_image = self.bridge.imgmsg_to_cv2(img, "passthrough")
             self.image_shape = cv_image.shape
@@ -119,11 +135,6 @@ class PipelineFollowingNode():
 
         except CvBridgeError:
             rospy.logerr("CvBridge Error: {0}".format(e))
-
-        self.extractor = image_extraction()
-        self.__tfBuffer = tf2_ros.Buffer()
-
-        self.past_waypoint = []
 
     def publish_waypoint(self, publisher, objectID, waypoint):
         """
@@ -187,7 +198,7 @@ class PipelineFollowingNode():
         return point_odom
     
     
-    def find_line(self, contour, img_drawn=None):
+    def find_line(self, contour):
         """
         Uses RANSAC to find line and returns direction vector "colin_vec"
         and start point "p0"
@@ -217,8 +228,8 @@ class PipelineFollowingNode():
 
         line = Eq(y = alpha*x + beta)
 
-        x0 = solve(Eq(y,0))
-        y0 = solve(Eq(x,0))
+        x0 = solve(line(y,0))
+        y0 = solve(line(x,0))
         vx = 1
         vy = alpha
 
@@ -264,12 +275,12 @@ class PipelineFollowingNode():
     #The function to rule them  all
     def path_following_udfc_cb(self, img_msg):
         """Callbackfunction for the camera subscriber """
-
+        
         self.waypoint_header = img_msg.header
 
         #Killing the  node if it is not in its operating state(Given by the state machine-Subscribernode). 
-        if self.current_state not in self.possible_states:
-            return None
+        # if self.current_state not in self.possible_states:
+        #     return None
      
         #Convertes from camera coordinates to odom/Beluga coordinates
         tf_lookup_wc    = self.__tfBuffer.lookup_transform(self.parent_frame, self.child_frame, rospy.Time(), rospy.Duration(5))
