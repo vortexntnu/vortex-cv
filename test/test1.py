@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from test_RANSAC import RANSAC, LinearRegressor
 
 from feature_detection import ImageFeatureProcessing as ifp
+from sympy import symbols, Eq, solve
 
 img = cv.imread("./data/path_bendy_full.png")
 img_rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)
@@ -90,8 +91,36 @@ line = np.linspace(0, 1239, num=100).reshape(-1, 1)
 y = regressor.predict(line)
 plt.plot(line, y, c="peru")
 
-print(params)
-print([line[0], y[0]])
-print([line[1], y[1]])
+params = regressor.best_fit.params
+alpha = float(params[1])
+beta = float(params[0])
+x, y = symbols('x y')
+
+# alpha = 1.003
+# print('hellow world')
+# np.info(alpha)
+# beta = 1.003
+
+y = alpha*x + beta
+
+sol = solve(Eq(y,0))
+x0 = float(sol[0])
+y0 = beta
+vx = 1
+vy = alpha
+
+print('hello')
+print(x0)
+print(y0)
+
+colin_vec = np.ravel(np.array((vx, vy)))
+p0 = np.ravel(np.array((x0, y0)))
+
+colin_vec = [colin_vec[0],colin_vec[1],0]
+p0 = [p0[0],p0[1],0]
+
+print('hello')
+print(colin_vec)
+print(p0)
 
 plt.show()
