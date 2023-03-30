@@ -101,9 +101,9 @@ x, y = symbols('x y')
 # np.info(alpha)
 # beta = 1.003
 
-y = alpha*x + beta
+y = alpha * x + beta
 
-sol = solve(Eq(y,0))
+sol = solve(Eq(y, 0))
 x0 = float(sol[0])
 y0 = beta
 vx = 1
@@ -112,8 +112,8 @@ vy = alpha
 colin_vec = np.ravel(np.array((vx, vy)))
 p0 = np.ravel(np.array((x0, y0)))
 
-colin_vec = [colin_vec[0],colin_vec[1],0]
-p0 = [p0[0],p0[1],0]
+colin_vec = [colin_vec[0], colin_vec[1], 0]
+p0 = [p0[0], p0[1], 0]
 
 print('params:', params)
 
