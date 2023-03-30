@@ -173,16 +173,17 @@ class PipelineFollowingNode():
         #Error
         e1 = 620 - beta
         e2 = alpha
-        theta = self.K1*e1 + self.K2*e2
-        theta_rad = theta*2*np.pi/360
+        theta = self.K1 * e1 + self.K2 * e2
+        theta_rad = theta * 2 * np.pi / 360
 
         p0 = np.array([
             self.odom.pose.pose.position.x, self.odom.pose.pose.position.y,
             self.odom.pose.pose.position.z
         ])
 
-        waypoint = p0 + self.x_step*np.array([np.cos(theta_rad), np.sin(theta_rad), 0])
-        q = np.array([np.cos(theta_rad/2), 0, 0, np.sin(theta_rad/2)])
+        waypoint = p0 + self.x_step * np.array(
+            [np.cos(theta_rad), np.sin(theta_rad), 0])
+        q = np.array([np.cos(theta_rad / 2), 0, 0, np.sin(theta_rad / 2)])
 
         print('e1:', e1)
         print('e2:', e2)
