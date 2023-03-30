@@ -57,10 +57,10 @@ def mean_square_error(y_true, y_pred):
     return np.sum(square_error_loss(y_true, y_pred)) / y_true.shape[0]
 
 
-n = 5
+n = 10
 k = 1000
-t = 4500
-d = np.size(points) / 2.3
+t = 500
+d = np.size(points) / 6
 regressor = RANSAC(n,
                    k,
                    t,
@@ -109,18 +109,12 @@ y0 = beta
 vx = 1
 vy = alpha
 
-print('hello')
-print(x0)
-print(y0)
-
 colin_vec = np.ravel(np.array((vx, vy)))
 p0 = np.ravel(np.array((x0, y0)))
 
 colin_vec = [colin_vec[0],colin_vec[1],0]
 p0 = [p0[0],p0[1],0]
 
-print('hello')
-print(colin_vec)
-print(p0)
+print('params:', params)
 
 plt.show()

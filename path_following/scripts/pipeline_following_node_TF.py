@@ -1,51 +1,97 @@
 #!/usr/bin/env python
 
+from cProfile import label
+from matplotlib.pyplot import contour
+from plumbum import local
 import rospy
+import rospkg
+
 from sensor_msgs.msg import Image
-from std_msgs.msg import String
-from nav_msgs.msg import Odometry
+from std_msgs.msg import Float32, Empty, String
+from cv_msgs.msg import Point2, PointArray
+#from darknet_ros_msgs.msg import BoundingBox, BoundingBoxes
+
 from cv_bridge import CvBridge, CvBridgeError
+#import dynamic_reconfigure.client
+
+#from geometry_msgs.msg import PointStamped
 from vortex_msgs.msg import ObjectPosition
+from geometry_msgs.msg import TransformStamped, Point
+
+import tf2_ros
+import tf2_geometry_msgs.tf2_geometry_msgs
+
 import numpy as np
+import matplotlib.pyplot as plt
+from timeit import default_timer as timer
+import traceback
+import cv2
+from os.path import join
+
+import feature_detection
 from image_extraction import Image_extraction
 from RANSAC import RANSAC, LinearRegressor
-
+from sympy import symbols, Eq, solve
 """
 Node made to publish data to the landmarkserver of type "Objectposition", which is an own defined Vortex msg and can be found in the vortex-msgs respository.
 It takes in data from the UDFC (Monocamera facing downwards under Beluga). The "mission_topic_sub"-subscriber controls if our node is running.
-It is running if the state = "pipeline/execute", "pipeline/standby".
+It is running if the state = "path/search", "path/converge" or "path/execute".
 For the TAC 2023, the execute state will be the most relevant, but we dont have to get as good data to estimate direction as they did in the 2022 Robosub.
-This node is mainly a hard copy of the path_following_node, used at Robosub 2022, but with adaptions for the TAC2023"
+This node is mainly a hard copy of thepath_following_node, used at Robosub 2022, but with adaptions for the TAC2023"
 Tuva  
 """
 
 
 class PipelineFollowingNode():
     """
-    Node for completing the pipeline following task in TAC 2023. By usage of feature 
-    processing a contour is extracted befare a RANSAC algoritm is performed to extract
-    a line. The parameters, alpha and beta, from the line is then used to calculate a 
-    vector that estimates points that will guide the drone along the pipeline.
+    Node for comperhensive solution to the path following task in RoboSub 2022 on Perception side
+    The Node only operates when fsm is in path_search/converge/execute state, and governs the transition between these
+    
+    3 main problems need to be solved by the node, and they are associated to the possible states for path:
+
+    Doesnt currently make any difference which state we are in
+
+        path_search:        During path search the node uses ZED camera feed to detect the path. After path is detected, the coordinates are published to Autonomous
+                            and we request switch to converge.
+
+        path_converge:      During path converge the goal is to center the path in the FOV of the underwater downwards facing camera (in the future refered to as the UDFC)
+                            The path is classified in UDFC frame and it's areal centroid is regulated to the middle of the image through a local PID scheme. The assumption being
+                            that this scheme will progressively get the path more and more into FOV, and finally in the centre of UDFC frame. After the path is sufficiently
+                            centered we move on to execute.
+
+        path_execute:       During execute the drone keeps station over the path while Perception solves the estimation problem of the path to the next task. Here we can use
+                            the fact that we are given the oportunity for multiple measurements and samples to cast the task as a batch problem and extract as much information
+                            as possible before we declare a solution. The search for the next task starts when a waypoint is given to Autonomous after we have estimated path 
+                            direction.
     """
 
     def __init__(self):
         rospy.init_node('pointcloud_processing_node')
+        
+        # For publishing results for Auto, parameters for converging data to odor frame. 
+        self.parent_frame = 'base_link' 
+        self.child_frame = 'udfc_link'
+
+        fx_opt, fy_opt, cx_opt, cy_opt = rospy.get_param(
+            "fx_opt"), rospy.get_param("fy_opt"), rospy.get_param(
+                "cx_opt"), rospy.get_param("cy_opt")
+        self.K_opt = np.eye(3)
+        self.K_opt[0, 0] = fx_opt
+        self.K_opt[1, 1] = fy_opt
+        self.K_opt[0, 2] = cx_opt
+        self.K_opt[1, 2] = cy_opt
+
+        self.K_opt_inv = np.linalg.inv(self.K_opt)
 
         #Parameters for pipe color (lower-> more red, higher -> more green, yellow is around 60)
         self.lower_hue = 20
         self.upper_hue = 80
-        #Parameters for waypoint estimation
-        self.K1 = -0.05 
-        self.K2 = -0.5
-        self.x_step = 0.5
 
         # Subscribers
         self.udfcSub = rospy.Subscriber("/cv/image_preprocessing/CLAHE/udfc",
                                         Image, self.path_following_udfc_cb)
         self.mission_topic_sub = rospy.Subscriber("/fsm/state", String,
                                                   self.update_mission)
-        rospy.Subscriber("/odometry/filtered", Odometry, self.odom_cb)
-        self.odom = Odometry
 
         #Topic to be subscribed by the landmark server
         self.wpPub = rospy.Publisher('/fsm/object_positions_in',
@@ -53,7 +99,7 @@ class PipelineFollowingNode():
                                      queue_size=1)
 
         # Initialize state and bools
-        self.possible_states = ["pipeline/execute", "pipeline/standby"]
+        self.possible_states = ["path/search", "path/converge", "path/execute"]
         self.current_state = ""
         self.objectID = "pipeline"
         self.detection_area_threshold = 200
@@ -72,6 +118,24 @@ class PipelineFollowingNode():
 
         self.extractor = Image_extraction()
 
+        self.__tfBuffer = tf2_ros.Buffer()
+        self.__listener = tf2_ros.TransformListener(self.__tfBuffer)
+        self.__tfBroadcaster = tf2_ros.TransformBroadcaster()
+
+        #The init will only continue if a transform between parent frame and child frame can be found
+        while self.__tfBuffer.can_transform(self.parent_frame, self.child_frame, rospy.Time()) == 0:
+            try:
+                rospy.loginfo("No transform between " +
+                              str(self.parent_frame) + ' and ' +
+                              str(self.child_frame))
+                rospy.sleep(2)
+            except:  #, tf2_ros.ExtrapolationException  (tf2_ros.LookupException, tf2_ros.ConnectivityException)
+                rospy.sleep(2)
+                continue
+
+        rospy.loginfo("Transform between " + str(self.parent_frame) + ' and ' +
+                      str(self.child_frame) + 'found.')
+
         # Wait for first image
         self.bridge = CvBridge()
         img = rospy.wait_for_message("/cv/image_preprocessing/CLAHE_single/udfc", Image)
@@ -83,9 +147,6 @@ class PipelineFollowingNode():
 
         except CvBridgeError:
             rospy.logerr("CvBridge Error: {0}".format(e))
-    
-    def odom_cb(self, msg):
-        self.odom = msg
 
     def publish_waypoint(self, publisher, objectID, waypoint):
         """
@@ -120,6 +181,32 @@ class PipelineFollowingNode():
         """
         self.current_state = mission.data
 
+    def map_to_odom(self, point_cam, trans_udfc_odom, dp_ref=None):
+        """
+        Takes in a point in homogenious camera coordinates and calculates the X, Y, Z in odom frame using the similarity 
+        triangles equations through the dp assumptions of no roll and pitch and known height over ground.
+
+        Input: 
+            point_cam - [x_tilde, y_tilde, 1]^T
+            trans_udfc_odom - position of udfc in odom
+
+        Output:
+            point_odom - estimate of point in odom frame [X, Y, Z]^T
+        """
+
+        z_over_path = self.H_pool_prior - abs(
+            trans_udfc_odom[2]) - self.h_path_prior
+
+        # Map X and Y to world frame
+        X = z_over_path * point_cam[0]
+        Y = z_over_path * point_cam[1]
+
+        if dp_ref:
+            point_odom = np.array([X, Y, self.Z_prior_ref]) + trans_udfc_odom
+        else:
+            point_odom = np.array([X, Y, z_over_path]) + trans_udfc_odom
+        return point_odom
+
     def find_line(self, contour):
         """
         Uses RANSAC to find line and returns direction vector "colin_vec"
@@ -152,10 +239,24 @@ class PipelineFollowingNode():
         params = regressor.best_fit.params
         alpha = float(params[1])
         beta = float(params[0])
+        x, y = symbols('x y')
 
-        return alpha, beta
+        y = alpha * x + beta
+        sol = solve(Eq(y,620))
 
-    def estimate_next_waypoint(self, alpha, beta):
+        vx = 1
+        vy = alpha
+
+        colin_vec = np.ravel(np.array((vx, vy)))
+        colin_vec /= np.linalg.norm(colin_vec)
+        p0 = [620,float(sol[0])]
+        print('colin_vec:',colin_vec)
+        print('p0:', p0)
+        print('params', params)
+
+        return colin_vec, p0
+
+    def estimate_next_waypoint(self, t_udfc_odom, colin_vec, p0):
         """
         Not ftested in any way!
         Brainstorming:
@@ -167,22 +268,11 @@ class PipelineFollowingNode():
 
 
         """
-        #Error
-        e1 = 620 - beta
-        e2 = alpha
-        theta = self.K1*e1 + self.K2*e2
-
-        p0 = np.array([self.odom.pose.pose.position.x, 
-                       self.odom.pose.pose.position.y, 
-                       self.odom.pose.pose.position.z])
-
-        waypoint = p0 + self.x_step*np.array([np.cos(theta*2*np.pi/360), np.sin(theta*2*np.pi/360), 0])
-
-        print('e1:',e1)
-        print('e2:',e2)
-        print('theta:', theta)
-        print('Waypoint:', waypoint)
-
+        #Getting the point
+        p1 = p0 + 1 * np.abs(colin_vec)
+        print('p1: ', p1)
+        waypoint = self.map_to_odom(p1, t_udfc_odom)
+        print('waypoint: ', waypoint)
         return waypoint
 
     def findContour(self, img):
@@ -211,6 +301,16 @@ class PipelineFollowingNode():
         # if self.current_state not in self.possible_states:
         #     return None
 
+        #Convertes from camera coordinates to odom/Beluga coordinates
+        tf_lookup_wc = self.__tfBuffer.lookup_transform(
+            self.parent_frame, self.child_frame, rospy.Time(),
+            rospy.Duration(5))
+        t_udfc_odom = np.array([
+            tf_lookup_wc.transform.translation.x,
+            tf_lookup_wc.transform.translation.y,
+            tf_lookup_wc.transform.translation.z
+        ])
+
         udfc_img = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
 
         # Extracting the contour
@@ -218,10 +318,10 @@ class PipelineFollowingNode():
         
         if contour is not None:
             #Approximating the line
-            alpha, beta = self.find_line(contour)
+            colin_vec, p0 = self.find_line(contour)
 
             #Estimating the next waypoint
-            waypoint = self.estimate_next_waypoint(alpha, beta)
+            waypoint = self.estimate_next_waypoint(t_udfc_odom, colin_vec, p0)
 
             #Publishing the next waypoint
             self.publish_waypoint(self.wpPub, "Pipeline", waypoint)
