@@ -25,6 +25,7 @@ class RANSAC:
         self.best_fit = None
         self.best_error = np.inf
         self.points = None
+        self.fail = True
 
     def fit(self, X, y):
         for _ in range(self.k):  #while a == False or i > self.k:
@@ -41,6 +42,7 @@ class RANSAC:
             inlier_ids = ids[self.n:][np.flatnonzero(thresholded).flatten()]
 
             if inlier_ids.size > self.d:
+                self.fail = False
                 inlier_points = np.hstack([maybe_inliers, inlier_ids])
                 better_model = copy(self.model).fit(X[inlier_points],
                                                     y[inlier_points])

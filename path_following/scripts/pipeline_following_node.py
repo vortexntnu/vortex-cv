@@ -103,8 +103,8 @@ class PipelineFollowingNode():
             2]  #z is set to zero as default, we need to ignore depth data comming from this class.
         p.objectPose.pose.orientation.x = 0
         p.objectPose.pose.orientation.y = 0
-        p.objectPose.pose.orientation.z = q[4]
-        p.objectPose.pose.orientation.w = q[1]
+        p.objectPose.pose.orientation.z = q[3]
+        p.objectPose.pose.orientation.w = q[0]
 
         p.isDetected = self.isDetected
         p.estimateConverged = self.estimateConverged
@@ -149,6 +149,9 @@ class PipelineFollowingNode():
                            metric=mean_square_error)
 
         regressor.fit(X, y)
+        if regressor.fail:
+            self.isDetected = False
+            return None, None
 
         params = regressor.best_fit.params
         alpha = float(params[1])
@@ -226,11 +229,17 @@ class PipelineFollowingNode():
             #Approximating the line
             alpha, beta = self.find_line(contour)
 
-            #Estimating the next waypoint
-            waypoint, q = self.estimate_next_waypoint(alpha, beta)
+            if self.isDetected:
+                #Estimating the next waypoint
+                waypoint, q = self.estimate_next_waypoint(alpha, beta)
 
-            #Publishing the next waypoint
-            self.publish_waypoint(self.wpPub, "Pipeline", waypoint, q)
+                #Publishing the next waypoint
+                self.publish_waypoint(self.wpPub, "Pipeline", waypoint, q)
+            else:
+                p = ObjectPosition()
+                p.isDetected = self.isDetected
+                self.wpPub.publish(p)
+                print('RANSAC failed')
 
 
 if __name__ == '__main__':
