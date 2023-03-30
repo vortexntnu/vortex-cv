@@ -9,7 +9,6 @@ from vortex_msgs.msg import ObjectPosition
 import numpy as np
 from image_extraction import Image_extraction
 from RANSAC import RANSAC, LinearRegressor
-
 """
 Node made to publish data to the landmarkserver of type "Objectposition", which is an own defined Vortex msg and can be found in the vortex-msgs respository.
 It takes in data from the UDFC (Monocamera facing downwards under Beluga). The "mission_topic_sub"-subscriber controls if our node is running.
@@ -35,7 +34,7 @@ class PipelineFollowingNode():
         self.lower_hue = 20
         self.upper_hue = 80
         #Parameters for waypoint estimation
-        self.K1 = -0.05 
+        self.K1 = -0.05
         self.K2 = -0.5
         self.x_step = 0.5
 
@@ -84,7 +83,7 @@ class PipelineFollowingNode():
 
         except CvBridgeError:
             rospy.logerr("CvBridge Error: {0}".format(e))
-    
+
     def odom_cb(self, msg):
         self.odom = msg
 
@@ -140,7 +139,7 @@ class PipelineFollowingNode():
         n = 10
         k = 1000
         t = 400
-        d = np.size(points)/4
+        d = np.size(points) / 4
         regressor = RANSAC(n,
                            k,
                            t,
@@ -177,15 +176,16 @@ class PipelineFollowingNode():
         theta = self.K1*e1 + self.K2*e2
         theta_rad = theta*2*np.pi/360
 
-        p0 = np.array([self.odom.pose.pose.position.x, 
-                       self.odom.pose.pose.position.y, 
-                       self.odom.pose.pose.position.z])
+        p0 = np.array([
+            self.odom.pose.pose.position.x, self.odom.pose.pose.position.y,
+            self.odom.pose.pose.position.z
+        ])
 
         waypoint = p0 + self.x_step*np.array([np.cos(theta_rad), np.sin(theta_rad), 0])
         q = np.array([np.cos(theta_rad/2), 0, 0, np.sin(theta_rad/2)])
 
-        print('e1:',e1)
-        print('e2:',e2)
+        print('e1:', e1)
+        print('e2:', e2)
         print('theta:', theta)
         print('Waypoint:', waypoint)
 
