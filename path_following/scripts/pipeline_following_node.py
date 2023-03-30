@@ -9,7 +9,6 @@ from vortex_msgs.msg import ObjectPosition
 import numpy as np
 from image_extraction import Image_extraction
 from RANSAC import RANSAC, LinearRegressor
-
 """
 Node made to publish data to the landmarkserver of type "Objectposition", which is an own defined Vortex msg and can be found in the vortex-msgs respository.
 It takes in data from the UDFC (Monocamera facing downwards under Beluga). The "mission_topic_sub"-subscriber controls if our node is running.
@@ -35,7 +34,7 @@ class PipelineFollowingNode():
         self.lower_hue = 20
         self.upper_hue = 80
         #Parameters for waypoint estimation
-        self.K1 = -0.05 
+        self.K1 = -0.05
         self.K2 = -0.5
         self.x_step = 0.5
 
@@ -84,7 +83,7 @@ class PipelineFollowingNode():
 
         except CvBridgeError:
             rospy.logerr("CvBridge Error: {0}".format(e))
-    
+
     def odom_cb(self, msg):
         self.odom = msg
 
@@ -140,7 +139,7 @@ class PipelineFollowingNode():
         n = 5
         k = 1000
         t = 400
-        d = np.size(points)/4
+        d = np.size(points) / 4
         regressor = RANSAC(n,
                            k,
                            t,
@@ -172,16 +171,20 @@ class PipelineFollowingNode():
         #Error
         e1 = 620 - beta
         e2 = alpha
-        theta = self.K1*e1 + self.K2*e2
+        theta = self.K1 * e1 + self.K2 * e2
 
-        p0 = np.array([self.odom.pose.pose.position.x, 
-                       self.odom.pose.pose.position.y, 
-                       self.odom.pose.pose.position.z])
+        p0 = np.array([
+            self.odom.pose.pose.position.x, self.odom.pose.pose.position.y,
+            self.odom.pose.pose.position.z
+        ])
 
-        waypoint = p0 + self.x_step*np.array([np.cos(theta*2*np.pi/360), np.sin(theta*2*np.pi/360), 0])
+        waypoint = p0 + self.x_step * np.array([
+            np.cos(theta * 2 * np.pi / 360),
+            np.sin(theta * 2 * np.pi / 360), 0
+        ])
 
-        print('e1:',e1)
-        print('e2:',e2)
+        print('e1:', e1)
+        print('e2:', e2)
         print('theta:', theta)
         print('Waypoint:', waypoint)
 
