@@ -88,7 +88,7 @@ class PipelineFollowingNode():
     def odom_cb(self, msg):
         self.odom = msg
 
-    def publish_waypoint(self, publisher, objectID, waypoint):
+    def publish_waypoint(self, publisher, objectID, waypoint, q):
         """
         Publishes a waypoint as an Objectposition-msg, using the given publisher. The interesting components are the Object Id, x and y positions and whether anything is detected or not.
         """
@@ -104,8 +104,8 @@ class PipelineFollowingNode():
             2]  #z is set to zero as default, we need to ignore depth data comming from this class.
         p.objectPose.pose.orientation.x = 0
         p.objectPose.pose.orientation.y = 0
-        p.objectPose.pose.orientation.z = 0
-        p.objectPose.pose.orientation.w = 1
+        p.objectPose.pose.orientation.z = q[4]
+        p.objectPose.pose.orientation.w = q[1]
 
         p.isDetected = self.isDetected
         p.estimateConverged = self.estimateConverged
@@ -137,7 +137,7 @@ class PipelineFollowingNode():
         def mean_square_error(y_true, y_pred):
             return np.sum(square_error_loss(y_true, y_pred)) / y_true.shape[0]
 
-        n = 5
+        n = 10
         k = 1000
         t = 400
         d = np.size(points)/4
@@ -154,6 +154,8 @@ class PipelineFollowingNode():
         params = regressor.best_fit.params
         alpha = float(params[1])
         beta = float(params[0])
+
+        print('points:', regressor.points.size)
 
         return alpha, beta
 
@@ -173,19 +175,21 @@ class PipelineFollowingNode():
         e1 = 620 - beta
         e2 = alpha
         theta = self.K1*e1 + self.K2*e2
+        theta_rad = theta*2*np.pi/360
 
         p0 = np.array([self.odom.pose.pose.position.x, 
                        self.odom.pose.pose.position.y, 
                        self.odom.pose.pose.position.z])
 
-        waypoint = p0 + self.x_step*np.array([np.cos(theta*2*np.pi/360), np.sin(theta*2*np.pi/360), 0])
+        waypoint = p0 + self.x_step*np.array([np.cos(theta_rad), np.sin(theta_rad), 0])
+        q = np.array([np.cos(theta_rad/2), 0, 0, np.sin(theta_rad/2)])
 
         print('e1:',e1)
         print('e2:',e2)
         print('theta:', theta)
         print('Waypoint:', waypoint)
 
-        return waypoint
+        return waypoint, q
 
     def findContour(self, img):
 
@@ -223,10 +227,10 @@ class PipelineFollowingNode():
             alpha, beta = self.find_line(contour)
 
             #Estimating the next waypoint
-            waypoint = self.estimate_next_waypoint(alpha, beta)
+            waypoint, q = self.estimate_next_waypoint(alpha, beta)
 
             #Publishing the next waypoint
-            self.publish_waypoint(self.wpPub, "Pipeline", waypoint)
+            self.publish_waypoint(self.wpPub, "Pipeline", waypoint, q)
 
 
 if __name__ == '__main__':
