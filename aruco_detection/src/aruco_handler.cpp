@@ -1,5 +1,10 @@
 #include "aruco_handler.hpp"
 
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <algorithm>
+
 ArucoHandler::ArucoHandler()
 : detectorParams{cv::aruco::DetectorParameters::create()}
 {
@@ -122,10 +127,20 @@ size_t ArucoHandler::detectBoardPose(cv::Mat& img, const cv::Ptr<cv::aruco::Boar
     std::vector<int> ids;
 
     cv::aruco::detectMarkers(img, board->dictionary, corners, ids, detectorParams, rejected);//, cameraMatrix, distortionCoefficients); // extra parameters for openCV 3.2.0
-    
+    ""
     if (ids.size() == 0) return 0;
 
-    
+    //START OF NEW CODE
+    std::ofstream outputFile("listOfArucoCodes.txt");
+
+    if (outputFile.is_open()){
+        for (auto val : ids) {
+            if (std::find(std::istream_iterator<int>(outputFile), std::istream_iterator<int>(), val) == std::istream_iterator<int>()) {
+                outputFile << val << " ";
+            }
+    }
+    outputFile.close()
+    // END OF NEW CODE
 
 
 
