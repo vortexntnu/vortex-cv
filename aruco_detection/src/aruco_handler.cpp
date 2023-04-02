@@ -130,18 +130,8 @@ size_t ArucoHandler::detectBoardPose(cv::Mat& img, const cv::Ptr<cv::aruco::Boar
     ""
     if (ids.size() == 0) return 0;
 
-    //START OF NEW CODE
-    std::ofstream outputFile("listOfArucoCodes.txt");
-
-    if (outputFile.is_open()){
-        for (auto val : ids) {
-            if (std::find(std::istream_iterator<int>(outputFile), std::istream_iterator<int>(), val) == std::istream_iterator<int>()) {
-                outputFile << val << " ";
-            }
-    }
-    outputFile.close()
-    // END OF NEW CODE
-
+    void writeIdToFile(ids);
+   
 
 
     cv::Vec3d rvec, tvec;
@@ -159,4 +149,19 @@ size_t ArucoHandler::detectBoardPose(cv::Mat& img, const cv::Ptr<cv::aruco::Boar
 
 
     return ids.size();
+}
+
+
+void ArucoHandler::writeIdToFile(vector<int> ids)
+{
+    std::ofstream outputFile("listOfArucoCodes.txt");
+
+    if (outputFile.is_open()){
+        for (auto val : ids) {
+            if (std::find(std::istream_iterator<int>(outputFile), std::istream_iterator<int>(), val) == std::istream_iterator<int>()) {
+                outputFile << val << " ";
+            }
+        }
+    utputFile.close()
+    }
 }
