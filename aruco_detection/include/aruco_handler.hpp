@@ -40,7 +40,7 @@ public:
      * @param pose output: estimated pose of board
     */
     size_t detectBoardPose(cv::Mat& img, const cv::Ptr<cv::aruco::Board>& board, geometry_msgs::Pose& pose);
-
+    void writeIdToFile(vector<int> ids);
     void drawAxis();
     
     /**
@@ -77,3 +77,4 @@ protected:
     cv::Ptr<cv::aruco::DetectorParameters> detectorParams;
 
 };
+
