@@ -40,7 +40,6 @@ public:
      * @param pose output: estimated pose of board
     */
     size_t detectBoardPose(cv::Mat& img, const cv::Ptr<cv::aruco::Board>& board, geometry_msgs::Pose& pose);
-    void writeIdToFile(vector<int> ids);
     void drawAxis();
     
     /**
@@ -52,6 +51,8 @@ public:
      * @param ids ids of the 4 markers. Added clockwise from the top-left corner. All markers have the default orientation
     */
     cv::Ptr<cv::aruco::Board> createRectangularBoard(float markerSize, float xDist, float yDist, const cv::Ptr<cv::aruco::Dictionary>& dictionary, const std::vector<int>& ids);
+        
+    
     cv::Mat cameraMatrix;
     cv::Mat distortionCoefficients;
 protected:
