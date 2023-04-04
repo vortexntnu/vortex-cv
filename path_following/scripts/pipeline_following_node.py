@@ -240,15 +240,15 @@ class PipelineFollowingNode():
 
                 #Plotting
                 points = np.argwhere(contour > 1)
-                print(points[:,0].size)
+                print(points[:, 0].size)
                 plt.figure(1, figsize=(10, 14))
                 plt.clf()
                 plt.axes().set_aspect('equal')
                 plt.xlim(0, 927)
                 plt.ylim(0, 1239)
-                plt.scatter(points[:,0], points[:,1])
+                plt.scatter(points[:, 0], points[:, 1])
                 x = np.linspace(0, 1239, num=100).reshape(-1, 1)
-                plt.plot(x, alpha*x + beta)
+                plt.plot(x, alpha * x + beta)
                 plt.pause(0.05)
             else:
                 p = ObjectPosition()
@@ -257,13 +257,13 @@ class PipelineFollowingNode():
                 print('RANSAC failed')
 
                 points = np.argwhere(contour > 1)
-                print(points[:,0].size)
+                print(points[:, 0].size)
                 plt.figure(1, figsize=(10, 10))
                 plt.clf()
                 plt.axes().set_aspect('equal')
                 plt.xlim(0, 927)
                 plt.ylim(0, 1239)
-                plt.scatter(points[:,0], points[:,1])
+                plt.scatter(points[:, 0], points[:, 1])
                 plt.pause(0.05)
 
 
