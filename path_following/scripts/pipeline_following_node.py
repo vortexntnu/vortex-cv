@@ -9,6 +9,7 @@ from vortex_msgs.msg import ObjectPosition
 import numpy as np
 from image_extraction import Image_extraction
 from RANSAC import RANSAC, LinearRegressor
+from matplotlib import pyplot as plt
 """
 Node made to publish data to the landmarkserver of type "Objectposition", which is an own defined Vortex msg and can be found in the vortex-msgs respository.
 It takes in data from the UDFC (Monocamera facing downwards under Beluga). The "mission_topic_sub"-subscriber controls if our node is running.
@@ -31,8 +32,8 @@ class PipelineFollowingNode():
         rospy.init_node('pointcloud_processing_node')
 
         #Parameters for pipe color (lower-> more red, higher -> more green, yellow is around 60)
-        self.lower_hue = 20
-        self.upper_hue = 80
+        self.lower_hue = 10
+        self.upper_hue = 90
         #Parameters for waypoint estimation
         self.K1 = -0.05
         self.K2 = -0.5
@@ -138,8 +139,8 @@ class PipelineFollowingNode():
 
         n = 10
         k = 1000
-        t = 400
-        d = np.size(points) / 4
+        t = 500
+        d = np.size(points) / 10
         regressor = RANSAC(n,
                            k,
                            t,
@@ -236,11 +237,34 @@ class PipelineFollowingNode():
 
                 #Publishing the next waypoint
                 self.publish_waypoint(self.wpPub, "Pipeline", waypoint, q)
+
+                #Plotting
+                points = np.argwhere(contour > 1)
+                print(points[:,0].size)
+                plt.figure(1, figsize=(10, 14))
+                plt.clf()
+                plt.axes().set_aspect('equal')
+                plt.xlim(0, 927)
+                plt.ylim(0, 1239)
+                plt.scatter(points[:,0], points[:,1])
+                x = np.linspace(0, 1239, num=100).reshape(-1, 1)
+                plt.plot(x, alpha*x + beta)
+                plt.pause(0.05)
             else:
                 p = ObjectPosition()
                 p.isDetected = self.isDetected
                 self.wpPub.publish(p)
                 print('RANSAC failed')
+
+                points = np.argwhere(contour > 1)
+                print(points[:,0].size)
+                plt.figure(1, figsize=(10, 10))
+                plt.clf()
+                plt.axes().set_aspect('equal')
+                plt.xlim(0, 927)
+                plt.ylim(0, 1239)
+                plt.scatter(points[:,0], points[:,1])
+                plt.pause(0.05)
 
 
 if __name__ == '__main__':
