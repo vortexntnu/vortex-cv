@@ -4,6 +4,10 @@ import rospy
 import rospkg
 import numpy as np
 import yaml
+#from dynamic_reconfigure import server
+from dynamic_reconfigure.server import Server
+
+from tracking.cfg import TrackingConfig
 from tf.transformations import quaternion_from_euler
 from track_manager_multiple_tracks import MultiTargetTrackManager, PDAF2MN
 
@@ -40,7 +44,7 @@ class Tracker:
     def __init__(self):
 
         rospy.init_node("MultiTargetTracker")
-        rospy.Subscriber("/lidar/clusters", PoseArray, self.cb)
+        rospy.Subscriber("/lidar/clusters", PoseArray, self.data_cb)
         self.pub = rospy.Publisher(
             "/tracking/mul_tracked_cv_objects", OdometryArray, queue_size=10
         )
@@ -58,22 +62,44 @@ class Tracker:
 
         self.track_manager = MultiTargetTrackManager(config_loaded)
 
+        self.s = Server(TrackingConfig, self.reconfigure_cb)
+
         self.time_step = 0.1
         self.prev_time = 0
         self.observations = None
 
-    def cb(self, msg):
+        # Use configurable parameters
+        validation_gate_scaling_param = rospy.get_param('/PDAF/validation_gate_scaling_param', config_loaded['pdaf']['validation_gate_scaling_param'])
+        p_no_match = rospy.get_param('/PDAF/p_no_match', config_loaded['pdaf']['p_no_match'])
+        # Q = np.array(rospy.get_param('/PDAF/Q', config_loaded['pdaf']['Q']))
+        # R = np.array(rospy.get_param('/PDAF/R', config_loaded['pdaf']['R']))
+        N_resurrect = rospy.get_param('/Manager/N_resurrect', config_loaded['manager']['N_resurrect'])
+        M_resurrect = rospy.get_param('/Manager/M_resurrect', config_loaded['manager']['M_resurrect'])
+        N_kill = rospy.get_param('/Manager/N_kill', config_loaded['manager']['N_kill'])
+        M_kill = rospy.get_param('/Manager/M_kill', config_loaded['manager']['M_kill'])
+        max_vel = rospy.get_param('/Manager/max_vel', config_loaded['manager']['max_vel'])
+        initial_measurement_covariance = rospy.get_param('/Manager/initial_measurement_covariance', config_loaded['manager']['initial_measurement_covariance'])
+
+
+
+    def data_cb(self, msg):
 
         self.unpack_pose_array_msg(msg)
         self.track_manager.step_once(self.observations, self.time_step)
         if len(self.track_manager.confirmed_tracks) > 0:
-            rospy.loginfo(
-                "%d objects are being tracked", len(self.track_manager.confirmed_tracks)
-            )
-            rospy.loginfo(
-                "%d potential new tracks", len(self.track_manager.tentative_tracks)
-            )
+            # rospy.loginfo(
+            #     "%d objects are being tracked", len(self.track_manager.confirmed_tracks)
+            # )
+            # rospy.loginfo(
+            #     "%d potential new tracks", len(self.track_manager.tentative_tracks)
+            # )
             self.publish()
+
+    def reconfigure_cb(self, config, level):
+        rospy.loginfo("Config updated: {}".format(config))
+        return config
+        
+        
 
     def publish(self):
 
