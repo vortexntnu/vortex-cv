@@ -59,3 +59,20 @@ services:
     environment:
       DISPLAY: :0
     entrypoint: ["/bin/bash", "-l"]
+
+  cv-arm64-noetic:
+    container_name: cv-arm64-noetic
+    build: 
+      context: ../..
+      dockerfile: vortex-cv/docker/Dockerfile.noetic
+      
+    volumes:
+        - "../..:/home/vortex/cv_ws/src"
+        - "/dev:/dev"
+        
+    stdin_open: true    
+    tty: true           
+    network_mode: host  
+    environment:
+      DISPLAY: :0
+    entrypoint: ["/bin/bash", "-l"]

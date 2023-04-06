@@ -9,20 +9,17 @@ SHELL ["/bin/bash", "-c"]
 ###################
 
 #ROS dependencies
-RUN apt update && \
-    apt install -y --no-install-recommends \
-    python-pip \
-    python-catkin-tools 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    python3-pip \
+    python3-catkin-tools 
 
 RUN apt update && \
     apt install -y --no-install-recommends \
-    apt-utils \
     ros-${distro}-tf \
     ros-${distro}-tf2 \
     ros-${distro}-tf2-geometry-msgs \
     python-yaml \
-    python-pip \
-    python-catkin-tools \
     ros-${distro}-ros-numpy 
 
 # pip install
