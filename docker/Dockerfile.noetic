@@ -1,0 +1,50 @@
+FROM arm64v8/ros:noetic
+
+ARG distro=noetic
+ARG DEBIAN_FRONTEND=noninteractive
+SHELL ["/bin/bash", "-c"] 
+
+###################
+## Install stuff ##
+###################
+
+#ROS dependencies
+RUN apt update && \
+    apt install -y --no-install-recommends \
+    python-pip \
+    python-catkin-tools 
+
+RUN apt update && \
+    apt install -y --no-install-recommends \
+    apt-utils \
+    ros-${distro}-tf \
+    ros-${distro}-tf2 \
+    ros-${distro}-tf2-geometry-msgs \
+    python-yaml \
+    python-pip \
+    python-catkin-tools \
+    ros-${distro}-ros-numpy 
+
+# pip install
+RUN pip install scipy && \
+    pip install matplotlib 
+
+
+
+###########
+## Build ##
+###########
+
+# Assume the root contains vortex-cv, darknet_ros_zed and ddynamic_reconfigure_python
+# This is the case when we build using ghcr
+COPY ./vortex-cv                    /vortex_ws/src/vortex-cv
+COPY ./vortex-msgs                  /vortex_ws/src/vortex-msgs
+COPY ./ddynamic_reconfigure_python  /vortex_ws/src/ddynamic_reconfigure_python
+
+# catkin build 
+RUN source /opt/ros/${distro}/setup.bash && \
+    cd ./vortex_ws && \
+    catkin build
+
+#ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/bin/bash"]
