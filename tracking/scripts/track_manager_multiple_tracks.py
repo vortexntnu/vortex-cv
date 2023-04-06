@@ -4,7 +4,6 @@ from typing import List
 from dataclasses import dataclass
 
 from pdaf import PDAF
-
 """
 
 Track manager - Manage multiple object tracking based on M/N method. Assuming tracks are sufficiently far apart so that pdaf is sufficient. 
@@ -21,6 +20,7 @@ class TrackStatus(Enum):
 
 
 class PDAF2MN:
+
     def __init__(self, config):
         self.pdaf = PDAF(config)
         self.m = 0
@@ -48,6 +48,7 @@ class PDAF2MN:
 
 
 class MultiTargetTrackManager:
+
     def __init__(self, config):
 
         self.config = config
@@ -65,8 +66,7 @@ class MultiTargetTrackManager:
 
         self.max_vel = config["manager"]["max_vel"]  # [m/s]
         self.initial_measurement_covariance = config["manager"][
-            "initial_measurement_covariance"
-        ]
+            "initial_measurement_covariance"]
 
         self.time_step = 0
 
@@ -104,9 +104,8 @@ class MultiTargetTrackManager:
     def update_status_on_confirmed_tracks(self):
 
         for track in self.confirmed_tracks:
-            track.pdaf.step_once(
-                self.observations_not_incorporated_in_track, self.time_step
-            )
+            track.pdaf.step_once(self.observations_not_incorporated_in_track,
+                                 self.time_step)
 
             # #Remove observation incorporated in this confirmed track
             # for o in track.pdaf.o_within_gate_arr:
@@ -137,12 +136,10 @@ class MultiTargetTrackManager:
         for track in self.tentative_tracks:
 
             track.n, track.m = self.update_confirmation_count(
-                track, self.observations_not_incorporated_in_track
-            )
+                track, self.observations_not_incorporated_in_track)
 
-            track.pdaf.step_once(
-                self.observations_not_incorporated_in_track, self.time_step
-            )
+            track.pdaf.step_once(self.observations_not_incorporated_in_track,
+                                 self.time_step)
 
             # #Remove obs incorporated in track
             # temp_list = self.observations_not_incorporated_in_track
@@ -178,14 +175,10 @@ class MultiTargetTrackManager:
             for i, o in enumerate(temp_list):
 
                 dist = np.sqrt(
-                    (o[0] - track.pdaf.prior_state_estimate.mean[0]) ** 2
-                    + (o[1] - track.pdaf.prior_state_estimate.mean[1]) ** 2
-                )
-                if (
-                    dist
-                    < self.max_vel * self.time_step
-                    + self.initial_measurement_covariance
-                ):
+                    (o[0] - track.pdaf.prior_state_estimate.mean[0])**2 +
+                    (o[1] - track.pdaf.prior_state_estimate.mean[1])**2)
+                if (dist < self.max_vel * self.time_step +
+                        self.initial_measurement_covariance):
                     temp_list.pop(i)
 
         self.observations_not_incorporated_in_track = temp_list
@@ -196,23 +189,21 @@ class MultiTargetTrackManager:
                 there_are_obs_within_gate,
                 an_obs_within_gate,
             ) = self.are_there_observations_inside_max_size_gate(
-                prev_o, self.observations_not_incorporated_in_track
-            )
+                prev_o, self.observations_not_incorporated_in_track)
             if there_are_obs_within_gate:
 
                 tentative_track = PDAF2MN(self.config)
 
                 tentative_track.pdaf.posterior_state_estimate.mean[
-                    0
-                ] = an_obs_within_gate[0]
+                    0] = an_obs_within_gate[0]
                 tentative_track.pdaf.posterior_state_estimate.mean[
-                    1
-                ] = an_obs_within_gate[1]
+                    1] = an_obs_within_gate[1]
 
                 self.tentative_tracks.append(tentative_track)
 
                 # Remove observation incorporated in new tentative track
-                self.observations_not_incorporated_in_track.remove(an_obs_within_gate)
+                self.observations_not_incorporated_in_track.remove(
+                    an_obs_within_gate)
 
     def update_confirmation_count(self, track: PDAF2MN, o_arr):
         m = track.m + 1
@@ -221,7 +212,8 @@ class MultiTargetTrackManager:
         (
             there_are_obs_within_gate,
             an_obs_within_gate,
-        ) = self.are_there_observations_inside_max_size_gate(predicted_o, o_arr)
+        ) = self.are_there_observations_inside_max_size_gate(
+            predicted_o, o_arr)
         if there_are_obs_within_gate:
             n = track.n + 1
         else:
@@ -229,19 +221,16 @@ class MultiTargetTrackManager:
 
         return n, m
 
-    def are_there_observations_inside_max_size_gate(self, predicted_position, o_arr):
+    def are_there_observations_inside_max_size_gate(self, predicted_position,
+                                                    o_arr):
 
         for o in o_arr:
 
-            dist = np.sqrt(
-                (o[0] - predicted_position[0]) ** 2
-                + (o[1] - predicted_position[1]) ** 2
-            )
+            dist = np.sqrt((o[0] - predicted_position[0])**2 +
+                           (o[1] - predicted_position[1])**2)
 
-            if (
-                dist
-                < self.max_vel * self.time_step + self.initial_measurement_covariance
-            ):
+            if (dist < self.max_vel * self.time_step +
+                    self.initial_measurement_covariance):
                 return True, o
 
         return False, np.nan

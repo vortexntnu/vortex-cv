@@ -1,6 +1,7 @@
 import sys
 
-sys.path.insert(0, "/home/hannahcl/Documents/vortex/monkey_tracking/data_generation")
+sys.path.insert(
+    0, "/home/hannahcl/Documents/vortex/monkey_tracking/data_generation")
 from scenarios import BaseScenario
 from utility import time_from_step
 
@@ -9,8 +10,6 @@ from track_manager_single_track import TrackStatus
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 import numpy as np
-
-
 """
 3 plots to choose from: 
 Plot position of sigle track, 

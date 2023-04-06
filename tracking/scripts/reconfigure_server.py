@@ -10,6 +10,7 @@ from tracking.cfg import TrackingConfig
 
 
 class ReconfigureTracker:
+
     def __init__(self):
         rospy.init_node("reconfigure_server")
         self.srv = Server(TrackingConfig, self.reconfigure_cb)

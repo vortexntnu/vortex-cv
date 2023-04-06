@@ -3,7 +3,6 @@
 import rospy
 import numpy as np
 from geometry_msgs.msg import PoseArray, Pose, Point, Quaternion
-
 """
 
 Simply publish Pose[] to /lidar/clusters.
@@ -13,6 +12,7 @@ Choose between publish_pos_from_single_source() and publish_pos_from_multiple_so
 
 
 class Clusters:
+
     def __init__(self):
         rospy.init_node("test_node")
         self.pub = rospy.Publisher("/lidar/clusters", PoseArray, queue_size=10)

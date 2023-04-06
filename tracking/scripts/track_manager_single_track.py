@@ -4,7 +4,6 @@ from typing import List
 from dataclasses import dataclass
 
 from pdaf import PDAF
-
 """
 
 Track manager - Manage single object tracking based on M/N method. 
@@ -20,6 +19,7 @@ class TrackStatus(Enum):
 
 
 class PDAF2MN:
+
     def __init__(self, config):
         self.pdaf = PDAF(config)
         self.m = 0
@@ -28,6 +28,7 @@ class PDAF2MN:
 
 
 class SingleTargetTrackManager:
+
     def __init__(self, config):
         # subscribe to topic with detections from point cloud
         # publish state of main track if status is confirmed
@@ -48,8 +49,7 @@ class SingleTargetTrackManager:
 
         self.max_vel = config["manager"]["max_vel"]  # [m/s]
         self.initial_measurement_covariance = config["manager"][
-            "initial_measurement_covariance"
-        ]
+            "initial_measurement_covariance"]
 
         self.time_step = 0
 
@@ -127,14 +127,10 @@ class SingleTargetTrackManager:
             for i, o in enumerate(remaining_o):
 
                 dist = np.sqrt(
-                    (o[0] - track.pdaf.prior_state_estimate.mean[0]) ** 2
-                    + (o[1] - track.pdaf.prior_state_estimate.mean[1]) ** 2
-                )
-                if (
-                    dist
-                    < self.max_vel * self.main_track.pdaf.time_step
-                    + self.initial_measurement_covariance
-                ):
+                    (o[0] - track.pdaf.prior_state_estimate.mean[0])**2 +
+                    (o[1] - track.pdaf.prior_state_estimate.mean[1])**2)
+                if (dist < self.max_vel * self.main_track.pdaf.time_step +
+                        self.initial_measurement_covariance):
                     remaining_o.pop(i)
 
         self.observations_not_incorporated_in_track = remaining_o
@@ -142,8 +138,7 @@ class SingleTargetTrackManager:
     def add_tentative_tracks(self):
         for prev_o in self.prev_observations:
             n = self.n_observations_inside_max_size_gate(
-                prev_o, self.observations_not_incorporated_in_track
-            )
+                prev_o, self.observations_not_incorporated_in_track)
             if n > 0:
 
                 tentative_track = PDAF2MN(self.config)
@@ -166,16 +161,11 @@ class SingleTargetTrackManager:
 
         for o in o_arr:
 
-            dist = np.sqrt(
-                (o[0] - predicted_position[0]) ** 2
-                + (o[1] - predicted_position[1]) ** 2
-            )
+            dist = np.sqrt((o[0] - predicted_position[0])**2 +
+                           (o[1] - predicted_position[1])**2)
 
-            if (
-                dist
-                < self.max_vel * self.main_track.pdaf.time_step
-                + self.initial_measurement_covariance
-            ):
+            if (dist < self.max_vel * self.main_track.pdaf.time_step +
+                    self.initial_measurement_covariance):
                 n += 1
 
         return n

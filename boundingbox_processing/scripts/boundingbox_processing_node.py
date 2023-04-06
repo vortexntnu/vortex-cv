@@ -13,24 +13,34 @@ from sensor_msgs.msg import PointCloud2
 from coord_pos import CoordPosition
 from position_estimator import PositionEstimator
 
+
 class BoundingBoxProcessingNode():
     """
     Handles tasks related to pointcloud processing
     """
-    cameraframe_x = 1280    # Param to set the expected width of cameraframe in pixels
-    cameraframe_y = 720     # Param to set the expected height of cameraframe in pixels
+    cameraframe_x = 1280  # Param to set the expected width of cameraframe in pixels
+    cameraframe_y = 720  # Param to set the expected height of cameraframe in pixels
 
     def __init__(self):
         rospy.init_node('boundingbox_processing_node')
-        self.pointcloudSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_camera_cb)
-        self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BBoxes, self.darknet_cb)
+        self.pointcloudSub = rospy.Subscriber(
+            '/zed2/zed_node/point_cloud/cloud_registered', PointCloud2,
+            self.pointcloud_camera_cb)
+        self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BBoxes,
+                                        self.darknet_cb)
 
         # subscriber and publisher for limiting pointcloud to bounding box
-        self.CVbboxSub = rospy.Subscriber('/gate_detection/BoundingBox', BBoxes, self.feature_bbox_cb)
-        self.lim_pointcloudPub = rospy.Publisher('/pointcloud_processing/pointcloud_limited_to_bbox',PointCloud2, queue_size=1) 
-        
+        self.CVbboxSub = rospy.Subscriber('/gate_detection/BoundingBox',
+                                          BBoxes, self.feature_bbox_cb)
+        self.lim_pointcloudPub = rospy.Publisher(
+            '/pointcloud_processing/pointcloud_limited_to_bbox',
+            PointCloud2,
+            queue_size=1)
+
         # TODO: Needs reevaluation
-        self.estimatorPub = rospy.Publisher('/pointcloud_processing/size_estimates', BBoxes, queue_size= 1) # TODO: Needs reevaluation
+        self.estimatorPub = rospy.Publisher(
+            '/pointcloud_processing/size_estimates', BBoxes,
+            queue_size=1)  # TODO: Needs reevaluation
 
         # Calling classes from other files
         self.position_estimator = PositionEstimator()
@@ -68,7 +78,7 @@ class BoundingBoxProcessingNode():
                 lim_pointcloudPub: Limited pointcloud data to the size of the bounding boxes
         """
         # get pointcloud and bounding box data
-        newest_msg = self.pointcloud_data   
+        newest_msg = self.pointcloud_data
 
         # converts pointcloud data into numpy array
         data_from_zed = ros_numpy.numpify(newest_msg)
@@ -80,12 +90,18 @@ class BoundingBoxProcessingNode():
         y_max_limit = bounding_box.ymax
 
         # limiting pointcloud to bounding_box_size
-        data_from_zed_old = np.array_split(data_from_zed, [x_min_limit], axis=0)[1]
-        data_from_zed_old = np.array_split(data_from_zed_old, [x_max_limit-x_min_limit], axis=0)[0]
-        data_from_zed_old = np.array_split(data_from_zed_old, [y_min_limit], axis=1)[1]
-        data_from_zed_old = np.array_split(data_from_zed_old, [y_max_limit-y_min_limit], axis=1)[0]
-        
-        # converts data back into pointcloud message 
+        data_from_zed_old = np.array_split(data_from_zed, [x_min_limit],
+                                           axis=0)[1]
+        data_from_zed_old = np.array_split(data_from_zed_old,
+                                           [x_max_limit - x_min_limit],
+                                           axis=0)[0]
+        data_from_zed_old = np.array_split(data_from_zed_old, [y_min_limit],
+                                           axis=1)[1]
+        data_from_zed_old = np.array_split(data_from_zed_old,
+                                           [y_max_limit - y_min_limit],
+                                           axis=1)[0]
+
+        # converts data back into pointcloud message
         pcd_height, pcd_width = np.shape(data_from_zed_old)
         msg = ros_numpy.msgify(PointCloud2, data_from_zed_old)
         msg.header = newest_msg.header
@@ -116,7 +132,7 @@ class BoundingBoxProcessingNode():
 
             # Unintuitively position is logged as top to bottom. We fix it so it is from bot to top
             temp_ymin = bbox.ymin
-            bbox.ymin = self.cameraframe_y - bbox.ymax # TODO: needs to be updated to automatically read ymax of camera
+            bbox.ymin = self.cameraframe_y - bbox.ymax  # TODO: needs to be updated to automatically read ymax of camera
             bbox.ymax = self.cameraframe_y - temp_ymin
 
             # Store depth measurement of boundingbox
@@ -138,11 +154,12 @@ class BoundingBoxProcessingNode():
             CurrentBoundingBox.centre_angle_y = redefined_angle_y
 
             # Get the position of the object relative to the camera
-            position = self.coord_positioner.main(redefined_angle_x, redefined_angle_y, depth_mtr)
+            position = self.coord_positioner.main(redefined_angle_x,
+                                                  redefined_angle_y, depth_mtr)
 
             # Append the new message to bounding boxes array
             ArrayBoundingBoxes.bounding_boxes.append(CurrentBoundingBox)
-            
+
         self.estimatorPub.publish(ArrayBoundingBoxes)
 
 

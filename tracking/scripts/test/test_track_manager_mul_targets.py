@@ -1,7 +1,6 @@
 import sys
 from test_pdaf_test_setup import PDAFTester
 
-
 import yaml
 
 from track_manager_multiple_tracks import MultiTargetTrackManager, TrackStatus
@@ -9,12 +8,10 @@ import test_plots
 
 import numpy as np
 
-
 # ---- modify here:
 PATH_TO_DATA_GENERATION_REP = "/home/hannahcl/Documents/vortex/monkey_tracking"
 PATH_TO_CONFIG_TRACKING_SYS = (
-    "/home/hannahcl/Documents/vortex/ros_ws/src/vortex-cv/tracking/config"
-)
+    "/home/hannahcl/Documents/vortex/ros_ws/src/vortex-cv/tracking/config")
 
 sys.path.insert(0, PATH_TO_DATA_GENERATION_REP + "/data_generation")
 sys.path.insert(0, PATH_TO_DATA_GENERATION_REP + "/config")
@@ -25,9 +22,8 @@ from load_config import load_yaml_into_dotdict
 
 def data_generation():
 
-    config = load_yaml_into_dotdict(
-        PATH_TO_DATA_GENERATION_REP + "/config/scenario.yaml"
-    )
+    config = load_yaml_into_dotdict(PATH_TO_DATA_GENERATION_REP +
+                                    "/config/scenario.yaml")
 
     scenario = BaseScenario(config)
 
@@ -39,8 +35,8 @@ def data_generation():
 def test_cb():
 
     with open(
-        PATH_TO_CONFIG_TRACKING_SYS + "/config_traking_sys.yaml",
-        "r",
+            PATH_TO_CONFIG_TRACKING_SYS + "/config_traking_sys.yaml",
+            "r",
     ) as stream:
         config_loaded = yaml.safe_load(stream)
 
@@ -79,8 +75,8 @@ def test_cb():
 # @pytest.mark.plot
 def test_plot():
     with open(
-        PATH_TO_CONFIG_TRACKING_SYS + "/config_traking_sys.yaml",
-        "r",
+            PATH_TO_CONFIG_TRACKING_SYS + "/config_traking_sys.yaml",
+            "r",
     ) as stream:
         config_loaded = yaml.safe_load(stream)
 
@@ -111,16 +107,14 @@ def test_plot():
         last_addition_to_tentative_tracks = []
         for track in manager.tentative_tracks:
             last_addition_to_tentative_tracks.append(
-                track.pdaf.posterior_state_estimate.mean
-            )
+                track.pdaf.posterior_state_estimate.mean)
         tentative_estimates.append(last_addition_to_tentative_tracks)
 
         # add confirmed tracks
         last_addition_to_conf_tracks = []
         for track in manager.confirmed_tracks:
             last_addition_to_conf_tracks.append(
-                track.pdaf.posterior_state_estimate.mean
-            )
+                track.pdaf.posterior_state_estimate.mean)
         conf_estimates.append(last_addition_to_tentative_tracks)
 
     test_plots.plot_pos_and_vel_multiple_tracks(

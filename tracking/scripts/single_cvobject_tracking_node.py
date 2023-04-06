@@ -7,7 +7,6 @@ import yaml
 from tf.transformations import quaternion_from_euler
 from track_manager_single_track import SingleTargetTrackManager, TrackStatus
 
-
 from geometry_msgs.msg import (
     PoseArray,
     PoseWithCovariance,
@@ -20,7 +19,6 @@ from geometry_msgs.msg import (
 )
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Header
-
 """
 Estimate position and velocity for each boat realtive to the vessel (given measurements for the boats position).
 """
@@ -39,9 +37,9 @@ class Tracker:
 
         rospy.init_node("SingelTargetTracker")
         rospy.Subscriber("/lidar/clusters", PoseArray, self.cb)
-        self.pub = rospy.Publisher(
-            "/tracking/tracked_cv_object", Odometry, queue_size=10
-        )
+        self.pub = rospy.Publisher("/tracking/tracked_cv_object",
+                                   Odometry,
+                                   queue_size=10)
 
         self.seq = 0
 
@@ -49,8 +47,8 @@ class Tracker:
         path = r.get_path("tracking")
         rospy.loginfo(path)
         with open(
-            path + "/config/config_traking_sys.yaml",
-            "r",
+                path + "/config/config_traking_sys.yaml",
+                "r",
         ) as stream:
             config_loaded = yaml.safe_load(stream)
 
@@ -64,11 +62,9 @@ class Tracker:
 
         self.unpack_pose_array_msg(msg)
         self.track_manager.step_once(self.observations, self.time_step)
-        if (
-            self.track_manager.main_track.track_status == TrackStatus.confirmed
-            or self.track_manager.main_track.track_status
-            == TrackStatus.tentative_delete
-        ):
+        if (self.track_manager.main_track.track_status == TrackStatus.confirmed
+                or self.track_manager.main_track.track_status
+                == TrackStatus.tentative_delete):
             self.publish()
 
     def publish(self):
@@ -82,7 +78,8 @@ class Tracker:
 
         observations_list = []
         for pose in msg.poses:
-            observations_list.append(np.array([-pose.position.x, -pose.position.y]))
+            observations_list.append(
+                np.array([-pose.position.x, -pose.position.y]))
 
         self.observations = np.array(observations_list)
 
@@ -104,8 +101,7 @@ class Tracker:
 
         # - - - -  position
         x = self.track_manager.main_track.pdaf.posterior_state_estimate.mean.reshape(
-            4,
-        )
+            4, )
         msg.pose.pose.position.x = x[0]
         msg.pose.pose.position.y = x[1]
 

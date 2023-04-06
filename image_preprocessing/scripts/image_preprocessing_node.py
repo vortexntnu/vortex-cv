@@ -6,7 +6,7 @@
 # debugpy.wait_for_client()
 
 import rospy
-import sys 
+import sys
 
 from sensor_msgs.msg import Image
 
@@ -18,28 +18,38 @@ from ImagePreprocessing import ImagePreprocessing
 import numpy as np
 import cv2 as cv
 
+
 class ImagePreprocessingNode():
     """Performs image preprocessing (duh...)
     """
 
     def __init__(self, image_topic):
         rospy.init_node('image_preprocessing_node')
-        
+
         ns = "/" + (image_topic.split("/"))[1]
 
-        self.zedSub                 = rospy.Subscriber(image_topic, Image, self.image_callback, queue_size= 1)
+        self.zedSub = rospy.Subscriber(image_topic,
+                                       Image,
+                                       self.image_callback,
+                                       queue_size=1)
 
-        self.CLAHEPub               = rospy.Publisher('/cv/image_preprocessing/CLAHE' + ns, Image, queue_size= 1)
-        self.single_CLAHEPub        = rospy.Publisher('/cv/image_preprocessing/CLAHE_single' + ns, Image, queue_size= 1)
-        self.GWPub                  = rospy.Publisher('/cv/image_preprocessing/GW' + ns, Image, queue_size= 1)
-        
+        self.CLAHEPub = rospy.Publisher('/cv/image_preprocessing/CLAHE' + ns,
+                                        Image,
+                                        queue_size=1)
+        self.single_CLAHEPub = rospy.Publisher(
+            '/cv/image_preprocessing/CLAHE_single' + ns, Image, queue_size=1)
+        self.GWPub = rospy.Publisher('/cv/image_preprocessing/GW' + ns,
+                                     Image,
+                                     queue_size=1)
+
         self.bridge = CvBridge()
         self.image_preprocessing = ImagePreprocessing(2, 8)
-        
+
         # First initialization of image shape
         first_image_msg = rospy.wait_for_message(image_topic, Image)
 
-        self.cv_image = self.bridge.imgmsg_to_cv2(first_image_msg, "passthrough")
+        self.cv_image = self.bridge.imgmsg_to_cv2(first_image_msg,
+                                                  "passthrough")
         self.image_shape = self.cv_image.shape
 
     def cv_image_publisher(self, publisher, image, msg_encoding="bgra8"):
@@ -63,12 +73,14 @@ class ImagePreprocessingNode():
         except Exception:
             self.cv_image_publisher(self.CLAHEPub, clahe_img, "bgr8")
             _, _, R = cv.split(self.cv_image)
-        
+
         clahe_r_channel = self.image_preprocessing.CLAHE(R)
         self.cv_image_publisher(self.single_CLAHEPub, clahe_r_channel, "mono8")
 
-        gw_img = self.image_preprocessing.gray_world(cv.cvtColor(self.cv_image, cv.COLOR_BGRA2BGR))
+        gw_img = self.image_preprocessing.gray_world(
+            cv.cvtColor(self.cv_image, cv.COLOR_BGRA2BGR))
         self.cv_image_publisher(self.GWPub, gw_img, "bgr8")
+
 
 if __name__ == '__main__':
     try:

@@ -31,7 +31,8 @@ def test_pdaf_zero_velocity():
 
     for k in range(n_timesteps):
 
-        o_time_k = pdafTester.create_observations_for_one_timestep_simple_version(x, y)
+        o_time_k = pdafTester.create_observations_for_one_timestep_simple_version(
+            x, y)
 
         pdaf.prediction_step()
         pdaf.correction_step(o_time_k)
@@ -75,8 +76,7 @@ def test_pdaf_constant_vel():
     for k in range(n_timesteps):
 
         o_time_k = pdafTester.create_observations_for_one_timestep_simple_version(
-            x + k * x_der * pdaf.time_step, y + k * y_der * pdaf.time_step
-        )
+            x + k * x_der * pdaf.time_step, y + k * y_der * pdaf.time_step)
 
         pdaf.prediction_step()
         pdaf.correction_step(o_time_k)
@@ -93,20 +93,10 @@ def test_pdaf_constant_vel():
 
     print("final estimates: ", pdaf.posterior_state_estimate.mean)
 
-    assert (
-        abs(
-            pdaf.posterior_state_estimate.mean[0]
-            - (x + x_der * (n_timesteps - 1) * pdaf.time_step)
-        )
-        < tollerance
-    )
-    assert (
-        abs(
-            pdaf.posterior_state_estimate.mean[1]
-            - (y + y_der * (n_timesteps - 1) * pdaf.time_step)
-        )
-        < tollerance
-    )
+    assert (abs(pdaf.posterior_state_estimate.mean[0] -
+                (x + x_der * (n_timesteps - 1) * pdaf.time_step)) < tollerance)
+    assert (abs(pdaf.posterior_state_estimate.mean[1] -
+                (y + y_der * (n_timesteps - 1) * pdaf.time_step)) < tollerance)
     assert abs(pdaf.posterior_state_estimate.mean[2] - x_der) < tollerance
     assert abs(pdaf.posterior_state_estimate.mean[3] - y_der) < tollerance
 
@@ -144,9 +134,8 @@ def test_filter_observations_outside_gate():
 
     pdaf.compute_kalman_gain()
     pdaf.predited_observation.covariance = (
-        pdaf.C @ pdaf.prior_state_estimate.covariance @ pdaf.C.T
-        + pdaf.measurment_noise.covariance
-    )
+        pdaf.C @ pdaf.prior_state_estimate.covariance @ pdaf.C.T +
+        pdaf.measurment_noise.covariance)
     pdaf.filter_observations_outside_gate(observations)
 
     print("observations within gate: ", pdaf.o_within_gate_arr)
@@ -169,9 +158,8 @@ def test_compute_probability_of_matching_observations():
 
     pdaf.compute_kalman_gain()
     pdaf.predited_observation.covariance = (
-        pdaf.C @ pdaf.prior_state_estimate.covariance @ pdaf.C.T
-        + pdaf.measurment_noise.covariance
-    )
+        pdaf.C @ pdaf.prior_state_estimate.covariance @ pdaf.C.T +
+        pdaf.measurment_noise.covariance)
     pdaf.filter_observations_outside_gate(observations)
     p_arr = pdaf.compute_probability_of_matching_observations()
 
@@ -200,9 +188,8 @@ def test_correct_P():
 
         L = pdaf.compute_kalman_gain()
         pdaf.predited_observation.covariance = (
-            pdaf.C @ pdaf.prior_state_estimate.covariance @ pdaf.C.T
-            + pdaf.measurment_noise.covariance
-        )
+            pdaf.C @ pdaf.prior_state_estimate.covariance @ pdaf.C.T +
+            pdaf.measurment_noise.covariance)
 
         pdaf.filter_observations_outside_gate(observations)
         p_arr = pdaf.compute_probability_of_matching_observations()

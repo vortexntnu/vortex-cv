@@ -1,7 +1,6 @@
 import sys
 from test_pdaf_test_setup import PDAFTester
 
-
 import yaml
 
 from track_manager_single_track import SingleTargetTrackManager, TrackStatus
@@ -9,12 +8,10 @@ import test_plots
 
 import numpy as np
 
-
 # ---- modify here:
 PATH_TO_DATA_GENERATION_REP = "/home/hannahcl/Documents/vortex/monkey_tracking"
 PATH_TO_CONFIG_TRACKING_SYS = (
-    "/home/hannahcl/Documents/vortex/ros_ws/src/vortex-cv/tracking/config"
-)
+    "/home/hannahcl/Documents/vortex/ros_ws/src/vortex-cv/tracking/config")
 
 sys.path.insert(0, PATH_TO_DATA_GENERATION_REP + "/data_generation")
 sys.path.insert(0, PATH_TO_DATA_GENERATION_REP + "/config")
@@ -25,9 +22,8 @@ from load_config import load_yaml_into_dotdict
 
 def data_generation():
 
-    config = load_yaml_into_dotdict(
-        PATH_TO_DATA_GENERATION_REP + "/config/scenario.yaml"
-    )
+    config = load_yaml_into_dotdict(PATH_TO_DATA_GENERATION_REP +
+                                    "/config/scenario.yaml")
 
     scenario = BaseScenario(config)
 
@@ -39,8 +35,8 @@ def data_generation():
 def test_cb():
 
     with open(
-        PATH_TO_CONFIG_TRACKING_SYS + "/config_traking_sys.yaml",
-        "r",
+            PATH_TO_CONFIG_TRACKING_SYS + "/config_traking_sys.yaml",
+            "r",
     ) as stream:
         config_loaded = yaml.safe_load(stream)
 
@@ -64,14 +60,15 @@ def test_cb():
             print("state: ", track.pdaf.prior_state_estimate.mean[:2])
             print("n: ", track.n, "m: ", track.m)
 
-    print("final estimates: ", manager.main_track.pdaf.posterior_state_estimate.mean)
+    print("final estimates: ",
+          manager.main_track.pdaf.posterior_state_estimate.mean)
 
 
 # @pytest.mark.plot
 def test_plot_interactive():
     with open(
-        PATH_TO_CONFIG_TRACKING_SYS + "/config_traking_sys.yaml",
-        "r",
+            PATH_TO_CONFIG_TRACKING_SYS + "/config_traking_sys.yaml",
+            "r",
     ) as stream:
         config_loaded = yaml.safe_load(stream)
 
@@ -103,17 +100,16 @@ def test_plot_interactive():
             last_addition_to_tentative_tracks = []
             for track in manager.tentative_tracks:
                 last_addition_to_tentative_tracks.append(
-                    track.pdaf.posterior_state_estimate.mean
-                )
+                    track.pdaf.posterior_state_estimate.mean)
             tentative_estimates.append(last_addition_to_tentative_tracks)
 
         if manager.main_track.track_status == TrackStatus.confirmed:
-            conf_estimates.append(manager.main_track.pdaf.posterior_state_estimate.mean)
+            conf_estimates.append(
+                manager.main_track.pdaf.posterior_state_estimate.mean)
 
         if manager.main_track.track_status == TrackStatus.tentative_delete:
             tentative_del_estimates.append(
-                manager.main_track.pdaf.posterior_state_estimate.mean
-            )
+                manager.main_track.pdaf.posterior_state_estimate.mean)
 
         estimate_status.append(manager.main_track.track_status)
 

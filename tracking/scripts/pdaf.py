@@ -1,6 +1,5 @@
 import numpy as np
 from dataclasses import dataclass
-
 """
 Single object tracking
 
@@ -18,10 +17,12 @@ class MultivariateGaussian:
 
 
 class PDAF:
+
     def __init__(self, config):
         # x = [x, y, x', y']
 
-        self.time_step = config["pdaf"]["time_step"]  # can vary for each time step
+        self.time_step = config["pdaf"][
+            "time_step"]  # can vary for each time step
 
         self.posterior_state_estimate = MultivariateGaussian(
             np.array(config["pdaf"]["state_post"]).reshape((4, 1)),
@@ -36,20 +37,16 @@ class PDAF:
         )
 
         self.predited_observation = MultivariateGaussian(
-            np.zeros((2, 1)), np.zeros((2, 2)), self.time_step
-        )
+            np.zeros((2, 1)), np.zeros((2, 2)), self.time_step)
 
         self.model_disturbance = MultivariateGaussian(
-            np.zeros((4, 1)), np.array(config["pdaf"]["Q"]), self.time_step
-        )
+            np.zeros((4, 1)), np.array(config["pdaf"]["Q"]), self.time_step)
 
         self.measurment_noise = MultivariateGaussian(
-            np.zeros((2, 1)), np.array(config["pdaf"]["R"]), self.time_step
-        )
+            np.zeros((2, 1)), np.array(config["pdaf"]["R"]), self.time_step)
 
         self.C = np.array(  # C as in, y = C @ x
-            [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]]
-        )
+            [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]])
 
         self.A = np.array(  # A as in, x' = A @ x
             [
@@ -57,20 +54,16 @@ class PDAF:
                 [0, 1.0, 0, self.time_step],
                 [0, 0, 1.0, 0],  # assuming constnat velocity
                 [0, 0, 0, 1.0],  # assuming constnat velocity
-            ]
-        )
+            ])
 
         self.validation_gate_scaling_param = config["pdaf"][
-            "validation_gate_scaling_param"
-        ]
+            "validation_gate_scaling_param"]
 
         self.minimal_mahalanobis_distance = config["pdaf"][
-            "minimal_mahalanobis_distance"
-        ]  # observations that are closer then this, will be set to min distance
+            "minimal_mahalanobis_distance"]  # observations that are closer then this, will be set to min distance
 
         self.p_no_match = config["pdaf"][
-            "p_no_match"
-        ]  # probabiity that no observations originates from the track
+            "p_no_match"]  # probabiity that no observations originates from the track
 
         self.o_within_gate_arr = None
 
@@ -83,15 +76,13 @@ class PDAF:
 
         self.prior_state_estimate.mean = self.A @ self.posterior_state_estimate.mean
         self.prior_state_estimate.covariance = (
-            self.A @ self.posterior_state_estimate.covariance @ self.A.T
-            + self.model_disturbance.covariance
-        )
+            self.A @ self.posterior_state_estimate.covariance @ self.A.T +
+            self.model_disturbance.covariance)
 
         self.predited_observation.mean = self.C @ self.prior_state_estimate.mean
         self.predited_observation.covariance = (
-            self.C @ self.prior_state_estimate.covariance @ self.C.T
-            + self.measurment_noise.covariance
-        )
+            self.C @ self.prior_state_estimate.covariance @ self.C.T +
+            self.measurment_noise.covariance)
 
     def correction_step(self, o):
 
@@ -125,15 +116,16 @@ class PDAF:
         "Compute mahaloanobis distance between observation and predicted observation."
 
         diff = o - self.predited_observation.mean
-        mah_dist = diff.T @ np.linalg.inv(self.predited_observation.covariance) @ diff
+        mah_dist = diff.T @ np.linalg.inv(
+            self.predited_observation.covariance) @ diff
 
         return mah_dist
 
     def compute_probability_of_matching_observations(self):
 
-        score = np.zeros((len(self.o_within_gate_arr),))
+        score = np.zeros((len(self.o_within_gate_arr), ))
 
-        p_match_arr = np.zeros((len(self.o_within_gate_arr) + 1,))
+        p_match_arr = np.zeros((len(self.o_within_gate_arr) + 1, ))
 
         if len(self.o_within_gate_arr) == 0:
             p_match_arr[0] = 1.0
@@ -156,37 +148,30 @@ class PDAF:
 
     def update_model(self, time_step):
         self.time_step = time_step
-        self.A = np.array(
-            [
-                [1.0, 0.0, self.time_step, 0],
-                [0, 1.0, 0, self.time_step],
-                [0, 0, 1.0, 0],  # assuming constnat velocity
-                [0, 0, 0, 1.0],  # assuming constnat velocity
-            ]
-        )
+        self.A = np.array([
+            [1.0, 0.0, self.time_step, 0],
+            [0, 1.0, 0, self.time_step],
+            [0, 0, 1.0, 0],  # assuming constnat velocity
+            [0, 0, 0, 1.0],  # assuming constnat velocity
+        ])
 
     def compute_residual_vector(self, p_match_arr):
         residual_vector = np.zeros((2, 1))
         for i in range(len(self.o_within_gate_arr)):
             residual_vector += p_match_arr[i + 1] * (
-                self.o_within_gate_arr[i] - self.predited_observation.mean
-            )
+                self.o_within_gate_arr[i] - self.predited_observation.mean)
 
         return residual_vector
 
     def compute_kalman_gain(self):
         C_P_CT = self.C @ self.prior_state_estimate.covariance @ self.C.T
-        L = (
-            self.prior_state_estimate.covariance
-            @ self.C.T
-            @ np.linalg.inv(C_P_CT + self.measurment_noise.covariance)
-        )
+        L = (self.prior_state_estimate.covariance @ self.C.T
+             @ np.linalg.inv(C_P_CT + self.measurment_noise.covariance))
         return L
 
     def correct_state_vector(self, L, residual_vector):
-        self.posterior_state_estimate.mean = (
-            self.prior_state_estimate.mean + L @ residual_vector
-        )
+        self.posterior_state_estimate.mean = (self.prior_state_estimate.mean +
+                                              L @ residual_vector)
 
     def correct_P(self, L, residual_vector, p_match_arr):
         # qf - quadratic form
@@ -195,8 +180,8 @@ class PDAF:
             conditional_innovations = o_i - self.predited_observation.mean
 
             qf_weighted_residual_vector += (
-                p_match_arr[i + 1] * conditional_innovations @ conditional_innovations.T
-            )
+                p_match_arr[i + 1] *
+                conditional_innovations @ conditional_innovations.T)
 
         qf_residual_vector = residual_vector @ residual_vector.T
         diff = qf_weighted_residual_vector - qf_residual_vector
@@ -205,7 +190,6 @@ class PDAF:
         L_S_LT = L @ self.predited_observation.covariance @ L.T
 
         self.posterior_state_estimate.covariance = (
-            self.prior_state_estimate.covariance
-            - (1 - self.p_no_match) * L_S_LT
-            + spread_of_innovations
+            self.prior_state_estimate.covariance -
+            (1 - self.p_no_match) * L_S_LT + spread_of_innovations
         )  # given by (7.25) Brekke
