@@ -3,6 +3,8 @@
 
     <node pkg="tracking" type="test_node.py"     name="test_node" output="screen" respawn="false"/>
     <node pkg="tracking" type="visualizer_node.py"     name="visualizer_node" output="screen" respawn="false"/>
+    <node pkg="tracking" type="reconfigure_server.py"     name="reconfigure_server" output="screen" respawn="false"/>
+
 
     <!-- <node pkg="tracking" type="single_cvobject_tracking_node.py"     name="SingelTargetTracker" output="screen" respawn="false"/> -->
     <node pkg="tracking" type="mul_cvobjects_tracking_node.py"     name="MultiTargetTracker" output="screen" respawn="false"/>

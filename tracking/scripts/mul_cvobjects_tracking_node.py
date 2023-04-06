@@ -5,7 +5,7 @@ import rospkg
 import numpy as np
 import yaml
 #from dynamic_reconfigure import server
-from dynamic_reconfigure.server import Server
+import dynamic_reconfigure.client
 
 from tracking.cfg import TrackingConfig
 from tf.transformations import quaternion_from_euler
@@ -62,24 +62,22 @@ class Tracker:
 
         self.track_manager = MultiTargetTrackManager(config_loaded)
 
-        self.s = Server(TrackingConfig, self.reconfigure_cb)
-
         self.time_step = 0.1
         self.prev_time = 0
         self.observations = None
 
+
         # Use configurable parameters
-        validation_gate_scaling_param = rospy.get_param('/PDAF/validation_gate_scaling_param', config_loaded['pdaf']['validation_gate_scaling_param'])
-        p_no_match = rospy.get_param('/PDAF/p_no_match', config_loaded['pdaf']['p_no_match'])
+        rospy.set_param('/reconfigure_server/validation_gate_scaling_param', config_loaded['pdaf']['validation_gate_scaling_param'])
+        rospy.set_param('/reconfigure_server/p_no_match', config_loaded['pdaf']['p_no_match'])
         # Q = np.array(rospy.get_param('/PDAF/Q', config_loaded['pdaf']['Q']))
         # R = np.array(rospy.get_param('/PDAF/R', config_loaded['pdaf']['R']))
-        N_resurrect = rospy.get_param('/Manager/N_resurrect', config_loaded['manager']['N_resurrect'])
-        M_resurrect = rospy.get_param('/Manager/M_resurrect', config_loaded['manager']['M_resurrect'])
-        N_kill = rospy.get_param('/Manager/N_kill', config_loaded['manager']['N_kill'])
-        M_kill = rospy.get_param('/Manager/M_kill', config_loaded['manager']['M_kill'])
-        max_vel = rospy.get_param('/Manager/max_vel', config_loaded['manager']['max_vel'])
-        initial_measurement_covariance = rospy.get_param('/Manager/initial_measurement_covariance', config_loaded['manager']['initial_measurement_covariance'])
-
+        rospy.set_param('/reconfigure_server/N_resurrect', config_loaded['manager']['N_resurrect'])
+        rospy.set_param('/reconfigure_server/M_resurrect', config_loaded['manager']['M_resurrect'])
+        rospy.set_param('/reconfigure_server/N_kill', config_loaded['manager']['N_kill'])
+        rospy.set_param('/reconfigure_server/M_kill', config_loaded['manager']['M_kill'])
+        rospy.set_param('/reconfigure_server/max_vel', config_loaded['manager']['max_vel'])
+        rospy.set_param('/reconfigure_server/initial_measurement_covariance', config_loaded['manager']['initial_measurement_covariance'])
 
 
     def data_cb(self, msg):
@@ -95,11 +93,9 @@ class Tracker:
             # )
             self.publish()
 
-    def reconfigure_cb(self, config, level):
-        rospy.loginfo("Config updated: {}".format(config))
+    def reconfigure_cb(self, config):
+        #rospy.loginfo("Config updated: {}".format(config))
         return config
-        
-        
 
     def publish(self):
 
@@ -172,6 +168,7 @@ class Tracker:
 if __name__ == "__main__":
     try:
         tracker = Tracker()
+        reconf_client = dynamic_reconfigure.client.Client("reconfigure_server", timeout=30, config_callback=tracker.reconfigure_cb) 
         rospy.spin()
 
     except rospy.ROSInterruptException:

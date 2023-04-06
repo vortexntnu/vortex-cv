@@ -18,7 +18,7 @@ manager:
   M_resurrect: 8
 
   N_kill: 5
-  M_kill: 8
+  M_kill: 9
 
   max_vel: 10
   initial_measurement_covariance: 2.0
