@@ -27,6 +27,7 @@ class PDAF2MN:
         self.n = 0
         self.track_status = TrackStatus.tentative_confirm
 
+
 # @dataclass
 # class TrackerTuningParams:
 
@@ -99,7 +100,6 @@ class MultiTargetTrackManager:
         #     print("status", track.track_status)
         #     print("state: ", track.pdaf.prior_state_estimate.mean[:2])
         #     print("n: ", track.n, "m: ", track.m)
-
 
     def update_status_on_confirmed_tracks(self):
 

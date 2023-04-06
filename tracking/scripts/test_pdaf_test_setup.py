@@ -40,7 +40,7 @@ class PDAFTester:
 
         # Add obs that corresponds to the acctual track (1-p_no_match)*100 prosent of the time.
 
-        # Can replace with:  
+        # Can replace with:
         # random_int = np.random.randint(0, 100)
         # if (random_int < 100 * (1 - self.pdaf.p_no_match)) and (n_obs > 0):
         if True:

@@ -5,9 +5,9 @@ from nav_msgs.msg import Odometry, Path
 from geometry_msgs.msg import PoseStamped
 from cv_msgs.msg import OdometryArray
 
-'''
+"""
 Replushied tracked objects as a path or odometry messages, so that it can be vizualized in Rviz. 
-'''
+"""
 
 
 class OdometryToPath:
@@ -24,8 +24,9 @@ class OdometryToPath:
         self.odom_punblisher = rospy.Publisher(
             "/tracking/viz_mul_tracked_cv_objects", Odometry, queue_size=10
         )
-        rospy.Subscriber('/tracking/mul_tracked_cv_objects', OdometryArray, self.mul_tracks_callback)
-        
+        rospy.Subscriber(
+            "/tracking/mul_tracked_cv_objects", OdometryArray, self.mul_tracks_callback
+        )
 
     def single_track_callback(self, odometry):
 
@@ -34,7 +35,6 @@ class OdometryToPath:
         pose_stamped.header = odometry.header
         self.path.poses.append(pose_stamped)
         self.path_publisher.publish(self.path)
-
 
     def mul_tracks_callback(self, odometryArray):
 
