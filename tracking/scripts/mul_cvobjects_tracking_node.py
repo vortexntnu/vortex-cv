@@ -4,10 +4,7 @@ import rospy
 import rospkg
 import numpy as np
 import yaml
-#from dynamic_reconfigure import server
 import dynamic_reconfigure.client
-
-from tracking.cfg import TrackingConfig
 from tf.transformations import quaternion_from_euler
 from track_manager_multiple_tracks import MultiTargetTrackManager, PDAF2MN
 
@@ -66,18 +63,62 @@ class Tracker:
         self.prev_time = 0
         self.observations = None
 
-
         # Use configurable parameters
         rospy.set_param('/reconfigure_server/validation_gate_scaling_param', config_loaded['pdaf']['validation_gate_scaling_param'])
         rospy.set_param('/reconfigure_server/p_no_match', config_loaded['pdaf']['p_no_match'])
-        # Q = np.array(rospy.get_param('/PDAF/Q', config_loaded['pdaf']['Q']))
-        # R = np.array(rospy.get_param('/PDAF/R', config_loaded['pdaf']['R']))
+
+        rospy.set_param('/reconfigure_server/Q_00', config_loaded['pdaf']['Q'][0][0])
+        rospy.set_param('/reconfigure_server/Q_11', config_loaded['pdaf']['Q'][1][1])
+        rospy.set_param('/reconfigure_server/Q_22', config_loaded['pdaf']['Q'][2][2])
+        rospy.set_param('/reconfigure_server/Q_33', config_loaded['pdaf']['Q'][3][3])
+
+        rospy.set_param('/reconfigure_server/R_00', config_loaded['pdaf']['R'][0][0])
+        rospy.set_param('/reconfigure_server/R11', config_loaded['pdaf']['R'][1][1])
+
         rospy.set_param('/reconfigure_server/N_resurrect', config_loaded['manager']['N_resurrect'])
         rospy.set_param('/reconfigure_server/M_resurrect', config_loaded['manager']['M_resurrect'])
         rospy.set_param('/reconfigure_server/N_kill', config_loaded['manager']['N_kill'])
         rospy.set_param('/reconfigure_server/M_kill', config_loaded['manager']['M_kill'])
         rospy.set_param('/reconfigure_server/max_vel', config_loaded['manager']['max_vel'])
         rospy.set_param('/reconfigure_server/initial_measurement_covariance', config_loaded['manager']['initial_measurement_covariance'])
+
+        self.update_tuning_params()
+
+
+    def update_tuning_params(self):
+
+        self.track_manager.N_resurrect = rospy.get_param('/reconfigure_server/N_resurrect')
+        self.track_manager.M_ressurect = rospy.get_param('/reconfigure_server/M_resurrect')
+
+        self.track_manager.N_kill = rospy.get_param('/reconfigure_server/N_kill')
+        self.track_manager.M_kill = rospy.get_param('/reconfigure_server/M_kill')
+
+        self.track_manager.max_vel = rospy.get_param('/reconfigure_server/max_vel')
+        self.track_manager.initial_measurement_covariance = rospy.get_param('/reconfigure_server/initial_measurement_covariance')
+
+        for track in self.track_manager.tentative_tracks:
+            track.pdaf.validation_gate_scaling_param = rospy.get_param('/reconfigure_server/validation_gate_scaling_param')
+            track.pdaf.p_no_match = rospy.get_param('/reconfigure_server/p_no_match')
+
+            track.pdaf.model_disturbance[0][0] = rospy.get_param('/reconfigure_server/Q_00')
+            track.pdaf.model_disturbance[1][1] = rospy.get_param('/reconfigure_server/Q_11')
+            track.pdaf.model_disturbance[2][2] = rospy.get_param('/reconfigure_server/Q_22')
+            track.pdaf.model_disturbance[3][3] = rospy.get_param('/reconfigure_server/Q_33')
+
+            track.pdaf.measurment_noise[0][0] = rospy.get_param('/reconfigure_server/R_00')
+            track.pdaf.measurment_noise[1][1] = rospy.get_param('/reconfigure_server/R_11')
+
+        for track in self.track_manager.confirmed_tracks:
+            track.pdaf.validation_gate_scaling_param = rospy.get_param('/reconfigure_server/validation_gate_scaling_param')
+            track.pdaf.p_no_match =  rospy.get_param('/reconfigure_server/p_no_match')
+
+            track.pdaf.model_disturbance[0][0] = rospy.get_param('/reconfigure_server/Q_00')
+            track.pdaf.model_disturbance[1][1] = rospy.get_param('/reconfigure_server/Q_11')
+            track.pdaf.model_disturbance[2][2] = rospy.get_param('/reconfigure_server/Q_22')
+            track.pdaf.model_disturbance[3][3] = rospy.get_param('/reconfigure_server/Q_33')
+
+            track.pdaf.measurment_noise[0][0] = rospy.get_param('/reconfigure_server/R_00')
+            track.pdaf.measurment_noise[1][1] = rospy.get_param('/reconfigure_server/R_11')
 
 
     def data_cb(self, msg):
@@ -94,8 +135,7 @@ class Tracker:
             self.publish()
 
     def reconfigure_cb(self, config):
-        #rospy.loginfo("Config updated: {}".format(config))
-        return config
+        self.update_tuning_params()
 
     def publish(self):
 

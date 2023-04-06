@@ -27,6 +27,24 @@ class PDAF2MN:
         self.n = 0
         self.track_status = TrackStatus.tentative_confirm
 
+# @dataclass
+# class TrackerTuningParams:
+
+#     validation_gate_scaling_param: int
+#     p_no_match: float
+
+#     # Q: [[0.001, 0, 0, 0], [0, 0.001, 0, 0], [0, 0, 50, 0], [0, 0, 0, 50]]
+#     # R: [[0.1, 0],[0, 0.1]]
+
+#     N_resurrect: int
+#     M_resurrect: int
+
+#     N_kill: int
+#     M_kill: int
+
+#     max_vel: float
+#     initial_measurement_covariance: float
+
 
 class MultiTargetTrackManager:
     def __init__(self, config):
@@ -52,6 +70,7 @@ class MultiTargetTrackManager:
         self.time_step = 0
 
     def step_once(self, o_arr, time_step):
+
         self.time_step = time_step
         self.observations_not_incorporated_in_track = o_arr.tolist()
 
@@ -80,6 +99,7 @@ class MultiTargetTrackManager:
         #     print("status", track.track_status)
         #     print("state: ", track.pdaf.prior_state_estimate.mean[:2])
         #     print("n: ", track.n, "m: ", track.m)
+
 
     def update_status_on_confirmed_tracks(self):
 
