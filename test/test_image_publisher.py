@@ -11,7 +11,7 @@ class ImagePublisher():
     def __init__(self):
 
         rospy.init_node('image_publisher_node')
-        self.imPub = rospy.Publisher("/cv/image_preprocessing/CLAHE/udfc",
+        self.imPub = rospy.Publisher("/udfc/wrapper/camera_raw",
                                      Image,
                                      queue_size=1)
 
@@ -19,7 +19,7 @@ class ImagePublisher():
             "/cv/image_preprocessing/CLAHE_single/udfc", Image, queue_size=1)
 
         self.bridge = CvBridge()
-        self.img = cv.imread("./data/path_bendy_full.png")
+        self.img = cv.imread("./images/image_31.jpg")
         self.ros_img = self.bridge.cv2_to_imgmsg(self.img, encoding='bgr8')
 
         self.firstImPub.publish(self.ros_img)

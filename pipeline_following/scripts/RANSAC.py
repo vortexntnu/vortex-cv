@@ -11,17 +11,41 @@ source: https://en.wikipedia.org/wiki/Random_sample_consensus
 - Lasse Moen Guttormsen
 """
 
+def square_error_loss(y_true, y_pred):
+    return (y_true - y_pred)**2
+
+def mean_square_error(y_true, y_pred):
+    return np.sum(square_error_loss(y_true, y_pred)) / y_true.shape[0]
+
+class LinearRegressor:
+
+    def __init__(self):
+        self.params = None
+
+    def fit(self, X, y):
+        r, _ = X.shape
+        X = np.hstack([np.ones((r, 1)), X])
+        self.params = np.dot(np.linalg.inv(np.dot(X.T, X)), np.dot(X.T, y))
+        return self
+
+    def predict(self, X):
+        r, _ = X.shape
+        X = np.hstack([np.ones((r, 1)), X])
+        return np.dot(X, self.params)
 
 class RANSAC:
 
-    def __init__(self, n, k, t, d, model=None, loss=None, metric=None):
-        self.n = n  # `n`: Minimum number of data points to estimate parameters
-        self.k = k  # `k`: Maximum iterations allowed
-        self.t = t  # `t`: Threshold value to determine if points are fit well
-        self.d = d  # `d`: Number of close data points required to assert model fits well
-        self.model = model  # `model`: class implementing `fit` and `predict`
-        self.loss = loss  # `loss`: function of `y_true` and `y_pred` that returns a vector
-        self.metric = metric  # `metric`: function of `y_true` and `y_pred` and returns a float
+    def __init__(self, n, k, t, d,  model=LinearRegressor(), 
+                                    loss=square_error_loss, 
+                                    metric=mean_square_error):
+        
+        self.n = n              # `n`: Minimum number of data points to estimate parameters
+        self.k = k              # `k`: Maximum iterations allowed
+        self.t = t              # `t`: Threshold value to determine if points are fit well
+        self.d = d              # `d`: Number of close data points required to assert model fits well
+        self.model = model      # `model`: class implementing `fit` and `predict`
+        self.loss = loss        # `loss`: function of `y_true` and `y_pred` that returns a vector
+        self.metric = metric    # `metric`: function of `y_true` and `y_pred` and returns a float
         self.best_fit = None
         self.best_error = np.inf
         self.points = None
@@ -60,19 +84,3 @@ class RANSAC:
     def predict(self, X):
         return self.best_fit.predict(X)
 
-
-class LinearRegressor:
-
-    def __init__(self):
-        self.params = None
-
-    def fit(self, X, y):
-        r, _ = X.shape
-        X = np.hstack([np.ones((r, 1)), X])
-        self.params = np.dot(np.linalg.inv(np.dot(X.T, X)), np.dot(X.T, y))
-        return self
-
-    def predict(self, X):
-        r, _ = X.shape
-        X = np.hstack([np.ones((r, 1)), X])
-        return np.dot(X, self.params)
