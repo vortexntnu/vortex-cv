@@ -15,7 +15,6 @@ import tf2_ros
 import geometry_msgs.msg
 import tf2_geometry_msgs
 import cv2 as cv
-
 """
 Node made to publish data to the landmarkserver of type "Objectposition", which is an own defined Vortex msg and can be found in the vortex-msgs respository.
 It takes in data from the UDFC (Monocamera facing downwards under Beluga). The "mission_topic_sub"-subscriber controls if our node is running.
@@ -42,14 +41,14 @@ class PipelineFollowingNode():
         self.lower_hue = 5
         self.upper_hue = 170
         #Parameters for waypoint estimation
-        self.K1 = -0.08     # beta error
-        self.K2 = -10       # alpha error
-        self.x_step = 0.2   # meters ahead of drone
+        self.K1 = -0.08  # beta error
+        self.K2 = -10  # alpha error
+        self.x_step = 0.2  # meters ahead of drone
         #Parameters RANSAC
-        self.n = 10     # `n`: Minimum number of data points to estimate parameters
-        self.k = 100    # `k`: Maximum iterations allowed
-        self.t = 20     # `t`: Threshold value to determine if points are fit well
-        self.d = None   # `d`: Number of close data points required to assert model fits well
+        self.n = 10  # `n`: Minimum number of data points to estimate parameters
+        self.k = 100  # `k`: Maximum iterations allowed
+        self.t = 20  # `t`: Threshold value to determine if points are fit well
+        self.d = None  # `d`: Number of close data points required to assert model fits well
 
         # Parameters
         self.count = 0
@@ -254,7 +253,7 @@ class PipelineFollowingNode():
 
     def findContour(self, img):
         extractor = HOG(img)
-        features , contour = extractor.compute_hog()
+        features, contour = extractor.compute_hog()
         #contour = self.extractor.YellowEdgesHSV(img, self.lower_hue,
         #                                       self.upper_hue)
         threshold = 0.5 * contour.max()
