@@ -60,8 +60,8 @@ class RANSAC:
                                                y[maybe_inliers])
 
             thresholded = (self.loss(y[ids][self.n:],
-                                     maybe_model.predict(X[ids][self.n:])) <
-                           self.t)
+                                     maybe_model.predict(X[ids][self.n:]))
+                           < self.t)
 
             inlier_ids = ids[self.n:][np.flatnonzero(thresholded).flatten()]
 
