@@ -184,7 +184,6 @@ def get_optimal_threshold():
 
 
 img = cv.imread("./images/image_23.jpg")
-
 ''' skimage HOG
 gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 hog_features, hog_image = hog(gray,
@@ -206,7 +205,6 @@ threshold(h)
 op_thres = get_optimal_threshold()
 binary_image = regenerate_img(hog_image, op_thres)
 '''
-
 '''
 hog_img = hog_image / hog_image.max()
 (hog_img * 255).astype('uint8')
