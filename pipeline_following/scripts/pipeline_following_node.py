@@ -15,7 +15,6 @@ import tf2_ros
 import geometry_msgs.msg
 import tf2_geometry_msgs
 import cv2 as cv
-
 """
 Node for completing the pipeline following task in TAC 2023. It uses the mono-camera (UDFC) and 
 publishes position data to the landmarkserver of type "ObjectPosition" (see vortex_msgs repo). 
