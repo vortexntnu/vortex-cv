@@ -22,6 +22,7 @@ Returns:
 
 
 class HOG:
+
     def __init__(self, cell_size=(8, 8), block_size=(2, 2), nbins=9):
         self.cell_size = cell_size
         self.block_size = block_size
