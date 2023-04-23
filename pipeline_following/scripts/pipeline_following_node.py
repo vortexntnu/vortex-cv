@@ -42,11 +42,11 @@ class PipelineFollowingNode():
         self.K2 = -10  # alpha error
         self.x_step = 0.5  # meters ahead of drone
         #Parameters RANSAC
-        self.n = 10     # `n`: Minimum number of data points to estimate parameters
-        self.k = 300    # `k`: Maximum iterations allowed
-        self.t = 300    # `t`: Threshold value to determine if points are fit well
-        self.d = None   # `d`: Number of close data points required to assert model fits well
-        self.frac_of_points = 8 # d will be a result of the number of points in contour divided by this
+        self.n = 10  # `n`: Minimum number of data points to estimate parameters
+        self.k = 300  # `k`: Maximum iterations allowed
+        self.t = 300  # `t`: Threshold value to determine if points are fit well
+        self.d = None  # `d`: Number of close data points required to assert model fits well
+        self.frac_of_points = 8  # d will be a result of the number of points in contour divided by this
         #Parameters HOG
         self.cell_size = (10, 10)
         self.block_size = (1, 1)
@@ -246,7 +246,7 @@ class PipelineFollowingNode():
         waypoint = self.x_step * np.array(
             [np.cos(theta_rad), np.sin(theta_rad), 0])
         # q = np.array([np.cos(theta_rad / 2), 0, 0, np.sin(theta_rad / 2)])
-        q = quaternion_from_euler(0,0,theta_rad)
+        q = quaternion_from_euler(0, 0, theta_rad)
         # information prints:
         # print('alpha: '+ str(alpha))
         # print('beta: '+ str(beta))
