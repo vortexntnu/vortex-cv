@@ -28,6 +28,7 @@ Tuva and Lasse
 
 
 class PipelineFollowingNode():
+
     def __init__(self):
         rospy.init_node('pipeline_following_node')
 
@@ -36,18 +37,18 @@ class PipelineFollowingNode():
         self.lower_hue = 5
         self.upper_hue = 170
         #Parameters for waypoint estimation
-        self.K1 = -0.08     # beta error
-        self.K2 = -10       # alpha error
-        self.x_step = 0.5   # meters ahead of drone
+        self.K1 = -0.08  # beta error
+        self.K2 = -10  # alpha error
+        self.x_step = 0.5  # meters ahead of drone
         #Parameters RANSAC
-        self.n = 10     # `n`: Minimum number of data points to estimate parameters
-        self.k = 100    # `k`: Maximum iterations allowed
-        self.t = 300    # `t`: Threshold value to determine if points are fit well
-        self.d = None   # `d`: Number of close data points required to assert model fits well
-        self.frac_of_points = 8 # d will be a result of the number of points in contour divided by this
+        self.n = 10  # `n`: Minimum number of data points to estimate parameters
+        self.k = 100  # `k`: Maximum iterations allowed
+        self.t = 300  # `t`: Threshold value to determine if points are fit well
+        self.d = None  # `d`: Number of close data points required to assert model fits well
+        self.frac_of_points = 8  # d will be a result of the number of points in contour divided by this
         #Parameters HOG
         self.cell_size = (10, 10)
-        self.block_size = (1, 1) 
+        self.block_size = (1, 1)
         self.nbins = 3
         #Other
         self.detection_area_threshold = 100
@@ -184,7 +185,8 @@ class PipelineFollowingNode():
         p.estimateFucked = self.estimateFucked
         publisher.publish(p)
 
-        rospy.loginfo("Object published: %s, isDetected = %s", objectID, self.isDetected)
+        rospy.loginfo("Object published: %s, isDetected = %s", objectID,
+                      self.isDetected)
 
     def find_line(self, contour):
         """
@@ -251,8 +253,8 @@ class PipelineFollowingNode():
         # print('Waypoint: '+ str(waypoint))
 
         return waypoint, q
-    
-    def threshold(self,hog_img):
+
+    def threshold(self, hog_img):
         ''' 
         Converting HOG image to binary image by thresholding
         Returning the binary image as the contour
@@ -262,14 +264,20 @@ class PipelineFollowingNode():
             binary_image    - binary image of the contour 
         '''
 
-        img_norm = cv.normalize(hog_img, None, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
+        img_norm = cv.normalize(hog_img,
+                                None,
+                                alpha=0,
+                                beta=255,
+                                norm_type=cv.NORM_MINMAX,
+                                dtype=cv.CV_8U)
 
         # Apply Otsu's method to calculate the threshold value
-        ret, threshold = cv.threshold(img_norm, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)
+        ret, threshold = cv.threshold(img_norm, 0, 255,
+                                      cv.THRESH_BINARY + cv.THRESH_OTSU)
         binary_image = np.array(threshold, dtype=np.float32) / 255
 
         points = np.argwhere(binary_image > 0)
-        rospy.loginfo('Number of points in contour: '+ str(points[:, 0].size))
+        rospy.loginfo('Number of points in contour: ' + str(points[:, 0].size))
 
         if points[:, 0].size > self.detection_area_threshold:
             self.isDetected = True
@@ -277,14 +285,13 @@ class PipelineFollowingNode():
         else:
             self.isDetected = False
             return binary_image
-        
 
     def findHOG(self, img):
         ''' finds HOG of the image '''
         extractor = HOG(self.cell_size, self.block_size, self.nbins)
-        features , hog_img = extractor.compute_hog(img)
+        features, hog_img = extractor.compute_hog(img)
         return hog_img
-        
+
     def plotting(self, contour, alpha=0, beta=0):
         ''' Function to visualize the computations '''
         points = np.argwhere(contour > 0)
