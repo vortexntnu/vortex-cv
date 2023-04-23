@@ -17,23 +17,18 @@ import tf2_geometry_msgs
 import cv2 as cv
 
 """
-Node made to publish data to the landmarkserver of type "Objectposition", which is an own defined Vortex msg and can be found in the vortex-msgs respository.
-It takes in data from the UDFC (Monocamera facing downwards under Beluga). The "mission_topic_sub"-subscriber controls if our node is running.
-It is running if the state = "pipeline/execute", "pipeline/standby".
-For the TAC 2023, the execute state will be the most relevant, but we dont have to get as good data to estimate direction as they did in the 2022 Robosub.
-This node is mainly a hard copy of the path_following_node, used at Robosub 2022, but with adaptions for the TAC2023"
+Node for completing the pipeline following task in TAC 2023. It uses the mono-camera (UDFC) and 
+publishes position data to the landmarkserver of type "ObjectPosition" (see vortex_msgs repo). 
+Histogram of Orientated Gradients (HOG) is used to create  a HOG image before a auto thresholding
+is performed to convert it to a binary image of the contour. Random Sample Consensus (RANSAC) is 
+then used to extract a line with parameters, alpha and beta, that are used to calculate a 
+vector that estimates points that will guide the drone along the pipeline.
+
 Tuva and Lasse  
 """
 
 
 class PipelineFollowingNode():
-    """
-    Node for completing the pipeline following task in TAC 2023. By usage of feature 
-    processing a contour is extracted befare a RANSAC algoritm is performed to extract
-    a line. The parameters, alpha and beta, from the line is then used to calculate a 
-    vector that estimates points that will guide the drone along the pipeline.
-    """
-
     def __init__(self):
         rospy.init_node('pipeline_following_node')
 
@@ -44,15 +39,21 @@ class PipelineFollowingNode():
         #Parameters for waypoint estimation
         self.K1 = -0.08     # beta error
         self.K2 = -10       # alpha error
-        self.x_step = 0.2   # meters ahead of drone
+        self.x_step = 0.5   # meters ahead of drone
         #Parameters RANSAC
         self.n = 10     # `n`: Minimum number of data points to estimate parameters
         self.k = 100    # `k`: Maximum iterations allowed
-        self.t = 20     # `t`: Threshold value to determine if points are fit well
+        self.t = 300    # `t`: Threshold value to determine if points are fit well
         self.d = None   # `d`: Number of close data points required to assert model fits well
+        self.frac_of_points = 8 # d will be a result of the number of points in contour divided by this
+        #Parameters HOG
+        self.cell_size = (10, 10)
+        self.block_size = (1, 1) 
+        self.nbins = 3
+        #Other
+        self.detection_area_threshold = 100
 
         # Parameters
-        self.count = 0
         self.img_size = []
 
         #Subscribers
@@ -79,7 +80,6 @@ class PipelineFollowingNode():
         self.possible_states = ["pipeline/execute", "pipeline/standby"]
         self.current_state = ""
         self.objectID = "pipeline"
-        self.detection_area_threshold = 10
 
         self.isDetected = False
         self.estimateConverged = False
@@ -89,7 +89,7 @@ class PipelineFollowingNode():
 
         # Wait for first image
         self.bridge = CvBridge()
-        print('wait for picture')
+        rospy.loginfo('Waiting for image')
         img = rospy.wait_for_message("/udfc/wrapper/camera_raw", Image)
         try:
             cv_image = self.bridge.imgmsg_to_cv2(img, "passthrough")
@@ -134,7 +134,6 @@ class PipelineFollowingNode():
         """ Callback for camera images """
         self.udfc_img = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
         self.image_shape = self.udfc_img.shape
-        self.count += 1
 
     def map_to_odom(self, p_baselink, q_baselink):
         """
@@ -172,37 +171,39 @@ class PipelineFollowingNode():
 
     def publish_waypoint(self, publisher, objectID, pose):
         """
-        Publishes a waypoint as an Objectposition-msg, using the given publisher. 
-        The interesting components are the Object Id, x and y positions and whether 
-        anything is detected or not.
+        input:
+            publisher   - given publisher
+            objectID    - in this case "pipeline"
+            pose        - pose of object
         """
 
-        #P is the object to be sent on the "/fsm/state"-topic, ObjectPosition is a Vortex-defined msg.
         p = ObjectPosition()
-        #p.pose.header[]
         p.objectID = objectID
-
         p.objectPose.pose = pose.pose
-
         p.isDetected = self.isDetected
         p.estimateConverged = self.estimateConverged
         p.estimateFucked = self.estimateFucked
-
-        #Function-call, takes in a publisher as a variable.
         publisher.publish(p)
 
-        rospy.loginfo("Object published: %s", objectID)
+        rospy.loginfo("Object published: %s, isDetected = %s", objectID, self.isDetected)
 
     def find_line(self, contour):
         """
         Uses RANSAC to find line and returns 
         line parameters alpha and beta
+
+        input:
+            contour - binary image containing information about the contour
+        output:
+            alpha   - rate of increase
+            beta    - intersection with y-axis
         """
+
         points = np.argwhere(contour > 0)
         X = points[:, 0].reshape(-1, 1)
         y = points[:, 1].reshape(-1, 1)
 
-        self.d = np.size(points) / 8
+        self.d = np.size(points) / self.frac_of_points
         regressor = RANSAC(self.n, self.k, self.t, self.d)
 
         regressor.fit(X, y)
@@ -214,19 +215,18 @@ class PipelineFollowingNode():
         alpha = float(params[1])
         beta = float(params[0])
 
-        print('points:', regressor.points.size)
-
         return alpha, beta
 
     def estimate_next_waypoint(self, alpha, beta):
         """
-        Not ftested in any way!
-        Brainstorming:
-        -Assuming we have line fromfind line-function.
-        -Needs to be found from current position
-        -Cameraframe: line
-        -Odomframe: current position, output position
-        -Output:  waypoint, 3 state array, z = 0
+        Using the line parameters to estimate next waypoint
+
+        input:
+            alpha       - rate of increase
+            beta        - intersection with y-axis
+        output:
+            waypoint    - coordinates [x, y, z] of point in base link
+            q           - quaternions [w, x, y, z] of point in base link     
         """
 
         #Error
@@ -243,49 +243,80 @@ class PipelineFollowingNode():
             [np.cos(theta_rad), np.sin(theta_rad), 0])
         q = np.array([np.cos(theta_rad / 2), 0, 0, np.sin(theta_rad / 2)])
 
-        print('alpha:', alpha)
-        print('beta', beta)
-        print('e1:', e1)
-        print('e2:', e2)
-        print('theta:', theta)
-        print('Waypoint:', waypoint)
+        # information prints:
+        # print('alpha: '+ str(alpha))
+        # print('beta: '+ str(beta))
+        # print('e1: '+ str(e1))
+        # print('e2: '+ str(e2))
+        # print('theta: '+ str(theta))
+        # print('Waypoint: '+ str(waypoint))
 
         return waypoint, q
+    
+    def threshold(self,hog_img):
+        ''' 
+        Converting HOG image to binary image by thresholding
+        Returning the binary image as the contour
+        input:
+            hog_img         - 2x2 np.array
+        output:
+            binary_image    - binary image of the contour 
+        '''
 
-    def findContour(self, img):
-        extractor = HOG(img)
-        features , contour = extractor.compute_hog()
-        #contour = self.extractor.YellowEdgesHSV(img, self.lower_hue,
-        #                                       self.upper_hue)
-        threshold = 0.5 * contour.max()
-        if threshold < 2:
-            threshold = 2
-        binary_image = contour > threshold
-        points = np.argwhere(contour > 0)
-        print('Number of points in contour: ', points[:, 0].size)
+        img_norm = cv.normalize(hog_img, None, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
+
+        # Apply Otsu's method to calculate the threshold value
+        ret, threshold = cv.threshold(img_norm, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)
+        binary_image = np.array(threshold, dtype=np.float32) / 255
+
+        points = np.argwhere(binary_image > 0)
+        rospy.loginfo('Number of points in contour: '+ str(points[:, 0].size))
 
         if points[:, 0].size > self.detection_area_threshold:
             self.isDetected = True
             return binary_image
         else:
             self.isDetected = False
-            return None
+            return binary_image
+        
 
-    #The function to rule them  all
-    def path_following_udfc(self, udfc_img, count):
+    def findHOG(self, img):
+        ''' finds HOG of the image '''
+        extractor = HOG(self.cell_size, self.block_size, self.nbins)
+        features , hog_img = extractor.compute_hog(img)
+        return hog_img
+        
+    def plotting(self, contour, alpha=0, beta=0):
+        ''' Function to visualize the computations '''
+        points = np.argwhere(contour > 0)
+        plt.figure(1, figsize=(10, 14))
+        plt.clf()
+        plt.axes().set_aspect('equal')
+        plt.xlim(0, self.image_shape[0])
+        plt.ylim(0, self.image_shape[1])
+        plt.scatter(points[:, 0], points[:, 1])
+        x = np.linspace(0, 1239, num=100).reshape(-1, 1)
+        plt.plot(x, alpha * x + beta, 'r')
+        plt.pause(0.05)
+        return None
+
+    def path_following_udfc(self, udfc_img):
+        '''The function to rule them  all - this uses all the functions above'''
 
         #Killing the  node if it is not in its operating state(Given by the state machine-Subscribernode).
         # if self.current_state not in self.possible_states:
         #     return None
 
         # Extracting the contour
-        contour = self.findContour(udfc_img)
-        data = Image()
-        data.data = contour
-        self.dataPub.publish(data)
-        print(self.image_shape)
+        hog_img = self.findHOG(udfc_img)
+        contour = self.threshold(hog_img)
 
-        if contour is not None:
+        # publishing the hog image on a topic
+        # data = Image()
+        # data.data = contour
+        # self.dataPub.publish(data)
+
+        if self.isDetected:
             #Approximating the line
             alpha, beta = self.find_line(contour)
 
@@ -297,57 +328,30 @@ class PipelineFollowingNode():
 
                 #Publishing the next waypoint
                 self.publish_waypoint(self.wpPub, self.objectID, pose_odom)
-                print('isDetected:', self.isDetected)
 
-                #Plotting
-                points = np.argwhere(contour > 0)
-                print(points[:, 0].size)
-                plt.figure(1, figsize=(10, 14))
-                plt.clf()
-                plt.axes().set_aspect('equal')
-                plt.xlim(0, 588)
-                plt.ylim(0, 795)
-                plt.scatter(points[:, 0], points[:, 1])
-                x = np.linspace(0, 1239, num=100).reshape(-1, 1)
-                plt.plot(x, alpha * x + beta)
-                plt.pause(0.05)
+                self.plotting(contour, alpha, beta)
+
             else:
-                cv.imwrite('ransac_fail_image.jpg', udfc_img)
-                print('Image number:', count)
+                rospy.loginfo('RANSAC failed')
                 p = ObjectPosition()
                 p.objectID = self.objectID
                 p.isDetected = self.isDetected
-                print('isDetected:', self.isDetected)
                 self.wpPub.publish(p)
-                print('RANSAC failed')
 
-                points = np.argwhere(contour > 0)
-                print(points[:, 0].size)
-                plt.figure(1, figsize=(10, 10))
-                plt.clf()
-                plt.axes().set_aspect('equal')
-                plt.xlim(0, 588)
-                plt.ylim(0, 795)
-                plt.scatter(points[:, 0], points[:, 1])
-                plt.pause(0.05)
+                self.plotting(contour)
 
         else:
-            print("The data type of the image is", udfc_img.dtype)
-            print('image shape', udfc_img.shape)
-            cv.imwrite('contour_fail_image.jpg', udfc_img)
-            print('Image number:', count)
+            rospy.loginfo('Contour failed')
             p = ObjectPosition()
             p.objectID = self.objectID
             p.isDetected = self.isDetected
-            print('isDetected:', self.isDetected)
-            print('Contour failed')
             self.wpPub.publish(p)
 
     def spin(self):
         """ running at a specific Hz """
         rate = rospy.Rate(1)
         while not rospy.is_shutdown():
-            self.path_following_udfc(self.udfc_img, self.count)
+            self.path_following_udfc(self.udfc_img)
             rate.sleep()
 
 

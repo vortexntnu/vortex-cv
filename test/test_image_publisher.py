@@ -19,7 +19,7 @@ class ImagePublisher():
             "/cv/image_preprocessing/CLAHE_single/udfc", Image, queue_size=1)
 
         self.bridge = CvBridge()
-        self.img = cv.imread("./images/image_31.jpg")
+        self.img = cv.imread("./images/image_29.jpg")
         self.ros_img = self.bridge.cv2_to_imgmsg(self.img, encoding='bgr8')
 
         self.firstImPub.publish(self.ros_img)

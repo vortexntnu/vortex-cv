@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from copy import copy
 import numpy as np
 
@@ -8,6 +10,7 @@ to a model, in this case linear. It itarates and chooses random samples and fits
 based on a treshold. The random samples that produces a result with most points within the 
 treshold is the final best fit.
 source: https://en.wikipedia.org/wiki/Random_sample_consensus 
+
 - Lasse Moen Guttormsen
 """
 
@@ -52,7 +55,7 @@ class RANSAC:
         self.fail = True
 
     def fit(self, X, y):
-        for _ in range(self.k):  #while a == False or i > self.k:
+        for _ in range(self.k):
             ids = rng.permutation(X.shape[0])
 
             maybe_inliers = ids[:self.n]

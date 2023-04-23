@@ -6,18 +6,17 @@ import numpy as np
 """
 Implementation of Histogram of Orientated Gradients (HOG).
 
-Computes the HOG descriptor and HOG image of an image.
+Computes the HOG descriptor of an image.
 
 Args:
-    image:      A NumPy array representing the input image.
-    cell_size:  A tuple representing the size of each cell in the HOG descriptor.
+    image: A NumPy array representing the input image.
+    cell_size: A tuple representing the size of each cell in the HOG descriptor.
     block_size: A tuple representing the size of each block in the HOG descriptor.
-    nbins:      An integer representing the number of orientation bins in the HOG descriptor.
+    nbins: An integer representing the number of orientation bins in the HOG descriptor.
     
 Returns:
-    features.ravel():   A np.array representing the HOG descriptor of the input image.
-    hog_image:          A 2x2 np.array representing the HOG image. 
-
+    hog: A NumPy array representing the HOG descriptor of the input image.
+    
 - Lasse Moen Guttormsen
 """
 
