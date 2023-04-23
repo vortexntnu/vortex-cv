@@ -1,7 +1,11 @@
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <string>
-#include <ros/ros.h>
+#pragma once
 
-void writeIntsToFile(std::vector<int> ids);
+#include <fstream>
+#include <iostream>
+#include <ros/ros.h>
+#include <string>
+#include <vector>
+
+void writeIntsToFile(std::string filename, std::vector<int> ids);
+
+std::string stampToString(const ros::Time &stamp, const std::string format = "%Y.%m.%d-%H.%M.%S");
