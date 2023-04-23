@@ -4,9 +4,10 @@ ARG distro=melodic
 ARG DEBIAN_FRONTEND=noninteractive
 SHELL ["/bin/bash", "-c"] 
 
-###################
-## Install stuff ##
-###################
+########################################################################
+#######################    Install stuff    ############################
+########################################################################
+
 
 #ROS dependencies
 RUN apt update && \
@@ -62,9 +63,60 @@ RUN pip install opencv-python==3.4.2.17 && \
     pip install plumbum
 
 
-###########
-## Build ##
-###########
+
+########################################################################
+######################    Install OpenCV    ############################
+########################################################################
+
+# OpenCV Version 
+ARG OPENCV_VERSION=4.2.0
+
+# Install dependencies
+RUN apt-get update || true && apt-get upgrade -y &&\
+    # Install build tools, build dependencies and python
+    apt-get install --no-install-recommends -y \
+	build-essential gcc g++ \
+	cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev \
+	libtbb2 libtbb-dev libjpeg-dev libpng-dev libtiff-dev \
+    yasm libatlas-base-dev gfortran libpq-dev \
+    libxine2-dev libglew-dev libtiff5-dev zlib1g-dev libavutil-dev libpostproc-dev \ 
+    libeigen3-dev python3-dev python3-pip python3-numpy libx11-dev tzdata \
+&& rm -rf /var/lib/apt/lists/*
+
+# Set Working directory
+WORKDIR /opt
+
+
+# Install OpenCV from Source
+RUN git clone --depth 1 --branch ${OPENCV_VERSION} https://github.com/opencv/opencv.git && \
+    git clone --depth 1 --branch ${OPENCV_VERSION} https://github.com/opencv/opencv_contrib.git && \
+    cd opencv && \
+    mkdir build && \
+    cd build && \
+    cmake \
+	-D WITH_CUDA=ON \
+	-D CMAKE_BUILD_TYPE=RELEASE \
+	-D CMAKE_INSTALL_PREFIX=/usr/ \
+	-D PYTHON3_PACKAGES_PATH=/usr/lib/python3/dist-packages \
+	-D WITH_V4L=ON \
+	-D WITH_QT=OFF \
+	-D WITH_OPENGL=ON \
+	-D WITH_GSTREAMER=ON \
+	-D OPENCV_GENERATE_PKGCONFIG=ON \
+	-D OPENCV_ENABLE_NONFREE=ON \
+	-D OPENCV_EXTRA_MODULES_PATH=/opt/opencv_contrib/modules \
+	-D INSTALL_PYTHON_EXAMPLES=OFF \
+	-D INSTALL_C_EXAMPLES=OFF \
+	-D BUILD_EXAMPLES=OFF .. && \
+   make -j"$(nproc)" && \
+   make install
+
+WORKDIR /
+
+########################################################################
+###########################    Build    ################################
+########################################################################
+
 
 # Assume the root contains vortex-cv, darknet_ros_zed and ddynamic_reconfigure_python
 # This is the case when we build using ghcr
