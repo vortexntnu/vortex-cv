@@ -15,6 +15,7 @@ import tf2_ros
 import geometry_msgs.msg
 import tf2_geometry_msgs
 import cv2 as cv
+from tf.transformations import quaternion_from_euler
 """
 Node for completing the pipeline following task in TAC 2023. It uses the mono-camera (UDFC) and 
 publishes position data to the landmarkserver of type "ObjectPosition" (see vortex_msgs repo). 
@@ -41,7 +42,7 @@ class PipelineFollowingNode():
         self.x_step = 0.5   # meters ahead of drone
         #Parameters RANSAC
         self.n = 10     # `n`: Minimum number of data points to estimate parameters
-        self.k = 100    # `k`: Maximum iterations allowed
+        self.k = 300    # `k`: Maximum iterations allowed
         self.t = 300    # `t`: Threshold value to determine if points are fit well
         self.d = None   # `d`: Number of close data points required to assert model fits well
         self.frac_of_points = 8 # d will be a result of the number of points in contour divided by this
@@ -182,6 +183,8 @@ class PipelineFollowingNode():
         p.isDetected = self.isDetected
         p.estimateConverged = self.estimateConverged
         p.estimateFucked = self.estimateFucked
+        # if pose.pose.position.x == 0 and pose.pose.position.y == 0 and pose.pose.position.z == 0:
+        #     return
         publisher.publish(p)
 
         rospy.loginfo("Object published: %s, isDetected = %s", objectID, self.isDetected)
@@ -240,8 +243,8 @@ class PipelineFollowingNode():
 
         waypoint = self.x_step * np.array(
             [np.cos(theta_rad), np.sin(theta_rad), 0])
-        q = np.array([np.cos(theta_rad / 2), 0, 0, np.sin(theta_rad / 2)])
-
+        # q = np.array([np.cos(theta_rad / 2), 0, 0, np.sin(theta_rad / 2)])
+        q = quaternion_from_euler(0,0,theta_rad)
         # information prints:
         # print('alpha: '+ str(alpha))
         # print('beta: '+ str(beta))
