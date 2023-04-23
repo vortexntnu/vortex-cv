@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+
+<launch>
+
+    <node pkg="tf2_ros" type="static_transform_publisher" name="base2udfc" args="-0.029 -0.07652 -0.14025 0 0 0 base_link udfc_link" />
+
+    <node pkg="aruco_detection" type="aruco_detection_docking_node" name="aruco_detection_node" respawn="false" output="screen"/>
+    <node pkg="vision_kf" type="vkf_node.py" name="vision_kf" output="screen"/>
+
+
+
+
+    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="odom2base" args="5 6 1 0 0 0 odom base_link" /> For testing only!! -->
+    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="base2dvl"  args="0 0 1 0 0 0 base_link dvl_link" /> For testing only!! -->
+</launch>
