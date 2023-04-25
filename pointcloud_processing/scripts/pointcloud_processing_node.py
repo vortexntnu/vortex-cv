@@ -22,28 +22,45 @@ from nav_msgs.msg import Odometry
 # Import classes
 from pointcloud_mapping import PointCloudMapping
 
+
 class PointcloudProcessingNode():
     """
     Handles tasks related to pointcloud processing
     """
-    cameraframe_x = 1280    # Param to set the expected width of cameraframe in pixels
-    cameraframe_y = 720     # Param to set the expected height of cameraframe in pixels
+    cameraframe_x = 1280  # Param to set the expected width of cameraframe in pixels
+    cameraframe_y = 720  # Param to set the expected height of cameraframe in pixels
     use_reduced_pc = False  # Param to change wether or not to use reduced pointcloud data
     pose_name = "/pointcloud_processing/poseStamped"
 
     def __init__(self):
-        
+
         rospy.init_node('pointcloud_processing_node')
         # Decide which pointcloud to use, this onsly works on topics described below
         if self.use_reduced_pc:
-            self.pointcloud_reducedSub = rospy.Subscriber('/pointcloud_downsize/output', PointCloud2, self.pointcloud_camera_cb)
+            self.pointcloud_reducedSub = rospy.Subscriber(
+                '/pointcloud_downsize/output', PointCloud2,
+                self.pointcloud_camera_cb)
         else:
-            self.pointcloudSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_camera_cb, queue_size=1)
+            self.pointcloudSub = rospy.Subscriber(
+                '/zed2/zed_node/point_cloud/cloud_registered',
+                PointCloud2,
+                self.pointcloud_camera_cb,
+                queue_size=1)
 
-        self.feat_detSub = rospy.Subscriber('/feature_detection/object_points', PointArray, self.feat_det_cb, queue_size= 1)
-        self.bboxSub = rospy.Subscriber('PLACEHOLDER', BoundingBoxes, self.bbox_cb, queue_size=1)
+        self.feat_detSub = rospy.Subscriber('/feature_detection/object_points',
+                                            PointArray,
+                                            self.feat_det_cb,
+                                            queue_size=1)
+        self.bboxSub = rospy.Subscriber('PLACEHOLDER',
+                                        BoundingBoxes,
+                                        self.bbox_cb,
+                                        queue_size=1)
 
-        self.siftCentSub = rospy.Subscriber('/feature_detection/sift_detection_centeroid', CenteroidArray, self.sift_centeroid_cb, queue_size=1)
+        self.siftCentSub = rospy.Subscriber(
+            '/feature_detection/sift_detection_centeroid',
+            CenteroidArray,
+            self.sift_centeroid_cb,
+            queue_size=1)
 
         # Defining classes
         self.pointcloud_mapper = PointCloudMapping()
@@ -59,7 +76,7 @@ class PointcloudProcessingNode():
         CB to sift feature cenetoid. Gets the centerpoint of a detection, 
         creates circular points around center and finds position and orientation of feature.
         """
-        
+
         for ctrd in msg.centeroid:
             feat_name = ctrd.name
             feat_x = ctrd.centre_x
@@ -70,12 +87,16 @@ class PointcloudProcessingNode():
             n = 200
 
             if feat_name == "gate_actual":
-                point_list = self.pointcloud_mapper.generate_points_circle(r,n,[feat_x,feat_y])
-                rot, pos = self.pointcloud_mapper.sift_feature_centeroid(point_list, self.pointcloud_data)
+                point_list = self.pointcloud_mapper.generate_points_circle(
+                    r, n, [feat_x, feat_y])
+                rot, pos = self.pointcloud_mapper.sift_feature_centeroid(
+                    point_list, self.pointcloud_data)
             elif feat_name in ["torpedo_target"]:
-                point_list = self.pointcloud_mapper.generate_torpedo_target([feat_x, feat_y], [-7, -14])
-                rot, pos = self.pointcloud_mapper.sift_feature_centeroid(point_list, self.pointcloud_data)
-                
+                point_list = self.pointcloud_mapper.generate_torpedo_target(
+                    [feat_x, feat_y], [-7, -14])
+                rot, pos = self.pointcloud_mapper.sift_feature_centeroid(
+                    point_list, self.pointcloud_data)
+
             else:
                 if feat_name in ["gate", "octagon"]:
                     r = 3
@@ -83,8 +104,10 @@ class PointcloudProcessingNode():
                 if feat_name in ["buoy", "torpedo_poster"]:
                     r = 5
                     n = 50
-                point_list = self.pointcloud_mapper.generate_points_circle(r, n, [feat_x,feat_y])
-                rot, pos = self.pointcloud_mapper.sift_feature_centeroid(point_list, self.pointcloud_data)
+                point_list = self.pointcloud_mapper.generate_points_circle(
+                    r, n, [feat_x, feat_y])
+                rot, pos = self.pointcloud_mapper.sift_feature_centeroid(
+                    point_list, self.pointcloud_data)
 
             try:
                 self.send_poseStamped_world(pos, rot, feat_name)
@@ -101,25 +124,27 @@ class PointcloudProcessingNode():
 
         for box in msg.bounding_boxes:
             # This loop will iterate for all the bboxes
-            
+
             bbox_data = np.array([[box.xmin, box.xmax], [box.ymin, box.ymax]])
-            box_point_list = [(box.xmin,box.ymin),
-                                (box.xmin,box.ymax),
-                                (box.xmax,box.ymin),
-                                (box.xmax,box.ymax)]
+            box_point_list = [(box.xmin, box.ymin), (box.xmin, box.ymax),
+                              (box.xmax, box.ymin), (box.xmax, box.ymax)]
 
             if box.Class == "gate":
-                or_data, pos_data = self.pointcloud_mapper.sift_feature_gate([box.xmin, box.xmax, box.ymin, box.ymax/2], self.pointcloud_data)
+                or_data, pos_data = self.pointcloud_mapper.sift_feature_gate(
+                    [box.xmin, box.xmax, box.ymin, box.ymax / 2],
+                    self.pointcloud_data)
                 rospy.info(or_data)
                 self.send_poseStamped_world(pos_data, or_data, box.Class)
 
             if str(box.Class) in ["gman", "bootlegger"]:
                 if ((box.xmax > box.xmin) and (box.ymax > box.ymin)):
-                    svd_data = self.pointcloud_mapper.sift_feature_area(bbox_data, self.pointcloud_data)
+                    svd_data = self.pointcloud_mapper.sift_feature_area(
+                        bbox_data, self.pointcloud_data)
 
             # Testing
             if box.Class in ["gate"]:
-                rot, pos = self.pointcloud_mapper.object_orientation_from_point_list(box_point_list, self.pointcloud_data)
+                rot, pos = self.pointcloud_mapper.object_orientation_from_point_list(
+                    box_point_list, self.pointcloud_data)
                 self.send_poseStamped_world(pos, rot, "gate")
 
     def feat_det_cb(self, msg):
@@ -131,7 +156,8 @@ class PointcloudProcessingNode():
             msg: The message recieved from feature_detection_node. It should be a PointArray message.
         """
         try:
-            rot, pos = self.pointcloud_mapper.object_orientation_position(msg.point_array, self.pointcloud_data)
+            rot, pos = self.pointcloud_mapper.object_orientation_position(
+                msg.point_array, self.pointcloud_data)
         except TypeError:
             quit()
         self.send_poseStamped_world(pos, rot)
@@ -148,14 +174,15 @@ class PointcloudProcessingNode():
 
         rospy.loginfo(self.object_name)
 
-        bbox = [msg.bounding_boxes[0].xmin,
-                msg.bounding_boxes[0].xmax,
-                msg.bounding_boxes[0].ymin,
-                msg.bounding_boxes[0].ymax]
+        bbox = [
+            msg.bounding_boxes[0].xmin, msg.bounding_boxes[0].xmax,
+            msg.bounding_boxes[0].ymin, msg.bounding_boxes[0].ymax
+        ]
 
         # Calls function to find object centre and orientation
         #orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_xy_area(bbox, self.pointcloud_data)
-        orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_xy_area(bbox, self.pointcloud_data)
+        orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_xy_area(
+            bbox, self.pointcloud_data)
         self.send_poseStamped_world(positiondata, orientationdata)
         self.send_ObjectPose_message(headerdata, positiondata, orientationdata)
 
@@ -182,8 +209,9 @@ class PointcloudProcessingNode():
             name: identifyer for the detected object
         """
 
-
-        posePub = rospy.Publisher("/pointcloud_processing/poseStamped/" + name, PoseStamped, queue_size=1)
+        posePub = rospy.Publisher("/pointcloud_processing/poseStamped/" + name,
+                                  PoseStamped,
+                                  queue_size=1)
 
         # Pose generation
         pose_msg_camera = PoseStamped()
@@ -203,12 +231,12 @@ class PointcloudProcessingNode():
         pose_msg_camera.pose.orientation.w = quaternion_data[3]
 
         # WPF TODO: contact BenG or IvanG
-        if max(position_data) > 7 or any(np.isnan(position_data)) or any(np.isnan(quaternion_data)):
+        if max(position_data) > 7 or any(np.isnan(position_data)) or any(
+                np.isnan(quaternion_data)):
             quit()
 
-
         #pose_msg_odom = self.pose_transformer.do_transform_pose(pose_msg_camera, tf_lookup_world_to_camera)
-        posePub.publish(pose_msg_camera)       
+        posePub.publish(pose_msg_camera)
 
     def send_pointStamped_message(self, position, name):
         """
@@ -224,7 +252,10 @@ class PointcloudProcessingNode():
                 /pointcloud_processing/object_point/name where name is your input
         """
         # For testing
-        pointPub = rospy.Publisher('/pointcloud_processing/object_point/' + name, PointStamped, queue_size= 1)
+        pointPub = rospy.Publisher('/pointcloud_processing/object_point/' +
+                                   name,
+                                   PointStamped,
+                                   queue_size=1)
         new_point = PointStamped()
         new_point.header.frame_id = "zed2_left_camera_frame"
         new_point.header.stamp = rospy.get_rostime()
@@ -263,7 +294,8 @@ class PointcloudProcessingNode():
         p_msg.pose.orientation.w = 1
         posePub.publish(p_msg)
 
-    def send_ObjectPose_message(self, headerdata, position_data, quaternion_data):
+    def send_ObjectPose_message(self, headerdata, position_data,
+                                quaternion_data):
         """
         Publishes a PoseStamped as a topic under /pointcloud_processing/object_pose
         Args:
@@ -276,7 +308,6 @@ class PointcloudProcessingNode():
                 /pointcloud_processing/object_pose/name where name is your input
         """
 
-     
         p_msg = ObjectPosition()
         p_msg.objectID = self.object_name
 
@@ -296,9 +327,9 @@ class PointcloudProcessingNode():
 
         #self.objposePub.publish(p_msg)
 
+
 if __name__ == '__main__':
     node = PointcloudProcessingNode()
 
     while not rospy.is_shutdown():
         rospy.spin()
-
