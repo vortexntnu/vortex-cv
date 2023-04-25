@@ -41,13 +41,8 @@ class PointcloudProcessingNode():
             self.pointcloudSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_camera_cb, queue_size=1)
 
         self.feat_detSub = rospy.Subscriber('/feature_detection/object_points', PointArray, self.feat_det_cb, queue_size= 1)
-        # self.bboxSub = rospy.Subscriber('/darknet_ros/bounding_boxes', BoundingBoxes, self.bbox_cb, queue_size=1)
-        # self.bboxSub = rospy.Subscriber('/feature_detection/detection_bbox', BoundingBoxes, self.bbox_cb, queue_size=1)
+        self.bboxSub = rospy.Subscriber('PLACEHOLDER', BoundingBoxes, self.bbox_cb, queue_size=1)
 
-        #self.objposePub = rospy.Publisher("/pointcloud_processing/object_pose/spy", ObjectPosition, queue_size=1)
-        # self.posePub = rospy.Publisher("/pointcloud_processing/poseStamped/spy", PoseStamped, queue_size=1)
-
-        # self.siftSub = rospy.Subscriber('/feature_detection/detection_bbox', BoundingBoxes, self.sift_cb, queue_size=1)
         self.siftCentSub = rospy.Subscriber('/feature_detection/sift_detection_centeroid', CenteroidArray, self.sift_centeroid_cb, queue_size=1)
 
         # Defining classes
@@ -186,13 +181,7 @@ class PointcloudProcessingNode():
             quaternion_data: the quaternion data describing the orientation of the pose
             name: identifyer for the detected object
         """
-        #parent_frame = "odom"
-        #child_frame = "zed2_left_camera_frame"
-        #
-        #tf_lookup_world_to_camera = self._tfBuffer.lookup_transform(parent_frame, child_frame, rospy.Time.now(), rospy.Duration(5))
 
-        # if self.prev_object_name != self.object_name:
-        # posePub = rospy.Publisher("/pointcloud_processing/object_pose/" + self.object_name, PoseStamped, queue_size=1)
 
         posePub = rospy.Publisher("/pointcloud_processing/poseStamped/" + name, PoseStamped, queue_size=1)
 
@@ -258,8 +247,7 @@ class PointcloudProcessingNode():
             Topic:
                 /pointcloud_processing/object_pose/name where name is your input
         """
-        #if self.prev_object_name != self.object_name:
-        #    posePub = rospy.Publisher('/pointcloud_processing/object_pose_rviz/' + self.object_name, PoseStamped, queue_size= 1)
+
         p_msg = PoseStamped()
         # Format header
         p_msg.header = headerdata
@@ -288,28 +276,13 @@ class PointcloudProcessingNode():
                 /pointcloud_processing/object_pose/name where name is your input
         """
 
-        #parent_frame = "odom"
-        #child_frame = "zed2_left_camera_frame"
-        #
-        #tf_lookup_world_to_camera = self._tfBuffer.lookup_transform(parent_frame, child_frame, rospy.Time.now(), rospy.Duration(5))
-        # if self.prev_object_name != self.object_name:
-        # objposePub = rospy.Publisher('/pointcloud_processing/object_pose/' + self.object_name, ObjectPosition, queue_size= 1)
+     
         p_msg = ObjectPosition()
         p_msg.objectID = self.object_name
 
         # Build pose
         p_msg.objectPose.header = headerdata
 
-        #p_msg.objectPose.pose.position.x = position_data[0]
-        #p_msg.objectPose.pose.position.y = position_data[1]
-        #p_msg.objectPose.pose.position.z = position_data[2]
-        #p_msg.objectPose.pose.orientation.x = 1
-        #p_msg.objectPose.pose.orientation.y = quaternion_data[2]
-        #p_msg.objectPose.pose.orientation.z = 1
-        #p_msg.objectPose.pose.orientation.w = 1
-        #self.objposePub.publish(p_msg)
-        # # quaternion_data = np.array([1, 1, quaternion_data[2], 1])
-        # # quaternion_data = quaternion_data / np.linalg.norm(quaternion_data)
         p_msg.objectPose.pose.position.x = position_data[0]
         p_msg.objectPose.pose.position.y = position_data[1]
         p_msg.objectPose.pose.position.z = position_data[2]
