@@ -26,6 +26,7 @@ vector that estimates points that will guide the drone along the pipeline.
 Tuva and Lasse  
 """
 
+
 class PipelineFollowingNode():
 
     def __init__(self):
@@ -33,9 +34,9 @@ class PipelineFollowingNode():
 
         ##### Tuning ##############################
         #Parameters for waypoint estimation
-        self.K1 = -0.08     # beta error
-        self.K2 = -10       # alpha error
-        self.x_step = 0.5   # meters ahead of drone
+        self.K1 = -0.08  # beta error
+        self.K2 = -10  # alpha error
+        self.x_step = 0.5  # meters ahead of drone
         #Parameters RANSAC
         self.n = 10  # `n`: Minimum number of data points to estimate parameters
         self.k = 300  # `k`: Maximum iterations allowed
@@ -43,11 +44,11 @@ class PipelineFollowingNode():
         self.d = None  # `d`: Number of close data points required to assert model fits well
         self.frac_of_points = 8  # d will be a result of the number of points in contour divided by this
         #Parameters HOG
-        self.cell_size = (10, 10) # size of each cell in the HOG descriptor
+        self.cell_size = (10, 10)  # size of each cell in the HOG descriptor
         self.block_size = (1, 1)  # size of each block in the HOG descriptor
-        self.nbins = 3            # the number of orientation bins in the HOG descriptor
+        self.nbins = 3  # the number of orientation bins in the HOG descriptor
         #Other
-        self.detection_area_threshold = 5000 # number of points in contour to accept the contour
+        self.detection_area_threshold = 5000  # number of points in contour to accept the contour
         ###################################################
 
         #Subscribers
@@ -67,15 +68,15 @@ class PipelineFollowingNode():
                                      ObjectPosition,
                                      queue_size=1)
         self.wpVisualPub = rospy.Publisher('/visualize_waypoint',
-                                     PoseStamped,
-                                     queue_size=1)
+                                           PoseStamped,
+                                           queue_size=1)
         self.contVisualPub = rospy.Publisher('/visualize_contour',
-                                       Image,
-                                       queue_size=1)
+                                             Image,
+                                             queue_size=1)
 
         # Initialize parameters, state and bools
         self.img_size = []
-        
+
         self.possible_states = ["pipeline/execute", "pipeline/standby"]
         self.current_state = ""
         self.objectID = "pipeline"
