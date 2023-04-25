@@ -1,6 +1,8 @@
 <?xml version="1.0"?>
 <launch>
     <!-- Pointcloud processing node -->
+    <!-- add for testing such that transform can be found if odom is not published
     <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_odom" args="0 0 0 0 0 0 odom base_link" />
+    -->
     <node name="pipe_following_node"    pkg="pipeline_following"     type="pipeline_following_node.py"    output="screen"/>
 </launch>

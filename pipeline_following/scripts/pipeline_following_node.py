@@ -7,12 +7,11 @@ from nav_msgs.msg import Odometry
 from cv_bridge import CvBridge, CvBridgeError
 from vortex_msgs.msg import ObjectPosition
 import numpy as np
-from image_extraction import Image_extraction
 from RANSAC import RANSAC
 from HOG import HOG
 from matplotlib import pyplot as plt
 import tf2_ros
-import geometry_msgs.msg
+from geometry_msgs.msg import PoseStamped
 import tf2_geometry_msgs
 import cv2 as cv
 from tf.transformations import quaternion_from_euler
@@ -27,20 +26,16 @@ vector that estimates points that will guide the drone along the pipeline.
 Tuva and Lasse  
 """
 
-
 class PipelineFollowingNode():
 
     def __init__(self):
         rospy.init_node('pipeline_following_node')
 
-        ### Tuning ###
-        #Parameters for pipe color (lower-> more red, higher -> more green, yellow is around 60)
-        self.lower_hue = 5
-        self.upper_hue = 170
+        ##### Tuning ##############################
         #Parameters for waypoint estimation
-        self.K1 = -0.08  # beta error
-        self.K2 = -10  # alpha error
-        self.x_step = 0.5  # meters ahead of drone
+        self.K1 = -0.08     # beta error
+        self.K2 = -10       # alpha error
+        self.x_step = 0.5   # meters ahead of drone
         #Parameters RANSAC
         self.n = 10  # `n`: Minimum number of data points to estimate parameters
         self.k = 300  # `k`: Maximum iterations allowed
@@ -48,14 +43,12 @@ class PipelineFollowingNode():
         self.d = None  # `d`: Number of close data points required to assert model fits well
         self.frac_of_points = 8  # d will be a result of the number of points in contour divided by this
         #Parameters HOG
-        self.cell_size = (10, 10)
-        self.block_size = (1, 1)
-        self.nbins = 3
+        self.cell_size = (10, 10) # size of each cell in the HOG descriptor
+        self.block_size = (1, 1)  # size of each block in the HOG descriptor
+        self.nbins = 3            # the number of orientation bins in the HOG descriptor
         #Other
-        self.detection_area_threshold = 100
-
-        # Parameters
-        self.img_size = []
+        self.detection_area_threshold = 5000 # number of points in contour to accept the contour
+        ###################################################
 
         #Subscribers
         self.udfcSub = rospy.Subscriber("/udfc/wrapper/camera_raw",
@@ -73,11 +66,16 @@ class PipelineFollowingNode():
         self.wpPub = rospy.Publisher('/object_positions_in',
                                      ObjectPosition,
                                      queue_size=1)
-        self.dataPub = rospy.Publisher('/visualize_contour',
+        self.wpVisualPub = rospy.Publisher('/visualize_waypoint',
+                                     PoseStamped,
+                                     queue_size=1)
+        self.contVisualPub = rospy.Publisher('/visualize_contour',
                                        Image,
                                        queue_size=1)
 
-        # Initialize state and bools
+        # Initialize parameters, state and bools
+        self.img_size = []
+        
         self.possible_states = ["pipeline/execute", "pipeline/standby"]
         self.current_state = ""
         self.objectID = "pipeline"
@@ -85,8 +83,6 @@ class PipelineFollowingNode():
         self.isDetected = False
         self.estimateConverged = False
         self.estimateFucked = False
-
-        self.extractor = Image_extraction()
 
         # Wait for first image
         self.bridge = CvBridge()
@@ -148,17 +144,17 @@ class PipelineFollowingNode():
             pose_odom - estimate of point/pose in odom frame
         """
 
-        pose_base_link = geometry_msgs.msg.PoseStamped()
+        pose_base_link = PoseStamped()
         pose_base_link.header.frame_id = self.child_frame
         pose_base_link.header.stamp = rospy.Time.now()
         pose_base_link.pose.position.x = p_baselink[0]
         pose_base_link.pose.position.y = p_baselink[1]
         pose_base_link.pose.position.z = p_baselink[2]
 
-        pose_base_link.pose.orientation.x = q_baselink[3]
-        pose_base_link.pose.orientation.y = q_baselink[2]
-        pose_base_link.pose.orientation.z = q_baselink[3]
-        pose_base_link.pose.orientation.w = q_baselink[0]
+        pose_base_link.pose.orientation.x = q_baselink[0]
+        pose_base_link.pose.orientation.y = q_baselink[1]
+        pose_base_link.pose.orientation.z = q_baselink[2]
+        pose_base_link.pose.orientation.w = q_baselink[3]
 
         transform = self.__tfBuffer.lookup_transform(self.parent_frame,
                                                      self.child_frame,
@@ -173,7 +169,7 @@ class PipelineFollowingNode():
     def publish_waypoint(self, publisher, objectID, pose):
         """
         input:
-            publisher   - given publisher
+            publisher   - given publisher, self.wpPub
             objectID    - in this case "pipeline"
             pose        - pose of object
         """
@@ -184,9 +180,14 @@ class PipelineFollowingNode():
         p.isDetected = self.isDetected
         p.estimateConverged = self.estimateConverged
         p.estimateFucked = self.estimateFucked
-        # if pose.pose.position.x == 0 and pose.pose.position.y == 0 and pose.pose.position.z == 0:
-        #     return
         publisher.publish(p)
+
+        # cannot visualize vortex_msgs in rviz,
+        # thats why this publisher are present
+        p_vis = PoseStamped()
+        p_vis = p.objectPose
+        p_vis.header.frame_id = 'odom'
+        self.wpVisualPub.publish(p_vis)
 
         rospy.loginfo("Object published: %s, isDetected = %s", objectID,
                       self.isDetected)
@@ -233,7 +234,8 @@ class PipelineFollowingNode():
             q           - quaternions [w, x, y, z] of point in base link     
         """
 
-        #Error
+        # create an angle based on error
+        # derived by line param alpha and beta
         e1 = self.image_shape[1] / 2 - beta
         e2 = alpha
         theta = self.K1 * e1 + self.K2 * e2
@@ -243,10 +245,12 @@ class PipelineFollowingNode():
             theta = -90
         theta_rad = theta * 2 * np.pi / 360
 
+        # create a waypoint in front of the drone
+        # based on the angle computed previously
         waypoint = self.x_step * np.array(
             [np.cos(theta_rad), np.sin(theta_rad), 0])
-        # q = np.array([np.cos(theta_rad / 2), 0, 0, np.sin(theta_rad / 2)])
         q = quaternion_from_euler(0, 0, theta_rad)
+
         # information prints:
         # print('alpha: '+ str(alpha))
         # print('beta: '+ str(beta))
@@ -313,17 +317,12 @@ class PipelineFollowingNode():
         '''The function to rule them  all - this uses all the functions above'''
 
         #Killing the  node if it is not in its operating state(Given by the state machine-Subscribernode).
-        # if self.current_state not in self.possible_states:
-        #     return None
+        if self.current_state not in self.possible_states:
+            return None
 
         # Extracting the contour
         hog_img = self.findHOG(udfc_img)
         contour = self.threshold(hog_img)
-
-        # publishing the hog image on a topic
-        # data = Image()
-        # data.data = contour
-        # self.dataPub.publish(data)
 
         if self.isDetected:
             #Approximating the line
@@ -338,6 +337,7 @@ class PipelineFollowingNode():
                 #Publishing the next waypoint
                 self.publish_waypoint(self.wpPub, self.objectID, pose_odom)
 
+                # for visualization
                 self.plotting(contour, alpha, beta)
 
             else:
@@ -347,6 +347,7 @@ class PipelineFollowingNode():
                 p.isDetected = self.isDetected
                 self.wpPub.publish(p)
 
+                # for visualization
                 self.plotting(contour)
 
         else:
