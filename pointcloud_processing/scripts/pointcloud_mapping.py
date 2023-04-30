@@ -14,6 +14,9 @@ class PointCloudMapping():
     Class used for various tasks surrounding pointcloud mappng
     """
 
+    def __init__(self) -> None:
+        pass
+
     def generate_torpedo_target(self, center_point, offset):
         """"
         Generate a torpedo target for the torpedo poster.
@@ -369,34 +372,27 @@ class PointCloudMapping():
         return middle_point
 
 
-def get_position_coordinates_in_world(self, bbox, pointcloud_data,
-                                      odmetry_data):
+    def get_position_coordinates_in_camera_frame(self, bbox, pointcloud_data):
 
-    average_position = self.get_position_coordinates_in_camera(
-        bbox, pointcloud_data)
+        #Get position in camera frame for (almost) every pixel within the bbox, and
+        #return average of all the coordinates.
+        #TODO:
+        # -can use RANSAC for a point in stead of average. This should give a more accurate result, since outliers will not affect the result.
 
-    #transform to world
+        sum_x = 0
+        sum_y = 0
+        sum_z = 0
+        count = 0
 
+        for u in range(bbox.xmin, bbox.xmax, 10):
+            for v in (bbox.ymin, bbox.ymax, 10):
 
-def get_position_coordinates_in_camera_frame(self, bbox, pointcloud_data):
+                pos = self.object_position_from_xy_point(u, v, pointcloud_data)
+                sum_x += pos[0]
+                sum_y += pos[1]
+                sum_z += pos[2]
 
-    #Get position in camera frame for (almost) every pixel within the bbox, and
-    #return average of all the coordinates.
-    #TODO:
-    # -can use RANSAC for a point in stead of average. This should give a more accurate result, since outliers will not affect the result.
+                count += 1
 
-    sum_x = 0
-    sum_y = 0
-    sum_z = 0
-    count = 0
-
-    for u in range(bbox.xmin, bbox.xmax, 10):
-        for v in (bbox.ymin, bbox.ymax, 10):
-
-            pos = self.object_position_from_xy_point(u, v, pointcloud_data)
-            sum_x += pos[0]
-            sum_y += pos[1]
-            sum_z += pos[2]
-
-    average_position = np.array([sum_x / count, sum_y / count, sum_z / count])
-    return average_position
+        average_position = np.array([sum_x / count, sum_y / count, sum_z / count])
+        return average_position

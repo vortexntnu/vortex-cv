@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # import debugpy
 # print("Waiting for VSCode debugger...")
@@ -174,10 +174,12 @@ class PointcloudProcessingNode():
             msg: The message recieved from yolo wrapper node. It should be a BBoxes message.
         """
 
-        objArray = DetectedObjectArray()
-        obj.header = msg.header
 
-        for bbox in msg.Bboxes:
+
+        objArray = DetectedObjectArray()
+        objArray.header = msg.header
+
+        for bbox in msg.bounding_boxes:
             obj = DetectedObject()
 
             #get position
@@ -193,7 +195,7 @@ class PointcloudProcessingNode():
 
             objArray.DetectedObjectArray.append(obj)
 
-        self.bouysPub(objArray)
+        self.bouysPub.publish(objArray)
 
     def pointcloud_camera_cb(self, msg_data):
         """
