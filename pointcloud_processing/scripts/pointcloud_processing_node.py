@@ -13,9 +13,9 @@ import tf2_geometry_msgs.tf2_geometry_msgs
 import tf2_ros
 
 # Import msg types
-from cv_msgs.msg import PointArray, Centeroid, CenteroidArray
-from geometry_msgs.msg import PointStamped, PoseStamped, TransformStamped
-from vortex_msgs.msg import ObjectPosition
+from cv_msgs.msg import PointArray, Centeroid, CenteroidArray, BBox, BBoxes
+from geometry_msgs.msg import PointStamped, PoseStamped, TransformStamped, PoseArray
+from vortex_msgs.msg import ObjectPosition, DetectedObjectArray, DetectedObject
 from sensor_msgs.msg import PointCloud2
 from nav_msgs.msg import Odometry
 
@@ -52,9 +52,11 @@ class PointcloudProcessingNode():
                                             self.feat_det_cb,
                                             queue_size=1)
         self.bboxSub = rospy.Subscriber('PLACEHOLDER',
-                                        BoundingBoxes,
+                                        'yolo/bbox',
                                         self.bbox_cb,
                                         queue_size=1)
+
+        self.bouysPub = rospy.Publisher('bouys/all_buoys_in_world_frame', DetectedObjectArray, queue_size=10)
 
         self.siftCentSub = rospy.Subscriber(
             '/feature_detection/sift_detection_centeroid',
@@ -164,29 +166,36 @@ class PointcloudProcessingNode():
 
     def bbox_cb(self, msg):
         """
-        Callback if a message from darknet ros node is recieved. Will read through a PointArray message and add each point to a new list.
-        It will use this pointlist to get orientation- and positiondata for the detected object, and send this to a remote filter.
+        Callback if a message from yolo wrapper is recieved. Will read through a BBoxes message, find transform the objects picture coordiantes to position coordiantes in world frame.
+        Send this to the update buoy marker node, serving as a landmarkserver for buoys and markers.
         Args:
-            msg: The message recieved from feature_detection_node. It should be a PointArray message.
+            msg: The message recieved from yolo wrapper node. It should be a BBoxes message.
         """
-        headerdata = msg.header
-        self.object_name = msg.bounding_boxes[0].Class
 
-        rospy.loginfo(self.object_name)
 
-        bbox = [
-            msg.bounding_boxes[0].xmin, msg.bounding_boxes[0].xmax,
-            msg.bounding_boxes[0].ymin, msg.bounding_boxes[0].ymax
-        ]
+        objArray = DetectedObjectArray()
+        obj.header = msg.header
 
-        # Calls function to find object centre and orientation
-        #orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_xy_area(bbox, self.pointcloud_data)
-        orientationdata, positiondata = self.pointcloud_mapper.object_orientation_from_xy_area(
-            bbox, self.pointcloud_data)
-        self.send_poseStamped_world(positiondata, orientationdata)
-        self.send_ObjectPose_message(headerdata, positiondata, orientationdata)
 
-        self.prev_object_name = self.object_name
+        for bbox in msg.Bboxes:
+            obj = DetectedObject()
+
+            #get position
+            positiondata = self.pointcloud_mapper.PLACEHOLDER(
+                bbox, self.pointcloud_data)
+
+            #pack msg (position and class) 
+            obj.type = bbox.Class
+            obj.x = positiondata[0]
+            obj.y = positiondata[0]
+
+            objArray.DetectedObjectArray.append(obj)
+    
+        self.bouysPub(objArray)
+        
+
+
+            
 
     def pointcloud_camera_cb(self, msg_data):
         """
