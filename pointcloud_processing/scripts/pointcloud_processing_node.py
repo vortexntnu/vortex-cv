@@ -51,8 +51,8 @@ class PointcloudProcessingNode():
                                             PointArray,
                                             self.feat_det_cb,
                                             queue_size=1)
-        self.bboxSub = rospy.Subscriber('PLACEHOLDER',
-                                        'yolo/bbox',
+        self.bboxSub = rospy.Subscriber('yolo/bbox',
+                                        BBoxes,
                                         self.bbox_cb,
                                         queue_size=1)
 
@@ -63,7 +63,7 @@ class PointcloudProcessingNode():
             CenteroidArray,
             self.sift_centeroid_cb,
             queue_size=1)
-
+       
         # Defining classes
         self.pointcloud_mapper = PointCloudMapping()
         self.pose_transformer = tf2_geometry_msgs.tf2_geometry_msgs
@@ -181,8 +181,9 @@ class PointcloudProcessingNode():
             obj = DetectedObject()
 
             #get position
-            positiondata = self.pointcloud_mapper.PLACEHOLDER(
-                bbox, self.pointcloud_data)
+            positiondata = self.pointcloud_mapper.get_position_coordinates_in_camera_frame(bbox, self.pointcloud_data)
+
+            #TODO: transform to world frame
 
             #pack msg (position and class) 
             obj.type = bbox.Class
@@ -193,9 +194,6 @@ class PointcloudProcessingNode():
     
         self.bouysPub(objArray)
         
-
-
-            
 
     def pointcloud_camera_cb(self, msg_data):
         """
