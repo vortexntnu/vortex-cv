@@ -56,14 +56,16 @@ class PointcloudProcessingNode():
                                         self.bbox_cb,
                                         queue_size=1)
 
-        self.bouysPub = rospy.Publisher('bouys/all_buoys_in_world_frame', DetectedObjectArray, queue_size=10)
+        self.bouysPub = rospy.Publisher('bouys/all_buoys_in_world_frame',
+                                        DetectedObjectArray,
+                                        queue_size=10)
 
         self.siftCentSub = rospy.Subscriber(
             '/feature_detection/sift_detection_centeroid',
             CenteroidArray,
             self.sift_centeroid_cb,
             queue_size=1)
-       
+
         # Defining classes
         self.pointcloud_mapper = PointCloudMapping()
         self.pose_transformer = tf2_geometry_msgs.tf2_geometry_msgs
@@ -172,28 +174,26 @@ class PointcloudProcessingNode():
             msg: The message recieved from yolo wrapper node. It should be a BBoxes message.
         """
 
-
         objArray = DetectedObjectArray()
         obj.header = msg.header
-
 
         for bbox in msg.Bboxes:
             obj = DetectedObject()
 
             #get position
-            positiondata = self.pointcloud_mapper.get_position_coordinates_in_camera_frame(bbox, self.pointcloud_data)
+            positiondata = self.pointcloud_mapper.get_position_coordinates_in_camera_frame(
+                bbox, self.pointcloud_data)
 
             #TODO: transform to world frame
 
-            #pack msg (position and class) 
+            #pack msg (position and class)
             obj.type = bbox.Class
             obj.x = positiondata[0]
             obj.y = positiondata[0]
 
             objArray.DetectedObjectArray.append(obj)
-    
+
         self.bouysPub(objArray)
-        
 
     def pointcloud_camera_cb(self, msg_data):
         """
