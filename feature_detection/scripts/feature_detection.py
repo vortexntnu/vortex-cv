@@ -8,7 +8,6 @@ import copy
 from timeit import default_timer as timer
 
 import icp
-
 """@package feature_detection
 Object detection module using various feature detection algorithms.
 
@@ -37,6 +36,7 @@ class ImageFeatureProcessing(object):
         contour_filtering:          Filters contours according to contour hierarchy and area.
         contour_processing:         Finds contours in a pre-processed image and filters them.
     """
+
     def __init__(self, image_shape, *args, **kwargs):
         self.image_shape = image_shape
 
@@ -69,7 +69,7 @@ class ImageFeatureProcessing(object):
             hsv_mask_validation_img (cv2::Mat)  : original_image with applied hsv_mask.
         """
         orig_img_cp = copy.deepcopy(original_image)
-    
+
         hsv_img = cv2.cvtColor(original_image, cv2.COLOR_BGR2HSV)
 
         hsv_lower = np.array([hsv_hue_min, hsv_sat_min, hsv_val_min])
@@ -77,8 +77,7 @@ class ImageFeatureProcessing(object):
 
         hsv_mask = cv2.inRange(hsv_img, hsv_lower, hsv_upper)
         hsv_mask_validation_img = cv2.bitwise_and(
-            orig_img_cp, orig_img_cp, mask=hsv_mask
-        )  # Applies mask
+            orig_img_cp, orig_img_cp, mask=hsv_mask)  # Applies mask
 
         return hsv_img, hsv_mask, hsv_mask_validation_img
 
@@ -113,9 +112,9 @@ class ImageFeatureProcessing(object):
         """
         hsv_mask_cp = copy.deepcopy(hsv_mask)
 
-        blur_hsv_img = cv2.GaussianBlur(
-            hsv_mask_cp, (gb_kernel_size1, gb_kernel_size2), sigma
-        )
+        blur_hsv_img = cv2.GaussianBlur(hsv_mask_cp,
+                                        (gb_kernel_size1, gb_kernel_size2),
+                                        sigma)
 
         thr_img = cv2.adaptiveThreshold(
             blur_hsv_img,
@@ -127,14 +126,14 @@ class ImageFeatureProcessing(object):
         )
 
         erosion_dilation_kernel = np.ones(
-            (erosion_dilation_kernel_size, erosion_dilation_kernel_size), np.uint8
-        )
-        erosion_img = cv2.erode(
-            thr_img, erosion_dilation_kernel, iterations=erosion_iterations
-        )
-        morphised_image = cv2.dilate(
-            erosion_img, erosion_dilation_kernel, iterations=dilation_iterations
-        )
+            (erosion_dilation_kernel_size, erosion_dilation_kernel_size),
+            np.uint8)
+        erosion_img = cv2.erode(thr_img,
+                                erosion_dilation_kernel,
+                                iterations=erosion_iterations)
+        morphised_image = cv2.dilate(erosion_img,
+                                     erosion_dilation_kernel,
+                                     iterations=dilation_iterations)
 
         return morphised_image
 
@@ -175,15 +174,13 @@ class ImageFeatureProcessing(object):
 
                 if mode == 1:
                     # Gets contours that are of lowest hierarchical class, but can have neighbours
-                    if (
-                        ((cnt_hier[0] == cnt_idx + 1) or (cnt_hier[0] == -1))
-                        and ((cnt_hier[1] == cnt_idx - 1) or (cnt_hier[1] == -1))
-                        and (cnt_hier[2] == -1)
-                    ):
+                    if (((cnt_hier[0] == cnt_idx + 1) or (cnt_hier[0] == -1))
+                            and ((cnt_hier[1] == cnt_idx - 1) or
+                                 (cnt_hier[1] == -1)) and (cnt_hier[2] == -1)):
                         cnt = contours[cnt_idx]
                         cnt_area = cv2.contourArea(cnt)
-                        
-                        # Filters out contours with less-than-predefined threshold area 
+
+                        # Filters out contours with less-than-predefined threshold area
                         if cnt_area < contour_area_threshold:
                             filtered_contours.append(False)
                         else:
@@ -197,10 +194,13 @@ class ImageFeatureProcessing(object):
 
                 if mode == 2:
                     # Gets contours that are of lowest hierarchical class and without neighbours
-                    if (len([i for i, j in zip(cnt_hier, [-1, -1, -1, cnt_idx - 1])if i == j])!= 4):
+                    if (len([
+                            i for i, j in zip(
+                                cnt_hier, [-1, -1, -1, cnt_idx - 1]) if i == j
+                    ]) != 4):
                         cnt = contours[cnt_idx]
                         cnt_area = cv2.contourArea(cnt)
-                        # Filters out contours with less-than-predefined threshold area 
+                        # Filters out contours with less-than-predefined threshold area
                         if cnt_area < contour_area_threshold:
                             filtered_contours.append(False)
                         else:
@@ -252,16 +252,17 @@ class ImageFeatureProcessing(object):
             if image is not None:
                 img_cp = copy.deepcopy(image)
 
-        contours, hierarchy = cv2.findContours(
-            noise_removed_image, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE
-        )
+        contours, hierarchy = cv2.findContours(noise_removed_image,
+                                               cv2.RETR_CCOMP,
+                                               cv2.CHAIN_APPROX_SIMPLE)
 
-        cnt_filter = self.contour_filtering(
-            hierarchy, contours, contour_area_threshold, mode=1
-        )
+        cnt_filter = self.contour_filtering(hierarchy,
+                                            contours,
+                                            contour_area_threshold,
+                                            mode=1)
         contours_array = np.array(contours)
         contours_filtered = contours_array[cnt_filter]
-        
+
         # Container list
         contour_arr = []
 
@@ -269,7 +270,8 @@ class ImageFeatureProcessing(object):
         if enable_convex_hull:
             hull_array = []
             for cnt_idx in range(len(contours_filtered)):
-                hull_array.append(cv2.convexHull(contours_filtered[cnt_idx], False))
+                hull_array.append(
+                    cv2.convexHull(contours_filtered[cnt_idx], False))
             contour_arr = hull_array
         else:
             contour_arr = contours_filtered
@@ -284,20 +286,23 @@ class ImageFeatureProcessing(object):
             cnt_moments = cv2.moments(cnt)
 
             try:
-                centroid_center_x = int(cnt_moments["m10"] / cnt_moments["m00"])
-                centroid_center_y = int(cnt_moments["m01"] / cnt_moments["m00"])
+                centroid_center_x = int(cnt_moments["m10"] /
+                                        cnt_moments["m00"])
+                centroid_center_y = int(cnt_moments["m01"] /
+                                        cnt_moments["m00"])
             except ZeroDivisionError:
                 return
             cnt_area = cnt_moments["m00"]
 
             if return_image:
                 if image is not None:
-                    cv2.drawContours(
-                        img_cp, contour_arr, cnt_idx, (255, 0, 0), 2
-                    )
-                cv2.drawContours(blank_image, contour_arr, cnt_idx, (255, 0, 0), 2)
+                    cv2.drawContours(img_cp, contour_arr, cnt_idx, (255, 0, 0),
+                                     2)
+                cv2.drawContours(blank_image, contour_arr, cnt_idx,
+                                 (255, 0, 0), 2)
 
-            centroid_data.append((centroid_center_x, centroid_center_y, cnt_area))
+            centroid_data.append(
+                (centroid_center_x, centroid_center_y, cnt_area))
             cnt_area_str = str(centroid_data[cnt_idx][2])
 
             if return_image and show_centers:
@@ -379,16 +384,25 @@ class PointsProcessing(object):
                                       The algorithm: I2RCP := ICP -> ECD -> DPF -> BID -> ref. pts. iteration -> delay (z^-1) -> loop (ICP)
         points_processing_reset     : Resets the current reference points to the base (initial) reference points.
     """
-    def __init__(self, len_of_integral_binary_resetter=5, icp_ref_points=None, *args, **kwargs):
-        self.points_processing_image_shape = (720, 1280, 4) # Only used for drawing data on image. Gets adaptively overwritten by init argument from FeatureDetection class.
+
+    def __init__(self,
+                 len_of_integral_binary_resetter=5,
+                 icp_ref_points=None,
+                 *args,
+                 **kwargs):
+        self.points_processing_image_shape = (
+            720, 1280, 4
+        )  # Only used for drawing data on image. Gets adaptively overwritten by init argument from FeatureDetection class.
         self.integral_diff_values_arr = []
         self.integral_diff_values_arr_len = len_of_integral_binary_resetter
 
         self.prev_closest_points = []
         self.prev_closest_point_dsts = []
 
-        self.ref_points_icp_fitting_base = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
-        self.ref_points_icp_fitting = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
+        self.ref_points_icp_fitting_base = np.array(
+            [[449, 341], [845, 496], [690, 331]], dtype=int)
+        self.ref_points_icp_fitting = np.array(
+            [[449, 341], [845, 496], [690, 331]], dtype=int)
 
         # print(icp_ref_points)
         if icp_ref_points is not None:
@@ -397,7 +411,11 @@ class PointsProcessing(object):
 
         super(PointsProcessing, self).__init__(*args, **kwargs)
 
-    def icp_fitting(self, ref_points, points_set, return_image=False, image=None):
+    def icp_fitting(self,
+                    ref_points,
+                    points_set,
+                    return_image=False,
+                    image=None):
         """Applies iterative closest points (ICP) algorithm given a set of N reference points and a set of M points to be fitted, where N<=M.
 
         Params:
@@ -424,12 +442,12 @@ class PointsProcessing(object):
 
         if return_image:
             for pnt in icp_points:
-                cv2.circle(blank_image, (int(pnt[0]), int(pnt[1])), 2, (0, 255, 0), 2)
+                cv2.circle(blank_image, (int(pnt[0]), int(pnt[1])), 2,
+                           (0, 255, 0), 2)
 
                 if image is not None:
-                    cv2.circle(
-                        img_cp, (int(pnt[0]), int(pnt[1])), 2, (0, 255, 0), 2
-                    )
+                    cv2.circle(img_cp, (int(pnt[0]), int(pnt[1])), 2,
+                               (0, 255, 0), 2)
 
         if return_image:
             if image is not None:
@@ -461,9 +479,8 @@ class PointsProcessing(object):
             for p_k_idx in range(len(point_arr2)):
                 p_k = point_arr2[p_k_idx]
 
-                dst2point = math.sqrt(
-                    (abs(p_n[0] - p_k[0]) ** 2) + (abs(p_n[1] - p_k[1]) ** 2)
-                )
+                dst2point = math.sqrt((abs(p_n[0] - p_k[0])**2) +
+                                      (abs(p_n[1] - p_k[1])**2))
                 distance_table[p_n_idx].append(dst2point)
 
         return distance_table
@@ -488,11 +505,11 @@ class PointsProcessing(object):
 
         # for each reference point the closest point is written to the idx of the reference points list
         for dsts_2_ref_point in distance_table:
-            closest_point_idx = min(
-                range(len(dsts_2_ref_point)), key=dsts_2_ref_point.__getitem__
-            )
+            closest_point_idx = min(range(len(dsts_2_ref_point)),
+                                    key=dsts_2_ref_point.__getitem__)
             closest_point_idxes.append(closest_point_idx)
-            closest_point_dsts.append(round(dsts_2_ref_point[closest_point_idx], 4))
+            closest_point_dsts.append(
+                round(dsts_2_ref_point[closest_point_idx], 4))
 
         for point_idx in closest_point_idxes:
             closest_points.append(point_arr2[point_idx])
@@ -515,7 +532,9 @@ class PointsProcessing(object):
         closest_points_np = np.rint(np.array(closest_points))
 
         # An index in indices is the same index in closest_points, and a value in indices is an index for a value in uniq_points, that is a value in closest_points with same index as indices
-        uniq_points, indices = np.unique(closest_points_np, return_inverse=True, axis=0)
+        uniq_points, indices = np.unique(closest_points_np,
+                                         return_inverse=True,
+                                         axis=0)
 
         num_closest_points = len(closest_points_np)
         num_uniq_closest_points = len(uniq_points)
@@ -531,32 +550,32 @@ class PointsProcessing(object):
             indices_of_indices[item].append(i)
         indices_of_indices = {
             index_of_val_in_uniq_points: index_of_point_in_closest_points
-            for index_of_val_in_uniq_points, index_of_point_in_closest_points in indices_of_indices.items()
+            for index_of_val_in_uniq_points, index_of_point_in_closest_points
+            in indices_of_indices.items()
             if len(index_of_point_in_closest_points) > 1
         }
 
         # Logic for changing the closest point x of a point b to its previous closest point y,
         # if there is another point c, which has point x as its closest point with smaller distance to it than point b
-        for point_val_in_uniq_points, indices_of_p1 in indices_of_indices.items():
+        for point_val_in_uniq_points, indices_of_p1 in indices_of_indices.items(
+        ):
             comp_dsts = []
             for not_closest_point_idx in indices_of_p1:
                 comp_dsts.append(closest_point_dsts[not_closest_point_idx])
             actual_closest_point_idx_in_indices_of_p1 = min(
-                range(len(comp_dsts)), key=comp_dsts.__getitem__
-            )
+                range(len(comp_dsts)), key=comp_dsts.__getitem__)
             actual_closest_point_idx = indices_of_p1[
-                actual_closest_point_idx_in_indices_of_p1
-            ]
+                actual_closest_point_idx_in_indices_of_p1]
 
             indices_of_p1.pop(actual_closest_point_idx_in_indices_of_p1)
 
             for not_closest_point_idx in indices_of_p1:
-                closest_points[not_closest_point_idx] = self.prev_closest_points[
-                    not_closest_point_idx
-                ]
+                closest_points[
+                    not_closest_point_idx] = self.prev_closest_points[
+                        not_closest_point_idx]
                 closest_point_dsts[
-                    not_closest_point_idx
-                ] = self.prev_closest_point_dsts[not_closest_point_idx]
+                    not_closest_point_idx] = self.prev_closest_point_dsts[
+                        not_closest_point_idx]
 
         return closest_points, closest_point_dsts
 
@@ -599,14 +618,14 @@ class PointsProcessing(object):
                 pt_dsts_cp[i] = self.prev_closest_point_dsts[i]
 
             # Checks if the ref points should be reset
-            integral_check = (
-                sum(self.integral_diff_values_arr) // self.integral_diff_values_arr_len
-            )
+            integral_check = (sum(self.integral_diff_values_arr) //
+                              self.integral_diff_values_arr_len)
             if integral_check > reset_reference_points_threshold:
                 self.points_processing_reset()
         try:
             self.integral_diff_values_arr.append(max(diff_dsts))
-            if len(self.integral_diff_values_arr) > self.integral_diff_values_arr_len:
+            if len(self.integral_diff_values_arr
+                   ) > self.integral_diff_values_arr_len:
                 self.integral_diff_values_arr.pop(0)
         except ValueError:
             pass
@@ -632,8 +651,7 @@ class PointsProcessing(object):
             thresholded_closest_points (A[N][2, uint16]): Fitted points array.
         """
         closest_points, closest_point_dsts = self.euclidian_closest_point(
-            point_arr1, point_arr2
-        )
+            point_arr1, point_arr2)
 
         (
             closest_points_filtered,
@@ -676,25 +694,38 @@ class PointsProcessing(object):
             {image is not None} img_cp      (cv::Mat)   : Passed image with drawn points.
         """
         if return_image:
-            blank_image = np.zeros(shape=self.points_processing_image_shape, dtype=np.uint8)
+            blank_image = np.zeros(shape=self.points_processing_image_shape,
+                                   dtype=np.uint8)
             if image is not None:
                 img_cp = copy.deepcopy(image)
 
-        icp_points = self.icp_fitting(
-            self.ref_points_icp_fitting, rect_center_points, return_image=False
-        )
+        icp_points = self.icp_fitting(self.ref_points_icp_fitting,
+                                      rect_center_points,
+                                      return_image=False)
 
         closest_points, closest_point_dsts = self.euclidian_closest_point(
-            icp_points, rect_center_points
-        )
-        closest_points = self.fitted_point_filtering(icp_points, rect_center_points)
+            icp_points, rect_center_points)
+        closest_points = self.fitted_point_filtering(icp_points,
+                                                     rect_center_points)
 
         if return_image:
             for pt in closest_points:
-                cv2.circle(blank_image,(pt[0], pt[1]),2,(255, 0, 255),2,)
+                cv2.circle(
+                    blank_image,
+                    (pt[0], pt[1]),
+                    2,
+                    (255, 0, 255),
+                    2,
+                )
                 if image is not None:
-                    cv2.circle(img_cp,(pt[0], pt[1]),2,(255, 0, 255),2,)
-        
+                    cv2.circle(
+                        img_cp,
+                        (pt[0], pt[1]),
+                        2,
+                        (255, 0, 255),
+                        2,
+                    )
+
         if return_image:
             if image is not None:
                 return img_cp, blank_image, closest_points
@@ -726,11 +757,16 @@ class ShapeProcessing(object):
         get_all_points_in_rects : Return all of the point coordinates within boundaries of rectangles. Can return element-wise decimated coordinate array.
         rect_filtering          : Return pixel values of contained within the rectangles which encompass at least one of the points in the parameter point array.
     """
+
     def __init__(self, *args, **kwargs):
         self.shape_processing_image_shape = (720, 1280, 4)
         super(ShapeProcessing, self).__init__(*args, **kwargs)
 
-    def shape_fitting(self, contours, ratio_threshold, return_image=False, image=None):
+    def shape_fitting(self,
+                      contours,
+                      ratio_threshold,
+                      return_image=False,
+                      image=None):
         """Fit least area rectangles onto contours.
 
         Params:
@@ -749,7 +785,8 @@ class ShapeProcessing(object):
         {image != None}     img_cp          (cv::Mat)       : Passed image with drawn rectangles.
         """
         if return_image:
-            blank_image = np.zeros(shape=self.shape_processing_image_shape, dtype=np.uint8)
+            blank_image = np.zeros(shape=self.shape_processing_image_shape,
+                                   dtype=np.uint8)
             if image is not None:
                 img_cp = copy.deepcopy(image)
 
@@ -788,7 +825,7 @@ class ShapeProcessing(object):
             centroid_center_y = int(cnt_moments["m01"] / cnt_moments["m00"])
 
             centroid_arr[cnt_idx] = [centroid_center_x, centroid_center_y]
-        
+
         if return_image:
             if image is not None:
                 return img_cp, blank_image, fitted_boxes, centroid_arr
@@ -797,9 +834,11 @@ class ShapeProcessing(object):
         else:
             return fitted_boxes, centroid_arr
 
-    def line_fitting(
-        self, contours, angle_threshold=50, return_image=False, image=None
-    ):
+    def line_fitting(self,
+                     contours,
+                     angle_threshold=50,
+                     return_image=False,
+                     image=None):
         """Fit lines onto countours through their centers going alongside moment direction.
 
         Params:
@@ -832,7 +871,8 @@ class ShapeProcessing(object):
             lefty = int((-x * vy / vx) + y)
             righty = int(((cols - x) * vy / vx) + y)
             if return_image:
-                cv2.line(blank_image, (cols - 1, righty), (0, lefty), (0, 255, 0), 4)
+                cv2.line(blank_image, (cols - 1, righty), (0, lefty),
+                         (0, 255, 0), 4)
                 cv2.putText(
                     blank_image,
                     str(round(theta, 1)) + " deg",
@@ -843,7 +883,8 @@ class ShapeProcessing(object):
                     2,
                 )
                 if image is not None:
-                    cv2.line(img_cp, (cols - 1, righty), (0, lefty), (0, 255, 0), 4)
+                    cv2.line(img_cp, (cols - 1, righty), (0, lefty),
+                             (0, 255, 0), 4)
                     cv2.putText(
                         img_cp,
                         str(round(theta, 1)) + " deg",
@@ -859,11 +900,9 @@ class ShapeProcessing(object):
         for theta_outer in theta_arr:
             if 90 < theta_outer < 180:
                 for theta_inner in theta_arr:
-                    if (
-                        (theta_outer + angle_threshold >= theta_inner)
-                        and (theta_outer - angle_threshold <= theta_inner)
-                        and (theta_outer != theta_inner)
-                    ):
+                    if ((theta_outer + angle_threshold >= theta_inner)
+                            and (theta_outer - angle_threshold <= theta_inner)
+                            and (theta_outer != theta_inner)):
                         parallell_line_count += 1
             else:
                 continue
@@ -890,11 +929,11 @@ class ShapeProcessing(object):
         # blur_line_fitted_img = cv2.GaussianBlur(line_fitted_img_cp, (5, 19), 5.2)
 
         blank_image = np.zeros(
-            shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8
-        )
+            shape=[self.img_height, self.img_width, self.img_channels],
+            dtype=np.uint8)
         blank_image_corners = np.zeros(
-            shape=[self.img_height, self.img_width, self.img_channels], dtype=np.uint8
-        )
+            shape=[self.img_height, self.img_width, self.img_channels],
+            dtype=np.uint8)
 
         gray = cv2.cvtColor(line_fitted_img_cp, cv2.COLOR_BGR2GRAY)
         gray = np.float32(gray)
@@ -907,9 +946,8 @@ class ShapeProcessing(object):
         blank_image[dst > 0.00001 * dst.max()] = [0, 0, 255, 0]
         blank_image = cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY)
 
-        contours, hierarchy = cv2.findContours(
-            blank_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
-        )
+        contours, hierarchy = cv2.findContours(blank_image, cv2.RETR_TREE,
+                                               cv2.CHAIN_APPROX_SIMPLE)
 
         corner_point_arr = []
         for cnt in contours:
@@ -977,9 +1015,12 @@ class ShapeProcessing(object):
 
         return relevant_rects
 
-    def get_all_points_in_rects(
-        self, rects, decimation_lvl=100, return_per_rect=False, return_image=False, image=None
-    ):
+    def get_all_points_in_rects(self,
+                                rects,
+                                decimation_lvl=100,
+                                return_per_rect=False,
+                                return_image=False,
+                                image=None):
         """Return all of the point coordinates within boundaries of rectangles. Can return element-wise decimated coordinate array.
 
         Params:
@@ -1007,13 +1048,13 @@ class ShapeProcessing(object):
             for rect in rects:
                 ctr = self.get_contour_from_rect(rect)
 
-                cv2.drawContours(
-                    blank_image, [ctr], 0, (255, 255, 255), thickness=cv2.FILLED
-                )
+                cv2.drawContours(blank_image, [ctr],
+                                 0, (255, 255, 255),
+                                 thickness=cv2.FILLED)
                 if return_image and (image is not None):
-                    cv2.drawContours(
-                        img_cp, [ctr], 0, (255, 255, 255), thickness=cv2.FILLED
-                    )
+                    cv2.drawContours(img_cp, [ctr],
+                                     0, (255, 255, 255),
+                                     thickness=cv2.FILLED)
 
             blank_image = cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY)
             px_arr = np.argwhere(blank_image == 255)
@@ -1022,24 +1063,26 @@ class ShapeProcessing(object):
             px_arr = []
             for rect in rects:
                 ctr = self.get_contour_from_rect(rect)
-                tmp_blank_image = np.zeros(shape=self.image_shape, dtype=np.uint8)
+                tmp_blank_image = np.zeros(shape=self.image_shape,
+                                           dtype=np.uint8)
 
-                cv2.drawContours(
-                    tmp_blank_image, [ctr], 0, (255, 255, 255), thickness=cv2.FILLED
-                )
-                cv2.drawContours(
-                    blank_image, [ctr], 0, (255, 255, 255), thickness=cv2.FILLED
-                )
+                cv2.drawContours(tmp_blank_image, [ctr],
+                                 0, (255, 255, 255),
+                                 thickness=cv2.FILLED)
+                cv2.drawContours(blank_image, [ctr],
+                                 0, (255, 255, 255),
+                                 thickness=cv2.FILLED)
                 if return_image and (image != None):
-                    cv2.drawContours(
-                        img_cp, [ctr], 0, (255, 255, 255), thickness=cv2.FILLED
-                    )
+                    cv2.drawContours(img_cp, [ctr],
+                                     0, (255, 255, 255),
+                                     thickness=cv2.FILLED)
 
-                tmp_blank_image = cv2.cvtColor(tmp_blank_image, cv2.COLOR_BGR2GRAY)
+                tmp_blank_image = cv2.cvtColor(tmp_blank_image,
+                                               cv2.COLOR_BGR2GRAY)
                 blank_image = cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY)
                 tmp_px_arr = np.argwhere(tmp_blank_image == 255)
                 px_arr.append(tmp_px_arr)
-        
+
         if decimation_lvl is not None:
             decimated_px_arr = px_arr[::decimation_lvl].copy()
 
@@ -1051,9 +1094,12 @@ class ShapeProcessing(object):
         else:
             return px_arr
 
-    def rect_filtering(
-        self, i2rcp_points, fitted_boxes, return_rectangles_separately=False, return_image=False, image=None
-    ):
+    def rect_filtering(self,
+                       i2rcp_points,
+                       fitted_boxes,
+                       return_rectangles_separately=False,
+                       return_image=False,
+                       image=None):
         """Return pixel values of contained within the rectangles which encompass at least one of the points in the parameter point array.
 
         Params:
@@ -1071,19 +1117,26 @@ class ShapeProcessing(object):
         {image != None}     img_cp          (cv::Mat)           : Passed image with drawn points.
         """
         if return_image:
-            blank_image = np.zeros(shape=self.shape_processing_image_shape, dtype=np.uint8)
+            blank_image = np.zeros(shape=self.shape_processing_image_shape,
+                                   dtype=np.uint8)
             if image is not None:
                 img_cp = copy.deepcopy(image)
 
         relevant_rects = self.get_relevant_rects(i2rcp_points, fitted_boxes)
-        pointed_rects_img, _, points_in_rects = self.get_all_points_in_rects(relevant_rects, return_per_rect=return_rectangles_separately, return_image=True, image=image)
+        pointed_rects_img, _, points_in_rects = self.get_all_points_in_rects(
+            relevant_rects,
+            return_per_rect=return_rectangles_separately,
+            return_image=True,
+            image=image)
         self.pointed_rects_img = pointed_rects_img
 
         if return_image:
             for pnt in i2rcp_points:
-                cv2.circle(blank_image, (int(pnt[0]), int(pnt[1])), 5, (255, 0, 255), 2)
+                cv2.circle(blank_image, (int(pnt[0]), int(pnt[1])), 5,
+                           (255, 0, 255), 2)
                 if image is not None:
-                    cv2.circle(img_cp, (int(pnt[0]), int(pnt[1])), 5, (255, 0, 255), 2)
+                    cv2.circle(img_cp, (int(pnt[0]), int(pnt[1])), 5,
+                               (255, 0, 255), 2)
 
             for box in relevant_rects:
                 box = np.int0(box)
@@ -1100,18 +1153,27 @@ class ShapeProcessing(object):
             return relevant_rects, points_in_rects
 
 
-class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing):
+class FeatureDetection(ImageFeatureProcessing, PointsProcessing,
+                       ShapeProcessing):
     """Algorithms for feature-processing-based object detection and classification."""
 
-    def __init__(self, image_shape, len_of_integral_binary_resetter=5, icp_ref_points=None):
-        super(FeatureDetection, self).__init__(image_shape=image_shape, len_of_integral_binary_resetter=len_of_integral_binary_resetter, icp_ref_points=icp_ref_points)
+    def __init__(self,
+                 image_shape,
+                 len_of_integral_binary_resetter=5,
+                 icp_ref_points=None):
+        super(FeatureDetection, self).__init__(
+            image_shape=image_shape,
+            len_of_integral_binary_resetter=len_of_integral_binary_resetter,
+            icp_ref_points=icp_ref_points)
 
         self.image_shape = image_shape
         self.shape_processing_image_shape = self.image_shape
         self.points_processing_image_shape = self.image_shape
 
-        self.ref_points_icp_fitting_base = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
-        self.ref_points_icp_fitting = np.array([[449, 341], [845, 496], [690, 331]], dtype=int)
+        self.ref_points_icp_fitting_base = np.array(
+            [[449, 341], [845, 496], [690, 331]], dtype=int)
+        self.ref_points_icp_fitting = np.array(
+            [[449, 341], [845, 496], [690, 331]], dtype=int)
 
         if icp_ref_points is not None:
             self.ref_points_icp_fitting_base = icp_ref_points
@@ -1120,7 +1182,8 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
         # Classification
         self.detection = False
 
-    def feature_detection(self, original_image, hsv_params, noise_removal_params):
+    def feature_detection(self, original_image, hsv_params,
+                          noise_removal_params):
         """Feature detection pipeline.
         Applies HSV (colour) filter, morphism of canny image, contour fitting and filtering, shape fitting, I2RCP, and rectangle filtering.
 
@@ -1133,35 +1196,47 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
             relevant_rects  (A[M][4][2, uint32]): Array of filtered rectangles.
             points_in_rects (A[N][2, uint32])   : An array of 2D points.
         """
-        _, hsv_mask, hsv_validation_img = self.hsv_processor(original_image, *hsv_params)
+        _, hsv_mask, hsv_validation_img = self.hsv_processor(
+            original_image, *hsv_params)
         self.hsv_validation_img = hsv_validation_img
-        
+
         try:
-            nr_img = self.noise_removal_processor(hsv_mask, *noise_removal_params)
+            nr_img = self.noise_removal_processor(hsv_mask,
+                                                  *noise_removal_params)
             self.nr_img = nr_img
         except Exception:
             pass
 
         try:
-            using_cnts = self.contour_processing(nr_img, 300, return_image=False)
+            using_cnts = self.contour_processing(nr_img,
+                                                 300,
+                                                 return_image=False)
         except Exception:
             pass
-        
+
         try:
-            shape_img, _, fitted_boxes, centroid_arr = self.shape_fitting(using_cnts, 5, return_image=True, image=original_image)
+            shape_img, _, fitted_boxes, centroid_arr = self.shape_fitting(
+                using_cnts, 5, return_image=True, image=original_image)
             self.shape_img = shape_img
         except Exception:
             pass
 
         try:
-            i2rcp_image_blank, i2rcp_points = self.i2rcp(centroid_arr, return_image=True, image=None)
+            i2rcp_image_blank, i2rcp_points = self.i2rcp(centroid_arr,
+                                                         return_image=True,
+                                                         image=None)
             self.i2rcp_image_blank = i2rcp_image_blank
         except Exception:
             pass
 
         # Changed returns to obj vars
         try:
-            rect_flt_img, _, self.relevant_rects, self.points_in_rects = self.rect_filtering(i2rcp_points, fitted_boxes, return_rectangles_separately=False, return_image=True, image=original_image)
+            rect_flt_img, _, self.relevant_rects, self.points_in_rects = self.rect_filtering(
+                i2rcp_points,
+                fitted_boxes,
+                return_rectangles_separately=False,
+                return_image=True,
+                image=original_image)
             self.rect_flt_img = rect_flt_img
             self.pointed_rects_img = self.pointed_rects_img
         except Exception:
@@ -1169,9 +1244,11 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
 
         return self.relevant_rects, self.points_in_rects
 
-    def bounding_box_processor(
-        self, all_points_in_rects, label_name, return_image=False, image=None
-    ):
+    def bounding_box_processor(self,
+                               all_points_in_rects,
+                               label_name,
+                               return_image=False,
+                               image=None):
         """Generates a rectangular bounding box with a label.
 
         Params:
@@ -1203,7 +1280,8 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
         bbox_points = (xmin, ymin, xmax, ymax)
 
         if return_image:
-            cv2.rectangle(blank_image, (ymin, xmin), (ymax, xmax), (0, 255, 0), 2)
+            cv2.rectangle(blank_image, (ymin, xmin), (ymax, xmax), (0, 255, 0),
+                          2)
             cv2.putText(
                 blank_image,
                 label_name,
@@ -1214,7 +1292,8 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
                 2,
             )
             if image is not None:
-                cv2.rectangle(img_cp, (ymin, xmin), (ymax, xmax), (0, 255, 0), 2)
+                cv2.rectangle(img_cp, (ymin, xmin), (ymax, xmax), (0, 255, 0),
+                              2)
                 cv2.putText(
                     img_cp,
                     label_name,
@@ -1239,9 +1318,8 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
         else:
             return bbox_points, bbox_area
 
-    def classification(
-        self, original_image, label_name, hsv_params, noise_removal_params
-    ):
+    def classification(self, original_image, label_name, hsv_params,
+                       noise_removal_params):
         """Classifies an object in accordance to given label name and line fitting.
         Params:
             original_image          (cv::Mat)               : BGRA image.
@@ -1257,23 +1335,30 @@ class FeatureDetection(ImageFeatureProcessing, PointsProcessing, ShapeProcessing
         """
 
         try:
-            self.relevant_rects, self.points_in_rects = self.feature_detection(original_image, hsv_params, noise_removal_params)
-        except Exception:
-            pass
-        
-        try:
-            line_fitting_img, _, theta_arr, self.parallell_line_count = self.line_fitting(self.relevant_rects, angle_threshold=50, return_image=True, image=original_image)
-            self.line_fitting_img = line_fitting_img
+            self.relevant_rects, self.points_in_rects = self.feature_detection(
+                original_image, hsv_params, noise_removal_params)
         except Exception:
             pass
 
+        try:
+            line_fitting_img, _, theta_arr, self.parallell_line_count = self.line_fitting(
+                self.relevant_rects,
+                angle_threshold=50,
+                return_image=True,
+                image=original_image)
+            self.line_fitting_img = line_fitting_img
+        except Exception:
+            pass
 
         try:
             detection = False
             if self.parallell_line_count > 1:
                 detection = True
                 self.bbox_img, _, self.bbox_points, self.bbox_area = self.bounding_box_processor(
-                    self.points_in_rects, label_name, return_image=True, image=original_image)
+                    self.points_in_rects,
+                    label_name,
+                    return_image=True,
+                    image=original_image)
 
             self.detection = detection
             return self.bbox_points, self.bbox_area, self.points_in_rects, self.detection

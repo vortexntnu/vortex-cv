@@ -15,7 +15,6 @@ class MultiVarGaussian:
     t: float        #   Time of last update    
     """
 
-
     def __init__(self, m, P, t=None):
         self.mean = m
         self.cov = P
@@ -26,8 +25,9 @@ class MultiVarGaussian:
         if __debug__:
             if DEBUG:
                 if not self.mean.shape * 2 == self.cov.shape:
-                    
-                    raise ValueError("mean and cov shape mismatch :" % (self.mean.shape, self.cov.shape))
+
+                    raise ValueError("mean and cov shape mismatch :" %
+                                     (self.mean.shape, self.cov.shape))
 
                 if not np.all(np.isfinite(self.mean)):
                     raise ValueError("Non finite mean = ", self.mean)
@@ -70,5 +70,5 @@ class MultiVarGaussian:
         if not isinstance(o, MultiVarGaussian):
             return False
         else:
-            return (np.allclose(self.mean, o.mean) and
-                    np.allclose(self.cov, o.cov))
+            return (np.allclose(self.mean, o.mean)
+                    and np.allclose(self.cov, o.cov))

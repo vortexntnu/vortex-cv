@@ -10,39 +10,39 @@ import cv2 as cv
 import numpy as np
 import traceback
 
+
 class CVTemplateNode():
     """Handles tasks related to feature detection
     """
 
     def __init__(self, image_topic):
         rospy.init_node('valve_edc_node')
-        
+
         self.ros_rate = rospy.Rate(60.0)
 
         self.imgSub = rospy.Subscriber(image_topic, Image, self.img_callback)
-        self.imgPub = rospy.Publisher('/cv_test/test', Image, queue_size= 1)
+        self.imgPub = rospy.Publisher('/cv_test/test', Image, queue_size=1)
 
         self.bridge = CvBridge()
 
         # test params
         self.test_param = 100
         self.test_enum = 3
-        self.min_max_params = [0,
-                               179,
-                               0,
-                               255,
-                               0,
-                               255]
-        
+        self.min_max_params = [0, 179, 0, 255, 0, 255]
+
         # First initialization of image shape
         first_image_msg = rospy.wait_for_message(image_topic, Image)
         try:
-            self.cv_image = self.bridge.imgmsg_to_cv2(first_image_msg, "passthrough")
+            self.cv_image = self.bridge.imgmsg_to_cv2(first_image_msg,
+                                                      "passthrough")
             self.image_shape = self.cv_image.shape
         except CvBridgeError:
-            raise("CV Bridge was not successful in converting the ROS image...")
+            raise (
+                "CV Bridge was not successful in converting the ROS image...")
 
-        self.dynam_client = dynamic_reconfigure.client.Client("/cv_cfg/valve_edc_cfg", config_callback=self.dynam_reconfigure_callback)
+        self.dynam_client = dynamic_reconfigure.client.Client(
+            "/cv_cfg/valve_edc_cfg",
+            config_callback=self.dynam_reconfigure_callback)
 
     def cv_image_publisher(self, publisher, image, msg_encoding="bgra8"):
         """
@@ -61,7 +61,9 @@ class CVTemplateNode():
                     else:
                         gray = cv.cvtColor(self.cv_image, cv.COLOR_BGRA2GRAY)
 
-                    self.cv_image_publisher(self.imgPub, gray, msg_encoding="8UC1")
+                    self.cv_image_publisher(self.imgPub,
+                                            gray,
+                                            msg_encoding="8UC1")
 
                 except Exception:
                     rospy.logwarn(traceback.format_exc())
@@ -90,9 +92,11 @@ class CVTemplateNode():
         self.min_max_params[4] = config.test_min3
         self.min_max_params[5] = config.test_max3
 
+
 if __name__ == '__main__':
     try:
-        valve_edc_node = CVTemplateNode(image_topic='/zed2/zed_node/rgb_raw/image_raw_color')
+        valve_edc_node = CVTemplateNode(
+            image_topic='/zed2/zed_node/rgb_raw/image_raw_color')
         # rospy.spin()
         valve_edc_node.spin()
 

@@ -7,16 +7,17 @@ import cv2
 import matplotlib.pyplot as plt
 from time import sleep
 
+
 def publish_image(image_file):
     # Initialize ROS node
     rospy.init_node('image_publisher', anonymous=True)
 
     # Initialize publisher with topic name and message type
     image_pub = rospy.Publisher('/image', Image, queue_size=1)
-    
+
     # Initialize OpenCV bridge
     bridge = CvBridge()
-    
+
     # Read image from file
     img = cv2.imread(image_file)
     plt.imshow(img)
@@ -25,6 +26,7 @@ def publish_image(image_file):
         image_pub.publish(bridge.cv2_to_imgmsg(img, "bgr8"))
         # Spin node to keep it alive
         sleep(5)
+
 
 if __name__ == '__main__':
     # Provide image file path as argument

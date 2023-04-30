@@ -11,6 +11,7 @@ import numpy as np
 from numpy import ndarray
 from scipy.linalg import expm
 
+
 class DynamicModel:
     """
     Parent class for dynamic models.
@@ -55,7 +56,6 @@ class DynamicModel:
         raise NotImplementedError
 
 
-
 class landmark_pose_world(DynamicModel):
     """
     Dynamic model for a landmark. Landmarks are assumed time invariant.
@@ -69,9 +69,9 @@ class landmark_pose_world(DynamicModel):
         """Calculate the zero noise Ts time units transition from x.
         See DynamicModel for variable documentation
         """
-        
+
         n = len(x)
-        
+
         #x_kp1 = np.eye(n) @ x
         x_kp1 = np.matmul(np.eye(n), x)
 
@@ -80,7 +80,6 @@ class landmark_pose_world(DynamicModel):
     def F(self, x, Ts):
         """Calculate the transition function jacobian for Ts time units at x.
         See DynamicModel for variable documentation"""
-
 
         n = len(x)
         F = np.eye(n)
@@ -92,7 +91,7 @@ class landmark_pose_world(DynamicModel):
         See(4.64) in the book.
         See DynamicModel for variable documentation"""
 
-        Q = np.diag(self.sigma_arr)*Ts
+        Q = np.diag(self.sigma_arr) * Ts
 
         return Q
 
@@ -110,9 +109,9 @@ class landmark_search_model(DynamicModel):
         """Calculate the zero noise Ts time units transition from x.
         See DynamicModel for variable documentation
         """
-        
+
         n = len(x)
-        
+
         x_kp1 = np.matmul(np.eye(n), x)
 
         return x_kp1
@@ -120,7 +119,6 @@ class landmark_search_model(DynamicModel):
     def F(self, x, Ts):
         """Calculate the transition function jacobian for Ts time units at x.
         See DynamicModel for variable documentation"""
-
 
         n = len(x)
         F = np.eye(n)
@@ -132,6 +130,6 @@ class landmark_search_model(DynamicModel):
         See(4.64) in the book.
         See DynamicModel for variable documentation"""
 
-        Q = np.diag(self.sigma_arr)*Ts
+        Q = np.diag(self.sigma_arr) * Ts
 
         return Q

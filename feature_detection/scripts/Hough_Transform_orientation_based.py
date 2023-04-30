@@ -1,14 +1,13 @@
 import cv2
 import numpy as np
 from copy import deepcopy
-
-
 """ 
 ToDo
 + tuning of the parameter of cv2.HoughLinesP makes it more robust, but less sensitive
 + component detection --> some kind of filter(?) has to be applied
 + idea on how to improve the algorithm: use eucledian norm to get distance of two lines to get independent of orientation
 """
+
 
 # feature detection based on hough transform
 class HoughTransform:
@@ -49,15 +48,13 @@ class HoughTransform:
 
         # list of lines is filtered and lines that are close together are combined -> change this if it is not working with calibrated images
         for i in range(x_all_lines.shape[0] - 1):
-            if (
-                x_all_lines[i + 1] - x_all_lines[i] >= e
-                or i == x_all_lines.shape[0] - 2
-            ):
+            if (x_all_lines[i + 1] - x_all_lines[i] >= e
+                    or i == x_all_lines.shape[0] - 2):
                 if len(x_all_lines[k:i]) > 1:
-                    x_pos_mean = int(x_all_lines[k : i + 1].mean())
-                    y_pos_ver = lines_sort[k : i + 1, 0, ver]
+                    x_pos_mean = int(x_all_lines[k:i + 1].mean())
+                    y_pos_ver = lines_sort[k:i + 1, 0, ver]
                     y_pos_min = min(y_pos_ver)
-                    y_pos_ver = lines_sort[k : i + 1, 0, ver + 2]
+                    y_pos_ver = lines_sort[k:i + 1, 0, ver + 2]
                     y_pos_max = max(y_pos_ver)
                     k = i + 1
                     position[j] = x_pos_mean
@@ -176,9 +173,12 @@ class HoughTransform:
         edges = cv2.Canny(img_gray, t1, t2)
 
         ## HoughLinesP
-        linesP = cv2.HoughLinesP(
-            edges, 1, np.pi / 180, 30, minLineLength=25, maxLineGap=10
-        )
+        linesP = cv2.HoughLinesP(edges,
+                                 1,
+                                 np.pi / 180,
+                                 30,
+                                 minLineLength=25,
+                                 maxLineGap=10)
 
         ## Orientation based Filtering
         k = 0
@@ -344,7 +344,8 @@ class HoughTransform:
                     for cent_idx in range(len(center)):
                         cv2.circle(
                             img_gray,
-                            (int(center[cent_idx][0]), int(center[cent_idx][1])),
+                            (int(center[cent_idx][0]), int(
+                                center[cent_idx][1])),
                             radius=3,
                             color=(0, 0, 255),
                             thickness=-1,
