@@ -371,7 +371,6 @@ class PointCloudMapping():
         middle_point = [x_middle_pos, y_middle_pos, z_middle_pos]
         return middle_point
 
-
     def get_position_coordinates_in_camera_frame(self, bbox, pointcloud_data):
 
         #Get position in camera frame for (almost) every pixel within the bbox, and
@@ -394,5 +393,6 @@ class PointCloudMapping():
 
                 count += 1
 
-        average_position = np.array([sum_x / count, sum_y / count, sum_z / count])
+        average_position = np.array(
+            [sum_x / count, sum_y / count, sum_z / count])
         return average_position

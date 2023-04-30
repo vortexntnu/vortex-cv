@@ -174,8 +174,6 @@ class PointcloudProcessingNode():
             msg: The message recieved from yolo wrapper node. It should be a BBoxes message.
         """
 
-
-
         objArray = DetectedObjectArray()
         objArray.header = msg.header
 
