@@ -87,8 +87,10 @@ void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr &img_source)
 
 	// Sharpen image
 	cv::Mat filteredImg;
-	mcLabFilter(img, filteredImg);
-
+	// mcLabFilter(img, filteredImg);
+	
+	// img.copyTo(filteredImg);
+	unsharpeningFilter(img, filteredImg, 8);
 
 	// Detect and publish pose
 	geometry_msgs::Pose pose;
