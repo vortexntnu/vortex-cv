@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+
+<launch>
+    <node name="aruco_id_node" type="aruco_detection_pipeline_node" pkg="aruco_detection" respawn="false" output="screen"/>
+</launch>
