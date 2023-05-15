@@ -80,15 +80,15 @@ void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr &img_source)
 	// // Darken image
 	// cv::Mat black = cv::Mat(img.rows, img.cols, img.type(), 0.0);
 	// double alpha = 0.5;
-    // double beta = (1.0 - alpha);
-    // cv::addWeighted(img, alpha, black, beta, 0.0, img);
+	// double beta = (1.0 - alpha);
+	// cv::addWeighted(img, alpha, black, beta, 0.0, img);
 	// PLEASE REMOVE OR UNCOMMENT THIS ^. BLURRING AND DARKENING SHOUD NOT BE IN FINAL CODE
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	// Sharpen image
 	cv::Mat filteredImg;
 	// mcLabFilter(img, filteredImg);
-	
+
 	// img.copyTo(filteredImg);
 	unsharpeningFilter(img, filteredImg, 8);
 
