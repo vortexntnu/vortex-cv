@@ -16,6 +16,7 @@ from copy import deepcopy
 
 from position_estimator import PositionEstimator
 
+
 class ValveEDC():
     """Handles tasks related to feature detection
     """
@@ -26,9 +27,13 @@ class ValveEDC():
         self.ros_rate = rospy.Rate(10.0)
 
         self.imgSub = rospy.Subscriber(image_topic, Image, self.img_callback)
-        self.bboxSub = rospy.Subscriber("/feature_detection/sift_detection_bbox", BoundingBoxes, self.bbox_cb)
-        self.cntrSub = rospy.Subscriber("/feature_detection/sift_detection_centeroid", CenteroidArray, self.centeroid_cb)
-        
+        self.bboxSub = rospy.Subscriber(
+            "/feature_detection/sift_detection_bbox", BoundingBoxes,
+            self.bbox_cb)
+        self.cntrSub = rospy.Subscriber(
+            "/feature_detection/sift_detection_centeroid", CenteroidArray,
+            self.centeroid_cb)
+
         self.imgPubGray = rospy.Publisher('/valve/gray', Image, queue_size=1)
         self.imgPubCircle = rospy.Publisher('/valve/circle',
                                             Image,
@@ -77,27 +82,20 @@ class ValveEDC():
                     else:
                         gray = cv.cvtColor(self.cv_image, cv.COLOR_BGRA2GRAY)
 
-
                     rospy.loginfo(self.bbox)
                     rospy.loginfo(self.centeroid)
-                    length_x_mtr, length_y_mtr, redefined_angle_x, redefined_angle_y = self.pos_est.main(self.bbox, 0.5)
+                    length_x_mtr, length_y_mtr, redefined_angle_x, redefined_angle_y = self.pos_est.main(
+                        self.bbox, 0.5)
                     rospy.loginfo(length_x_mtr)
                     rospy.loginfo(length_y_mtr)
                     rospy.loginfo(redefined_angle_x)
                     rospy.loginfo(redefined_angle_y)
-                    
+
                     rospy.loginfo("\n")
-
-
-
-
-
-
 
                     self.cv_image_publisher(self.imgPubGray,
                                             gray,
                                             msg_encoding="8UC1")
-
 
                 except Exception:
                     rospy.logwarn(traceback.format_exc())

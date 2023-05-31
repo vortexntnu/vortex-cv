@@ -4,6 +4,7 @@ from math import sin, radians
 
 
 class PositionEstimator():
+
     def __init__(self):
         # self.fov_horizontal = 110.0  # Degrees
         # self.fov_vertical = 70.0  # Degrees
@@ -19,8 +20,8 @@ class PositionEstimator():
         self.focal_length = 4.3  # mm
         self.max_width = 1440  # pxl
         self.max_height = 2560  # pxl
-        self.angles_pr_pxl_hor = self.fov_horizontal    / self.max_width
-        self.angles_pr_pxl_ver = self.fov_vertical      / self.max_height
+        self.angles_pr_pxl_hor = self.fov_horizontal / self.max_width
+        self.angles_pr_pxl_ver = self.fov_vertical / self.max_height
         self.use_single_lense = True
 
     def main(self, bbox, depth):
