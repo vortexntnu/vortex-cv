@@ -7,6 +7,8 @@ import cv2
 import matplotlib.pyplot as plt
 from time import sleep
 
+from rospkg import RosPack
+
 
 def publish_image(image_file):
     # Initialize ROS node
@@ -25,10 +27,12 @@ def publish_image(image_file):
         # Convert image to ROS message and publish
         image_pub.publish(bridge.cv2_to_imgmsg(img, "bgr8"))
         # Spin node to keep it alive
-        sleep(5)
+        sleep(1)
 
 
 if __name__ == '__main__':
     # Provide image file path as argument
-    image_file = "/home/vortex/projects/beng_beluga_ws/src/vortex-cv/valve_edc/data/valve_office/MicrosoftTeams-image(13).jpeg"
+    rp = RosPack()
+    path = rp.get_path("valve_edc")
+    image_file = path + "/data/valve_office/MicrosoftTeams-image(13).jpeg"
     publish_image(image_file)

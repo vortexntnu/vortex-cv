@@ -10,25 +10,28 @@ import cv2 as cv
 import numpy as np
 import traceback
 
+from copy import deepcopy
 
-class CVTemplateNode():
+class ValveEDC():
     """Handles tasks related to feature detection
     """
 
     def __init__(self, image_topic):
         rospy.init_node('valve_edc_node')
 
-        self.ros_rate = rospy.Rate(60.0)
+        self.ros_rate = rospy.Rate(10.0)
 
         self.imgSub = rospy.Subscriber(image_topic, Image, self.img_callback)
-        self.imgPub = rospy.Publisher('/cv_test/test', Image, queue_size=1)
+        self.imgPubGray = rospy.Publisher('/valve/gray', Image, queue_size=1)
+        self.imgPubCircle = rospy.Publisher('/valve/circle', Image, queue_size=1)
 
         self.bridge = CvBridge()
 
         # test params
-        self.test_param = 100
-        self.test_enum = 3
-        self.min_max_params = [0, 179, 0, 255, 0, 255]
+        self.test_param1= 100
+        self.test_param2 = 100
+        self.kernel = 5
+        self.sigma = 1.0
 
         # First initialization of image shape
         first_image_msg = rospy.wait_for_message(image_topic, Image)
@@ -41,7 +44,7 @@ class CVTemplateNode():
                 "CV Bridge was not successful in converting the ROS image...")
 
         self.dynam_client = dynamic_reconfigure.client.Client(
-            "/cv_cfg/valve_edc_cfg",
+            "/valve_edc_cfg/cv_cfg",
             config_callback=self.dynam_reconfigure_callback)
 
     def cv_image_publisher(self, publisher, image, msg_encoding="bgra8"):
@@ -54,6 +57,8 @@ class CVTemplateNode():
     def spin(self):
         while not rospy.is_shutdown():
             if self.cv_image is not None:
+
+                img = deepcopy(self.cv_image)
                 try:
                     gray = np.zeros(shape=self.cv_image.shape)
                     if self.cv_image.shape[2] == 3:
@@ -61,8 +66,17 @@ class CVTemplateNode():
                     else:
                         gray = cv.cvtColor(self.cv_image, cv.COLOR_BGRA2GRAY)
 
-                    self.cv_image_publisher(self.imgPub,
-                                            gray,
+                    blurclr =   cv.GaussianBlur(img,    (self.kernel, self.kernel), sigmaX=self.sigma, sigmaY=self.sigma)
+                    blur =      cv.GaussianBlur(gray,   (self.kernel, self.kernel), sigmaX=self.sigma, sigmaY=self.sigma)
+                    
+                    edges = cv.Canny(blur,self.test_param1,self.test_param2)                    
+
+                    self.cv_image_publisher(self.imgPubGray,
+                                            blur,
+                                            msg_encoding="8UC1")
+
+                    self.cv_image_publisher(self.imgPubCircle,
+                                            edges,
                                             msg_encoding="8UC1")
 
                 except Exception:
@@ -79,25 +93,15 @@ class CVTemplateNode():
 
     def dynam_reconfigure_callback(self, config):
         # Slider Example
-        self.test_param = config.test_slider1
-
-        # Enum example
-        self.test_enum = config.test_enum
-
-        # Min Max slider examples
-        self.min_max_params[0] = config.test_min1
-        self.min_max_params[1] = config.test_max1
-        self.min_max_params[2] = config.test_min2
-        self.min_max_params[3] = config.test_max2
-        self.min_max_params[4] = config.test_min3
-        self.min_max_params[5] = config.test_max3
-
+        self.test_param1 = config.test_slider1
+        self.test_param2 = config.test_slider2
+        self.kernel = config.kernel
+        self.sigma = config.sigma
 
 if __name__ == '__main__':
     try:
-        valve_edc_node = CVTemplateNode(
-            image_topic='/zed2/zed_node/rgb_raw/image_raw_color')
-        # rospy.spin()
+        valve_edc_node = ValveEDC(
+            image_topic='/image')
         valve_edc_node.spin()
 
     except rospy.ROSInterruptException:

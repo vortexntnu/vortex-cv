@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   
-    <arg name="debug" default="true"/> <!-- true | false -->
+    <arg name="debug" default="false"/> <!-- true | false -->
 
     <group if="$(eval debug == 'false')">
         <node name="republish" type="republish" pkg="image_transport" output="screen" args="compressed in:=/zed2/zed_node/rgb_raw/image_raw_color raw out:=image" />

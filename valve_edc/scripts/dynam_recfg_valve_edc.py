@@ -11,6 +11,11 @@ class DynamicReconfigure(object):
 
         # Slider example
         self.ddr.add_variable("test_slider1", "test", 100, 0, 1000)
+        self.ddr.add_variable("test_slider2", "test", 100, 0, 1000)
+        self.ddr.add_variable("kernel", "test", 5, 0, 31)
+        self.ddr.add_variable("sigma", "test", 1.0, 0.0, 100.0)
+        self.ddr.add_variable("test_slider5", "test", 100, 0, 1000)
+        self.ddr.add_variable("test_slider6", "test", 100, 0, 1000)
 
         # Enum example
         enum_test = self.ddr.enum([
