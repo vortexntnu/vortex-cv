@@ -2,6 +2,8 @@
 
 import rospy
 from sensor_msgs.msg import Image
+from darknet_ros_msgs.msg import BoundingBoxes, BoundingBox
+from cv_msgs.msg import CenteroidArray, Centeroid
 
 import dynamic_reconfigure.client
 
@@ -12,6 +14,7 @@ import traceback
 
 from copy import deepcopy
 
+from position_estimator import PositionEstimator
 
 class ValveEDC():
     """Handles tasks related to feature detection
@@ -23,6 +26,9 @@ class ValveEDC():
         self.ros_rate = rospy.Rate(10.0)
 
         self.imgSub = rospy.Subscriber(image_topic, Image, self.img_callback)
+        self.bboxSub = rospy.Subscriber("/feature_detection/sift_detection_bbox", BoundingBoxes, self.bbox_cb)
+        self.cntrSub = rospy.Subscriber("/feature_detection/sift_detection_centeroid", CenteroidArray, self.centeroid_cb)
+        
         self.imgPubGray = rospy.Publisher('/valve/gray', Image, queue_size=1)
         self.imgPubCircle = rospy.Publisher('/valve/circle',
                                             Image,
@@ -35,6 +41,8 @@ class ValveEDC():
         self.test_param2 = 100
         self.kernel = 5
         self.sigma = 1.0
+
+        self.pos_est = PositionEstimator()
 
         # First initialization of image shape
         first_image_msg = rospy.wait_for_message(image_topic, Image)
@@ -69,22 +77,27 @@ class ValveEDC():
                     else:
                         gray = cv.cvtColor(self.cv_image, cv.COLOR_BGRA2GRAY)
 
-                    blurclr = cv.GaussianBlur(img, (self.kernel, self.kernel),
-                                              sigmaX=self.sigma,
-                                              sigmaY=self.sigma)
-                    blur = cv.GaussianBlur(gray, (self.kernel, self.kernel),
-                                           sigmaX=self.sigma,
-                                           sigmaY=self.sigma)
 
-                    edges = cv.Canny(blur, self.test_param1, self.test_param2)
+                    rospy.loginfo(self.bbox)
+                    rospy.loginfo(self.centeroid)
+                    length_x_mtr, length_y_mtr, redefined_angle_x, redefined_angle_y = self.pos_est.main(self.bbox, 0.5)
+                    rospy.loginfo(length_x_mtr)
+                    rospy.loginfo(length_y_mtr)
+                    rospy.loginfo(redefined_angle_x)
+                    rospy.loginfo(redefined_angle_y)
+                    
+                    rospy.loginfo("\n")
+
+
+
+
+
+
 
                     self.cv_image_publisher(self.imgPubGray,
-                                            blur,
+                                            gray,
                                             msg_encoding="8UC1")
 
-                    self.cv_image_publisher(self.imgPubCircle,
-                                            edges,
-                                            msg_encoding="8UC1")
 
                 except Exception:
                     rospy.logwarn(traceback.format_exc())
@@ -97,6 +110,12 @@ class ValveEDC():
             self.cv_image = self.bridge.imgmsg_to_cv2(img_msg, "passthrough")
         except CvBridgeError as e:
             rospy.logerr("CvBridge Error: {0}".format(e))
+
+    def bbox_cb(self, msg):
+        self.bbox = msg.bounding_boxes[0]
+
+    def centeroid_cb(self, msg):
+        self.centeroid = msg.centeroid[0]
 
     def dynam_reconfigure_callback(self, config):
         # Slider Example
