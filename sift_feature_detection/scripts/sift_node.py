@@ -86,8 +86,7 @@ class SiftFeature:
 
         #Subscribers
         rospy.Subscriber("/fsm/state", String, self.update_object_search)
-        rospy.Subscriber("/image", Image,
-                         self.callback)
+        rospy.Subscriber("/image", Image, self.callback)
 
         # Publishers
         self.BBoxPointsPub = rospy.Publisher(
