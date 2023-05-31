@@ -46,7 +46,9 @@ I_blur = gaussian(I_gray, sigma)
 
 I_blur = I_blur * 255
 
-cv.imwrite('/home/beng/projects/vortex/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/valve/cropped_valve2_blur.png', I_blur)
+cv.imwrite(
+    '/home/beng/projects/vortex/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/valve/cropped_valve2_blur.png',
+    I_blur)
 # plt.imshow(I_blur, cmap="gray")
 # # plt.savefig("g-man_blur.png")
 # plt.savefig('/home/beng/projects/vortex/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/valve/cropped_valve_blur.png',

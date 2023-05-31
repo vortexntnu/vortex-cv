@@ -9,6 +9,7 @@ from time import sleep
 
 from rospkg import RosPack
 
+
 def publish_image(image_file):
     # Initialize ROS node
     rospy.init_node('image_publisher', anonymous=True)
@@ -24,7 +25,7 @@ def publish_image(image_file):
     i = 1
     while not rospy.is_shutdown():
         # Convert image to ROS message and publish
-        image_file = image_file.replace(str(i), str(i+1))
+        image_file = image_file.replace(str(i), str(i + 1))
         rospy.loginfo(image_file)
         i += 1
         img = cv2.imread(image_file)
