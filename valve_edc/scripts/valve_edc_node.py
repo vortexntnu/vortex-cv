@@ -12,6 +12,7 @@ import traceback
 
 from copy import deepcopy
 
+
 class ValveEDC():
     """Handles tasks related to feature detection
     """
@@ -23,12 +24,14 @@ class ValveEDC():
 
         self.imgSub = rospy.Subscriber(image_topic, Image, self.img_callback)
         self.imgPubGray = rospy.Publisher('/valve/gray', Image, queue_size=1)
-        self.imgPubCircle = rospy.Publisher('/valve/circle', Image, queue_size=1)
+        self.imgPubCircle = rospy.Publisher('/valve/circle',
+                                            Image,
+                                            queue_size=1)
 
         self.bridge = CvBridge()
 
         # test params
-        self.test_param1= 100
+        self.test_param1 = 100
         self.test_param2 = 100
         self.kernel = 5
         self.sigma = 1.0
@@ -66,10 +69,14 @@ class ValveEDC():
                     else:
                         gray = cv.cvtColor(self.cv_image, cv.COLOR_BGRA2GRAY)
 
-                    blurclr =   cv.GaussianBlur(img,    (self.kernel, self.kernel), sigmaX=self.sigma, sigmaY=self.sigma)
-                    blur =      cv.GaussianBlur(gray,   (self.kernel, self.kernel), sigmaX=self.sigma, sigmaY=self.sigma)
-                    
-                    edges = cv.Canny(blur,self.test_param1,self.test_param2)                    
+                    blurclr = cv.GaussianBlur(img, (self.kernel, self.kernel),
+                                              sigmaX=self.sigma,
+                                              sigmaY=self.sigma)
+                    blur = cv.GaussianBlur(gray, (self.kernel, self.kernel),
+                                           sigmaX=self.sigma,
+                                           sigmaY=self.sigma)
+
+                    edges = cv.Canny(blur, self.test_param1, self.test_param2)
 
                     self.cv_image_publisher(self.imgPubGray,
                                             blur,
@@ -98,10 +105,10 @@ class ValveEDC():
         self.kernel = config.kernel
         self.sigma = config.sigma
 
+
 if __name__ == '__main__':
     try:
-        valve_edc_node = ValveEDC(
-            image_topic='/image')
+        valve_edc_node = ValveEDC(image_topic='/image')
         valve_edc_node.spin()
 
     except rospy.ROSInterruptException:
