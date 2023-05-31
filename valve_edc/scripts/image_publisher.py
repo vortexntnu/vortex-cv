@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import rospy
 from sensor_msgs.msg import Image
@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from time import sleep
 
 from rospkg import RosPack
-
 
 def publish_image(image_file):
     # Initialize ROS node
@@ -21,18 +20,22 @@ def publish_image(image_file):
     bridge = CvBridge()
 
     # Read image from file
-    img = cv2.imread(image_file)
-    plt.imshow(img)
+    # plt.imshow(img)
+    i = 1
     while not rospy.is_shutdown():
         # Convert image to ROS message and publish
+        image_file = image_file.replace(str(i), str(i+1))
+        rospy.loginfo(image_file)
+        i += 1
+        img = cv2.imread(image_file)
         image_pub.publish(bridge.cv2_to_imgmsg(img, "bgr8"))
         # Spin node to keep it alive
-        sleep(1)
+        sleep(10)
 
 
 if __name__ == '__main__':
     # Provide image file path as argument
     rp = RosPack()
     path = rp.get_path("valve_edc")
-    image_file = path + "/data/valve_office/MicrosoftTeams-image(13).jpeg"
+    image_file = path + "/data/valve_office/MicrosoftTeams-image(1).jpeg"
     publish_image(image_file)

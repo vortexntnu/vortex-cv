@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+import cv2 as cv
+
 
 def rgb_to_gray(I):
     """
@@ -35,17 +37,20 @@ def gaussian(I, sigma):
 
 threshold = 0.02
 sigma = 5
-filename = '../data/sift_images/g-man_blur.png'
+filename = '/home/beng/projects/vortex/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/valve_hd/cropped_valve2.png'
 
-I_rgb = plt.imread(filename, format="png")
+I_rgb = cv.imread(filename)
 I_rgb = I_rgb / 255.0
 I_gray = rgb_to_gray(I_rgb)
 I_blur = gaussian(I_gray, sigma)
 
-plt.imshow(I_blur, cmap="gray")
-# plt.savefig("g-man_blur.png")
-plt.savefig('../data/sift_images/g-man_blur_blur.png',
-            bbox_inches='tight',
-            transparent=True,
-            pad_inches=0)  #TODO Needs to remove axis as well
-plt.show
+I_blur = I_blur * 255
+
+cv.imwrite('/home/beng/projects/vortex/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/valve/cropped_valve2_blur.png', I_blur)
+# plt.imshow(I_blur, cmap="gray")
+# # plt.savefig("g-man_blur.png")
+# plt.savefig('/home/beng/projects/vortex/cv_ws/src/Vortex-CV/sift_feature_detection/data/sift_images/valve/cropped_valve_blur.png',
+#             bbox_inches='tight',
+#             transparent=True,
+#             pad_inches=0)  #TODO Needs to remove axis as well
+# plt.show

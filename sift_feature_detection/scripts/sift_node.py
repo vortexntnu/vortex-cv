@@ -66,7 +66,7 @@ class SiftFeature:
         self.scale = 0.999
 
         # Folders to read from
-        self.image_types = ["gman", "bootlegger"]
+        self.image_types = ["valve"]
 
         self.lower_image_list_index = 0
         self.upper_image_list_index = len(self.image_types)
@@ -86,7 +86,7 @@ class SiftFeature:
 
         #Subscribers
         rospy.Subscriber("/fsm/state", String, self.update_object_search)
-        rospy.Subscriber("/zed2/zed_node/rgb/image_rect_color", Image,
+        rospy.Subscriber("/image", Image,
                          self.callback)
 
         # Publishers
@@ -338,7 +338,7 @@ class SiftFeature:
             else:
                 self.cv_image_publisher(self.detections_pub,
                                         cam_image,
-                                        msg_encoding="bgra8")
+                                        msg_encoding="bgr8")
 
 
 if __name__ == '__main__':
