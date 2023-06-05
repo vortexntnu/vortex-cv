@@ -2,6 +2,7 @@
 
 from math import cos, sin, radians
 
+
 class CoordPosition():
 
     def main(self, x_angle, y_angle, length):
