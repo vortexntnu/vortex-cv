@@ -3,8 +3,9 @@ class PointcloudProcessingNode():
 
     Handles tasks related to object detection
     """
+
     def __init__(self):
-        
+
         # self.pcSub = rospy.Subscriber('/zed2/zed_node/point_cloud/cloud_registered', PointCloud2, self.pointcloud_cb)
         # self.pointcloudRedSub = rospy.Subscriber('/object_detection/output', PointCloud2, self.pointcloud_downsampled_cb)
         # self.landmarkPub = rospy.Publisher('/object_detection/object_positions_in',ObjectPosition, queue_size= 1)
@@ -54,19 +55,21 @@ class PointcloudProcessingNode():
             CurrentBoundingBox.centre_angle_y = redefined_angle_y
 
             # Get the position of the object relative to the camera
-            position = self.coord_positioner.main(redefined_angle_x, redefined_angle_y, depth_mtr)
+            position = self.coord_positioner.main(redefined_angle_x,
+                                                  redefined_angle_y, depth_mtr)
 
             # If the same object is detected in each lense then a point in the middle is calculated
             key_string = str(bbox.Class)
             if (key_string in saved_objects):
                 value = saved_objects.get(key_string)
-                new_x = (value[0]+position[0])*0.5
-                new_y = (value[1]+position[1])*0.5
-                new_z = (value[2]+position[2])*0.5
-                self.landmarks([new_x,new_y,new_z], key_string)
+                new_x = (value[0] + position[0]) * 0.5
+                new_y = (value[1] + position[1]) * 0.5
+                new_z = (value[2] + position[2]) * 0.5
+                self.landmarks([new_x, new_y, new_z], key_string)
                 saved_objects[str(bbox.Class)] = [new_x, new_y, new_z]
             else:
-                saved_objects[str(bbox.Class)] = [position[0], position[1], position[2]]
+                saved_objects[str(
+                    bbox.Class)] = [position[0], position[1], position[2]]
 
             self.rviz_point_old(data, saved_objects, key_string)
 
@@ -78,7 +81,10 @@ class PointcloudProcessingNode():
     def rviz_point_old(self, data, dictionary, key_string):
         """Delete this when no longer needed"""
 
-        pointPub = rospy.Publisher('/object_detection/object_point/' + key_string, PointStamped, queue_size= 1)
+        pointPub = rospy.Publisher('/object_detection/object_point/' +
+                                   key_string,
+                                   PointStamped,
+                                   queue_size=1)
         new_point = PointStamped()
         new_point.header = data.header
         new_point.header.stamp = rospy.get_rostime()
