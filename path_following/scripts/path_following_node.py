@@ -431,7 +431,7 @@ class PathFollowingNode():
         p0_cam = np.matmul(self.K_opt_inv, p0)
 
         # Map the points along the line to odom:
-        p_line_odom = self.map_to_odom(p_line_cam, t_udfc_odom)feature/aruco
+        p_line_odom = self.map_to_odom(p_line_cam, t_udfc_odom)
         p0_odom = self.map_to_odom(p0_cam, t_udfc_odom)
 
         if self.current_state == "path_execute":
