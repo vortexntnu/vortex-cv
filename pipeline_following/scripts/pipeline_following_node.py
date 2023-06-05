@@ -339,7 +339,7 @@ class PipelineFollowingNode():
                 self.publish_waypoint(self.wpPub, self.objectID, pose_odom)
 
                 # for visualization
-                self.plotting(contour, alpha, beta)
+                #self.plotting(contour, alpha, beta)
 
             else:
                 rospy.loginfo('RANSAC failed')
