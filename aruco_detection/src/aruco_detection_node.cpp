@@ -1,6 +1,6 @@
 #include "aruco_detection_node.hpp"
 
-ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, arucoHandler{}
+ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, arucoHandler{}, filterParams{}
 {
 	// udfc
 	double fx = 492.0642427973538, fy = 491.6400793457974, cx = 428.50825789526795, cy = 253.9114545212349;
@@ -62,7 +62,7 @@ ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, 
 			continue;
 		}
 	}
-	ROS_INFO_STREAM("Transform between " << parentFrame << " and " << childFrame << " found.");
+	ROS_INFO_STREAM("DOCKING_NODE: Transform between " << parentFrame << " and " << childFrame << " found.");
 }
 
 void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr &img_source)
@@ -72,25 +72,12 @@ void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr &img_source)
 
 	cv::Mat img = cvImage->image;
 
-	/////////////////////////////////////////////////////////////////////////////////////
-	// PLEASE REMOVE OR UNCOMMENT THIS \/. BLURRING AND DARKENING SHOUD NOT BE IN FINAL CODE
-	// Blur image for tesing in worse conditions
-	// size_t blurSize = 6;
-	// GaussianBlur(img, img, cv::Size(2 * blurSize + 1, 2 * blurSize + 1), 0);
-	// // Darken image
-	// cv::Mat black = cv::Mat(img.rows, img.cols, img.type(), 0.0);
-	// double alpha = 0.5;
-    // double beta = (1.0 - alpha);
-    // cv::addWeighted(img, alpha, black, beta, 0.0, img);
-	// PLEASE REMOVE OR UNCOMMENT THIS ^. BLURRING AND DARKENING SHOUD NOT BE IN FINAL CODE
-	/////////////////////////////////////////////////////////////////////////////////////
-
 	// Sharpen image
 	cv::Mat filteredImg;
-	// mcLabFilter(img, filteredImg);
 	
 	// img.copyTo(filteredImg);
-	unsharpeningFilter(img, filteredImg, 8);
+	// unsharpeningFilter(img, filteredImg, 8);
+	filter_from_rqt(img, filteredImg, filterParams.configs);
 
 	// Detect and publish pose
 	geometry_msgs::Pose pose;

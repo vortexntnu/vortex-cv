@@ -38,14 +38,23 @@ void dilatingFilter(const cv::Mat &original, cv::Mat &filtered, size_t dilationS
 	cv::dilate(original, filtered, element);
 }
 
-void mcLabFilter(const cv::Mat &original, cv::Mat &filtered)
+void whiteBalanceFilter(const cv::Mat &original, cv::Mat &filtered, double contrastPercentage)
+{
+	cv::Ptr<cv::xphoto::SimpleWB> balance = cv::xphoto::createSimpleWB();
+	balance->setP(contrastPercentage);
+	balance->balanceWhite(original, filtered);
+}
+
+
+
+
+void ebusFilter(const cv::Mat &original, cv::Mat &filtered, size_t erosionSize, size_t blurSize, size_t maskWeight)
 {
 	// Erode image to make blacks more black
 	cv::Mat eroded;
-	erodingFilter(original, eroded, 2);
+	erodingFilter(original, eroded, erosionSize);
 
 	// Make an unsharp mask from original image
-	size_t blurSize = 30;
 	cv::Mat blurred;
 	GaussianBlur(original, blurred, cv::Size(2 * blurSize + 1, 2 * blurSize + 1), 0);
 
@@ -55,12 +64,43 @@ void mcLabFilter(const cv::Mat &original, cv::Mat &filtered)
 
 	// Add mask to the eroded image instead of the original
 	// Higher weight of mask will create a sharper but more noisy image
-	addWeighted(eroded, 1, mask, 5, 0, filtered);
+	addWeighted(eroded, 1, mask, maskWeight, 0, filtered);
 }
 
-void whiteBalanceFilter(const cv::Mat &original, cv::Mat &filtered, double contrastPercentage)
+
+// Must correspond with image_filter_parameters.cfg enum
+enum class Filter {
+    Sharpening,
+    Unsharpening,
+    Eroding,
+    Dilating,
+    WhiteBalance,
+	Ebus,
+};
+
+void filter_from_rqt(const cv::Mat &original, cv::Mat &filtered, aruco_detection::imgFilterConfig &config)
 {
-	cv::Ptr<cv::xphoto::SimpleWB> balance = cv::xphoto::createSimpleWB();
-	balance->setP(contrastPercentage);
-	balance->balanceWhite(original, filtered);
+	switch ((Filter)config.filter_type)
+	{
+		case Filter::Sharpening:
+			sharpeningFilter(original, filtered);
+			break;
+		case Filter::Unsharpening:
+			unsharpeningFilter(original, filtered, config.unsharp_blur_size);
+			break;
+		case Filter::Eroding:
+			erodingFilter(original, filtered, config.erosion_size);
+			break;
+		case Filter::Dilating:
+			dilatingFilter(original, filtered, config.dilation_size);
+			break;
+		case Filter::WhiteBalance:
+			whiteBalanceFilter(original, filtered, config.contrast_percentage);
+			break;
+		case Filter::Ebus:
+			// ebusFilter(original, filtered
+			break;
+			
+
+	}
 }

@@ -21,6 +21,7 @@
 // #include <vortex_msgs/LandmarkPose.h>
 #include <aruco_handler.hpp>
 #include <image_processing.hpp>
+#include <filter_params_rqt.hpp>
 
 class ArucoDetectionNode {
 
@@ -61,4 +62,7 @@ protected:
 	tf2_ros::Buffer tfBuffer;
 	tf2_ros::TransformListener tfListener;
 	tf2_ros::TransformBroadcaster tfBroadcaster;
+
+	// rqt stuff
+	FilterParams_rqt filterParams;
 };

@@ -20,7 +20,6 @@ void ArucoIdNode::callback(const sensor_msgs::ImageConstPtr &img_source)
 
 	// Detect markers
 	cv::Mat filteredImg;
-	mcLabFilter(img, filteredImg);
 	cv::aruco::detectMarkers(filteredImg, dictionary, corners, ids);
 	// Draw markers on image and publish image
 	cv::aruco::drawDetectedMarkers(filteredImg, corners, ids);

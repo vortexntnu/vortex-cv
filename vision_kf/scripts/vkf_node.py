@@ -110,7 +110,7 @@ class VKFNode:
                                             self.child_frame,
                                             rospy.Time()) == 0:
             try:
-                rospy.loginfo("No transform between " +
+                rospy.loginfo("VKF_NODE: No transform between " +
                               str(self.parent_frame) + ' and ' +
                               str(self.child_frame))
                 rospy.sleep(2)
@@ -118,8 +118,8 @@ class VKFNode:
                 rospy.sleep(2)
                 continue
 
-        rospy.loginfo("Transform between " + str(self.parent_frame) + ' and ' +
-                      str(self.child_frame) + 'found.')
+        rospy.loginfo("VKF_NODE: Transform between " + str(self.parent_frame) + ' and ' +
+                      str(self.child_frame) + ' found.')
 
         ############
         ##Init end##
