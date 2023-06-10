@@ -133,8 +133,11 @@ class PipelineFollowingNode():
         self.K1 = config.K1  # beta error
         self.K2 = config.K2  # alpha error
         self.x_step = config.x_step  # meters ahead of drone
-        
-        print(self.K1,self.K2,self.x_step)
+        self.n = 10  # `n`: Minimum number of data points to estimate parameters
+        self.k = 300  # `k`: Maximum iterations allowed
+        self.t = 300  # `t`: Threshold value to determine if points are fit well
+        self.d = None  # `d`: Number of close data points required to assert model fits well
+        self.frac_of_points = 8  # d will be a result of the number of points in contour divided by this
         return config
 
     def odom_cb(self, msg):
