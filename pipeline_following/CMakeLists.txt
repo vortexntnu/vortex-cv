@@ -3,10 +3,15 @@ project(pipeline_following)
 
 
 find_package(catkin REQUIRED COMPONENTS
+  dynamic_reconfigure
   rospy
   sensor_msgs
 )
 
+generate_dynamic_reconfigure_options(
+  cfg/GainTuning.cfg
+  #...
+)
 
 catkin_package(
 
