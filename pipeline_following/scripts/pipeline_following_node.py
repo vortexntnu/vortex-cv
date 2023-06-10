@@ -331,6 +331,12 @@ class PipelineFollowingNode():
         plt.pause(0.05)
         return None
 
+    def expection(self):
+        p = ObjectPosition()
+        p.objectID = self.objectID
+        p.isDetected = self.isDetected
+        self.wpPub.publish(p)
+
     def path_following_udfc(self, udfc_img):
         '''The function to rule them  all - this uses all the functions above'''
 
@@ -356,7 +362,7 @@ class PipelineFollowingNode():
                 self.publish_waypoint(self.wpPub, self.objectID, pose_odom)
 
                 # for visualization
-                #self.plotting(contour, alpha, beta)
+                self.plotting(contour, alpha, beta)
 
             else:
                 rospy.loginfo('RANSAC failed')
@@ -388,5 +394,6 @@ if __name__ == '__main__':
         pipeline_following_node = PipelineFollowingNode()
         pipeline_following_node.spin()
 
-    except rospy.ROSInterruptException:
-        pass
+    except Exception as e:
+        pipeline_following_node.expection()
+        rospy.loginfo("Pipeline detection failed: %s" % e)
