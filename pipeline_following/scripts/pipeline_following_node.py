@@ -330,7 +330,7 @@ class PipelineFollowingNode():
         plt.plot(x, alpha * x + beta, 'r')
         plt.pause(0.05)
         return None
-    
+
     def expection(self):
         p = ObjectPosition()
         p.objectID = self.objectID
