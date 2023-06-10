@@ -118,8 +118,8 @@ class VKFNode:
                 rospy.sleep(2)
                 continue
 
-        rospy.loginfo("VKF_NODE: Transform between " + str(self.parent_frame) + ' and ' +
-                      str(self.child_frame) + ' found.')
+        rospy.loginfo("VKF_NODE: Transform between " + str(self.parent_frame) +
+                      ' and ' + str(self.child_frame) + ' found.')
 
         ############
         ##Init end##
