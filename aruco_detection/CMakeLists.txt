@@ -11,7 +11,22 @@ find_package(catkin REQUIRED
     vortex_msgs
     roscpp
     tf2_ros
+    dynamic_reconfigure
 )
+
+#########################
+## Dynamic Reconfigure ##
+#########################
+
+generate_dynamic_reconfigure_options(
+  cfg/image_filter_parameters.cfg
+)
+catkin_package(
+  CATKIN_DEPENDS
+    dynamic_reconfigure
+)
+#########################
+
 find_package(OpenCV 4.2.0 REQUIRED 
   COMPONENTS 
     core 
@@ -43,6 +58,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
+  $(dynamic_reconfigure_PACKAGE_PATH)/cmake/cfgbuild.cmake
 )
 
 #########################################################
