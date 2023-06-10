@@ -15,6 +15,8 @@ from geometry_msgs.msg import PoseStamped
 import tf2_geometry_msgs
 import cv2 as cv
 from tf.transformations import quaternion_from_euler
+from dynamic_reconfigure.server import Server
+from pipeline_following.cfg import GainTuningConfig
 """
 Node for completing the pipeline following task in TAC 2023. It uses the mono-camera (UDFC) and 
 publishes position data to the landmarkserver of type "ObjectPosition" (see vortex_msgs repo). 
@@ -49,6 +51,7 @@ class PipelineFollowingNode():
         self.nbins = 3  # the number of orientation bins in the HOG descriptor
         #Other
         self.detection_area_threshold = 5000  # number of points in contour to accept the contour
+
         ###################################################
 
         #Subscribers
@@ -73,6 +76,9 @@ class PipelineFollowingNode():
         self.contVisualPub = rospy.Publisher('/visualize_contour',
                                              Image,
                                              queue_size=1)
+        # Dynamic reconfigure
+
+        Server(GainTuningConfig, self.TuningCallback)
 
         # Initialize parameters, state and bools
         self.img_size = []
@@ -119,6 +125,17 @@ class PipelineFollowingNode():
 
         rospy.loginfo("Transform between " + str(self.parent_frame) + ' and ' +
                       str(self.child_frame) + 'found.')
+
+    def TuningCallback(self, config, level):
+
+        self.K1 = config.K1  # beta error
+        self.K2 = config.K2  # alpha error
+        self.x_step = config.x_step  # meters ahead of drone
+        self.n = config.n  # `n`: Minimum number of data points to estimate parameters
+        self.k = config.k  # `k`: Maximum iterations allowed
+        self.t = config.t  # `t`: Threshold value to determine if points are fit well
+        self.frac_of_points = config.frac_of_points  # d will be a result of the number of points in contour divided by this
+        return config
 
     def odom_cb(self, msg):
         """ Updates current position """
@@ -314,6 +331,12 @@ class PipelineFollowingNode():
         plt.pause(0.05)
         return None
 
+    def expection(self):
+        p = ObjectPosition()
+        p.objectID = self.objectID
+        p.isDetected = self.isDetected
+        self.wpPub.publish(p)
+
     def path_following_udfc(self, udfc_img):
         '''The function to rule them  all - this uses all the functions above'''
 
@@ -339,7 +362,7 @@ class PipelineFollowingNode():
                 self.publish_waypoint(self.wpPub, self.objectID, pose_odom)
 
                 # for visualization
-                #self.plotting(contour, alpha, beta)
+                self.plotting(contour, alpha, beta)
 
             else:
                 rospy.loginfo('RANSAC failed')
@@ -371,5 +394,6 @@ if __name__ == '__main__':
         pipeline_following_node = PipelineFollowingNode()
         pipeline_following_node.spin()
 
-    except rospy.ROSInterruptException:
-        pass
+    except Exception as e:
+        pipeline_following_node.expection()
+        rospy.loginfo("Pipeline detection failed: %s" % e)
