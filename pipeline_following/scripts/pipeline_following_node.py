@@ -17,7 +17,6 @@ import cv2 as cv
 from tf.transformations import quaternion_from_euler
 from dynamic_reconfigure.server import Server
 from pipeline_following.cfg import GainTuningConfig
-
 """
 Node for completing the pipeline following task in TAC 2023. It uses the mono-camera (UDFC) and 
 publishes position data to the landmarkserver of type "ObjectPosition" (see vortex_msgs repo). 
@@ -52,7 +51,7 @@ class PipelineFollowingNode():
         self.nbins = 3  # the number of orientation bins in the HOG descriptor
         #Other
         self.detection_area_threshold = 5000  # number of points in contour to accept the contour
-        
+
         ###################################################
 
         #Subscribers
@@ -126,9 +125,8 @@ class PipelineFollowingNode():
 
         rospy.loginfo("Transform between " + str(self.parent_frame) + ' and ' +
                       str(self.child_frame) + 'found.')
-   
-   
-    def TuningCallback(self,config, level):
+
+    def TuningCallback(self, config, level):
 
         self.K1 = config.K1  # beta error
         self.K2 = config.K2  # alpha error
