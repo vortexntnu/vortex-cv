@@ -328,7 +328,7 @@ class VKFNode:
 
         #objID = self.mission_topic.split("/")[0]
         objID = msg.objectID
-        rospy.loginfo("Object data recieved for: %s", objID)
+        # rospy.loginfo("Object data recieved for: %s", objID)
         self.current_object = objID
 
         # Deprecated due to not using search/converge/execute this year #TODO: figure out a new way to do this logic

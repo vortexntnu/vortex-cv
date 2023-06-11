@@ -6,7 +6,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/xphoto.hpp>
 
-#include <aruco_detection/imgFilterConfig.h>
+#include <image_filters/imgFilterConfig.h>
 
 /**
  * Makes edges harder
@@ -38,5 +38,5 @@ void whiteBalanceFilter(const cv::Mat &original, cv::Mat &filtered, double contr
  */
 void ebusFilter(const cv::Mat &original, cv::Mat &filtered, size_t erosionSize = 2, size_t blurSize = 30, size_t maskWeight = 5);
 
-void filter_from_rqt(const cv::Mat &original, cv::Mat &filtered, aruco_detection::imgFilterConfig &config);
+void filter_from_rqt(const cv::Mat &original, cv::Mat &filtered, image_filters::imgFilterConfig &config);
 

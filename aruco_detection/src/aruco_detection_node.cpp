@@ -1,6 +1,6 @@
 #include "aruco_detection_node.hpp"
 
-ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, arucoHandler{}, filterParams{}
+ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, arucoHandler{}
 {
 	// udfc
 	double fx = 492.0642427973538, fy = 491.6400793457974, cx = 428.50825789526795, cy = 253.9114545212349;
@@ -26,7 +26,7 @@ ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, 
 	arucoHandler.cameraMatrix           = cameraMatrix;
 	arucoHandler.distortionCoefficients = distortionCoefficients;
 
-	opImageSub = node.subscribe("/udfc/wrapper/camera_raw", 10, &ArucoDetectionNode::callback, this);
+	opImageSub = node.subscribe("udfc_filtered", 10, &ArucoDetectionNode::callback, this);
 
 	opImagePub    = node.advertise<sensor_msgs::Image>("aruco_image", 100);
 	opPosePubUDFC = node.advertise<geometry_msgs::PoseStamped>("aruco_udfc_pose", 100);
@@ -36,12 +36,12 @@ ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, 
 	// opPosePubTfLandmark = node.advertise<vortex_msgs::ObjectPosition>("object_positions_in", 100); // this publisher has been moved moved to vision_kf
 
 	dictionary = new cv::aruco::Dictionary;
-	dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100); // Vortex Docking plate dictionary
-	// dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL); // TAC dictionary
+	// dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100); // Vortex Docking plate dictionary
+	dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL); // TAC dictionary
 
 	// board = arucoHandler.createRectangularBoard(.09, .18, .135, dictionary, {28, 7, 96, 19}); // A4 paper
-	// board = arucoHandler.createRectangularBoard(.2, .4, .6, dictionary, {28, 7, 96, 19}); // TAC dimensions
-	board = arucoHandler.createRectangularBoard(.167, .462, .862, dictionary, {28, 7, 96, 19}); // Vortex Docking plate dimensions
+	board = arucoHandler.createRectangularBoard(.150, .430, .830, dictionary, {28, 7, 96, 19}); // TAC dimensions
+	// board = arucoHandler.createRectangularBoard(.167, .462, .862, dictionary, {28, 7, 96, 19}); // Vortex Docking plate dimensions
 
 	////////////////////////////
 	//// Init Transforms ///////
@@ -77,17 +77,15 @@ void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr &img_source)
 		return;
 	}
 	// Sharpen image
-	cv::Mat filteredImg;
+	// cv::Mat filteredImg;
 	
-	// img.copyTo(filteredImg);
-	// unsharpeningFilter(img, filteredImg, 8);
-	filter_from_rqt(img, filteredImg, filterParams.configs);
+	// filter_from_rqt(img, filteredImg, filterParams.configs);
 
 	// Detect and publish pose
 	geometry_msgs::Pose pose;
 	cv::Mat modifiedImg;
 
-	size_t markersDetected = arucoHandler.detectBoardPose(filteredImg, modifiedImg, board, pose);
+	size_t markersDetected = arucoHandler.detectBoardPose(img, modifiedImg, board, pose);
 
 	if (markersDetected > 1)
 		publishPose(pose, cvImage->header.stamp);
@@ -185,8 +183,6 @@ void ArucoDetectionNode::execute()
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "ArucoDetectionNode");
-
-	ArucoHandler arucoHandler;
 
 	ArucoDetectionNode arucoNode;
 	arucoNode.execute();
