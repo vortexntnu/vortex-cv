@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(aruco_detection)
+project(image_filters)
 
 
 find_package(catkin REQUIRED 
@@ -8,16 +8,13 @@ find_package(catkin REQUIRED
     image_transport
     sensor_msgs
     std_msgs
-    vortex_msgs
     roscpp
-    tf2_ros
     dynamic_reconfigure
 )
 
 #########################
 ## Dynamic Reconfigure ##
 #########################
-
 generate_dynamic_reconfigure_options(
   cfg/image_filter_parameters.cfg
 )
@@ -32,23 +29,20 @@ find_package(OpenCV 4.2.0 REQUIRED
     core 
     imgproc 
     highgui
-    aruco
     calib3d
     xphoto
 )
-find_package(Eigen3 REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES 
-    aruco_detection
+    image_filters
   CATKIN_DEPENDS 
     cv_bridge 
     image_transport 
     roscpp 
     sensor_msgs 
     std_msgs 
-    vortex_msgs
   DEPENDS 
     OpenCV
 )
@@ -57,60 +51,17 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIRS}
 )
 
 #########################################################
 
-add_executable(${PROJECT_NAME}_docking_node 
-  src/aruco_detection_node.cpp
-  src/aruco_handler.cpp
+add_executable(${PROJECT_NAME}_node 
+  src/image_filtering_node.cpp
   src/image_processing.cpp
 )
-target_link_libraries(${PROJECT_NAME}_docking_node
+target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
   ${OpenCV_LIBS}
 )
 
 #########################################################
-
-add_executable(${PROJECT_NAME}_pipeline_node 
-  src/aruco_id_node.cpp
-  src/file_handler.cpp
-  src/image_processing.cpp
-)
-target_link_libraries(${PROJECT_NAME}_pipeline_node
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBS}
-)
-
-#########################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-###############
-### Testing ###
-###############
-
-add_executable(${PROJECT_NAME}_test_handler 
-  test/test_aruco_handler.cpp
-  src/aruco_handler.cpp
-)
-target_link_libraries(${PROJECT_NAME}_test_handler
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBS}
-)
-
-

@@ -26,7 +26,7 @@ ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, 
 	arucoHandler.cameraMatrix           = cameraMatrix;
 	arucoHandler.distortionCoefficients = distortionCoefficients;
 
-	opImageSub = node.subscribe("/udfc/wrapper/camera_raw", 10, &ArucoDetectionNode::callback, this);
+	opImageSub = node.subscribe("udfc_filtered", 10, &ArucoDetectionNode::callback, this);
 
 	opImagePub    = node.advertise<sensor_msgs::Image>("aruco_image", 100);
 	opPosePubUDFC = node.advertise<geometry_msgs::PoseStamped>("aruco_udfc_pose", 100);
@@ -77,17 +77,15 @@ void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr &img_source)
 		return;
 	}
 	// Sharpen image
-	cv::Mat filteredImg;
+	// cv::Mat filteredImg;
 	
-	// img.copyTo(filteredImg);
-	// unsharpeningFilter(img, filteredImg, 8);
-	filter_from_rqt(img, filteredImg, filterParams.configs);
+	// filter_from_rqt(img, filteredImg, filterParams.configs);
 
 	// Detect and publish pose
 	geometry_msgs::Pose pose;
 	cv::Mat modifiedImg;
 
-	size_t markersDetected = arucoHandler.detectBoardPose(filteredImg, modifiedImg, board, pose);
+	size_t markersDetected = arucoHandler.detectBoardPose(img, modifiedImg, board, pose);
 
 	if (markersDetected > 1)
 		publishPose(pose, cvImage->header.stamp);
@@ -185,8 +183,6 @@ void ArucoDetectionNode::execute()
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "ArucoDetectionNode");
-
-	ArucoHandler arucoHandler;
 
 	ArucoDetectionNode arucoNode;
 	arucoNode.execute();
