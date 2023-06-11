@@ -78,25 +78,21 @@ void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr &img_source)
 	}
 	// Sharpen image
 	cv::Mat filteredImg;
-	ROS_INFO_STREAM("DOCKING_NODE: 81");
 	
 	// img.copyTo(filteredImg);
 	// unsharpeningFilter(img, filteredImg, 8);
 	filter_from_rqt(img, filteredImg, filterParams.configs);
-	ROS_INFO_STREAM("DOCKING_NODE: 86");
 
 	// Detect and publish pose
 	geometry_msgs::Pose pose;
 	cv::Mat modifiedImg;
 
 	size_t markersDetected = arucoHandler.detectBoardPose(filteredImg, modifiedImg, board, pose);
-	ROS_INFO_STREAM("DOCKING_NODE: 92");
 
 	if (markersDetected > 1)
 		publishPose(pose, cvImage->header.stamp);
 
 	publishCVImg(modifiedImg, cvImage->header.stamp);
-	ROS_INFO_STREAM("DOCKING_NODE: 98");
 
 }
 
