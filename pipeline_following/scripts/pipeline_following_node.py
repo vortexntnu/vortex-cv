@@ -413,6 +413,7 @@ class PipelineFollowingNode():
             self.path_following_udfc(self.udfc_img)
             rate.sleep()
 
+
 def run_pipeline():
     if __name__ == '__main__':
         try:
@@ -424,5 +425,5 @@ def run_pipeline():
             rospy.loginfo("Pipeline detection failed: %s" % e)
             run_pipeline()
 
-run_pipeline()
 
+run_pipeline()
