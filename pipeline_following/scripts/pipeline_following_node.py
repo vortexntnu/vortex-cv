@@ -46,11 +46,14 @@ class PipelineFollowingNode():
         self.d = None  # `d`: Number of close data points required to assert model fits well
         self.frac_of_points = 8  # d will be a result of the number of points in contour divided by this
         #Parameters HOG
+
         self.cell_size = (10, 10)  # size of each cell in the HOG descriptor
         self.block_size = (1, 1)  # size of each block in the HOG descriptor
         self.nbins = 3  # the number of orientation bins in the HOG descriptor
         #Other
         self.detection_area_threshold = 5000  # number of points in contour to accept the contour
+        self.last_valid_alpha = 0
+        self.last_valid_beta = 0
 
         ###################################################
 
@@ -135,6 +138,15 @@ class PipelineFollowingNode():
         self.k = config.k  # `k`: Maximum iterations allowed
         self.t = config.t  # `t`: Threshold value to determine if points are fit well
         self.frac_of_points = config.frac_of_points  # d will be a result of the number of points in contour divided by this
+
+        self.cell_size = (int(config.cell_size_param),
+                          int(config.cell_size_param)
+                          )  # size of each cell in the HOG descriptor
+        self.block_size = (int(config.block_size_param),
+                           int(config.block_size_param)
+                           )  # size of each block in the HOG descriptor
+        self.nbins = config.nbins  # the number of orientation bins in the HOG descriptor
+
         return config
 
     def odom_cb(self, msg):
@@ -221,24 +233,29 @@ class PipelineFollowingNode():
             alpha   - rate of increase
             beta    - intersection with y-axis
         """
+        try:
+            points = np.argwhere(contour > 0)
+            X = points[:, 0].reshape(-1, 1)
+            y = points[:, 1].reshape(-1, 1)
 
-        points = np.argwhere(contour > 0)
-        X = points[:, 0].reshape(-1, 1)
-        y = points[:, 1].reshape(-1, 1)
+            self.d = np.size(points) / self.frac_of_points
+            regressor = RANSAC(self.n, self.k, self.t, self.d)
 
-        self.d = np.size(points) / self.frac_of_points
-        regressor = RANSAC(self.n, self.k, self.t, self.d)
+            regressor.fit(X, y)
+            if regressor.fail:
+                self.isDetected = False
+                return None, None
 
-        regressor.fit(X, y)
-        if regressor.fail:
-            self.isDetected = False
-            return None, None
+            params = regressor.best_fit.params
+            alpha = float(params[1])
+            beta = float(params[0])
+        except:
+            return self.last_valid_alpha, self.last_valid_beta
 
-        params = regressor.best_fit.params
-        alpha = float(params[1])
-        beta = float(params[0])
-
-        return alpha, beta
+        else:
+            self.last_valid_alpha = alpha
+            self.last_valid_beta = beta
+            return alpha, beta
 
     def estimate_next_waypoint(self, alpha, beta):
         """
@@ -390,10 +407,12 @@ class PipelineFollowingNode():
 
 
 if __name__ == '__main__':
-    try:
-        pipeline_following_node = PipelineFollowingNode()
-        pipeline_following_node.spin()
+    pipeline_following_node = PipelineFollowingNode()
+    pipeline_following_node.spin()
+# try:
+#     pipeline_following_node = PipelineFollowingNode()
+#     pipeline_following_node.spin()
 
-    except Exception as e:
-        pipeline_following_node.expection()
-        rospy.loginfo("Pipeline detection failed: %s" % e)
+# except Exception as e:
+#     pipeline_following_node.expection()
+#     rospy.loginfo("Pipeline detection failed: %s" % e)
