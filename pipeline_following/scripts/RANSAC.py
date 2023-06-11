@@ -51,10 +51,14 @@ class RANSAC:
                  loss=square_error_loss,
                  metric=mean_square_error):
 
-        self.n = int(n)  # `n`: Minimum number of data points to estimate parameters
+        self.n = int(
+            n)  # `n`: Minimum number of data points to estimate parameters
         self.k = int(k)  # `k`: Maximum iterations allowed
-        self.t = int(t)  # `t`: Threshold value to determine if points are fit well
-        self.d = int(d)  # `d`: Number of close data points required to assert model fits well
+        self.t = int(
+            t)  # `t`: Threshold value to determine if points are fit well
+        self.d = int(
+            d
+        )  # `d`: Number of close data points required to assert model fits well
         self.model = model  # `model`: class implementing `fit` and `predict`
         self.loss = loss  # `loss`: function of `y_true` and `y_pred` that returns a vector
         self.metric = metric  # `metric`: function of `y_true` and `y_pred` and returns a float
