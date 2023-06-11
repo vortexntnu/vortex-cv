@@ -320,10 +320,11 @@ class PipelineFollowingNode():
 
         print('hellow')
         points = np.argwhere(binary_image > 0)
-        while points[:,0].size > 50000:
+        while points[:, 0].size > 50000:
             indices = np.arange(points.shape[0])
             indices_to_modify = indices[indices % 2 != 0]
-            binary_image[points[indices_to_modify, 0], points[indices_to_modify, 1]] = 0
+            binary_image[points[indices_to_modify, 0],
+                         points[indices_to_modify, 1]] = 0
             points = np.argwhere(binary_image > 0)
 
         rospy.loginfo('Number of points in contour: ' + str(points[:, 0].size))
