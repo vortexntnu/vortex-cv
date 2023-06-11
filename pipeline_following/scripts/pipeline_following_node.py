@@ -52,7 +52,7 @@ class PipelineFollowingNode():
         self.nbins = 3  # the number of orientation bins in the HOG descriptor
         #Other
         self.detection_area_threshold = 5000  # number of points in contour to accept the contour
-        self.last_valid_alpha = 0  
+        self.last_valid_alpha = 0
         self.last_valid_beta = 0
 
         ###################################################
@@ -231,7 +231,7 @@ class PipelineFollowingNode():
             alpha   - rate of increase
             beta    - intersection with y-axis
         """
-        try: 
+        try:
             points = np.argwhere(contour > 0)
             X = points[:, 0].reshape(-1, 1)
             y = points[:, 1].reshape(-1, 1)
@@ -405,12 +405,12 @@ class PipelineFollowingNode():
 
 
 if __name__ == '__main__':
-        pipeline_following_node = PipelineFollowingNode()
-        pipeline_following_node.spin()
-    # try:
-    #     pipeline_following_node = PipelineFollowingNode()
-    #     pipeline_following_node.spin()
+    pipeline_following_node = PipelineFollowingNode()
+    pipeline_following_node.spin()
+# try:
+#     pipeline_following_node = PipelineFollowingNode()
+#     pipeline_following_node.spin()
 
-    # except Exception as e:
-    #     pipeline_following_node.expection()
-    #     rospy.loginfo("Pipeline detection failed: %s" % e)
+# except Exception as e:
+#     pipeline_following_node.expection()
+#     rospy.loginfo("Pipeline detection failed: %s" % e)
