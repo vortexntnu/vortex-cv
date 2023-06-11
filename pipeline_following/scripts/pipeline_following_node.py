@@ -137,9 +137,10 @@ class PipelineFollowingNode():
         self.t = config.t  # `t`: Threshold value to determine if points are fit well
         self.frac_of_points = config.frac_of_points  # d will be a result of the number of points in contour divided by this
 
-
-        self.cell_size = (config.cell_size_param, config.cell_size_param)  # size of each cell in the HOG descriptor
-        self.block_size = (config.block_size_param, config.block_size_param)  # size of each block in the HOG descriptor
+        self.cell_size = (config.cell_size_param, config.cell_size_param
+                          )  # size of each cell in the HOG descriptor
+        self.block_size = (config.block_size_param, config.block_size_param
+                           )  # size of each block in the HOG descriptor
         self.nbins = config.nbins  # the number of orientation bins in the HOG descriptor
 
         return config
@@ -397,7 +398,7 @@ class PipelineFollowingNode():
 
 
 if __name__ == '__main__':
-    
+
     pipeline_following_node = PipelineFollowingNode()
     pipeline_following_node.spin()
 
