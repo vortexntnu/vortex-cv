@@ -98,9 +98,8 @@ void filter_from_rqt(const cv::Mat &original, cv::Mat &filtered, aruco_detection
 			whiteBalanceFilter(original, filtered, config.contrast_percentage);
 			break;
 		case Filter::Ebus:
-			// ebusFilter(original, filtered
+			ebusFilter(original, filtered, config.ebus_erosion_size, config.ebus_blur_size, config.ebus_unsharp_weight);
 			break;
-			
-
 	}
+	ROS_WARN_STREAM_COND(filtered.empty(), "FILTER_FROM_RQT: Filtered image empty");
 }
