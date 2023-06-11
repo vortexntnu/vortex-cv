@@ -413,14 +413,16 @@ class PipelineFollowingNode():
             self.path_following_udfc(self.udfc_img)
             rate.sleep()
 
+def run_pipeline():
+    if __name__ == '__main__':
+        try:
+            pipeline_following_node = PipelineFollowingNode()
+            pipeline_following_node.spin()
 
-if __name__ == '__main__':
-    pipeline_following_node = PipelineFollowingNode()
-    pipeline_following_node.spin()
-# try:
-#     pipeline_following_node = PipelineFollowingNode()
-#     pipeline_following_node.spin()
+        except Exception as e:
+            pipeline_following_node.expection()
+            rospy.loginfo("Pipeline detection failed: %s" % e)
+            run_pipeline()
 
-# except Exception as e:
-#     pipeline_following_node.expection()
-#     rospy.loginfo("Pipeline detection failed: %s" % e)
+run_pipeline()
+
