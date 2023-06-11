@@ -10,6 +10,6 @@
 
 
 
-    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="odom2base" args="5 6 1 0 0 0 odom base_link" /> For testing only!! -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="odom2base" args="5 6 1 0 0 0 odom base_link" /> For testing only!!
     <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="base2dvl"  args="0 0 1 0 0 0 base_link dvl_link" /> For testing only!! -->
 </launch>
