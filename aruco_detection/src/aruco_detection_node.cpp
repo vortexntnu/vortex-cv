@@ -1,6 +1,6 @@
 #include "aruco_detection_node.hpp"
 
-ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, arucoHandler{}, filterParams{}
+ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, arucoHandler{}
 {
 	// udfc
 	double fx = 492.0642427973538, fy = 491.6400793457974, cx = 428.50825789526795, cy = 253.9114545212349;

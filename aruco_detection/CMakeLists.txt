@@ -11,21 +11,8 @@ find_package(catkin REQUIRED
     vortex_msgs
     roscpp
     tf2_ros
-    dynamic_reconfigure
 )
 
-#########################
-## Dynamic Reconfigure ##
-#########################
-
-generate_dynamic_reconfigure_options(
-  cfg/image_filter_parameters.cfg
-)
-catkin_package(
-  CATKIN_DEPENDS
-    dynamic_reconfigure
-)
-#########################
 
 find_package(OpenCV 4.2.0 REQUIRED 
   COMPONENTS 
@@ -65,7 +52,6 @@ include_directories(
 add_executable(${PROJECT_NAME}_docking_node 
   src/aruco_detection_node.cpp
   src/aruco_handler.cpp
-  src/image_processing.cpp
 )
 target_link_libraries(${PROJECT_NAME}_docking_node
   ${catkin_LIBRARIES}
@@ -77,7 +63,6 @@ target_link_libraries(${PROJECT_NAME}_docking_node
 add_executable(${PROJECT_NAME}_pipeline_node 
   src/aruco_id_node.cpp
   src/file_handler.cpp
-  src/image_processing.cpp
 )
 target_link_libraries(${PROJECT_NAME}_pipeline_node
   ${catkin_LIBRARIES}

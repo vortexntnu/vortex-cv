@@ -5,7 +5,7 @@ ArucoIdNode::ArucoIdNode() : loop_rate{10}
 	dictionary = new cv::aruco::Dictionary;
 	dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100);
 
-	opImageSub = node.subscribe("/udfc/wrapper/camera_raw", 10, &ArucoIdNode::callback, this);
+	opImageSub = node.subscribe("udfc_filtered", 10, &ArucoIdNode::callback, this);
 	opImagePub = node.advertise<sensor_msgs::Image>("aruco_image", 100);
 	opIdPub    = node.advertise<std_msgs::Int64>("pipeline_id", 100);
 }
@@ -13,17 +13,17 @@ ArucoIdNode::ArucoIdNode() : loop_rate{10}
 void ArucoIdNode::callback(const sensor_msgs::ImageConstPtr &img_source)
 {
 	const cv_bridge::CvImageConstPtr cvImage = cv_bridge::toCvShare(img_source, sensor_msgs::image_encodings::BGR8);
+	
 	cv::Mat img                              = cvImage->image;
 
 	std::vector<std::vector<cv::Point2f>> corners;
 	std::vector<int> ids;
 
 	// Detect markers
-	cv::Mat filteredImg;
-	cv::aruco::detectMarkers(filteredImg, dictionary, corners, ids);
+	cv::aruco::detectMarkers(img, dictionary, corners, ids);
 	// Draw markers on image and publish image
-	cv::aruco::drawDetectedMarkers(filteredImg, corners, ids);
-	publishCVImg(filteredImg, cvImage->header.stamp);
+	cv::aruco::drawDetectedMarkers(img, corners, ids);
+	publishCVImg(img, cvImage->header.stamp);
 
 	if (ids.size() == 0)
 		return;
