@@ -36,12 +36,12 @@ ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, 
 	// opPosePubTfLandmark = node.advertise<vortex_msgs::ObjectPosition>("object_positions_in", 100); // this publisher has been moved moved to vision_kf
 
 	dictionary = new cv::aruco::Dictionary;
-	dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100); // Vortex Docking plate dictionary
-	// dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL); // TAC dictionary
+	// dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100); // Vortex Docking plate dictionary
+	dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL); // TAC dictionary
 
 	// board = arucoHandler.createRectangularBoard(.09, .18, .135, dictionary, {28, 7, 96, 19}); // A4 paper
-	// board = arucoHandler.createRectangularBoard(.2, .4, .6, dictionary, {28, 7, 96, 19}); // TAC dimensions
-	board = arucoHandler.createRectangularBoard(.167, .462, .862, dictionary, {28, 7, 96, 19}); // Vortex Docking plate dimensions
+	board = arucoHandler.createRectangularBoard(.150, .430, .830, dictionary, {28, 7, 96, 19}); // TAC dimensions
+	// board = arucoHandler.createRectangularBoard(.167, .462, .862, dictionary, {28, 7, 96, 19}); // Vortex Docking plate dimensions
 
 	////////////////////////////
 	//// Init Transforms ///////

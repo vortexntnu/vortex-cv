@@ -3,7 +3,8 @@
 ArucoIdNode::ArucoIdNode() : loop_rate{10}
 {
 	dictionary = new cv::aruco::Dictionary;
-	dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100);
+	// dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100); //homemade docking plate
+	dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL); //TAC
 
 	opImageSub = node.subscribe("udfc_filtered", 10, &ArucoIdNode::callback, this);
 	opImagePub = node.advertise<sensor_msgs::Image>("aruco_image", 100);

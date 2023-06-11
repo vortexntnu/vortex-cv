@@ -70,6 +70,7 @@ void ebusFilter(const cv::Mat &original, cv::Mat &filtered, size_t erosionSize, 
 
 // Must correspond with image_filter_parameters.cfg enum
 enum class Filter {
+	NoFilter,
     Sharpening,
     Unsharpening,
     Eroding,
@@ -82,6 +83,9 @@ void filter_from_rqt(const cv::Mat &original, cv::Mat &filtered, image_filters::
 {
 	switch ((Filter)config.filter_type)
 	{
+		case Filter::NoFilter:
+			original.copyTo(filtered);
+			break;
 		case Filter::Sharpening:
 			sharpeningFilter(original, filtered);
 			break;
