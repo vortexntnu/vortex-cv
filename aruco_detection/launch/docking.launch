@@ -2,7 +2,7 @@
 
 <launch>
 
-    <node pkg="tf2_ros" type="static_transform_publisher" name="base2udfc" args="-0.029 -0.07652 -0.14025 0 0 0 base_link udfc_link"/>
+    <node pkg="tf2_ros" type="static_transform_publisher" name="udfc_link_to_aruco_udfc" args="0 0 0 0 1.57079632679 0 udfc_link udfc_aruco_link"/>
 
     <node pkg="aruco_detection" type="aruco_detection_docking_node" name="aruco_detection_node" respawn="false" output="screen"/>
     <node pkg="vision_kf" type="vkf_node.py" name="vision_kf" output="screen"/>

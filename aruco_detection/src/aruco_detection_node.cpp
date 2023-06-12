@@ -47,7 +47,7 @@ ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, 
 	//// Init Transforms ///////
 	////////////////////////////
 	std::string parentFrame = "odom";
-	std::string childFrame  = "udfc_link";
+	std::string childFrame  = "udfc_aruco_link";
 
 	// Wait for a transform to be available
 	while (!tfBuffer.canTransform(parentFrame, childFrame, ros::Time(0))) {
@@ -118,7 +118,7 @@ void ArucoDetectionNode::publishPose(const geometry_msgs::Pose &pose, ros::Time 
 
 	static size_t counter{0};
 	geometry_msgs::PoseStamped poseMsg;
-	poseMsg.header.frame_id = "udfc_link";
+	poseMsg.header.frame_id = "udfc_aruco_link";
 	poseMsg.header.seq      = counter++;
 	poseMsg.header.stamp    = timestamp;
 	poseMsg.pose            = pose;
@@ -130,7 +130,7 @@ void ArucoDetectionNode::publishPose(const geometry_msgs::Pose &pose, ros::Time 
 	// Transform udfc pose to world frame
 
 	try {
-		odom_udfc_transform = tfBuffer.lookupTransform("odom", "udfc_link", timestamp);
+		odom_udfc_transform = tfBuffer.lookupTransform("odom", "udfc_aruco_link", timestamp);
 	}
 	catch (tf2::TransformException &ex) {
 		ROS_WARN_STREAM(ex.what());
