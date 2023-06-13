@@ -6,6 +6,7 @@ ArucoIdNode::ArucoIdNode() : loop_rate{10}
 	// dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100); //homemade docking plate
 	dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL); //TAC
 
+	// opImageSub = node.subscribe("zed2_filtered", 10, &ArucoIdNode::callback, this);
 	opImageSub = node.subscribe("udfc_filtered", 10, &ArucoIdNode::callback, this);
 	opImagePub = node.advertise<sensor_msgs::Image>("aruco_image", 100);
 	opIdPub    = node.advertise<std_msgs::Int64>("pipeline_id", 100);
@@ -34,8 +35,8 @@ void ArucoIdNode::callback(const sensor_msgs::ImageConstPtr &img_source)
 	// ROS_WARN("More than one id detected!");
 	int foundId = ids.at(0);
 
-	if (std::find(storedIds.begin(), storedIds.end(), foundId) != storedIds.end())
-		return; // No new id detected
+	// if (std::find(storedIds.begin(), storedIds.end(), foundId) != storedIds.end())
+	// 	return; // No new id detected
 	publishId(foundId);
 	ROS_INFO_STREAM("Found id: " << foundId);
 	storedIds.push_back(foundId);

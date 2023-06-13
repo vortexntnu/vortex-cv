@@ -13,6 +13,7 @@ public:
     {
 	    opImageSub = node.subscribe("/udfc/wrapper/camera_raw", 10, &ImageFilteringNode::callback, this);
 	    opImagePub = node.advertise<sensor_msgs::Image>("udfc_filtered", 100);
+	    // opImagePub = node.advertise<sensor_msgs::Image>("zed2_filtered", 100);
     }
     /**
 	 * The callback function for the op_sub-subscriber.
