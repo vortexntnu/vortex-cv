@@ -6,8 +6,7 @@ ArucoIdNode::ArucoIdNode() : loop_rate{10}
 	// dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100); //homemade docking plate
 	dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL); //TAC
 
-	// opImageSub = node.subscribe("zed2_filtered", 10, &ArucoIdNode::callback, this);
-	opImageSub = node.subscribe("udfc_filtered", 10, &ArucoIdNode::callback, this);
+	opImageSub = node.subscribe("filtered_image", 10, &ArucoIdNode::callback, this);
 	opImagePub = node.advertise<sensor_msgs::Image>("aruco_image", 100);
 	opIdPub    = node.advertise<std_msgs::Int64>("pipeline_id", 100);
 }
@@ -42,7 +41,7 @@ void ArucoIdNode::callback(const sensor_msgs::ImageConstPtr &img_source)
 	storedIds.push_back(foundId);
 
 	static std::string time = stampToString(ros::Time::now());
-	writeIntsToFile("/pipelineIds/foundIds_" + time + ".csv", storedIds);
+	writeIntsToFile("/home/eirik/pipelineIds/foundIds_" + time + ".csv", storedIds);
 }
 
 void ArucoIdNode::publishCVImg(const cv::Mat &img, ros::Time timestamp)

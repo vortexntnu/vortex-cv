@@ -3,7 +3,6 @@
 #include <cv_bridge/cv_bridge.h>
 
 
-
 #include <image_processing.hpp>
 #include <filter_params_rqt.hpp>
 
@@ -11,9 +10,10 @@ class ImageFilteringNode {
 public:
     ImageFilteringNode() : loop_rate{10}, filterParams{}
     {
-	    opImageSub = node.subscribe("/udfc/wrapper/camera_raw", 10, &ImageFilteringNode::callback, this);
-	    opImagePub = node.advertise<sensor_msgs::Image>("udfc_filtered", 100);
-	    // opImagePub = node.advertise<sensor_msgs::Image>("zed2_filtered", 100);
+	    opImageSub = node.subscribe("/zed2/zed_node/left/image_rect_color", 10, &ImageFilteringNode::callback, this);
+	    opImagePub = node.advertise<sensor_msgs::Image>("filtered_image", 100);
+	    // opImageSub = node.subscribe("/udfc/wrapper/camera_raw", 10, &ImageFilteringNode::callback, this);
+	    // opImagePub = node.advertise<sensor_msgs::Image>("filtered_image", 100);
     }
     /**
 	 * The callback function for the op_sub-subscriber.

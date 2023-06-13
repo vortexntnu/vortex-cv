@@ -26,14 +26,14 @@ ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, 
 	arucoHandler.cameraMatrix           = cameraMatrix;
 	arucoHandler.distortionCoefficients = distortionCoefficients;
 
-	opImageSub = node.subscribe("udfc_filtered", 10, &ArucoDetectionNode::callback, this);
+	opImageSub = node.subscribe("filtered_image", 10, &ArucoDetectionNode::callback, this);
 
 	opImagePub    = node.advertise<sensor_msgs::Image>("aruco_image", 100);
 	opPosePubUDFC = node.advertise<geometry_msgs::PoseStamped>("aruco_udfc_pose", 100);
 	opPosePubODOM = node.advertise<geometry_msgs::PoseStamped>("aruco_odom_pose", 100);
 	opObjPubUDFC  = node.advertise<vortex_msgs::ObjectPosition>("aruco_udfc_obj", 100);
 	opObjPubODOM  = node.advertise<vortex_msgs::ObjectPosition>("aruco_odom_obj", 100);
-	// opPosePubTfLandmark = node.advertise<vortex_msgs::ObjectPosition>("object_positions_in", 100); // this publisher has been moved moved to vision_kf
+	// opObjPubODOM = node.advertise<vortex_msgs::ObjectPosition>("object_positions_in", 100); // this publisher has been moved moved to vision_kf
 
 	dictionary = new cv::aruco::Dictionary;
 	// dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100); // Vortex Docking plate dictionary
