@@ -20,7 +20,6 @@
 #include <vortex_msgs/ObjectPosition.h>
 // #include <vortex_msgs/LandmarkPose.h>
 #include <aruco_handler.hpp>
-#include <image_processing.hpp>
 
 class ArucoDetectionNode {
 

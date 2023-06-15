@@ -12,8 +12,6 @@
 #include <string>
 #include <vector>
 
-#include <image_processing.hpp>
-
 class ArucoIdNode {
 
 public:
