@@ -148,33 +148,6 @@ void ArucoDetectionNode::publishPose(const geometry_msgs::Pose &pose, ros::Time 
 void ArucoDetectionNode::execute()
 {
 	while (ros::ok()) {
-
-		// // IMAGE INPUT
-		// cv::Mat img =
-		// cv::imread("/vortex_ws/src/vortex-cv/aruco_detection/test/pictures/TACboard3.jpg",
-		// cv::IMREAD_COLOR); if( img.empty() )  // Check for invalid input
-		// {
-		//     ROS_WARN("Could not open or find the image");
-		// }
-
-		// // WEBCAM INPUT
-		// static cv::Mat img;
-
-		// // cv::namedWindow("Display window");
-		// static cv::VideoCapture cap(0);
-		// if (!cap.isOpened()) {
-		//     ROS_INFO("cannot open camera");
-		// }
-		// cap >> img;
-
-		// geometry_msgs::Pose pose;
-		// int markersDetected = arucoHandler.detectBoardPose(img, board, pose);
-		// publishCVImg(img, ros::Time::now());
-		// if (markersDetected > 0)
-		// {
-		//     publishPose(pose, ros::Time::now());
-		// }
-
 		ros::spinOnce();
 		loop_rate.sleep();
 	}
