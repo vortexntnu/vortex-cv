@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 
 <launch>
-    <node name="aruco_id_node" type="aruco_detection_pipeline_node" pkg="aruco_detection" respawn="false" output="screen"/>
+    <node name="aruco_id_node" type="aruco_detection_id_node" pkg="aruco_detection" respawn="false" output="screen"/>
     <node pkg="image_filters" type="image_filters_node" name="image_filters_node" respawn="false" output="screen"/>
 </launch>
