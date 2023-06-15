@@ -1,4 +1,5 @@
 {
+    "files.eol": "\n",
     "files.associations": {
         "cctype": "cpp",
         "clocale": "cpp",
@@ -72,11 +73,27 @@
         "thread": "cpp",
         "typeindex": "cpp",
         "typeinfo": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "*.ipp": "cpp",
+        "cassert": "cpp",
+        "ccomplex": "cpp",
+        "cerrno": "cpp",
+        "cfloat": "cpp",
+        "ciso646": "cpp",
+        "climits": "cpp",
+        "ios": "cpp",
+        "locale": "cpp",
+        "queue": "cpp",
+        "cstdbool": "cpp",
+        "core": "cpp"
     },
     "python.autoComplete.extraPaths": [
         "/home/eirik/cv_ws/devel/lib/python3/dist-packages",
         "/opt/ros/noetic/lib/python3/dist-packages"
     ],
-    "cmake.configureOnOpen": false
+    "cmake.configureOnOpen": false,
+    "python.analysis.extraPaths": [
+        "/home/eirik/cv_ws/devel/lib/python3/dist-packages",
+        "/opt/ros/noetic/lib/python3/dist-packages"
+    ]
 }
