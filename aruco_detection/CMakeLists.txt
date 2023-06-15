@@ -60,11 +60,11 @@ target_link_libraries(${PROJECT_NAME}_docking_node
 
 #########################################################
 
-add_executable(${PROJECT_NAME}_pipeline_node 
+add_executable(${PROJECT_NAME}_id_node 
   src/aruco_id_node.cpp
   src/file_handler.cpp
 )
-target_link_libraries(${PROJECT_NAME}_pipeline_node
+target_link_libraries(${PROJECT_NAME}_id_node
   ${catkin_LIBRARIES}
   ${OpenCV_LIBS}
 )
