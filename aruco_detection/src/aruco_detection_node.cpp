@@ -26,28 +26,28 @@ ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, 
 	arucoHandler.cameraMatrix           = cameraMatrix;
 	arucoHandler.distortionCoefficients = distortionCoefficients;
 
-	opImageSub = node.subscribe("/udfc/wrapper/camera_raw", 10, &ArucoDetectionNode::callback, this);
+	opImageSub = node.subscribe("filtered_image", 10, &ArucoDetectionNode::callback, this);
 
 	opImagePub    = node.advertise<sensor_msgs::Image>("aruco_image", 100);
 	opPosePubUDFC = node.advertise<geometry_msgs::PoseStamped>("aruco_udfc_pose", 100);
 	opPosePubODOM = node.advertise<geometry_msgs::PoseStamped>("aruco_odom_pose", 100);
 	opObjPubUDFC  = node.advertise<vortex_msgs::ObjectPosition>("aruco_udfc_obj", 100);
 	opObjPubODOM  = node.advertise<vortex_msgs::ObjectPosition>("aruco_odom_obj", 100);
-	// opPosePubTfLandmark = node.advertise<vortex_msgs::ObjectPosition>("object_positions_in", 100); // this publisher has been moved moved to vision_kf
+	// opObjPubODOM = node.advertise<vortex_msgs::ObjectPosition>("object_positions_in", 100); // this publisher has been moved moved to vision_kf
 
 	dictionary = new cv::aruco::Dictionary;
-	dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100); // Vortex Docking plate dictionary
-	// dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL); // TAC dictionary
+	// dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100); // Vortex Docking plate dictionary
+	dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL); // TAC dictionary
 
 	// board = arucoHandler.createRectangularBoard(.09, .18, .135, dictionary, {28, 7, 96, 19}); // A4 paper
-	// board = arucoHandler.createRectangularBoard(.2, .4, .6, dictionary, {28, 7, 96, 19}); // TAC dimensions
-	board = arucoHandler.createRectangularBoard(.167, .462, .862, dictionary, {28, 7, 96, 19}); // Vortex Docking plate dimensions
+	board = arucoHandler.createRectangularBoard(.150, .430, .830, dictionary, {28, 7, 96, 19}); // TAC dimensions
+	// board = arucoHandler.createRectangularBoard(.167, .462, .862, dictionary, {28, 7, 96, 19}); // Vortex Docking plate dimensions
 
 	////////////////////////////
 	//// Init Transforms ///////
 	////////////////////////////
 	std::string parentFrame = "odom";
-	std::string childFrame  = "udfc_link";
+	std::string childFrame  = "udfc_aruco_link";
 
 	// Wait for a transform to be available
 	while (!tfBuffer.canTransform(parentFrame, childFrame, ros::Time(0))) {
@@ -58,11 +58,11 @@ ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, 
 		catch (tf2::TransformException &ex) {
 			ROS_WARN_STREAM(ex.what());
 
-			ros::Duration(1.0).sleep();
+			ros::Duration(3.0).sleep();
 			continue;
 		}
 	}
-	ROS_INFO_STREAM("Transform between " << parentFrame << " and " << childFrame << " found.");
+	ROS_INFO_STREAM("DOCKING_NODE: Transform between " << parentFrame << " and " << childFrame << " found.");
 }
 
 void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr &img_source)
@@ -71,36 +71,27 @@ void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr &img_source)
 	const cv_bridge::CvImageConstPtr cvImage = cv_bridge::toCvShare(img_source, sensor_msgs::image_encodings::BGR8);
 
 	cv::Mat img = cvImage->image;
-
-	/////////////////////////////////////////////////////////////////////////////////////
-	// PLEASE REMOVE OR UNCOMMENT THIS \/. BLURRING AND DARKENING SHOUD NOT BE IN FINAL CODE
-	// Blur image for tesing in worse conditions
-	// size_t blurSize = 6;
-	// GaussianBlur(img, img, cv::Size(2 * blurSize + 1, 2 * blurSize + 1), 0);
-	// // Darken image
-	// cv::Mat black = cv::Mat(img.rows, img.cols, img.type(), 0.0);
-	// double alpha = 0.5;
-    // double beta = (1.0 - alpha);
-    // cv::addWeighted(img, alpha, black, beta, 0.0, img);
-	// PLEASE REMOVE OR UNCOMMENT THIS ^. BLURRING AND DARKENING SHOUD NOT BE IN FINAL CODE
-	/////////////////////////////////////////////////////////////////////////////////////
-
+	if (img.empty()) 
+	{
+		ROS_INFO_STREAM("DOCKING_NODE: Empty image");
+		return;
+	}
 	// Sharpen image
-	cv::Mat filteredImg;
-	// mcLabFilter(img, filteredImg);
+	// cv::Mat filteredImg;
 	
-	// img.copyTo(filteredImg);
-	unsharpeningFilter(img, filteredImg, 8);
+	// filter_from_rqt(img, filteredImg, filterParams.configs);
 
 	// Detect and publish pose
 	geometry_msgs::Pose pose;
 	cv::Mat modifiedImg;
-	size_t markersDetected = arucoHandler.detectBoardPose(filteredImg, modifiedImg, board, pose);
+
+	size_t markersDetected = arucoHandler.detectBoardPose(img, modifiedImg, board, pose);
 
 	if (markersDetected > 1)
 		publishPose(pose, cvImage->header.stamp);
 
 	publishCVImg(modifiedImg, cvImage->header.stamp);
+
 }
 
 void ArucoDetectionNode::publishCVImg(const cv::Mat &img, ros::Time timestamp = ros::Time::now())
@@ -127,7 +118,7 @@ void ArucoDetectionNode::publishPose(const geometry_msgs::Pose &pose, ros::Time 
 
 	static size_t counter{0};
 	geometry_msgs::PoseStamped poseMsg;
-	poseMsg.header.frame_id = "udfc_link";
+	poseMsg.header.frame_id = "udfc_aruco_link";
 	poseMsg.header.seq      = counter++;
 	poseMsg.header.stamp    = timestamp;
 	poseMsg.pose            = pose;
@@ -139,7 +130,7 @@ void ArucoDetectionNode::publishPose(const geometry_msgs::Pose &pose, ros::Time 
 	// Transform udfc pose to world frame
 
 	try {
-		odom_udfc_transform = tfBuffer.lookupTransform("odom", "udfc_link", timestamp);
+		odom_udfc_transform = tfBuffer.lookupTransform("odom", "udfc_aruco_link", timestamp);
 	}
 	catch (tf2::TransformException &ex) {
 		ROS_WARN_STREAM(ex.what());
@@ -192,8 +183,6 @@ void ArucoDetectionNode::execute()
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "ArucoDetectionNode");
-
-	ArucoHandler arucoHandler;
 
 	ArucoDetectionNode arucoNode;
 	arucoNode.execute();
