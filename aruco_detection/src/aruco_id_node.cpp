@@ -4,7 +4,7 @@ ArucoIdNode::ArucoIdNode() : loop_rate{10}
 {
 	dictionary = new cv::aruco::Dictionary;
 	// dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100); //homemade docking plate
-	dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL); //TAC
+	dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL); // TAC
 
 	opImageSub = node.subscribe("filtered_image", 10, &ArucoIdNode::callback, this);
 	opImagePub = node.advertise<sensor_msgs::Image>("aruco_image", 100);
@@ -14,8 +14,8 @@ ArucoIdNode::ArucoIdNode() : loop_rate{10}
 void ArucoIdNode::callback(const sensor_msgs::ImageConstPtr &img_source)
 {
 	const cv_bridge::CvImageConstPtr cvImage = cv_bridge::toCvShare(img_source, sensor_msgs::image_encodings::BGR8);
-	
-	cv::Mat img                              = cvImage->image;
+
+	cv::Mat img = cvImage->image;
 
 	std::vector<std::vector<cv::Point2f>> corners;
 	std::vector<int> ids;

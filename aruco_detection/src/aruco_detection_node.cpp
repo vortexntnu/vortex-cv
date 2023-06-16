@@ -71,14 +71,13 @@ void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr &img_source)
 	const cv_bridge::CvImageConstPtr cvImage = cv_bridge::toCvShare(img_source, sensor_msgs::image_encodings::BGR8);
 
 	cv::Mat img = cvImage->image;
-	if (img.empty()) 
-	{
+	if (img.empty()) {
 		ROS_INFO_STREAM("DOCKING_NODE: Empty image");
 		return;
 	}
 	// Sharpen image
 	// cv::Mat filteredImg;
-	
+
 	// filter_from_rqt(img, filteredImg, filterParams.configs);
 
 	// Detect and publish pose
@@ -91,7 +90,6 @@ void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr &img_source)
 		publishPose(pose, cvImage->header.stamp);
 
 	publishCVImg(modifiedImg, cvImage->header.stamp);
-
 }
 
 void ArucoDetectionNode::publishCVImg(const cv::Mat &img, ros::Time timestamp = ros::Time::now())

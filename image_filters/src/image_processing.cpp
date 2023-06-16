@@ -45,9 +45,6 @@ void whiteBalanceFilter(const cv::Mat &original, cv::Mat &filtered, double contr
 	balance->balanceWhite(original, filtered);
 }
 
-
-
-
 void ebusFilter(const cv::Mat &original, cv::Mat &filtered, size_t erosionSize, size_t blurSize, size_t maskWeight)
 {
 	// Erode image to make blacks more black
@@ -67,43 +64,41 @@ void ebusFilter(const cv::Mat &original, cv::Mat &filtered, size_t erosionSize, 
 	addWeighted(eroded, 1, mask, maskWeight, 0, filtered);
 }
 
-
 // Must correspond with image_filter_parameters.cfg enum
 enum class Filter {
 	NoFilter,
-    Sharpening,
-    Unsharpening,
-    Eroding,
-    Dilating,
-    WhiteBalance,
+	Sharpening,
+	Unsharpening,
+	Eroding,
+	Dilating,
+	WhiteBalance,
 	Ebus,
 };
 
 void filter_from_rqt(const cv::Mat &original, cv::Mat &filtered, image_filters::imgFilterConfig &config)
 {
-	switch ((Filter)config.filter_type)
-	{
-		case Filter::NoFilter:
-			original.copyTo(filtered);
-			break;
-		case Filter::Sharpening:
-			sharpeningFilter(original, filtered);
-			break;
-		case Filter::Unsharpening:
-			unsharpeningFilter(original, filtered, config.unsharp_blur_size);
-			break;
-		case Filter::Eroding:
-			erodingFilter(original, filtered, config.erosion_size);
-			break;
-		case Filter::Dilating:
-			dilatingFilter(original, filtered, config.dilation_size);
-			break;
-		case Filter::WhiteBalance:
-			whiteBalanceFilter(original, filtered, config.contrast_percentage);
-			break;
-		case Filter::Ebus:
-			ebusFilter(original, filtered, config.ebus_erosion_size, config.ebus_blur_size, config.ebus_unsharp_weight);
-			break;
+	switch ((Filter)config.filter_type) {
+	case Filter::NoFilter:
+		original.copyTo(filtered);
+		break;
+	case Filter::Sharpening:
+		sharpeningFilter(original, filtered);
+		break;
+	case Filter::Unsharpening:
+		unsharpeningFilter(original, filtered, config.unsharp_blur_size);
+		break;
+	case Filter::Eroding:
+		erodingFilter(original, filtered, config.erosion_size);
+		break;
+	case Filter::Dilating:
+		dilatingFilter(original, filtered, config.dilation_size);
+		break;
+	case Filter::WhiteBalance:
+		whiteBalanceFilter(original, filtered, config.contrast_percentage);
+		break;
+	case Filter::Ebus:
+		ebusFilter(original, filtered, config.ebus_erosion_size, config.ebus_blur_size, config.ebus_unsharp_weight);
+		break;
 	}
 	ROS_WARN_STREAM_COND(filtered.empty(), "FILTER_FROM_RQT: Filtered image empty");
 }
