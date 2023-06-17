@@ -344,7 +344,7 @@ class PathFollowingNode():
         #ax.scatter(next_waypoint[0], next_waypoint[1], c="g", label="next waypoint")
         #ax.scatter(points[np.argmax(errors)][0], points[np.argmax(errors)][1], c="r", label="wrong direction waypoint")
         #plt.legend()
-        #plt.show()
+        #plt.show()hsvPub
 
         return np.append(next_waypoint, 0)
 
