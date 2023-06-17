@@ -2,24 +2,23 @@
 
 ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, arucoHandler{}
 {
-	// udfc
-	double fx = 492.0642427973538, fy = 491.6400793457974, cx = 428.50825789526795, cy = 253.9114545212349;
-	double k1 = -0.10031376438769382, k2 = 0.06480104711529402, p1 = 0.000571040851725, p2 = 0.000273292707729, k3 = -0.01242539054818;
-
-	// zed2i left HD 720p
-	// double fx = 531.75, fy = 532.04, cx = 632.77, cy = 356.759;
-	// double k1 = -0.04568, k2 = 0.0180176, p1 = 0.000246693, p2 = -8.1439e-05,
-	// k3 = -0.00783292;
-
-	// zed2i left VGA 640p
-	// double fx=265.875, fy=266.02, cx=331.885, cy=185.8795;
-	// double k1=-0.04568, k2=0.0180176, p1=0.000246693, p2=-8.1439e-05,
-	// k3=-0.00783292;
-
-	// unit camera matrix
-	// double fx=1, fy=1, cx=0, cy=0;
-	// double k1=-0, k2=0, p1=0, p2=0, k3=0;
-
+	double fx, fy, cx, cy, k1, k2, p1, p2, k3;
+	while (!node.getParam("fx", fx))
+	{
+		ROS_WARN_STREAM("DOCKING_NODE: Can't read camera parameters");
+		ros::Duration(3.0).sleep();
+	}
+	node.getParam("fx", fx);
+	node.getParam("fy", fy);
+	node.getParam("cx", cx);
+	node.getParam("cy", cy);
+	node.getParam("k1", k1);
+	node.getParam("k2", k2);
+	node.getParam("p1", p1);
+	node.getParam("p2", p2);
+	node.getParam("k3", k3);
+	
+	ROS_INFO_STREAM("Camera parameters" << fx << fy << cx << cy << k1 << k2 << p1 << p2 << k3);
 	cv::Mat cameraMatrix           = (cv::Mat1d(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
 	cv::Mat distortionCoefficients = (cv::Mat1d(1, 5) << k1, k2, p1, p2, k3);
 
@@ -38,9 +37,21 @@ ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, 
 	// dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100); // Vortex Docking plate dictionary
 	dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL); // TAC dictionary
 
-	// board = arucoHandler.createRectangularBoard(.09, .18, .135, dictionary, {28, 7, 96, 19}); // A4 paper
-	board = arucoHandler.createRectangularBoard(.150, .430, .830, dictionary, {28, 7, 96, 19}); // TAC dimensions
-	// board = arucoHandler.createRectangularBoard(.167, .462, .862, dictionary, {28, 7, 96, 19}); // Vortex Docking plate dimensions
+
+	double markerSize, xDist, yDist;
+	std::vector<int> ids;
+
+	while (!node.getParam("markerSize", markerSize))
+	{
+		ROS_WARN_STREAM("DOCKING_NODE: Can't read aruco board config");
+		ros::Duration(3.0).sleep();
+	}
+	node.getParam("markerSize", markerSize);
+	node.getParam("xDist", xDist);
+	node.getParam("yDist", yDist);
+	node.getParam("ids", ids);
+	ROS_INFO_STREAM("IDS: " << ids.at(0));
+	board = arucoHandler.createRectangularBoard(markerSize, xDist, yDist, dictionary, ids); // TAC dimensions
 
 	////////////////////////////
 	//// Init Transforms ///////
@@ -55,7 +66,7 @@ ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, 
 			transform = tfBuffer.lookupTransform(parentFrame, childFrame, ros::Time(0));
 		}
 		catch (tf2::TransformException &ex) {
-			ROS_WARN_STREAM(ex.what());
+			ROS_WARN_STREAM("DOCKING_NODE:" << ex.what());
 
 			ros::Duration(3.0).sleep();
 			continue;

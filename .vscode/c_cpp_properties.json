@@ -1,12 +1,15 @@
 {
   "configurations": [
     {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
       "includePath": [
-        "/vortex_ws/devel/include/**",
-        "/opt/ros/melodic/include/**",
-        "/vortex_ws/src/vortex-cv/aruco_detection/include/**",
-        "/vortex_ws/src/darknet_ros_zed/darknet_ros/include/**",
-        "/vortex_ws/src/vortex-cv/image_preprocessing/include/**",
+        "/opt/ros/noetic/include/**",
+        "/home/eirik/vortex/cv_ws/src/vortex-cv/aruco_detection/include/**",
+        "/home/eirik/vortex/cv_ws/src/vortex-cv/image_filters/include/**",
+        "/home/eirik/vortex/cv_ws/src/vortex-cv/image_preprocessing/include/**",
         "/usr/include/**"
       ],
       "name": "ROS",

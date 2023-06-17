@@ -7,4 +7,6 @@
     <node pkg="aruco_detection" type="aruco_detection_docking_node" name="aruco_detection_node" respawn="false" output="screen"/>
     <node pkg="vision_kf" type="vkf_node.py" name="vision_kf" output="screen"/>
     <node pkg="image_filters" type="image_filters_node" name="image_filters_node" respawn="false" output="screen"/>
+    <rosparam command="load" file="$(find aruco_detection)/params/camera_parameters.yml" />
+    <rosparam command="load" file="$(find aruco_detection)/params/rectangular_board.yml" />
 </launch>
