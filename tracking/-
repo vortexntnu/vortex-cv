@@ -1,0 +1,10 @@
+rosdistro: 'noetic
+
+  '
+roslaunch:
+  uris:
+    host_hannahcl_lenovo_ideapad_c340_14iml__33433: http://hannahcl-Lenovo-IdeaPad-C340-14IML:33433/
+rosversion: '1.15.14
+
+  '
+run_id: 08b1684c-d3b0-11ed-b936-271966b41bb8

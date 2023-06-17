@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+
+    <node pkg="tracking" type="reconfigure_server.py"     name="reconfigure_server" output="screen" respawn="false"/>
+    <node pkg="tracking" type="mul_cvobjects_tracking_node.py"     name="MultiTargetTracker" output="screen" respawn="false"/>
+    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_os_lidar" args="0 0 0 0 0 0 os_lidar base_link " /> -->
+
+</launch>

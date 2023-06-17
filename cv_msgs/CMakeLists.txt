@@ -5,6 +5,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   geometry_msgs
   std_msgs
+  nav_msgs
   actionlib
   actionlib_msgs
 )
@@ -18,6 +19,7 @@ add_message_files(
   BBoxes.msg
   Point2.msg
   PointArray.msg
+  OdometryArray.msg
 )
 ## Generate messages in the 'msg' folder
 # add_message_files(
@@ -45,6 +47,7 @@ generate_messages(
   DEPENDENCIES
   geometry_msgs
   std_msgs
+  nav_msgs
   actionlib_msgs
   cv_msgs
 )
