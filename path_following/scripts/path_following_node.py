@@ -413,8 +413,7 @@ class PathFollowingNode():
 
         # Get the upper contour
         upper_inds = np.where(
-            (self.pathcontour_contour[:,
-                                      1] < self.path_centroid[1]) == True)[0]
+            (self.path_contour[:, 1] < self.path_centroid[1]) == True)[0]
         upper_contour_image = self.path_contour[upper_inds]
 
         uppest_y_ind = np.argmin(upper_contour_image[:, 1])
