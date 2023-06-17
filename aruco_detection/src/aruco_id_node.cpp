@@ -30,12 +30,14 @@ void ArucoIdNode::callback(const sensor_msgs::ImageConstPtr &img_source)
 		return;
 
 	// Save found markers
-	// if (ids.size() > 1)
-	// ROS_WARN("More than one id detected!");
+	if (ids.size() > 1)
+	ROS_WARN("More than one id detected!");
 	int foundId = ids.at(0);
 
-	// if (std::find(storedIds.begin(), storedIds.end(), foundId) != storedIds.end())
-	// 	return; // No new id detected
+	// Ignore duplicate ids
+	if (std::find(storedIds.begin(), storedIds.end(), foundId) != storedIds.end())
+		return; // No new id detected
+	
 	publishId(foundId);
 	ROS_INFO_STREAM("Found id: " << foundId);
 	storedIds.push_back(foundId);

@@ -21,10 +21,7 @@ int ArucoHandler::detectMarkerPoses(cv::Mat &img, const cv::Ptr<cv::aruco::Dicti
 		return 0;
 
 	std::vector<cv::Vec3d> rvecs, tvecs;
-	// REPLACE with cv::solvePnP if Open-cv is updated to v. 4.5.5 or above. It is
-	// more accurate NB! t_vec points to center of marker in v. 4.5.4 and below.
-	// To top left corner in ~ 4.5.5 and above
-	//  cv::solvePnP();
+
 	cv::aruco::estimatePoseSingleMarkers(corners, markerLength, cameraMatrix, distortionCoefficients, rvecs, tvecs);
 
 	for (size_t i{0}; i < ids.size(); i++) {

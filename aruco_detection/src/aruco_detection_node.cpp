@@ -33,7 +33,6 @@ ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, 
 	opPosePubODOM = node.advertise<geometry_msgs::PoseStamped>("aruco_odom_pose", 100);
 	opObjPubUDFC  = node.advertise<vortex_msgs::ObjectPosition>("aruco_udfc_obj", 100);
 	opObjPubODOM  = node.advertise<vortex_msgs::ObjectPosition>("aruco_odom_obj", 100);
-	// opObjPubODOM = node.advertise<vortex_msgs::ObjectPosition>("object_positions_in", 100); // this publisher has been moved moved to vision_kf
 
 	dictionary = new cv::aruco::Dictionary;
 	// dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_100); // Vortex Docking plate dictionary
@@ -76,10 +75,6 @@ void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr &img_source)
 		ROS_INFO_STREAM("DOCKING_NODE: Empty image");
 		return;
 	}
-	// Sharpen image
-	// cv::Mat filteredImg;
-	
-	// filter_from_rqt(img, filteredImg, filterParams.configs);
 
 	// Detect and publish pose
 	geometry_msgs::Pose pose;

@@ -20,11 +20,8 @@ void testPoses()
 	double markerLength{5};
 	std::vector<std::vector<cv::Point2f>> corners, rejected;
 
-	// cv::aruco::detectMarkers(img, dictionary, corners, ids);
-	// arucoHandler.detectMarkers(img, corners, ids, rejected);
+
 	int markernum = arucoHandler.detectMarkerPoses(img, dictionary, poses, ids, markerLength);
-	// ROS_INFO_STREAM("num ids: " << ids.size() );
-	// ROS_INFO_STREAM("num ids: " << markernum);
 	ROS_INFO_STREAM("poses: " << poses.at(0) << poses.at(1));
 }
 
