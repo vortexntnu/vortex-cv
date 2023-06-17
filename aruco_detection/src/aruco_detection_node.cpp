@@ -5,7 +5,7 @@ ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, 
 	double fx, fy, cx, cy, k1, k2, p1, p2, k3;
 	while (!node.getParam("fx", fx))
 	{
-		ROS_WARN_STREAM("DOCKING_NODE: Can't read camera parameters");
+		ROS_WARN_STREAM("DOCKING_NODE: Can't read camera parameters!");
 		ros::Duration(3.0).sleep();
 	}
 	node.getParam("fx", fx);
@@ -18,7 +18,6 @@ ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, 
 	node.getParam("p2", p2);
 	node.getParam("k3", k3);
 	
-	ROS_INFO_STREAM("Camera parameters" << fx << fy << cx << cy << k1 << k2 << p1 << p2 << k3);
 	cv::Mat cameraMatrix           = (cv::Mat1d(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
 	cv::Mat distortionCoefficients = (cv::Mat1d(1, 5) << k1, k2, p1, p2, k3);
 
@@ -43,7 +42,7 @@ ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, 
 
 	while (!node.getParam("markerSize", markerSize))
 	{
-		ROS_WARN_STREAM("DOCKING_NODE: Can't read aruco board config");
+		ROS_WARN_STREAM("DOCKING_NODE: Can't read aruco board config!");
 		ros::Duration(3.0).sleep();
 	}
 	node.getParam("markerSize", markerSize);
@@ -66,7 +65,7 @@ ArucoDetectionNode::ArucoDetectionNode() : loop_rate{10}, tfListener{tfBuffer}, 
 			transform = tfBuffer.lookupTransform(parentFrame, childFrame, ros::Time(0));
 		}
 		catch (tf2::TransformException &ex) {
-			ROS_WARN_STREAM("DOCKING_NODE:" << ex.what());
+			ROS_WARN_STREAM("DOCKING_NODE: " << ex.what());
 
 			ros::Duration(3.0).sleep();
 			continue;
@@ -82,7 +81,7 @@ void ArucoDetectionNode::callback(const sensor_msgs::ImageConstPtr &img_source)
 
 	cv::Mat img = cvImage->image;
 	if (img.empty()) {
-		ROS_INFO_STREAM("DOCKING_NODE: Empty image");
+		ROS_WARN_STREAM("DOCKING_NODE: Empty image");
 		return;
 	}
 
@@ -137,7 +136,7 @@ void ArucoDetectionNode::publishPose(const geometry_msgs::Pose &pose, ros::Time 
 		odom_udfc_transform = tfBuffer.lookupTransform("odom", "udfc_aruco_link", timestamp);
 	}
 	catch (tf2::TransformException &ex) {
-		ROS_WARN_STREAM(ex.what());
+		ROS_WARN_STREAM("DOCKING_NODE: " << ex.what());
 	}
 
 	geometry_msgs::Pose poseTF;
