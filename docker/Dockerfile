@@ -15,8 +15,8 @@ SHELL ["/bin/bash", "-c"]
 #ROS dependencies
 RUN apt update && \
     apt install -y --no-install-recommends \
-    python-pip \
-    python-catkin-tools \
+    python3-pip \
+    python3-catkin-tools \
     libx11-dev 
 
 #ROS packages
