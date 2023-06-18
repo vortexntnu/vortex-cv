@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #import debugpy
 #print("Waiting for VSCode debugger...")
@@ -9,10 +9,10 @@
 #from logging import exception
 from re import X
 
-from ekf_python2.gaussparams_py2 import MultiVarGaussian
-from ekf_python2.dynamicmodels_py2 import landmark_gate, landmark_pose_world
-from ekf_python2.measurementmodels_py2 import measurement_linear_landmark, LTV_full_measurement_model
-from ekf_python2.ekf_py2 import EKF
+from ekf_python3.gaussparams_py2 import MultiVarGaussian
+from ekf_python3.dynamicmodels_py2 import landmark_gate, landmark_pose_world
+from ekf_python3.measurementmodels_py2 import measurement_linear_landmark, LTV_full_measurement_model
+from ekf_python3.ekf_py2 import EKF
 
 #Math imports
 import numpy as np
@@ -39,13 +39,13 @@ class VKFNode:
 
         #Frame names, e.g. "odom" and "cam"
         self.parent_frame = 'odom'
-        self.child_frame = 'zed2_left_camera_frame'
+        self.child_frame = 'odom'
         self.object_frame = ""
 
         self.current_object = ""
 
         #Subscribe topic
-        object_topic_subscribe = "/pointcloud_processing/poseStamped/spy"
+        object_topic_subscribe = "aruco_odom_obj"  # TODO: put new topic name
         mission_topic_subscribe = "/fsm/state"
 
         ##################
@@ -76,10 +76,10 @@ class VKFNode:
         rospy.loginfo("Current time %i %i", now.secs, now.nsecs)
 
         # Subscribe to mission topic
-        self.mission_topic = self.current_object + "/execute"
-        self.mission_topic_old = self.mission_topic[:]
-        self.mission_topic_sub = rospy.Subscriber(mission_topic_subscribe,
-                                                  String, self.update_mission)
+        #self.mission_topic = self.current_object + "/execute"
+        #self.mission_topic_old = self.mission_topic[:]
+        #self.mission_topic_sub = rospy.Subscriber(mission_topic_subscribe,
+        #                                          String, self.update_mission)
 
         # LMS decision logic
         self.Fnorm_threshold = 0.1
@@ -89,12 +89,12 @@ class VKFNode:
 
         # Subscriber to gate pose and orientation
         self.object_pose_sub = rospy.Subscriber(object_topic_subscribe,
-                                                PoseStamped,
+                                                ObjectPosition,
                                                 self.obj_pose_callback,
                                                 queue_size=1)
 
         # Publisher to autonomous
-        self.gate_pose_pub = rospy.Publisher('/fsm/object_positions_in',
+        self.gate_pose_pub = rospy.Publisher('object_positions_in',
                                              ObjectPosition,
                                              queue_size=1)
 
@@ -110,7 +110,7 @@ class VKFNode:
                                             self.child_frame,
                                             rospy.Time()) == 0:
             try:
-                rospy.loginfo("No transform between " +
+                rospy.loginfo("VKF_NODE: No transform between " +
                               str(self.parent_frame) + ' and ' +
                               str(self.child_frame))
                 rospy.sleep(2)
@@ -118,8 +118,8 @@ class VKFNode:
                 rospy.sleep(2)
                 continue
 
-        rospy.loginfo("Transform between " + str(self.parent_frame) + ' and ' +
-                      str(self.child_frame) + 'found.')
+        rospy.loginfo("VKF_NODE: Transform between " + str(self.parent_frame) +
+                      ' and ' + str(self.child_frame) + ' found.')
 
         ############
         ##Init end##
@@ -206,16 +206,18 @@ class VKFNode:
 
         # Run the measurement back through tf tree to get the object in odom
         msg_transformed_wg = self.pose_transformer.do_transform_pose(
-            msg, self.tf_lookup_wc)
+            msg.objectPose, self.tf_lookup_wc)
 
         #Broadcast to tf to make sure we get the correct transform. Uncomment for testing in rviz
-        #self.transformbroadcast("odom", msg_transformed_wg)
+        self.transformbroadcast("odom", msg_transformed_wg)
 
         # Extract measurement of transformed and camera message
 
         # We need the position from the camera measurement
-        obj_pose_position_cg = np.array(
-            [msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
+        obj_pose_position_cg = np.array([
+            msg.objectPose.pose.position.x, msg.objectPose.pose.position.y,
+            msg.objectPose.pose.position.z
+        ])
 
         # We need the orientation from the world measruement
         obj_pose_quat_wg = np.array([
@@ -291,14 +293,14 @@ class VKFNode:
         t = TransformStamped()
         t.header.stamp = rospy.Time.now()
         t.header.frame_id = parent_frame
-        t.child_frame_id = "object_" + str(p.objectID)
-        t.transform.translation.x = p.objectPose.pose.position.x
-        t.transform.translation.y = p.objectPose.pose.position.y
-        t.transform.translation.z = p.objectPose.pose.position.z
-        t.transform.rotation.x = p.objectPose.pose.orientation.x
-        t.transform.rotation.y = p.objectPose.pose.orientation.y
-        t.transform.rotation.z = p.objectPose.pose.orientation.z
-        t.transform.rotation.w = p.objectPose.pose.orientation.w
+        t.child_frame_id = "object_" + self.current_object
+        t.transform.translation.x = p.pose.position.x
+        t.transform.translation.y = p.pose.position.y
+        t.transform.translation.z = p.pose.position.z
+        t.transform.rotation.x = p.pose.orientation.x
+        t.transform.rotation.y = p.pose.orientation.y
+        t.transform.rotation.z = p.pose.orientation.z
+        t.transform.rotation.w = p.pose.orientation.w
         self.__tfBroadcaster.sendTransform(t)
 
     def publish_object(self, objectID, ekf_position, ekf_pose_quaterion):
@@ -320,19 +322,21 @@ class VKFNode:
 
         self.gate_pose_pub.publish(p)
         rospy.loginfo("Object published: %s", objectID)
-        self.transformbroadcast(self.parent_frame, p)
+        self.transformbroadcast(self.parent_frame, p.objectPose)
 
     def obj_pose_callback(self, msg):
 
-        objID = self.mission_topic.split("/")[0]
-        rospy.loginfo("Object data recieved for: %s", objID)
+        #objID = self.mission_topic.split("/")[0]
+        objID = msg.objectID
+        # rospy.loginfo("Object data recieved for: %s", objID)
         self.current_object = objID
 
-        if self.mission_topic == self.current_object + "/execute":
-            rospy.loginfo("Mission status: %s", objID)
-            self.prev_gauss = MultiVarGaussian(self.x_hat0, self.P_hat0)
-            self.last_time = rospy.get_time()
-            return None
+        # Deprecated due to not using search/converge/execute this year #TODO: figure out a new way to do this logic
+        #if self.mission_topic == self.current_object + "/execute":
+        #    rospy.loginfo("Mission status: %s", objID)
+        #    self.prev_gauss = MultiVarGaussian(self.x_hat0, self.P_hat0)
+        #    self.last_time = rospy.get_time()
+        #    return None
 
         # Process msg of measurement
         z, R_wc, cam_pose_position_wc = self.process_measurement_message(msg)
@@ -359,7 +363,7 @@ class VKFNode:
                                                        ekf_pose[2])
 
         # Publish data, update mission topic
-        self.mission_topic_old = self.mission_topic
+        #self.mission_topic_old = self.mission_topic
         self.check_filter_convergence(gauss_est)
         self.publish_object(objID, ekf_position, ekf_pose_quaterion)
 

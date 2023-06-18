@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+
+<launch>
+    <!-- Should be fixed in issue #128 -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="udfc_link_to_aruco_udfc" args="0 0 0 0 1.57079632679 0 udfc_link udfc_aruco_link"/>
+
+    <node pkg="aruco_detection" type="aruco_detection_docking_node" name="aruco_detection_node" respawn="false" output="screen"/>
+    <node pkg="vision_kf" type="vkf_node.py" name="vision_kf" output="screen"/>
+    <node pkg="image_filters" type="image_filters_node" name="image_filters_node" respawn="false" output="screen"/>
+    <rosparam command="load" file="$(find aruco_detection)/params/camera_parameters.yml" />
+    <rosparam command="load" file="$(find aruco_detection)/params/rectangular_board.yml" />
+</launch>

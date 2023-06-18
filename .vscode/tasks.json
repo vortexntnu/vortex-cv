@@ -1,0 +1,33 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "catkin_build",
+            "type": "shell",
+            "command": ". /opt/ros/melodic/setup.bash && catkin build -DCMAKE_BUILD_TYPE=Debug && . devel/setup.bash",
+
+            "options": {
+                "cwd": "${workspaceFolder}/../.."
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "silent"
+            },
+            "problemMatcher": "$catkin-gcc"
+        },
+        {
+            "label": "clean_build",
+            "type": "shell",
+            "command": "catkin clean -y",
+            "options": {
+                "cwd": "${workspaceFolder}/../.."
+            },
+            "presentation": {
+                "reveal": "silent"
+            }
+        }
+    ]
+}

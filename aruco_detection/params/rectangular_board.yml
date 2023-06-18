@@ -1,0 +1,17 @@
+############################
+###   CAMERA PARAMTERS   ###
+############################
+
+# Distances are in meters. Ids are defined clockwise from the top left corner
+
+# Vortex Docking plate
+markerSize: .167
+xDist: .462
+yDist: .862
+ids: [28, 7, 96, 19]
+
+# TAC
+markerSize: .150
+xDist: .430
+yDist: .830
+ids: [28, 7, 96, 19]

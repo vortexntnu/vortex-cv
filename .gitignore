@@ -133,3 +133,8 @@ dmypy.json
 
 # local
 test.py
+
+
+# vs-code
+.vscode/browse*
+.vscode/c_cpp_properties.json
