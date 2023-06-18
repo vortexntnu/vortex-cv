@@ -1,4 +1,4 @@
-FROM ros:melodic
+FROM ghcr.io/vortexntnu/vortex-cv-base-image:cleanup-docker
 
 ARG distro=melodic
 ARG DEBIAN_FRONTEND=noninteractive
