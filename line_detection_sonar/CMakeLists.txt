@@ -15,6 +15,7 @@ find_package(rclcpp_components REQUIRED)
 find_package(vortex_utils REQUIRED)
 find_package(vortex_utils_ros REQUIRED)
 find_package(vortex_msgs REQUIRED)
+find_package(OpenCV REQUIRED)
 
 include_directories(include)
 
@@ -28,13 +29,17 @@ target_include_directories(${CORE_LIB_NAME}
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
-)
+    ${OpenCV_INCLUDE_DIRS}
+    )
 
 ament_target_dependencies(${CORE_LIB_NAME}
   vortex_utils
   vortex_utils_ros
   vortex_msgs
 )
+
+target_link_libraries(${CORE_LIB_NAME}
+  ${OpenCV_LIBS})
 
 set(COMPONENT_LIB_NAME "${PROJECT_NAME}_component")
 
