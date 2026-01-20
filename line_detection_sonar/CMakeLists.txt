@@ -15,7 +15,10 @@ find_package(rclcpp_components REQUIRED)
 find_package(vortex_utils REQUIRED)
 find_package(vortex_utils_ros REQUIRED)
 find_package(vortex_msgs REQUIRED)
-find_package(OpenCV REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(spdlog REQUIRED)
+find_package(fmt REQUIRED)
 
 include_directories(include)
 
@@ -27,15 +30,13 @@ add_library(${CORE_LIB_NAME} SHARED
 
 target_include_directories(${CORE_LIB_NAME}
   PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-    ${OpenCV_INCLUDE_DIRS}
-    )
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${OpenCV_INCLUDE_DIRS}
+)
 
 ament_target_dependencies(${CORE_LIB_NAME}
   vortex_utils
-  vortex_utils_ros
-  vortex_msgs
 )
 
 target_link_libraries(${CORE_LIB_NAME}
@@ -45,6 +46,7 @@ set(COMPONENT_LIB_NAME "${PROJECT_NAME}_component")
 
 add_library(${COMPONENT_LIB_NAME} SHARED
   src/ros/${PROJECT_NAME}_ros.cpp
+  src/ros/${PROJECT_NAME}_ros_utils.cpp
 )
 
 ament_target_dependencies(${COMPONENT_LIB_NAME}
@@ -52,6 +54,11 @@ ament_target_dependencies(${COMPONENT_LIB_NAME}
   rclcpp_components
   vortex_utils
   vortex_utils_ros
+  vortex_msgs
+  cv_bridge
+  sensor_msgs
+  spdlog
+  fmt
 )
 
 target_link_libraries(${COMPONENT_LIB_NAME} ${PROJECT_NAME})

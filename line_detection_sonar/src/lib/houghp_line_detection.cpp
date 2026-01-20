@@ -7,11 +7,12 @@
 
 namespace vortex::line_detection {
 
-HoughPLineDetector::HoughPLineDetector(const EdgeDetectionConfig& edge_config,
-                                       const LineDetectionConfig& line_config)
-    : edge_config_(edge_config), line_config_(line_config) {}
+HoughPLineDetector::HoughPLineDetector(const CannyConfig& edge_config,
+                                       const HoughPConfig& line_config)
+    : canny_config_(edge_config), houghp_config_(line_config) {}
 
-Result HoughPLineDetector::detect(const cv::Mat& input_image, Mode mode) const {
+Result HoughPLineDetector::detect(const cv::Mat& input_image,
+                                  DetectorMode mode) const {
     if (input_image.empty()) {
         throw std::runtime_error(
             "HoughPLineDetector::detect: input_image is empty");
@@ -28,18 +29,18 @@ Result HoughPLineDetector::detect(const cv::Mat& input_image, Mode mode) const {
     r.line_segments = to_line_segments(cv_lines);
 
     switch (mode) {
-        case Mode::standard: {
+        case DetectorMode::standard: {
             r.output = NoOutput{};
             break;
         }
-        case Mode::visualize: {
+        case DetectorMode::visualize: {
             VisualizeOutput v;
             vortex::line_detection::make_overlay_color(
                 input_image, gray8, cv_lines, v.overlay_color);
             r.output = std::move(v);
             break;
         }
-        case Mode::debug: {
+        case DetectorMode::debug: {
             DebugOutput d;
             d.canny = edge_image;
             vortex::line_detection::make_overlay_canny(edge_image, cv_lines,
@@ -55,20 +56,22 @@ Result HoughPLineDetector::detect(const cv::Mat& input_image, Mode mode) const {
 
 void HoughPLineDetector::detect_edges(const cv::Mat& input_image,
                                       cv::Mat& edge_image) const {
-    cv::Canny(input_image, edge_image, edge_config_.low_threshold,
-              edge_config_.high_threshold, edge_config_.aperture_size,
-              edge_config_.L2_gradient);
+    cv::Canny(input_image, edge_image, canny_config_.low_threshold,
+              canny_config_.high_threshold, canny_config_.aperture_size,
+              canny_config_.L2_gradient);
 }
 
 void HoughPLineDetector::detect_line_segments(
     const cv::Mat& edge_image,
     std::vector<cv::Vec4i>& cv_lines) const {
-    cv::HoughLinesP(edge_image, cv_lines, line_config_.rho, line_config_.theta,
-                    line_config_.threshold);
+    cv::HoughLinesP(edge_image, cv_lines, houghp_config_.rho,
+                    houghp_config_.theta, houghp_config_.threshold,
+                    houghp_config_.min_line_length,
+                    houghp_config_.max_line_gap);
 }
 
-std::vector<vortex::utils::types::LineSegment2D> to_line_segments(
-    const std::vector<cv::Vec4i>& cv_lines) {
+std::vector<vortex::utils::types::LineSegment2D>
+HoughPLineDetector::to_line_segments(const std::vector<cv::Vec4i>& cv_lines) {
     std::vector<vortex::utils::types::LineSegment2D> line_segments;
     line_segments.reserve(cv_lines.size());
     for (const auto& cv_line : cv_lines) {

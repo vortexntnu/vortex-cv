@@ -2,7 +2,8 @@
 #define LINE_DETECTION_SONAR__LIB__UTILS_HPP_
 
 #include <opencv2/imgproc.hpp>
-#include "utils.h"
+#include <vector>
+#include "line_detection_sonar/lib/utils.h"
 
 namespace vortex::line_detection {
 

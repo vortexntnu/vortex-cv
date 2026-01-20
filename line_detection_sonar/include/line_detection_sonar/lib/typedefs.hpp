@@ -3,6 +3,7 @@
 
 #include <opencv2/core.hpp>
 #include <variant>
+#include <vector>
 #include <vortex/utils/types.hpp>
 
 namespace vortex::line_detection {
@@ -11,7 +12,7 @@ namespace vortex::line_detection {
  * @brief Config for the OpenCV Canny edge algorithm
  * used to detect edges in an 8-bit single channel image.
  */
-struct EdgeDetectionConfig {
+struct CannyConfig {
     int low_threshold{50};    // Low threshold for the hysteresis procedure.
     int high_threshold{150};  // High threshold for the hysteresis procedure.
     int aperture_size{3};     // Aperture size for the Sobel operator.
@@ -23,7 +24,7 @@ struct EdgeDetectionConfig {
  * @brief Config for the OpenCV HoughLinesP algorithm
  * used to detect lines segments in an 8-bit single channel image.
  */
-struct LineDetectionConfig {
+struct HoughPConfig {
     double rho{1.0};  // Distance resolution of the accumulator in pixels.
     double theta{CV_PI / 180.0};  // Theta angle resolution
                                   // of the accumulator in radians.
@@ -42,7 +43,7 @@ struct LineDetectionConfig {
  * - debug: return line segments + edge map +
  *   overlay color and edge image for debugging.
  */
-enum class Mode { standard, visualize, debug };
+enum class DetectorMode { standard, visualize, debug };
 
 /**
  * @brief Empty output payload for Mode::standard.
