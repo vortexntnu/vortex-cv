@@ -10,31 +10,31 @@ namespace vortex::line_detection {
 
 class HoughPLineDetector {
    public:
-    explicit HoughPLineDetector(EdgeDetectionConfig edge_cfg,
-                                LineDetectionConfig line_cfg);
+    explicit HoughPLineDetector(const EdgeDetectionConfig& edge_config,
+                                const LineDetectionConfig& line_config);
 
     Result detect(const cv::Mat& input_image, Mode mode = Mode::standard) const;
 
    private:
     EdgeDetectionConfig edge_config_;
-    LineDetectionConfig config_;
+    LineDetectionConfig line_config_;
 
-    void detect_edges(const cv::Mat& input_image, cv::Mat& edges) const;
+    void detect_edges(const cv::Mat& input_image, cv::Mat& edge_image) const;
 
-    void detect_line_segments(const cv::Mat& edges,
-                              std::vector<cv::Vec4i>& lines) const;
+    void detect_line_segments(const cv::Mat& edge_image,
+                              std::vector<cv::Vec4i>& cv_lines) const;
 
     static std::vector<vortex::utils::types::LineSegment2D> to_line_segments(
-        const std::vector<cv::Vec4i>& lines);
+        const std::vector<cv::Vec4i>& cv_lines);
 
-    static void make_overlay_color(const cv::Mat& input_bgr,
-                                   const cv::Mat& edges,
-                                   const std::vector<cv::Vec4i>& lines,
-                                   cv::Mat& out_bgr);
+    // static void make_overlay_color(const cv::Mat& input_bgr,
+    //                                const cv::Mat& edge_image,
+    //                                const std::vector<cv::Vec4i>& cv_lines,
+    //                                cv::Mat& out_bgr);
 
-    static void make_overlay_canny(const cv::Mat& edges,
-                                   const std::vector<cv::Vec4i>& lines,
-                                   cv::Mat& out_bgr);
+    // static void make_overlay_canny(const cv::Mat& edge_image,
+    //                                const std::vector<cv::Vec4i>& cv_lines,
+    //                                cv::Mat& out_bgr);
 };
 
 }  // namespace vortex::line_detection
