@@ -1,5 +1,5 @@
-#ifndef LINE_DETECTION_SONAR__LIB__TYPEDEFS_HPP_
-#define LINE_DETECTION_SONAR__LIB__TYPEDEFS_HPP_
+#ifndef LINE_DETECTION_HOUGHP__LIB__TYPEDEFS_HPP_
+#define LINE_DETECTION_HOUGHP__LIB__TYPEDEFS_HPP_
 
 #include <opencv2/core.hpp>
 #include <variant>
@@ -104,4 +104,4 @@ struct Result {
 
 }  // namespace vortex::line_detection
 
-#endif  // LINE_DETECTION_SONAR__LIB__TYPEDEFS_HPP_
+#endif  // LINE_DETECTION_HOUGHP__LIB__TYPEDEFS_HPP_

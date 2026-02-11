@@ -1,17 +1,18 @@
-#ifndef LINE_DETECTION_SONAR__LIB__HOUGHP_LINE_DETECTION_HPP_
-#define LINE_DETECTION_SONAR__LIB__HOUGHP_LINE_DETECTION_HPP_
+#ifndef LINE_DETECTION_HOUGHP__LIB__HOUGHP_LINE_DETECTION_HPP_
+#define LINE_DETECTION_HOUGHP__LIB__HOUGHP_LINE_DETECTION_HPP_
 
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <vector>
 #include <vortex/utils/types.hpp>
+#include <lib/filters/all_filters.hpp>
 #include "typedefs.hpp"
 
 namespace vortex::line_detection {
 
-class HoughPLineDetector {
+class LineDetectorHoughP {
    public:
-    explicit HoughPLineDetector(const CannyConfig& edge_config,
+    explicit LineDetectorHoughP(const CannyConfig& edge_config,
                                 const HoughPConfig& line_config);
 
     Result detect(const cv::Mat& input_image,
@@ -32,4 +33,4 @@ class HoughPLineDetector {
 
 }  // namespace vortex::line_detection
 
-#endif  // LINE_DETECTION_SONAR__LIB__HOUGHP_LINE_DETECTION_HPP_
+#endif  // LINE_DETECTION_HOUGHP__LIB__HOUGHP_LINE_DETECTION_HPP_

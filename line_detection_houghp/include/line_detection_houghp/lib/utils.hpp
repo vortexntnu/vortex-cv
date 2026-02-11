@@ -1,9 +1,9 @@
-#ifndef LINE_DETECTION_SONAR__LIB__UTILS_HPP_
-#define LINE_DETECTION_SONAR__LIB__UTILS_HPP_
+#ifndef LINE_DETECTION_HOUGHP__LIB__UTILS_HPP_
+#define LINE_DETECTION_HOUGHP__LIB__UTILS_HPP_
 
 #include <opencv2/imgproc.hpp>
 #include <vector>
-#include "line_detection_sonar/lib/utils.h"
+#include "line_detection_houghp/lib/utils.h"
 
 namespace vortex::line_detection {
 
@@ -143,4 +143,4 @@ inline void make_overlay_canny(const cv::Mat& edges,
 
 }  // namespace vortex::line_detection
 
-#endif  // LINE_DETECTION_SONAR__LIB__UTILS_HPP_
+#endif  // LINE_DETECTION_HOUGHP__LIB__UTILS_HPP_

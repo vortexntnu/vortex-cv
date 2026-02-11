@@ -1,5 +1,5 @@
-#ifndef LINE_DETECTION_SONAR__LIB__UTILS_H_
-#define LINE_DETECTION_SONAR__LIB__UTILS_H_
+#ifndef LINE_DETECTION_HOUGHP__LIB__UTILS_H_
+#define LINE_DETECTION_HOUGHP__LIB__UTILS_H_
 
 #include <opencv2/imgproc.hpp>
 
@@ -78,4 +78,4 @@ inline cv::Mat to_bgr8(const cv::Mat& input, const cv::Mat& gray8 /*CV_8UC1*/);
 
 }  // namespace vortex::line_detection
 
-#endif  // LINE_DETECTION_SONAR__LIB__UTILS_H_
+#endif  // LINE_DETECTION_HOUGHP__LIB__UTILS_H_

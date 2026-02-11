@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(line_detection_sonar)
+project(line_detection_houghp)
 
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 20)
@@ -12,11 +12,13 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
+find_package(OpenCV 4.5.4 REQUIRED)
 find_package(vortex_utils REQUIRED)
 find_package(vortex_utils_ros REQUIRED)
 find_package(vortex_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
+find_package(image_filtering REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
 
@@ -37,6 +39,7 @@ target_include_directories(${CORE_LIB_NAME}
 
 ament_target_dependencies(${CORE_LIB_NAME}
   vortex_utils
+  image_filtering
 )
 
 target_link_libraries(${CORE_LIB_NAME}
@@ -65,7 +68,7 @@ target_link_libraries(${COMPONENT_LIB_NAME} ${PROJECT_NAME})
 
 rclcpp_components_register_node(
   ${COMPONENT_LIB_NAME}
-  PLUGIN "LineDetectionSonarNode"
+  PLUGIN "LineDetectionHoughPNode"
   EXECUTABLE ${PROJECT_NAME}_node
 )
 

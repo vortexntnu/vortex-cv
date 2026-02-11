@@ -1,5 +1,5 @@
 #include <spdlog/spdlog.h>
-#include "line_detection_sonar/ros/line_detection_sonar_ros.hpp"
+#include "line_detection_houghp/ros/line_detection_houghp_ros.hpp"
 
 namespace vortex::line_detection {
 
@@ -18,7 +18,7 @@ static DetectorMode parse_mode(const std::string& s) {
     throw std::runtime_error("Invalid mode: " + s);
 }
 
-void LineDetectionSonarNode::initialize_parameter_handler() {
+void LineDetectionHoughPNode::initialize_parameter_handler() {
     param_handler_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
 
     auto parameter_event_callback =
@@ -30,7 +30,7 @@ void LineDetectionSonarNode::initialize_parameter_handler() {
         param_handler_->add_parameter_event_callback(parameter_event_callback);
 }
 
-void LineDetectionSonarNode::on_parameter_event(
+void LineDetectionHoughPNode::on_parameter_event(
     const rcl_interfaces::msg::ParameterEvent& event) {
     const auto node_name = this->get_fully_qualified_name();
     if (event.node != node_name)
@@ -63,7 +63,7 @@ void LineDetectionSonarNode::on_parameter_event(
     }
 }
 
-void LineDetectionSonarNode::mode_conditional_publishing(
+void LineDetectionHoughPNode::mode_conditional_publishing(
     const Result& result,
     const std_msgs::msg::Header& header) {
     if (mode_ == DetectorMode::standard) {
@@ -124,7 +124,7 @@ void LineDetectionSonarNode::mode_conditional_publishing(
     }
 }
 
-void LineDetectionSonarNode::set_mode() {
+void LineDetectionHoughPNode::set_mode() {
     const auto mode_str = this->get_parameter("mode").as_string();
 
     try {

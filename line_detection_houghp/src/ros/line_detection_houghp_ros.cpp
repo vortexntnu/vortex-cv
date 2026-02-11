@@ -1,14 +1,15 @@
-#include "line_detection_sonar/ros/line_detection_sonar_ros.hpp"
+#include "line_detection_houghp/ros/line_detection_houghp_ros.hpp"
 #include <cv_bridge/cv_bridge.h>
 #include <spdlog/spdlog.h>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <vortex/utils/ros/qos_profiles.hpp>
+#include "line_detection_houghp/lib/line_detection_houghp.hpp"
 
 namespace vortex::line_detection {
 
-LineDetectionSonarNode::LineDetectionSonarNode(
+LineDetectionHoughPNode::LineDetectionHoughPNode(
     const rclcpp::NodeOptions& options)
-    : rclcpp::Node("line_detection_sonar_node", options) {
+    : rclcpp::Node("line_detection_houghp_node", options) {
     declare_parameters();
     set_detector();
     set_mode();
@@ -16,7 +17,7 @@ LineDetectionSonarNode::LineDetectionSonarNode(
     initialize_parameter_handler();
 }
 
-void LineDetectionSonarNode::declare_parameters() {
+void LineDetectionHoughPNode::declare_parameters() {
     this->declare_parameter<std::string>("topic.image_sub_topic");
     this->declare_parameter<std::string>("topic.line_segments_pub_topic");
     this->declare_parameter<std::string>("topic.color_overlay_pub_topic");
@@ -37,7 +38,7 @@ void LineDetectionSonarNode::declare_parameters() {
     this->declare_parameter<std::string>("mode");
 }
 
-void LineDetectionSonarNode::setup_publishers_and_subscribers() {
+void LineDetectionHoughPNode::setup_publishers_and_subscribers() {
     const std::string image_sub_topic =
         this->get_parameter("topic.image_sub_topic").as_string();
     const std::string line_segments_pub_topic =
@@ -53,7 +54,7 @@ void LineDetectionSonarNode::setup_publishers_and_subscribers() {
 
     image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
         image_sub_topic, qos_profile,
-        std::bind(&LineDetectionSonarNode::image_callback, this,
+        std::bind(&LineDetectionHoughPNode::image_callback, this,
                   std::placeholders::_1));
 
     line_segments_pub_ =
@@ -70,7 +71,7 @@ void LineDetectionSonarNode::setup_publishers_and_subscribers() {
         canny_overlay_pub_topic, qos_profile);
 }
 
-void LineDetectionSonarNode::set_detector() {
+void LineDetectionHoughPNode::set_detector() {
     CannyConfig edge_config;
     edge_config.low_threshold =
         this->get_parameter("canny.low_threshold").as_int();
@@ -90,10 +91,10 @@ void LineDetectionSonarNode::set_detector() {
     line_config.max_line_gap =
         this->get_parameter("houghp.max_line_gap").as_double();
 
-    detector_ = std::make_unique<HoughPLineDetector>(edge_config, line_config);
+    detector_ = std::make_unique<LineDetectorHoughP>(edge_config, line_config);
 }
 
-void LineDetectionSonarNode::image_callback(
+void LineDetectionHoughPNode::image_callback(
     const sensor_msgs::msg::Image::SharedPtr msg) {
     cv_bridge::CvImagePtr cv_ptr;
     try {
@@ -130,6 +131,6 @@ void LineDetectionSonarNode::image_callback(
     mode_conditional_publishing(result, msg->header);
 }
 
-RCLCPP_COMPONENTS_REGISTER_NODE(LineDetectionSonarNode)
+RCLCPP_COMPONENTS_REGISTER_NODE(LineDetectionHoughPNode)
 
 }  // namespace vortex::line_detection

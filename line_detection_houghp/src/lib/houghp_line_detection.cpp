@@ -1,21 +1,20 @@
-#include "line_detection_sonar/lib/houghp_line_detection.hpp"
+#include "line_detection_houghp/lib/line_detection_houghp.hpp"
 #include <opencv2/imgproc.hpp>
-#include <vector>
 #include <vortex/utils/types.hpp>
-#include "line_detection_sonar/lib/typedefs.hpp"
-#include "line_detection_sonar/lib/utils.hpp"
+#include "line_detection_houghp/lib/typedefs.hpp"
+#include "line_detection_houghp/lib/utils.hpp"
 
 namespace vortex::line_detection {
 
-HoughPLineDetector::HoughPLineDetector(const CannyConfig& edge_config,
+LineDetectorHoughP::LineDetectorHoughP(const CannyConfig& edge_config,
                                        const HoughPConfig& line_config)
     : canny_config_(edge_config), houghp_config_(line_config) {}
 
-Result HoughPLineDetector::detect(const cv::Mat& input_image,
+Result LineDetectorHoughP::detect(const cv::Mat& input_image,
                                   DetectorMode mode) const {
     if (input_image.empty()) {
         throw std::runtime_error(
-            "HoughPLineDetector::detect: input_image is empty");
+            "LineDetectorHoughP::detect: input_image is empty");
     }
     cv::Mat gray8 = vortex::line_detection::to_gray8(input_image);
     cv::Mat edge_image;
@@ -54,14 +53,14 @@ Result HoughPLineDetector::detect(const cv::Mat& input_image,
     return r;
 }
 
-void HoughPLineDetector::detect_edges(const cv::Mat& input_image,
+void LineDetectorHoughP::detect_edges(const cv::Mat& input_image,
                                       cv::Mat& edge_image) const {
     cv::Canny(input_image, edge_image, canny_config_.low_threshold,
               canny_config_.high_threshold, canny_config_.aperture_size,
               canny_config_.L2_gradient);
 }
 
-void HoughPLineDetector::detect_line_segments(
+void LineDetectorHoughP::detect_line_segments(
     const cv::Mat& edge_image,
     std::vector<cv::Vec4i>& cv_lines) const {
     cv::HoughLinesP(edge_image, cv_lines, houghp_config_.rho,
@@ -71,7 +70,7 @@ void HoughPLineDetector::detect_line_segments(
 }
 
 std::vector<vortex::utils::types::LineSegment2D>
-HoughPLineDetector::to_line_segments(const std::vector<cv::Vec4i>& cv_lines) {
+LineDetectorHoughP::to_line_segments(const std::vector<cv::Vec4i>& cv_lines) {
     std::vector<vortex::utils::types::LineSegment2D> line_segments;
     line_segments.reserve(cv_lines.size());
     for (const auto& cv_line : cv_lines) {

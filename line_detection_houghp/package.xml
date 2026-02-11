@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>line_detection_sonar</name>
+  <name>line_detection_houghp</name>
   <version>0.0.0</version>
-  <description>Package for detecting lines on images produces by an FLS sonar.</description>
+  <description>Package for detecting lines using the HoughP OpenCV function.</description>
 
   <maintainer email="jorgen.fjermedal@hotmail.com">jorgen</maintainer>
   <license>MIT</license>
@@ -15,6 +15,7 @@
   <depend>vortex_utils</depend>
   <depend>vortex_utils_ros</depend>
   <depend>vortex_msgs</depend>
+  <depend>image_filtering</depend>
   <depend>opencv</depend>
   <depend>cv_bridge</depend>
 

@@ -8,16 +8,16 @@
       canny_overlay_pub_topic: line_detection/canny_overlay
 
     canny:
-      low_threshold: 50
-      high_threshold: 150
+      low_threshold: 100
+      high_threshold: 200
       aperture_size: 3
       L2_gradient: false
 
     houghp:
       rho: 1.0
       theta: 0.01745329251 # pi / 180
-      threshold: 50
-      min_line_length: 10.0 # pixels
-      max_line_gap: 5.0 # pixels
+      threshold: 100
+      min_line_length: 20.0 # pixels
+      max_line_gap: 10.0 # pixels
 
-    mode: "standard" # {"standard", "visualize", "debug"}
+    mode: "debug" # {"standard", "visualize", "debug"}

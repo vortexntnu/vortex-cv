@@ -7,17 +7,17 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     config = os.path.join(
-        get_package_share_directory('line_detection_sonar'),
+        get_package_share_directory('line_detection_houghp'),
         'config',
-        'line_detection_sonar.yaml',
+        'line_detection_houghp.yaml',
     )
 
     return LaunchDescription(
         [
             Node(
-                package='line_detection_sonar',
-                executable='line_detection_sonar_node',
-                name='line_detection_sonar',
+                package='line_detection_houghp',
+                executable='line_detection_houghp_node',
+                name='line_detection_houghp',
                 output='screen',
                 parameters=[
                     config,

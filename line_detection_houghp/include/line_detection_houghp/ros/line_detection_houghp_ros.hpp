@@ -1,5 +1,5 @@
-#ifndef LINE_DETECTION_SONAR__ROS__LINE_DETECTION_SONAR_ROS_HPP_
-#define LINE_DETECTION_SONAR__ROS__LINE_DETECTION_SONAR_ROS_HPP_
+#ifndef LINE_DETECTION_HOUGHP__ROS__LINE_DETECTION_HOUGHP_ROS_HPP_
+#define LINE_DETECTION_HOUGHP__ROS__LINE_DETECTION_HOUGHP_ROS_HPP_
 
 #include <cv_bridge/cv_bridge.h>
 #include <memory>
@@ -12,15 +12,15 @@
 #include <std_msgs/msg/header.hpp>
 #include <vortex_msgs/msg/detail/line_segment2_d_array__struct.hpp>
 #include <vortex_msgs/msg/line_segment2_d_array.hpp>
-#include "line_detection_sonar/lib/houghp_line_detection.hpp"
+#include "line_detection_houghp/lib/line_detection_houghp.hpp"
 
 namespace vortex::line_detection {
 
-class LineDetectionSonarNode : public rclcpp::Node {
+class LineDetectionHoughPNode : public rclcpp::Node {
    public:
-    explicit LineDetectionSonarNode(const rclcpp::NodeOptions& options);
+    explicit LineDetectionHoughPNode(const rclcpp::NodeOptions& options);
 
-    ~LineDetectionSonarNode() {}
+    ~LineDetectionHoughPNode() {}
 
    private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
@@ -81,11 +81,11 @@ class LineDetectionSonarNode : public rclcpp::Node {
      */
     rclcpp::ParameterEventCallbackHandle::SharedPtr param_cb_handle_;
 
-    std::unique_ptr<HoughPLineDetector> detector_{};
+    std::unique_ptr<LineDetectorHoughP> detector_{};
 
     DetectorMode mode_{DetectorMode::standard};
 };
 
 }  // namespace vortex::line_detection
 
-#endif  // LINE_DETECTION_SONAR__ROS__LINE_DETECTION_SONAR_ROS_HPP_
+#endif  // LINE_DETECTION_HOUGHP__ROS__LINE_DETECTION_HOUGHP_ROS_HPP_
