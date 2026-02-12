@@ -1,6 +1,6 @@
-#include "line_detection_houghp/lib/line_detection_houghp.hpp"
 #include <opencv2/imgproc.hpp>
 #include <vortex/utils/types.hpp>
+#include "line_detection_houghp/lib/line_detection_houghp.hpp"
 #include "line_detection_houghp/lib/typedefs.hpp"
 #include "line_detection_houghp/lib/utils.hpp"
 
@@ -34,18 +34,18 @@ Result LineDetectorHoughP::detect(const cv::Mat& input_image,
         }
         case DetectorMode::visualize: {
             VisualizeOutput v;
-            vortex::line_detection::make_overlay_color(
-                input_image, gray8, cv_lines, v.overlay_color);
+            v.overlay_color = vortex::line_detection::make_overlay_color(
+                input_image, gray8, cv_lines);
             r.output = std::move(v);
             break;
         }
         case DetectorMode::debug: {
             DebugOutput d;
             d.canny = edge_image;
-            vortex::line_detection::make_overlay_canny(edge_image, cv_lines,
-                                                       d.overlay_canny);
-            vortex::line_detection::make_overlay_color(
-                input_image, gray8, cv_lines, d.overlay_color);
+            d.overlay_canny = vortex::line_detection::make_overlay_canny(
+                edge_image, cv_lines);
+            d.overlay_color = vortex::line_detection::make_overlay_color(
+                input_image, gray8, cv_lines);
             r.output = std::move(d);
             break;
         }
