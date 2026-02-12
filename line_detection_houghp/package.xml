@@ -15,7 +15,7 @@
   <depend>vortex_utils</depend>
   <depend>vortex_utils_ros</depend>
   <depend>vortex_msgs</depend>
-  <depend>opencv</depend>
+  <depend>libopencv-dev</depend>
   <depend>cv_bridge</depend>
 
   <export>
