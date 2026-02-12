@@ -1,11 +1,10 @@
-#ifndef LINE_DETECTION_HOUGHP__LIB__HOUGHP_LINE_DETECTION_HPP_
-#define LINE_DETECTION_HOUGHP__LIB__HOUGHP_LINE_DETECTION_HPP_
+#ifndef LINE_DETECTION_HOUGHP__LIB__LINE_DETECTION_HOUGHP_HPP_
+#define LINE_DETECTION_HOUGHP__LIB__LINE_DETECTION_HOUGHP_HPP_
 
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <vector>
 #include <vortex/utils/types.hpp>
-#include <lib/filters/all_filters.hpp>
 #include "typedefs.hpp"
 
 namespace vortex::line_detection {
@@ -33,4 +32,4 @@ class LineDetectorHoughP {
 
 }  // namespace vortex::line_detection
 
-#endif  // LINE_DETECTION_HOUGHP__LIB__HOUGHP_LINE_DETECTION_HPP_
+#endif  // LINE_DETECTION_HOUGHP__LIB__LINE_DETECTION_HOUGHP_HPP_
