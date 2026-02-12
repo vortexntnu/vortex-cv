@@ -50,12 +50,14 @@ void LineDetectionHoughPNode::setup_publishers_and_subscribers() {
     const std::string canny_overlay_pub_topic =
         this->get_parameter("topic.canny_overlay_pub_topic").as_string();
 
-    auto qos_profile = vortex::utils::qos_profiles::sensor_data_profile(1);
+    const auto qos_profile =
+        vortex::utils::qos_profiles::sensor_data_profile(1);
 
     image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
         image_sub_topic, qos_profile,
-        std::bind(&LineDetectionHoughPNode::image_callback, this,
-                  std::placeholders::_1));
+        [this](const sensor_msgs::msg::Image::ConstSharedPtr& msg) {
+            this->image_callback(msg);
+        });
 
     line_segments_pub_ =
         this->create_publisher<vortex_msgs::msg::LineSegment2DArray>(
@@ -95,7 +97,7 @@ void LineDetectionHoughPNode::set_detector() {
 }
 
 void LineDetectionHoughPNode::image_callback(
-    const sensor_msgs::msg::Image::SharedPtr msg) {
+    const sensor_msgs::msg::Image::ConstSharedPtr& msg) {
     cv_bridge::CvImagePtr cv_ptr;
     try {
         cv_ptr = cv_bridge::toCvCopy(msg, msg->encoding);

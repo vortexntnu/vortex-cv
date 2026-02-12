@@ -1,3 +1,4 @@
+#include <cv_bridge/cv_bridge.h>
 #include <spdlog/spdlog.h>
 #include "line_detection_houghp/lib/mode_utils.hpp"
 #include "line_detection_houghp/ros/line_detection_houghp_ros.hpp"
@@ -57,61 +58,67 @@ void LineDetectionHoughPNode::on_parameter_event(
 void LineDetectionHoughPNode::mode_conditional_publishing(
     const Result& result,
     const std_msgs::msg::Header& header) {
-    if (mode_ == DetectorMode::standard) {
-        return;
-    }
+    switch (mode_) {
+        case DetectorMode::standard:
+            return;
 
-    if (mode_ == DetectorMode::visualize) {
-        const auto* vis = std::get_if<VisualizeOutput>(&result.output);
-        if (!vis) {
-            spdlog::warn(
-                "Mode is visualize but Result::output is not VisualizeOutput");
+        case DetectorMode::visualize: {
+            const auto* vis = std::get_if<VisualizeOutput>(&result.output);
+            if (!vis) {
+                spdlog::warn(
+                    "Mode is visualize but Result::output is not "
+                    "VisualizeOutput");
+                return;
+            }
+
+            cv_bridge::CvImage overlay_msg;
+            overlay_msg.header = header;
+            overlay_msg.encoding = sensor_msgs::image_encodings::BGR8;
+            overlay_msg.image = vis->overlay_color;  // expected CV_8UC3
+            color_overlay_pub_->publish(*overlay_msg.toImageMsg());
             return;
         }
 
-        cv_bridge::CvImage overlay_msg;
-        overlay_msg.header = header;
-        overlay_msg.encoding = sensor_msgs::image_encodings::BGR8;
-        overlay_msg.image = vis->overlay_color;  // expected CV_8UC3
-        color_overlay_pub_->publish(*overlay_msg.toImageMsg());
-        return;
-    }
+        case DetectorMode::debug: {
+            const auto* dbg = std::get_if<DebugOutput>(&result.output);
+            if (!dbg) {
+                spdlog::warn(
+                    "Mode is debug but Result::output is not DebugOutput");
+                return;
+            }
 
-    if (mode_ == DetectorMode::debug) {
-        const auto* dbg = std::get_if<DebugOutput>(&result.output);
-        if (!dbg) {
-            spdlog::warn("Mode is debug but Result::output is not DebugOutput");
+            // overlay_canny: CV_8UC3 -> bgr8
+            {
+                cv_bridge::CvImage m;
+                m.header = header;
+                m.encoding = sensor_msgs::image_encodings::BGR8;
+                m.image = dbg->overlay_canny;
+                canny_overlay_pub_->publish(*m.toImageMsg());
+            }
+
+            // canny: CV_8UC1 -> mono8
+            {
+                cv_bridge::CvImage m;
+                m.header = header;
+                m.encoding = sensor_msgs::image_encodings::MONO8;
+                m.image = dbg->canny;
+                canny_debug_pub_->publish(*m.toImageMsg());
+            }
+
+            // overlay_color: CV_8UC3 -> bgr8
+            {
+                cv_bridge::CvImage m;
+                m.header = header;
+                m.encoding = sensor_msgs::image_encodings::BGR8;
+                m.image = dbg->overlay_color;
+                color_overlay_pub_->publish(*m.toImageMsg());
+            }
+
             return;
         }
 
-        // overlay_canny: CV_8UC3 -> bgr8
-        {
-            cv_bridge::CvImage m;
-            m.header = header;
-            m.encoding = sensor_msgs::image_encodings::BGR8;
-            m.image = dbg->overlay_canny;
-            canny_overlay_pub_->publish(*m.toImageMsg());
-        }
-
-        // canny: CV_8UC1 -> mono8
-        {
-            cv_bridge::CvImage m;
-            m.header = header;
-            m.encoding = sensor_msgs::image_encodings::MONO8;
-            m.image = dbg->canny;
-            canny_debug_pub_->publish(*m.toImageMsg());
-        }
-
-        // overlay_color: CV_8UC3 -> bgr8
-        {
-            cv_bridge::CvImage m;
-            m.header = header;
-            m.encoding = sensor_msgs::image_encodings::BGR8;
-            m.image = dbg->overlay_color;
-            color_overlay_pub_->publish(*m.toImageMsg());
-        }
-
-        return;
+        default:
+            return;
     }
 }
 

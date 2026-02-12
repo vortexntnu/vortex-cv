@@ -1,7 +1,6 @@
 #ifndef LINE_DETECTION_HOUGHP__ROS__LINE_DETECTION_HOUGHP_ROS_HPP_
 #define LINE_DETECTION_HOUGHP__ROS__LINE_DETECTION_HOUGHP_ROS_HPP_
 
-#include <cv_bridge/cv_bridge.h>
 #include <memory>
 #include <rclcpp/node.hpp>
 #include <rclcpp/node_options.hpp>
@@ -10,7 +9,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/header.hpp>
-#include <vortex_msgs/msg/detail/line_segment2_d_array__struct.hpp>
 #include <vortex_msgs/msg/line_segment2_d_array.hpp>
 #include "line_detection_houghp/lib/line_detection_houghp.hpp"
 
@@ -20,7 +18,7 @@ class LineDetectionHoughPNode : public rclcpp::Node {
    public:
     explicit LineDetectionHoughPNode(const rclcpp::NodeOptions& options);
 
-    ~LineDetectionHoughPNode() {}
+    ~LineDetectionHoughPNode() override = default;
 
    private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
@@ -30,7 +28,7 @@ class LineDetectionHoughPNode : public rclcpp::Node {
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr canny_debug_pub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr canny_overlay_pub_;
 
-    void image_callback(const sensor_msgs::msg::Image::SharedPtr msg);
+    void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr& msg);
 
     void declare_parameters();
 
