@@ -1,4 +1,5 @@
 #include <spdlog/spdlog.h>
+#include "line_detection_houghp/lib/mode_utils.hpp"
 #include "line_detection_houghp/ros/line_detection_houghp_ros.hpp"
 
 namespace vortex::line_detection {
@@ -6,16 +7,6 @@ namespace vortex::line_detection {
 static bool starts_with(const std::string& s, const std::string& prefix) {
     return s.size() >= prefix.size() &&
            s.compare(0, prefix.size(), prefix) == 0;
-}
-
-static DetectorMode parse_mode(const std::string& s) {
-    if (s == "standard")
-        return DetectorMode::standard;
-    if (s == "visualize")
-        return DetectorMode::visualize;
-    if (s == "debug")
-        return DetectorMode::debug;
-    throw std::runtime_error("Invalid mode: " + s);
 }
 
 void LineDetectionHoughPNode::initialize_parameter_handler() {
