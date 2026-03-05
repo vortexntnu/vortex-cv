@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `line_detection_ransac` package provides line detection functionality using the a custom varian of ransac for images. It is designed to detect linear features seen from the origin of a sonar image using rays and a custom ransac algorithm
+The `line_detection_ransac` package provides line detection functionality using the a custom variant of ransac for images. It is designed to detect linear features seen from the origin of a sonar image using rays and a custom ransac algorithm
 
 ## Architecture
 
@@ -70,7 +70,7 @@ The boundary detector casts rays from the origin of the sonar image and calculat
 
 ### Custom RANSAC algorithm
 
-What makes it custom is that instead of random point sampling it iterates through all detected boundary points and check lines from following points because all points on a wall will be next to eachother in the container
+What makes it custom is that instead of random point sampling it iterates through all detected boundary points and check lines from following points because all points on a wall will be next to each other in the container
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
