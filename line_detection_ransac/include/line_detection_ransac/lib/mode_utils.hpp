@@ -1,12 +1,12 @@
-#ifndef LINE_DETECTION_HOUGHP__LIB__MODE_UTILS_HPP_
-#define LINE_DETECTION_HOUGHP__LIB__MODE_UTILS_HPP_
+#ifndef LINE_DETECTION_RANSAC__LIB__MODE_UTILS_HPP_
+#define LINE_DETECTION_RANSAC__LIB__MODE_UTILS_HPP_
 
 #include <array>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
-#include "line_detection_houghp/lib/typedefs.hpp"
+#include "line_detection_ransac/lib/typedefs.hpp"
 
 namespace vortex::line_detection {
 
@@ -35,4 +35,4 @@ inline std::string_view to_string(DetectorMode mode) {
 
 }  // namespace vortex::line_detection
 
-#endif  // LINE_DETECTION_HOUGHP__LIB__MODE_UTILS_HPP_
+#endif  // LINE_DETECTION_RANSAC__LIB__MODE_UTILS_HPP_

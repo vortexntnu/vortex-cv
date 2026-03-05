@@ -1,0 +1,23 @@
+/**:
+  ros__parameters:
+    topic:
+      image_sub_topic: /forward_looking_sonar/display
+      line_segments_pub_topic: line_detection/line_segments
+      color_overlay_pub_topic: line_detection/visualization
+      boundary_debug_pub_topic: line_detection/boundary_image
+      boundary_overlay_pub_topic: line_detection/boundary_overlay
+
+    boundary_detection:
+      threshold: 35 # At what average pixel intensity along the ray do we consider it a boundary.
+      step: 2.0 # How many pixels to step along the ray when sampling.
+      rays: 50 # How many rays to cast within the angle range.
+      sample_size: 3 # Side-length of the sample square (must be odd).
+      angle: 150 # Total angle range of sonar image to search for boundaries (degrees).
+
+    ransac:
+      points_checked: 4 # Number of points to check for lines
+      distance_threshold: 2.0 # Maximum distance from line for inliers
+      min_remaining_points: 6 # Minimum number of points remaining to continue RANSAC iterations
+      min_inliers: 6 # Minimum number of inliers to accept a line
+
+    mode: "debug" # {"standard", "visualize", "debug"}

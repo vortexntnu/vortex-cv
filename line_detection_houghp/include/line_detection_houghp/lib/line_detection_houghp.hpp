@@ -10,24 +10,24 @@
 namespace vortex::line_detection {
 
 class LineDetectorHoughP {
-   public:
-    explicit LineDetectorHoughP(const CannyConfig& edge_config,
-                                const HoughPConfig& line_config);
+ public:
+  explicit LineDetectorHoughP(const CannyConfig& edge_config,
+                              const HoughPConfig& line_config);
 
-    Result detect(const cv::Mat& input_image,
-                  DetectorMode mode = DetectorMode::standard) const;
+  Result detect(const cv::Mat& input_image,
+                DetectorMode mode = DetectorMode::standard) const;
 
-   private:
-    CannyConfig canny_config_;
-    HoughPConfig houghp_config_;
+ private:
+  CannyConfig canny_config_;
+  HoughPConfig houghp_config_;
 
-    void detect_edges(const cv::Mat& input_image, cv::Mat& edge_image) const;
+  void detect_edges(const cv::Mat& input_image, cv::Mat& edge_image) const;
 
-    void detect_line_segments(const cv::Mat& edge_image,
-                              std::vector<cv::Vec4i>& cv_lines) const;
+  void detect_line_segments(const cv::Mat& edge_image,
+                            std::vector<cv::Vec4i>& cv_lines) const;
 
-    static std::vector<vortex::utils::types::LineSegment2D> to_line_segments(
-        const std::vector<cv::Vec4i>& cv_lines);
+  static std::vector<vortex::utils::types::LineSegment2D> to_line_segments(
+      const std::vector<cv::Vec4i>& cv_lines);
 };
 
 }  // namespace vortex::line_detection

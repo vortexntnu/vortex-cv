@@ -1,7 +1,7 @@
 #ifndef LINE_DETECTION_HOUGHP__LIB__UTILS_HPP_
 #define LINE_DETECTION_HOUGHP__LIB__UTILS_HPP_
 
-#include "line_detection_houghp/lib/utils.hpp"
+#include "line_detection_ransac/lib/utils.hpp"
 #include <opencv2/imgproc.hpp>
 #include <vector>
 
@@ -120,23 +120,26 @@ cv::Mat make_overlay_color(const cv::Mat& input_bgr,
   return out_bgr;
 }
 
-cv::Mat make_overlay_canny(const cv::Mat& edges,
-                           const std::vector<cv::Vec4i>& lines) {
-  if (edges.empty()) {
-    throw std::runtime_error("make_overlay_canny: edges is empty");
-  }
-  if (edges.type() != CV_8UC1) {
-    throw std::runtime_error("make_overlay_canny: edges must be CV_8UC1");
+cv::Mat make_overlay_boundaries(const cv::Mat& input_bgr,
+                                const std::vector<cv::Vec4i>& lines) {
+  if (input_bgr.empty()) {
+    throw std::runtime_error("make_overlay_boundaries: input_bgr is empty");
   }
 
-  cv::Mat out_bgr;
-  cv::cvtColor(edges, out_bgr, cv::COLOR_GRAY2BGR);
+  if (input_bgr.channels() != 3) {
+    throw std::runtime_error(
+        "make_overlay_boundaries: input must be 3-channel BGR");
+  }
 
+  // Clone input so we don't overwrite it
+  cv::Mat out_bgr = input_bgr.clone();
+
+  // Draw all lines
   for (const auto& l : lines) {
-    const cv::Point p0(l[0], l[1]);
-    const cv::Point p1(l[2], l[3]);
-    cv::line(out_bgr, p0, p1, k_line_color, k_line_thickness, k_line_type);
+    cv::line(out_bgr, cv::Point(l[0], l[1]), cv::Point(l[2], l[3]),
+             cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
   }
+
   return out_bgr;
 }
 
