@@ -39,7 +39,7 @@ repos:
       - id: requirements-txt-fixer
   # Python hooks
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.5
+    rev: v0.15.4
     hooks:
       - id: ruff-format
       - id: ruff
@@ -74,10 +74,10 @@ repos:
         pass_filenames: true
   # C++ hooks
   - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v21.1.5
+    rev: v22.1.0
     hooks:
       - id: clang-format
-        args: [--style=file]
+        args: [--style=Chromium]
   - repo: local
     hooks:
       - id: ament_cppcheck

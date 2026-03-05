@@ -1,5 +1,5 @@
-#ifndef LINE_DETECTION_HOUGHP__LIB__TYPEDEFS_HPP_
-#define LINE_DETECTION_HOUGHP__LIB__TYPEDEFS_HPP_
+#ifndef LINE_DETECTION_RANSAC__LIB__TYPEDEFS_HPP_
+#define LINE_DETECTION_RANSAC__LIB__TYPEDEFS_HPP_
 
 #include <opencv2/core.hpp>
 #include <variant>
@@ -9,29 +9,25 @@
 namespace vortex::line_detection {
 
 /**
- * @brief Config for the OpenCV Canny edge algorithm
- * used to detect edges in an 8-bit single channel image.
+ * @brief Config for the boundary detection algorithm
+ * used to detect edges using rays from the sonar origin
  */
-struct CannyConfig {
-  int low_threshold{50};    // Low threshold for the hysteresis procedure.
-  int high_threshold{150};  // High threshold for the hysteresis procedure.
-  int aperture_size{3};     // Aperture size for the Sobel operator.
-  bool L2_gradient{false};  // L2_gradient flag, indicating whether to use a
-                            // more accurate edge equation algorithm.
+struct BoundaryConfig {
+  int threshold{100};  // Threshold for the boundary detection along the ray.
+  float step{2.0f};    // the length of the steps moving along a ray.
+  int rays{1};         // the number of rays to cast for boundary detection.
+  int sample_size{3};  // the side length of the square sample taken at each
+                       // step (must be odd).
+  int angle{150};      // the total angle range of the sonar image to search for
+                       // boundaries (degrees).
 };
 
-/**
- * @brief Config for the OpenCV HoughLinesP algorithm
- * used to detect lines segments in an 8-bit single channel image.
- */
-struct HoughPConfig {
-  double rho{1.0};  // Distance resolution of the accumulator in pixels.
-  double theta{CV_PI / 180.0};  // Theta angle resolution
-                                // of the accumulator in radians.
-  int threshold{50};  // Accumulator threshold used for accepting lines.
-  double min_line_length{0.0};  // Minimum allowed length for returned lines.
-  double max_line_gap{0.0};     // Allowed gap between points
-                                // on the same line to link them.
+struct RansacConfig {
+  int points_checked{4};           // Number of points to check for lines
+  float distance_threshold{2.0f};  // Maximum distance from line for inliers
+  int min_remaining_points{10};    // Minimum number of points remaining to
+                                   // continue RANSAC iterations
+  int min_inliers{5};              // Minimum number of inliers to accept a line
 };
 
 /**
@@ -73,11 +69,11 @@ struct VisualizeOutput {
  * drawings applied.
  */
 struct DebugOutput {
-  cv::Mat canny;          // Canny edge map (CV_8UC1).
-  cv::Mat overlay_canny;  // Edge map with line segments overlaid (typically
-                          // CV_8UC3).
-  cv::Mat overlay_color;  // Input image with line segments overlaid
-                          // (typically CV_8UC3).
+  cv::Mat boundaries;          // detected points along the border.
+  cv::Mat overlay_boundaries;  // Points along the border with line segments
+                               // overlaid (typically CV_8UC3).
+  cv::Mat overlay_color;       // Input image with line segments overlaid
+                               // (typically CV_8UC3).
 };
 
 /**
@@ -104,4 +100,4 @@ struct Result {
 
 }  // namespace vortex::line_detection
 
-#endif  // LINE_DETECTION_HOUGHP__LIB__TYPEDEFS_HPP_
+#endif  // LINE_DETECTION_RANSAC__LIB__TYPEDEFS_HPP_
