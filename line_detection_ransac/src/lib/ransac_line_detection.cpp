@@ -83,15 +83,15 @@ void LineDetectorRansac::detect_lines(
   std::vector<cv::Point> boundary_points_copy = boundary_points;
   std::vector<std::vector<cv::Point>> line_segments;
 
-  while (boundary_points_copy.size() > min_remaining_points) {
+  while (boundary_points_copy.size() > static_cast<size_t>(min_remaining_points)) {
     // Keep track of the best line found in this iteration
     std::vector<int> best_count_idxs;
     int best_count = 0;
 
-    for (int i = 0; i < boundary_points_copy.size(); i++) {
+    for (size_t i = 0; i < boundary_points_copy.size(); i++) {
       // Iterates through the boundary points and check inliers for the
       // lines formed by the next points_checked points.
-      for (int j = 1; j < points_checked; j++) {
+      for (size_t j = 1; j < static_cast<size_t>(points_checked); j++) {
         // Inlier counters
         int count = 0;
         std::vector<int> inliers_idxs;
@@ -134,7 +134,7 @@ void LineDetectorRansac::detect_lines(
 
           float norm = std::sqrt(a * a + b * b);
 
-          for (int k = 0; k < boundary_points_copy.size(); k++) {
+          for (size_t k = 0; k < boundary_points_copy.size(); k++) {
             if ((std::abs(a * boundary_points_copy[k].x +
                           b * boundary_points_copy[k].y + c) /
                  norm) <= threshold) {
