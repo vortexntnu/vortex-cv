@@ -83,7 +83,8 @@ void LineDetectorRansac::detect_lines(
   std::vector<cv::Point> boundary_points_copy = boundary_points;
   std::vector<std::vector<cv::Point>> line_segments;
 
-  while (boundary_points_copy.size() > static_cast<size_t>(min_remaining_points)) {
+  while (boundary_points_copy.size() >
+         static_cast<size_t>(min_remaining_points)) {
     // Keep track of the best line found in this iteration
     std::vector<int> best_count_idxs;
     int best_count = 0;
