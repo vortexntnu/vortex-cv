@@ -1,7 +1,7 @@
 /**:
   ros__parameters:
     topic:
-      image_sub_topic: /fls_publisher/display_mono
+      image_sub_topic: /forward_looking_sonar/display
       line_segments_pub_topic: line_detection/line_segments
       color_overlay_pub_topic: line_detection/visualization
       boundary_debug_pub_topic: line_detection/boundary_image
