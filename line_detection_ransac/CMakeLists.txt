@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(line_detection_houghp)
+project(line_detection_ransac)
 
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 20)
@@ -26,7 +26,7 @@ include_directories(include)
 set(CORE_LIB_NAME "${PROJECT_NAME}")
 
 add_library(${CORE_LIB_NAME} SHARED
-  src/lib/houghp_line_detection.cpp
+  src/lib/ransac_line_detection.cpp
   src/lib/utils.cpp
 )
 
@@ -67,7 +67,7 @@ target_link_libraries(${COMPONENT_LIB_NAME} ${PROJECT_NAME})
 
 rclcpp_components_register_node(
   ${COMPONENT_LIB_NAME}
-  PLUGIN "LineDetectionHoughPNode"
+  PLUGIN "LineDetectionRansacNode"
   EXECUTABLE ${PROJECT_NAME}_node
 )
 

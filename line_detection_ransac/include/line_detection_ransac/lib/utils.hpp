@@ -1,5 +1,5 @@
-#ifndef LINE_DETECTION_HOUGHP__LIB__UTILS_HPP_
-#define LINE_DETECTION_HOUGHP__LIB__UTILS_HPP_
+#ifndef LINE_DETECTION_RANSAC__LIB__UTILS_HPP_
+#define LINE_DETECTION_RANSAC__LIB__UTILS_HPP_
 
 #include <opencv2/imgproc.hpp>
 #include <vector>
@@ -104,9 +104,9 @@ cv::Mat make_overlay_color(const cv::Mat& input_bgr,
  * @return A BGR image with line segments overlaid on the edge map. This is
  * typically CV_8UC3.
  */
-cv::Mat make_overlay_canny(const cv::Mat& edges,
-                           const std::vector<cv::Vec4i>& lines);
+cv::Mat make_overlay_boundaries(const cv::Mat& edges,
+                                const std::vector<cv::Vec4i>& lines);
 
 }  // namespace vortex::line_detection
 
-#endif  // LINE_DETECTION_HOUGHP__LIB__UTILS_HPP_
+#endif  // LINE_DETECTION_RANSAC__LIB__UTILS_HPP_
