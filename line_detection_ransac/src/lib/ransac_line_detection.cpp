@@ -105,7 +105,7 @@ void LineDetectorRansac::detect_lines(
         if (boundary_points_copy[i].x ==
             boundary_points_copy[i + j]
                 .x) {  // Optimised inlier counting for vertical lines
-          for (int k = 0; k < boundary_points_copy.size(); k++) {
+          for (size_t k = 0; k < boundary_points_copy.size(); k++) {
             if (std::abs(boundary_points_copy[k].x -
                          boundary_points_copy[i].x) <= threshold) {
               count++;
@@ -116,7 +116,7 @@ void LineDetectorRansac::detect_lines(
                    boundary_points_copy[i + j]
                        .y) {  // Optimised inlier counting for
                               // horizontal lines
-          for (int k = 0; k < boundary_points_copy.size(); k++) {
+          for (size_t k = 0; k < boundary_points_copy.size(); k++) {
             if (std::abs(boundary_points_copy[k].y -
                          boundary_points_copy[i].y) <= threshold) {
               count++;
