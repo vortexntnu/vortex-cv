@@ -15,39 +15,39 @@
 namespace vortex::line_detection {
 
 class LineDetectionRansacNode : public rclcpp::Node {
- public:
-  explicit LineDetectionRansacNode(const rclcpp::NodeOptions& options);
+   public:
+    explicit LineDetectionRansacNode(const rclcpp::NodeOptions& options);
 
-  ~LineDetectionRansacNode() override = default;
+    ~LineDetectionRansacNode() override = default;
 
- private:
-  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
+   private:
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
 
-  rclcpp::Publisher<vortex_msgs::msg::LineSegment2DArray>::SharedPtr
-      line_segments_pub_;
+    rclcpp::Publisher<vortex_msgs::msg::LineSegment2DArray>::SharedPtr
+        line_segments_pub_;
 
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr color_overlay_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr color_overlay_pub_;
 
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr boundary_debug_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr boundary_debug_pub_;
 
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr boundary_overlay_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr boundary_overlay_pub_;
 
-  void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr& msg);
+    void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr& msg);
 
-  void declare_parameters();
+    void declare_parameters();
 
-  void set_detector();
+    void set_detector();
 
-  void setup_publishers_and_subscribers();
+    void setup_publishers_and_subscribers();
 
-  void set_mode();
+    void set_mode();
 
-  void mode_conditional_publishing(const Result& result,
-                                   const std_msgs::msg::Header& header);
+    void mode_conditional_publishing(const Result& result,
+                                     const std_msgs::msg::Header& header);
 
-  std::unique_ptr<LineDetectorRansac> detector_{};
+    std::unique_ptr<LineDetectorRansac> detector_{};
 
-  DetectorMode mode_{DetectorMode::standard};
+    DetectorMode mode_{DetectorMode::standard};
 };
 
 }  // namespace vortex::line_detection
