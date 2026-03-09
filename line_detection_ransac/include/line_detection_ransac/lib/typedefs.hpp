@@ -13,21 +13,21 @@ namespace vortex::line_detection {
  * used to detect edges using rays from the sonar origin
  */
 struct BoundaryConfig {
-  int threshold{100};  // Threshold for the boundary detection along the ray.
-  float step{2.0f};    // the length of the steps moving along a ray.
-  int rays{1};         // the number of rays to cast for boundary detection.
-  int sample_size{3};  // the side length of the square sample taken at each
-                       // step (must be odd).
-  int angle{150};      // the total angle range of the sonar image to search for
-                       // boundaries (degrees).
+    int threshold{100};  // Threshold for the boundary detection along the ray.
+    float step{2.0f};    // the length of the steps moving along a ray.
+    int rays{1};         // the number of rays to cast for boundary detection.
+    int sample_size{3};  // the side length of the square sample taken at each
+                         // step (must be odd).
+    int angle{150};  // the total angle range of the sonar image to search for
+                     // boundaries (degrees).
 };
 
 struct RansacConfig {
-  int points_checked{4};           // Number of points to check for lines
-  float distance_threshold{2.0f};  // Maximum distance from line for inliers
-  int min_remaining_points{10};    // Minimum number of points remaining to
-                                   // continue RANSAC iterations
-  int min_inliers{5};              // Minimum number of inliers to accept a line
+    int points_checked{4};           // Number of points to check for lines
+    float distance_threshold{2.0f};  // Maximum distance from line for inliers
+    int min_remaining_points{10};    // Minimum number of points remaining to
+                                     // continue RANSAC iterations
+    int min_inliers{5};  // Minimum number of inliers to accept a line
 };
 
 /**
@@ -55,8 +55,8 @@ struct NoOutput {};
  * drawings applied.
  */
 struct VisualizeOutput {
-  cv::Mat overlay_color;  // Input image with line segments overlaid
-                          // (typically CV_8UC3).
+    cv::Mat overlay_color;  // Input image with line segments overlaid
+                            // (typically CV_8UC3).
 };
 
 /**
@@ -69,11 +69,11 @@ struct VisualizeOutput {
  * drawings applied.
  */
 struct DebugOutput {
-  cv::Mat boundaries;          // detected points along the border.
-  cv::Mat overlay_boundaries;  // Points along the border with line segments
-                               // overlaid (typically CV_8UC3).
-  cv::Mat overlay_color;       // Input image with line segments overlaid
-                               // (typically CV_8UC3).
+    cv::Mat boundaries;          // detected points along the border.
+    cv::Mat overlay_boundaries;  // Points along the border with line segments
+                                 // overlaid (typically CV_8UC3).
+    cv::Mat overlay_color;       // Input image with line segments overlaid
+                                 // (typically CV_8UC3).
 };
 
 /**
@@ -93,9 +93,9 @@ using Output = std::variant<NoOutput, VisualizeOutput, DebugOutput>;
  * depending on the requested Mode.
  */
 struct Result {
-  std::vector<vortex::utils::types::LineSegment2D>
-      line_segments;  // Detected line segments.
-  Output output;      // Mode-dependent extra outputs.
+    std::vector<vortex::utils::types::LineSegment2D>
+        line_segments;  // Detected line segments.
+    Output output;      // Mode-dependent extra outputs.
 };
 
 }  // namespace vortex::line_detection
