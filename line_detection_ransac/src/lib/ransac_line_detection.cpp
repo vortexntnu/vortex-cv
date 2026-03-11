@@ -23,8 +23,7 @@ Result LineDetectorRansac::detect(const cv::Mat& input_image,
     cv::Mat gray8 = vortex::line_detection::to_gray8(input_image);
     std::vector<cv::Point> boundary_points;
 
-    detect_boundaries(gray8,
-                      boundary_points);
+    detect_boundaries(gray8, boundary_points);
 
     cv::Mat debug_image;
     if (mode == DetectorMode::debug) {
@@ -36,8 +35,7 @@ Result LineDetectorRansac::detect(const cv::Mat& input_image,
 
     std::vector<cv::Vec4i> cv_lines;
 
-    detect_lines(boundary_points,
-                 cv_lines);
+    detect_lines(boundary_points, cv_lines);
 
     Result r;
     r.line_segments = to_line_segments(cv_lines);
@@ -72,7 +70,6 @@ Result LineDetectorRansac::detect(const cv::Mat& input_image,
 void LineDetectorRansac::detect_lines(
     const std::vector<cv::Point>& boundary_points,
     std::vector<cv::Vec4i>& cv_lines) const {
-
     const int points_checked = ransac_config_.points_checked;
     const float inlier_threshold = ransac_config_.inlier_threshold;
     const int min_remaining_points = ransac_config_.min_remaining_points;
@@ -83,14 +80,11 @@ void LineDetectorRansac::detect_lines(
 
     while (boundary_points_copy.size() >
            static_cast<size_t>(min_remaining_points)) {
-
         std::vector<int> best_count_idxs;
         int best_count = 0;
 
         for (size_t i = 0; i < boundary_points_copy.size(); i++) {
-
             for (size_t j = 1; j < static_cast<size_t>(points_checked); j++) {
-
                 int count = 0;
                 std::vector<int> inliers_idxs;
 
@@ -99,22 +93,21 @@ void LineDetectorRansac::detect_lines(
                 }
 
                 if (boundary_points_copy[i].x ==
-                    boundary_points_copy[i + j]
-                        .x) {
+                    boundary_points_copy[i + j].x) {
                     for (size_t k = 0; k < boundary_points_copy.size(); k++) {
                         if (std::abs(boundary_points_copy[k].x -
-                                     boundary_points_copy[i].x) <= inlier_threshold) {
+                                     boundary_points_copy[i].x) <=
+                            inlier_threshold) {
                             count++;
                             inliers_idxs.push_back(k);
                         }
                     }
                 } else if (boundary_points_copy[i].y ==
-                           boundary_points_copy[i + j]
-                               .y) {
-
+                           boundary_points_copy[i + j].y) {
                     for (size_t k = 0; k < boundary_points_copy.size(); k++) {
                         if (std::abs(boundary_points_copy[k].y -
-                                     boundary_points_copy[i].y) <= inlier_threshold) {
+                                     boundary_points_copy[i].y) <=
+                            inlier_threshold) {
                             count++;
                             inliers_idxs.push_back(k);
                         }
@@ -169,7 +162,6 @@ void LineDetectorRansac::detect_lines(
 void LineDetectorRansac::detect_boundaries(
     const cv::Mat& input_image,
     std::vector<cv::Point>& boundary_points) const {
-
     constexpr float deg2rad = M_PI / 180.0f;
     const float min_angle = -boundary_config_.angle / 2.0f * deg2rad;
     const float max_angle = boundary_config_.angle / 2.0f * deg2rad;
@@ -188,11 +180,9 @@ void LineDetectorRansac::detect_boundaries(
     cv::Point origin(cols / 2, rows - 1);
 
     for (int h = 0; h < num_rays; h++) {
-
         float angle = min_angle + h * (max_angle - min_angle) / (num_rays - 1);
 
         for (float i = 0.0f; i < rows; i += step) {
-
             float xf = origin.x + i * std::sin(angle);
             float yf = origin.y - 2.0f - i * std::cos(angle);
 
@@ -209,7 +199,8 @@ void LineDetectorRansac::detect_boundaries(
                     avg_value += input_image.at<uint8_t>(y + k, x + j);
                 }
             }
-            avg_value /= (static_cast<float>(sample_side_length*sample_side_length));
+            avg_value /=
+                (static_cast<float>(sample_side_length * sample_side_length));
 
             if (avg_value > threshold) {
                 boundary_points.emplace_back(x, y);
