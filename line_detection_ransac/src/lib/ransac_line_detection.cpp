@@ -24,8 +24,7 @@ Result LineDetectorRansac::detect(const cv::Mat& input_image,
     std::vector<cv::Point> boundary_points;
 
     detect_boundaries(gray8,
-                      boundary_points);  // Detects points along the boundary
-                                         // and stores them in boundary_points.
+                      boundary_points);
 
     cv::Mat debug_image;
     if (mode == DetectorMode::debug) {
@@ -38,8 +37,7 @@ Result LineDetectorRansac::detect(const cv::Mat& input_image,
     std::vector<cv::Vec4i> cv_lines;
 
     detect_lines(boundary_points,
-                 cv_lines);  // uses optimised point selection for RANSAC to
-                             // detect lines and stores them in cv_lines.
+                 cv_lines);
 
     Result r;
     r.line_segments = to_line_segments(cv_lines);
@@ -74,57 +72,54 @@ Result LineDetectorRansac::detect(const cv::Mat& input_image,
 void LineDetectorRansac::detect_lines(
     const std::vector<cv::Point>& boundary_points,
     std::vector<cv::Vec4i>& cv_lines) const {
-    // RANSAC parameters
-    int points_checked = ransac_config_.points_checked;
-    float threshold = ransac_config_.distance_threshold;
-    int min_remaining_points = ransac_config_.min_remaining_points;
-    int min_inliers = ransac_config_.min_inliers;
 
-    // Point and line containers
+    const int points_checked = ransac_config_.points_checked;
+    const float inlier_threshold = ransac_config_.inlier_threshold;
+    const int min_remaining_points = ransac_config_.min_remaining_points;
+    const int min_inliers = ransac_config_.min_inliers;
+
     std::vector<cv::Point> boundary_points_copy = boundary_points;
     std::vector<std::vector<cv::Point>> line_segments;
 
     while (boundary_points_copy.size() >
            static_cast<size_t>(min_remaining_points)) {
-        // Keep track of the best line found in this iteration
+
         std::vector<int> best_count_idxs;
         int best_count = 0;
 
         for (size_t i = 0; i < boundary_points_copy.size(); i++) {
-            // Iterates through the boundary points and check inliers for the
-            // lines formed by the next points_checked points.
+
             for (size_t j = 1; j < static_cast<size_t>(points_checked); j++) {
-                // Inlier counters
+
                 int count = 0;
                 std::vector<int> inliers_idxs;
 
-                // Breaks if out of bounds
                 if (i + j >= boundary_points_copy.size()) {
                     break;
                 }
 
                 if (boundary_points_copy[i].x ==
                     boundary_points_copy[i + j]
-                        .x) {  // Optimised inlier counting for vertical lines
+                        .x) {
                     for (size_t k = 0; k < boundary_points_copy.size(); k++) {
                         if (std::abs(boundary_points_copy[k].x -
-                                     boundary_points_copy[i].x) <= threshold) {
+                                     boundary_points_copy[i].x) <= inlier_threshold) {
                             count++;
                             inliers_idxs.push_back(k);
                         }
                     }
                 } else if (boundary_points_copy[i].y ==
                            boundary_points_copy[i + j]
-                               .y) {  // Optimised inlier counting for
-                                      // horizontal lines
+                               .y) {
+
                     for (size_t k = 0; k < boundary_points_copy.size(); k++) {
                         if (std::abs(boundary_points_copy[k].y -
-                                     boundary_points_copy[i].y) <= threshold) {
+                                     boundary_points_copy[i].y) <= inlier_threshold) {
                             count++;
                             inliers_idxs.push_back(k);
                         }
                     }
-                } else {  // General case for lines with any slope
+                } else {
                     float x1 = boundary_points_copy[i].x;
                     float y1 = boundary_points_copy[i].y;
                     float x2 = boundary_points_copy[i + j].x;
@@ -139,13 +134,13 @@ void LineDetectorRansac::detect_lines(
                     for (size_t k = 0; k < boundary_points_copy.size(); k++) {
                         if ((std::abs(a * boundary_points_copy[k].x +
                                       b * boundary_points_copy[k].y + c) /
-                             norm) <= threshold) {
+                             norm) <= inlier_threshold) {
                             count++;
                             inliers_idxs.push_back(k);
                         }
                     }
                 }
-                // Update the best line if this one has more inliers
+
                 if (count > best_count) {
                     best_count = count;
                     best_count_idxs = inliers_idxs;
@@ -153,12 +148,10 @@ void LineDetectorRansac::detect_lines(
             }
         }
 
-        // If the best line found in this iteration doesn't have enough inliers,
-        // stop the RANSAC iterations.
         if (best_count < min_inliers) {
             break;
         }
-        // Add the best line to the output
+
         cv_lines.push_back(cv::Vec4i(
             boundary_points_copy[best_count_idxs[0]].x,
             boundary_points_copy[best_count_idxs[0]].y,
@@ -166,7 +159,6 @@ void LineDetectorRansac::detect_lines(
             boundary_points_copy[best_count_idxs[best_count_idxs.size() - 1]]
                 .y));
 
-        // Remove the inliers of the best line
         for (int i = best_count_idxs.size() - 2; i > 0; i--) {
             boundary_points_copy.erase(boundary_points_copy.begin() +
                                        best_count_idxs[i]);
@@ -177,57 +169,48 @@ void LineDetectorRansac::detect_lines(
 void LineDetectorRansac::detect_boundaries(
     const cv::Mat& input_image,
     std::vector<cv::Point>& boundary_points) const {
-    // Boundary detection parameters
-    constexpr float deg2rad = M_PI / 180.0f;
-    float min_angle = -boundary_config_.angle / 2.0f * deg2rad;
-    float max_angle = boundary_config_.angle / 2.0f * deg2rad;
-    int num_rays = boundary_config_.rays;
-    int cols = input_image.cols;
-    int rows = input_image.rows;
-    int threshold = boundary_config_.threshold;
-    float step = boundary_config_.step;
-    int side_length = boundary_config_.sample_size;
 
-    if (side_length % 2 == 0) {
-        throw std::runtime_error("sample_size must be odd");
+    constexpr float deg2rad = M_PI / 180.0f;
+    const float min_angle = -boundary_config_.angle / 2.0f * deg2rad;
+    const float max_angle = boundary_config_.angle / 2.0f * deg2rad;
+    const int num_rays = boundary_config_.num_rays;
+    const int cols = input_image.cols;
+    const int rows = input_image.rows;
+    const int threshold = boundary_config_.threshold;
+    const float step = boundary_config_.step;
+    const int sample_side_length = boundary_config_.sample_side_length;
+
+    if (sample_side_length % 2 == 0) {
+        throw std::runtime_error("sample_side_length must be odd");
     }
-    side_length = side_length / 2;
+    const int half_side_length = sample_side_length / 2;
 
     cv::Point origin(cols / 2, rows - 1);
 
-    // Cast rays and sample along them to find boundary points
     for (int h = 0; h < num_rays; h++) {
-        // Calculate the angle of the current ray
+
         float angle = min_angle + h * (max_angle - min_angle) / (num_rays - 1);
 
-        // Sample points along the ray and check for boundaries
         for (float i = 0.0f; i < rows; i += step) {
-            // Calculate the coordinates of the current sample point along the
-            // ray
+
             float xf = origin.x + i * std::sin(angle);
             float yf = origin.y - 2.0f - i * std::cos(angle);
 
             int x = static_cast<int>(std::round(xf));
             int y = static_cast<int>(std::round(yf));
 
-            // Bounds check
             if (x < 2 || x >= cols - 2 || y < 2 || y >= rows - 2) {
                 break;
             }
 
-            // Calculate the average pixel intensity in a square around the
-            // sample point
             float avg_value = 0.0f;
-            for (int j = -side_length; j <= side_length; j++) {
-                for (int k = -side_length; k <= side_length; k++) {
+            for (int j = -half_side_length; j <= half_side_length; j++) {
+                for (int k = -half_side_length; k <= half_side_length; k++) {
                     avg_value += input_image.at<uint8_t>(y + k, x + j);
                 }
             }
-            avg_value /= (static_cast<float>(side_length * 2 + 1) *
-                          static_cast<float>(side_length * 2 + 1));
+            avg_value /= (static_cast<float>(sample_side_length*sample_side_length));
 
-            // Add a boundary point if the average pixel intensity exceeds the
-            // threshold, and stop sampling along this ray.
             if (avg_value > threshold) {
                 boundary_points.emplace_back(x, y);
                 break;

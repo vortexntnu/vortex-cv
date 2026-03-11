@@ -64,7 +64,7 @@ The boundary detector casts rays from the origin of the sonar image and calculat
 |-----------|------|-------------|
 | `threshold` | `int` | Intensity threshold before it places a point |
 | `step` | `double` | the step length along a ray in pixel lengths |
-| `rays` | `int` | the amount of rays to cast |
+| `num_rays` | `int` | the amount of rays to cast |
 | `sample size` | `int` | The side length of the sample square for each point along a ray |
 | `angle` | `int` | the FOV of the sonar image |
 
@@ -75,7 +75,7 @@ What makes it custom is that instead of random point sampling it iterates throug
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `points_checked` | `int` | number of points along an iteration to check for lines |
-| `distance_threshold` | `double` | the distance from a line a point has to be to be considered an inlier |
+| `inlier_threshold` | `double` | the distance from a line a point has to be to be considered an inlier |
 | `min_remaining_points` | `int` | Minimum number of points remaining to continue RANSAC iterations |
 | `min_inliers` | `double` | minimum inliers in the best detected line to continue iterations |
 
