@@ -15,8 +15,8 @@ namespace vortex::line_detection {
 struct BoundaryConfig {
     int threshold{100};  // Threshold for the boundary detection along the ray.
     float step{2.0f};    // the length of the steps moving along a ray.
-    int rays{1};         // the number of rays to cast for boundary detection.
-    int sample_size{3};  // the side length of the square sample taken at each
+    int num_rays{1};         // the number of rays to cast for boundary detection.
+    int sample_side_length{3};  // the side length of the square sample taken at each
                          // step (must be odd).
     int angle{150};  // the total angle range of the sonar image to search for
                      // boundaries (degrees).
@@ -24,7 +24,7 @@ struct BoundaryConfig {
 
 struct RansacConfig {
     int points_checked{4};           // Number of points to check for lines
-    float distance_threshold{2.0f};  // Maximum distance from line for inliers
+    float inlier_threshold{2.0f};  // Maximum distance from line for inliers
     int min_remaining_points{10};    // Minimum number of points remaining to
                                      // continue RANSAC iterations
     int min_inliers{5};  // Minimum number of inliers to accept a line
@@ -36,8 +36,8 @@ struct RansacConfig {
  * - standard: compute and return line segments only.
  * - visualize: return line segments +
  *   an overlay image on the input color image.
- * - debug: return line segments + edge map +
- *   overlay color and edge image for debugging.
+ * - debug: return line segments + edge point map +
+ *   overlay color and edge point image for debugging.
  */
 enum class DetectorMode { standard, visualize, debug };
 
@@ -62,8 +62,8 @@ struct VisualizeOutput {
 /**
  * @brief Debug payload for Mode::debug.
  *
- * - canny: the edge map produced by Canny (8-bit, single-channel).
- * - overlay_canny: a BGR visualization derived from the edge map with drawings
+ * - boundaries: the edge point map produced by the ray casting algorithm (8-bit, single-channel).
+ * - overlay_boundaries: a BGR visualization derived from the edge point map with drawings
  * applied.
  * - overlay_color: a BGR visualization derived from the input color image with
  * drawings applied.

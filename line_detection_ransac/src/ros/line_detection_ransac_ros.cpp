@@ -4,7 +4,6 @@
 #include <rclcpp_components/register_node_macro.hpp>
 #include <vortex/utils/ros/qos_profiles.hpp>
 #include "line_detection_ransac/lib/typedefs.hpp"
-#include "line_detection_ransac/lib/utils.hpp"
 
 namespace vortex::line_detection {
 
@@ -26,12 +25,12 @@ void LineDetectionRansacNode::declare_parameters() {
 
     this->declare_parameter<int>("boundary_detection.threshold");
     this->declare_parameter<float>("boundary_detection.step");
-    this->declare_parameter<int>("boundary_detection.sample_size");
+    this->declare_parameter<int>("boundary_detection.sample_side_length");
     this->declare_parameter<int>("boundary_detection.angle");
-    this->declare_parameter<int>("boundary_detection.rays");
+    this->declare_parameter<int>("boundary_detection.num_rays");
 
     this->declare_parameter<int>("ransac.points_checked");
-    this->declare_parameter<float>("ransac.distance_threshold");
+    this->declare_parameter<float>("ransac.inlier_threshold");
     this->declare_parameter<int>("ransac.min_remaining_points");
     this->declare_parameter<int>("ransac.min_inliers");
 
@@ -79,18 +78,18 @@ void LineDetectionRansacNode::set_detector() {
         this->get_parameter("boundary_detection.threshold").as_int();
     boundary_config.step =
         this->get_parameter("boundary_detection.step").as_double();
-    boundary_config.sample_size =
-        this->get_parameter("boundary_detection.sample_size").as_int();
+    boundary_config.sample_side_length =
+        this->get_parameter("boundary_detection.sample_side_length").as_int();
     boundary_config.angle =
         this->get_parameter("boundary_detection.angle").as_int();
-    boundary_config.rays =
-        this->get_parameter("boundary_detection.rays").as_int();
+    boundary_config.num_rays =
+        this->get_parameter("boundary_detection.num_rays").as_int();
 
     RansacConfig ransac_config;
     ransac_config.points_checked =
         this->get_parameter("ransac.points_checked").as_int();
-    ransac_config.distance_threshold =
-        this->get_parameter("ransac.distance_threshold").as_double();
+    ransac_config.inlier_threshold =
+        this->get_parameter("ransac.inlier_threshold").as_double();
     ransac_config.min_remaining_points =
         this->get_parameter("ransac.min_remaining_points").as_int();
     ransac_config.min_inliers =
