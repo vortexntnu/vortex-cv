@@ -14,6 +14,7 @@ LineDetectionRansacNode::LineDetectionRansacNode(
     setup_publishers_and_subscribers();
     set_detector();
     set_mode();
+    initialize_parameter_handler();
 }
 
 void LineDetectionRansacNode::declare_parameters() {
