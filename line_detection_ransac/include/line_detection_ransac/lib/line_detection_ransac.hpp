@@ -21,12 +21,6 @@ class LineDetectorRansac {
     BoundaryConfig boundary_config_;
     RansacConfig ransac_config_;
 
-    void detect_boundaries(const cv::Mat& input_image,
-                           std::vector<cv::Point>& boundary_points) const;
-
-    void detect_lines(const std::vector<cv::Point>& boundary_points,
-                      std::vector<cv::Vec4i>& cv_lines) const;
-
     static std::vector<vortex::utils::types::LineSegment2D> to_line_segments(
         const std::vector<cv::Vec4i>& cv_lines);
 };

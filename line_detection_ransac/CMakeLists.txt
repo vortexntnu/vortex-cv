@@ -28,6 +28,7 @@ set(CORE_LIB_NAME "${PROJECT_NAME}")
 add_library(${CORE_LIB_NAME} SHARED
   src/lib/ransac_line_detection.cpp
   src/lib/utils.cpp
+  src/lib/detection_utils.cpp
 )
 
 target_include_directories(${CORE_LIB_NAME}
