@@ -89,7 +89,6 @@ void LineDetectionRansacNode::set_detector() {
     boundary_config.edge_detection =
         this->get_parameter("boundary_detection.edge_detection").as_bool();
 
-
     RansacConfig ransac_config;
     ransac_config.points_checked =
         this->get_parameter("ransac.points_checked").as_int();

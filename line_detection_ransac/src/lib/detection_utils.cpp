@@ -27,18 +27,18 @@ void detect_boundaries(const BoundaryConfig& boundary_config,
 
     cv::Point origin(cols / 2, rows);
 
-    
-
     for (int h = 0; h < num_rays; h++) {
         float angle = min_angle + h * (max_angle - min_angle) / (num_rays - 1);
         float last_avg = 0.0f;
         if (edge_detection) {
             for (int j = -half_side_length; j <= half_side_length; j++) {
                 for (int k = -half_side_length; k <= half_side_length; k++) {
-                    last_avg += input_image.at<uint8_t>(origin.y + j, origin.x + k);
+                    last_avg +=
+                        input_image.at<uint8_t>(origin.y + j, origin.x + k);
                 }
             }
-            last_avg /= (static_cast<float>(sample_side_length * sample_side_length));
+            last_avg /=
+                (static_cast<float>(sample_side_length * sample_side_length));
         }
 
         for (float i = 0.0f; i < rows; i += step) {
@@ -47,7 +47,8 @@ void detect_boundaries(const BoundaryConfig& boundary_config,
 
             int x = static_cast<int>(std::round(xf));
             int y = static_cast<int>(std::round(yf));
-            if (x < half_side_length || x >= cols - half_side_length || y < half_side_length || y >= rows - half_side_length) {
+            if (x < half_side_length || x >= cols - half_side_length ||
+                y < half_side_length || y >= rows - half_side_length) {
                 continue;
             }
 
@@ -59,8 +60,8 @@ void detect_boundaries(const BoundaryConfig& boundary_config,
             }
             avg_value /=
                 (static_cast<float>(sample_side_length * sample_side_length));
-            
-            if (abs(avg_value-last_avg) > threshold) {
+
+            if (abs(avg_value - last_avg) > threshold) {
                 boundary_points.emplace_back(x, y);
                 break;
             }
