@@ -2,6 +2,7 @@
 #define LINE_DETECTION_HOUGHP__LIB__DETECTION_UTILS_HPP_
 
 #include "line_detection_ransac/lib/detection_utils.hpp"
+#include <spdlog/spdlog.h>
 
 namespace vortex::line_detection {
 
@@ -17,16 +18,28 @@ void detect_boundaries(const BoundaryConfig& boundary_config,
     const int threshold = boundary_config.threshold;
     const float step = boundary_config.step;
     const int sample_side_length = boundary_config.sample_side_length;
+    const bool edge_detection = boundary_config.edge_detection;
 
     if (sample_side_length % 2 == 0) {
         throw std::runtime_error("sample_side_length must be odd");
     }
     const int half_side_length = sample_side_length / 2;
 
-    cv::Point origin(cols / 2, rows - 1);
+    cv::Point origin(cols / 2, rows);
+
+    
 
     for (int h = 0; h < num_rays; h++) {
         float angle = min_angle + h * (max_angle - min_angle) / (num_rays - 1);
+        float last_avg = 0.0f;
+        if (edge_detection) {
+            for (int j = -half_side_length; j <= half_side_length; j++) {
+                for (int k = -half_side_length; k <= half_side_length; k++) {
+                    last_avg += input_image.at<uint8_t>(origin.y + j, origin.x + k);
+                }
+            }
+            last_avg /= (static_cast<float>(sample_side_length * sample_side_length));
+        }
 
         for (float i = 0.0f; i < rows; i += step) {
             float xf = origin.x + i * std::sin(angle);
@@ -34,9 +47,8 @@ void detect_boundaries(const BoundaryConfig& boundary_config,
 
             int x = static_cast<int>(std::round(xf));
             int y = static_cast<int>(std::round(yf));
-
-            if (x < 2 || x >= cols - 2 || y < 2 || y >= rows - 2) {
-                break;
+            if (x < half_side_length || x >= cols - half_side_length || y < half_side_length || y >= rows - half_side_length) {
+                continue;
             }
 
             float avg_value = 0.0f;
@@ -47,10 +59,13 @@ void detect_boundaries(const BoundaryConfig& boundary_config,
             }
             avg_value /=
                 (static_cast<float>(sample_side_length * sample_side_length));
-
-            if (avg_value > threshold) {
+            
+            if (abs(avg_value-last_avg) > threshold) {
                 boundary_points.emplace_back(x, y);
                 break;
+            }
+            if (edge_detection) {
+                last_avg = avg_value;
             }
         }
     }

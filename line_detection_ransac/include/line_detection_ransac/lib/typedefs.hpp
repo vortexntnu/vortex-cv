@@ -20,6 +20,7 @@ struct BoundaryConfig {
                                 // each step (must be odd).
     int angle{150};  // the total angle range of the sonar image to search for
                      // boundaries (degrees).
+    bool edge_detection{true}; // Detection mode. True if edge detection. False if threshold detection
 };
 
 struct RansacConfig {
