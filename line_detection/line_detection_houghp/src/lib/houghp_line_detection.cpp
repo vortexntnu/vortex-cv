@@ -1,9 +1,9 @@
 #include <opencv2/imgproc.hpp>
+#include <vortex/cv_utils/image_conversions.hpp>
 #include <vortex/utils/types.hpp>
 #include "line_detection_houghp/lib/line_detection_houghp.hpp"
 #include "line_detection_houghp/lib/typedefs.hpp"
 #include "line_detection_houghp/lib/utils.hpp"
-#include <vortex/cv_utils/image_conversions.hpp>
 
 namespace vortex::line_detection {
 

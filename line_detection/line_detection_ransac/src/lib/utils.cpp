@@ -1,7 +1,7 @@
 #include "line_detection_ransac/lib/utils.hpp"
-#include <vortex/cv_utils/image_conversions.hpp>
 #include <opencv2/imgproc.hpp>
 #include <vector>
+#include <vortex/cv_utils/image_conversions.hpp>
 
 namespace vortex::line_detection {
 

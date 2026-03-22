@@ -1,5 +1,5 @@
-#ifndef VORTEX_CV_UTILS__IMAGE_CONVERSIONS_HPP_
-#define VORTEX_CV_UTILS__IMAGE_CONVERSIONS_HPP_
+#ifndef VORTEX__CV_UTILS__IMAGE_CONVERSIONS_HPP_
+#define VORTEX__CV_UTILS__IMAGE_CONVERSIONS_HPP_
 
 #include <opencv2/imgproc.hpp>
 
@@ -43,4 +43,4 @@ cv::Mat to_bgr8(const cv::Mat& input, const cv::Mat& gray8);
 
 }  // namespace vortex::cv_utils
 
-#endif  // VORTEX_CV_UTILS__IMAGE_CONVERSIONS_HPP_
+#endif  // VORTEX__CV_UTILS__IMAGE_CONVERSIONS_HPP_
