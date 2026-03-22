@@ -3,6 +3,7 @@
 #include "line_detection_houghp/lib/line_detection_houghp.hpp"
 #include "line_detection_houghp/lib/typedefs.hpp"
 #include "line_detection_houghp/lib/utils.hpp"
+#include <vortex/cv_utils/image_conversions.hpp>
 
 namespace vortex::line_detection {
 
@@ -16,7 +17,7 @@ Result LineDetectorHoughP::detect(const cv::Mat& input_image,
         throw std::runtime_error(
             "LineDetectorHoughP::detect: input_image is empty");
     }
-    cv::Mat gray8 = vortex::line_detection::to_gray8(input_image);
+    cv::Mat gray8 = vortex::cv_utils::to_gray8(input_image);
     cv::Mat edge_image;
 
     detect_edges(gray8, edge_image);

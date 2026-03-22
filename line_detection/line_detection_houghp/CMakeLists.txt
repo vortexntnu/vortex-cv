@@ -13,6 +13,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(OpenCV 4.5.4 REQUIRED)
+find_package(vortex_cv_utils REQUIRED)
 find_package(vortex_utils REQUIRED)
 find_package(vortex_utils_ros REQUIRED)
 find_package(vortex_msgs REQUIRED)
@@ -38,6 +39,7 @@ target_include_directories(${CORE_LIB_NAME}
 )
 
 ament_target_dependencies(${CORE_LIB_NAME}
+  vortex_cv_utils
   vortex_utils
 )
 

@@ -5,6 +5,7 @@
 #include "line_detection_ransac/lib/line_detection_ransac.hpp"
 #include "line_detection_ransac/lib/typedefs.hpp"
 #include "line_detection_ransac/lib/utils.hpp"
+#include <vortex/cv_utils/image_conversions.hpp>
 
 namespace vortex::line_detection {
 
@@ -21,7 +22,7 @@ Result LineDetectorRansac::detect(const cv::Mat& input_image,
             "LineDetectorRansac::detect: input_image is empty");
     }
 
-    cv::Mat gray8 = vortex::line_detection::to_gray8(input_image);
+    cv::Mat gray8 = vortex::cv_utils::to_gray8(input_image);
     std::vector<cv::Point> boundary_points;
 
     detect_boundaries(boundary_config_, gray8, boundary_points);
