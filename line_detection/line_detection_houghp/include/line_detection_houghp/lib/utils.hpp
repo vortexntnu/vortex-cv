@@ -9,9 +9,7 @@ namespace vortex::line_detection {
 /**
  * @brief Create a BGR visualization by overlaying detected lines on the input
  * color image.
- * @param input_bgr Input color image (typically CV_8UC3). If not already in
- * BGR format, it should be converted to BGR8 using @c to_bgr8 before
- * calling this function.
+ * @param input_image Input image (any format accepted by @c to_bgr8).
  * @param gray8 Grayscale version of the input image (CV_8UC1). This is used as
  * an intermediate step to ensure proper handling of different input formats and
  * depths.
@@ -20,7 +18,7 @@ namespace vortex::line_detection {
  * @return A BGR image with line segments overlaid on the input image. This is
  * typically CV_8UC3.
  */
-cv::Mat make_overlay_color(const cv::Mat& input_bgr,
+cv::Mat make_overlay_color(const cv::Mat& input_image,
                            const cv::Mat& gray8,
                            const std::vector<cv::Vec4i>& lines);
 
