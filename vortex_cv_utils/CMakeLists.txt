@@ -39,4 +39,8 @@ install(
   INCLUDES DESTINATION include
 )
 
+if(BUILD_TESTING)
+  add_subdirectory(cpp_test)
+endif()
+
 ament_package()
