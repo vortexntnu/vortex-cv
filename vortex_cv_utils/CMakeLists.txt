@@ -40,7 +40,7 @@ install(
 )
 
 if(BUILD_TESTING)
-  add_subdirectory(cpp_test)
+  add_subdirectory(test)
 endif()
 
 ament_package()
