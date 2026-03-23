@@ -22,7 +22,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 ament_target_dependencies(${PROJECT_NAME}
   vortex_utils
-  Eigen3
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -33,6 +32,8 @@ target_link_libraries(${PROJECT_NAME}
 ament_export_targets(${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME})
+ament_export_dependencies(Eigen3)
+
 
 install(
   DIRECTORY include/

@@ -11,8 +11,7 @@ namespace vortex::cv_utils {
  * @brief Convert an OpenCV rotation vector to a quaternion.
  *
  * @param rvec Rotation vector (3x1).
- * @return Eigen::Quaterniond representing the same rotation as the input
- * rotation vector.
+ * @return Eigen::Quaterniond representing the rotation.
  */
 Eigen::Quaterniond quaternion_from_rvec(const cv::Vec3d& rvec);
 
