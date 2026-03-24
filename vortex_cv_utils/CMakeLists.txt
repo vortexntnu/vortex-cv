@@ -6,9 +6,12 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 
 find_package(ament_cmake REQUIRED)
 find_package(OpenCV 4.5.4 REQUIRED)
+find_package(vortex_utils REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
   src/image_conversions.cpp
+  src/pose_conversions.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
@@ -17,13 +20,20 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   ${OpenCV_INCLUDE_DIRS}
 )
 
+ament_target_dependencies(${PROJECT_NAME}
+  vortex_utils
+)
+
 target_link_libraries(${PROJECT_NAME}
   ${OpenCV_LIBS}
+  Eigen3::Eigen
 )
 
 ament_export_targets(${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME})
+ament_export_dependencies(Eigen3)
+
 
 install(
   DIRECTORY include/

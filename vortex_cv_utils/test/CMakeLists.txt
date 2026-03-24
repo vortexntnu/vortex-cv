@@ -7,6 +7,7 @@ set(TEST_BINARY_NAME ${PROJECT_NAME}_test)
 add_executable(
     ${TEST_BINARY_NAME}
     test_image_conversions.cpp
+    test_pose_conversions.cpp
 )
 
 target_link_libraries(
