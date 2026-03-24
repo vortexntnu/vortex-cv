@@ -105,7 +105,7 @@ SearchPatternState::build_search_goal(
         vortex_msgs::msg::Waypoint waypoint_msg;
         waypoint_msg.pose = pose_odom->pose;
         waypoint_msg.waypoint_mode.mode =
-            vortex_msgs::msg::WaypointMode::ONLY_POSITION;
+            vortex_msgs::msg::WaypointMode::FULL_POSE;
         waypoint_msgs.push_back(waypoint_msg);
     }
 

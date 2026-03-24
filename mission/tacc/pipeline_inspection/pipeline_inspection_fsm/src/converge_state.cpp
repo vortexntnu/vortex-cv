@@ -53,7 +53,7 @@ pipeline_inspection_fsm::WaypointManagerAction::Goal ConvergeState::create_goal(
 
     vortex_msgs::msg::Waypoint wp;
     wp.pose = vortex::utils::ros_conversions::to_pose_msg(target_pose);
-    wp.waypoint_mode.mode = vortex_msgs::msg::WaypointMode::ONLY_POSITION;
+    wp.waypoint_mode.mode = vortex_msgs::msg::WaypointMode::FULL_POSE;
 
     pipeline_inspection_fsm::WaypointManagerAction::Goal goal;
     goal.waypoints = {wp};
