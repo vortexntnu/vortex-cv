@@ -56,13 +56,14 @@ int main(int argc, char** argv) {
 
     auto stop_wm = std::make_shared<StopWaypointManagerState>(blackboard);
 
-    auto start_pipeline_trg =
-        std::make_shared<yasmin_ros::ServiceState<pipeline_inspection_fsm::TriggerSrv>>(
-            get_string_parameter(yasmin_ros::YasminNode::get_instance(),
-                                 "services.start_pipeline_following"),
-            [](yasmin::Blackboard::SharedPtr) {
-                return std::make_shared<pipeline_inspection_fsm::TriggerSrv::Request>();
-            });
+    auto start_pipeline_trg = std::make_shared<
+        yasmin_ros::ServiceState<pipeline_inspection_fsm::TriggerSrv>>(
+        get_string_parameter(yasmin_ros::YasminNode::get_instance(),
+                             "services.start_pipeline_following"),
+        [](yasmin::Blackboard::SharedPtr) {
+            return std::make_shared<
+                pipeline_inspection_fsm::TriggerSrv::Request>();
+        });
 
     sm->add_state("WAIT_FOR_START",
                   std::make_shared<WaitForStartState>(blackboard),
@@ -99,15 +100,16 @@ int main(int argc, char** argv) {
     sm->add_state("STOP_WM", stop_wm,
                   {{yasmin_ros::basic_outcomes::SUCCEED, "DONE"}});
 
-    sm->add_state("DONE",
-                  yasmin::CbState::make_shared(
-                      yasmin::Outcomes{yasmin_ros::basic_outcomes::SUCCEED},
-                      [](auto) {
-                          YASMIN_LOG_INFO("Pipeline inspection mission completed");
-                          return yasmin_ros::basic_outcomes::SUCCEED;
-                      }),
-                  {{yasmin_ros::basic_outcomes::SUCCEED,
-                    yasmin_ros::basic_outcomes::SUCCEED}});
+    sm->add_state(
+        "DONE",
+        yasmin::CbState::make_shared(
+            yasmin::Outcomes{yasmin_ros::basic_outcomes::SUCCEED},
+            [](auto) {
+                YASMIN_LOG_INFO("Pipeline inspection mission completed");
+                return yasmin_ros::basic_outcomes::SUCCEED;
+            }),
+        {{yasmin_ros::basic_outcomes::SUCCEED,
+          yasmin_ros::basic_outcomes::SUCCEED}});
 
     yasmin_viewer::YasminViewerPub viewer(sm, "PIPELINE_INSPECTION_FSM");
 

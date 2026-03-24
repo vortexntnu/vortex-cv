@@ -1,5 +1,5 @@
-#include "pipeline_inspection_fsm/states.hpp"
 #include "pipeline_inspection_fsm/param_utils.hpp"
+#include "pipeline_inspection_fsm/states.hpp"
 
 #include <yasmin_ros/basic_outcomes.hpp>
 #include <yasmin_ros/ros_clients_cache.hpp>
@@ -13,8 +13,8 @@ StartWaypointManagerState::StartWaypointManagerState(
                      yasmin_ros::basic_outcomes::ABORT}) {
     auto node = yasmin_ros::YasminNode::get_instance();
 
-    convergence_threshold_ =
-        pipeline_inspection_fsm::param_utils::get_double(node, "fsm.convergence_threshold");
+    convergence_threshold_ = pipeline_inspection_fsm::param_utils::get_double(
+        node, "fsm.convergence_threshold");
 
     client_ = yasmin_ros::ROSClientsCache::get_or_create_action_client<
         pipeline_inspection_fsm::WaypointManagerAction>(
@@ -47,8 +47,9 @@ std::string StartWaypointManagerState::execute(
         return yasmin_ros::basic_outcomes::ABORT;
     }
 
-    blackboard->set<pipeline_inspection_fsm::WaypointManagerGoalHandle::SharedPtr>(
-        "wm_handle", wm_handle);
+    blackboard
+        ->set<pipeline_inspection_fsm::WaypointManagerGoalHandle::SharedPtr>(
+            "wm_handle", wm_handle);
 
     YASMIN_LOG_INFO(
         "StartWaypointManagerState: WaypointManager running in persistent "

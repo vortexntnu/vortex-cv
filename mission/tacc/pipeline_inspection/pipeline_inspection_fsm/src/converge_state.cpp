@@ -1,5 +1,5 @@
-#include "pipeline_inspection_fsm/states.hpp"
 #include "pipeline_inspection_fsm/param_utils.hpp"
+#include "pipeline_inspection_fsm/states.hpp"
 
 #include <yasmin_ros/yasmin_node.hpp>
 
@@ -14,26 +14,25 @@ ConvergeState::ConvergeState(yasmin::Blackboard::SharedPtr)
           pipeline_inspection_fsm::param_utils::get_string(
               yasmin_ros::YasminNode::get_instance(),
               "action_servers.waypoint_manager"),
-          std::bind(&ConvergeState::create_goal,
-                    this,
-                    std::placeholders::_1)) {
+          std::bind(&ConvergeState::create_goal, this, std::placeholders::_1)) {
     auto node = yasmin_ros::YasminNode::get_instance();
 
-    convergence_threshold_ =
-        pipeline_inspection_fsm::param_utils::get_double(node, "fsm.convergence_threshold");
+    convergence_threshold_ = pipeline_inspection_fsm::param_utils::get_double(
+        node, "fsm.convergence_threshold");
 
-    const double offset_x =
-        pipeline_inspection_fsm::param_utils::get_double(node, "fsm.landmark_offset.x");
-    const double offset_y =
-        pipeline_inspection_fsm::param_utils::get_double(node, "fsm.landmark_offset.y");
-    const double offset_z =
-        pipeline_inspection_fsm::param_utils::get_double(node, "fsm.landmark_offset.z");
-    const double offset_roll =
-        pipeline_inspection_fsm::param_utils::get_double(node, "fsm.landmark_offset.roll");
+    const double offset_x = pipeline_inspection_fsm::param_utils::get_double(
+        node, "fsm.landmark_offset.x");
+    const double offset_y = pipeline_inspection_fsm::param_utils::get_double(
+        node, "fsm.landmark_offset.y");
+    const double offset_z = pipeline_inspection_fsm::param_utils::get_double(
+        node, "fsm.landmark_offset.z");
+    const double offset_roll = pipeline_inspection_fsm::param_utils::get_double(
+        node, "fsm.landmark_offset.roll");
     const double offset_pitch =
-        pipeline_inspection_fsm::param_utils::get_double(node, "fsm.landmark_offset.pitch");
-    const double offset_yaw =
-        pipeline_inspection_fsm::param_utils::get_double(node, "fsm.landmark_offset.yaw");
+        pipeline_inspection_fsm::param_utils::get_double(
+            node, "fsm.landmark_offset.pitch");
+    const double offset_yaw = pipeline_inspection_fsm::param_utils::get_double(
+        node, "fsm.landmark_offset.yaw");
 
     pose_offset_ = vortex::utils::types::Pose::from_eigen(
         Eigen::Vector3d{offset_x, offset_y, offset_z},

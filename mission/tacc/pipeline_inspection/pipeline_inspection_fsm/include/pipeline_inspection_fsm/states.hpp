@@ -82,8 +82,8 @@ class SearchPatternState : public yasmin::State {
     std::vector<vortex::utils::types::Pose> load_search_waypoints() const;
     void cancel_active_goal();
 
-    std::optional<pipeline_inspection_fsm::WaypointManagerAction::Goal> build_search_goal(
-        const std::vector<vortex::utils::types::Pose>& waypoints);
+    std::optional<pipeline_inspection_fsm::WaypointManagerAction::Goal>
+    build_search_goal(const std::vector<vortex::utils::types::Pose>& waypoints);
 
     std::string waypoint_file_path_;
     std::string search_source_frame_;
@@ -93,15 +93,16 @@ class SearchPatternState : public yasmin::State {
     std::atomic<pipeline_inspection_fsm::WaypointManagerGoalHandle::SharedPtr>
         goal_handle_;
 
-    rclcpp_action::Client<pipeline_inspection_fsm::WaypointManagerAction>::SharedPtr
-        client_;
+    rclcpp_action::Client<
+        pipeline_inspection_fsm::WaypointManagerAction>::SharedPtr client_;
 };
 
 /*
  * Landmark polling action
  */
 class LandmarkPollingState
-    : public yasmin_ros::ActionState<pipeline_inspection_fsm::LandmarkPollingAction> {
+    : public yasmin_ros::ActionState<
+          pipeline_inspection_fsm::LandmarkPollingAction> {
    public:
     explicit LandmarkPollingState(yasmin::Blackboard::SharedPtr blackboard);
 
@@ -110,15 +111,16 @@ class LandmarkPollingState
 
     std::string result_handler(
         yasmin::Blackboard::SharedPtr blackboard,
-        pipeline_inspection_fsm::LandmarkPollingAction::Result::SharedPtr result);
+        pipeline_inspection_fsm::LandmarkPollingAction::Result::SharedPtr
+            result);
 
    private:
     int8_t landmark_type_{};
     int8_t landmark_subtype_{};
 };
 
-class ConvergeState
-    : public yasmin_ros::ActionState<pipeline_inspection_fsm::WaypointManagerAction> {
+class ConvergeState : public yasmin_ros::ActionState<
+                          pipeline_inspection_fsm::WaypointManagerAction> {
    public:
     explicit ConvergeState(yasmin::Blackboard::SharedPtr blackboard);
 
@@ -140,8 +142,8 @@ class StartWaypointManagerState : public yasmin::State {
    private:
     double convergence_threshold_{};
 
-    rclcpp_action::Client<pipeline_inspection_fsm::WaypointManagerAction>::SharedPtr
-        client_;
+    rclcpp_action::Client<
+        pipeline_inspection_fsm::WaypointManagerAction>::SharedPtr client_;
 };
 
 class WaitForPipelineEndState : public TriggerWaitState {
@@ -159,8 +161,8 @@ class StopWaypointManagerState : public yasmin::State {
     std::string execute(yasmin::Blackboard::SharedPtr blackboard) override;
 
    private:
-    rclcpp_action::Client<pipeline_inspection_fsm::WaypointManagerAction>::SharedPtr
-        client_;
+    rclcpp_action::Client<
+        pipeline_inspection_fsm::WaypointManagerAction>::SharedPtr client_;
 };
 
 std::shared_ptr<yasmin::Blackboard> initialize_blackboard();

@@ -1,5 +1,5 @@
-#include "pipeline_inspection_fsm/states.hpp"
 #include "pipeline_inspection_fsm/param_utils.hpp"
+#include "pipeline_inspection_fsm/states.hpp"
 #include "pipeline_inspection_fsm/tf_utils.hpp"
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
@@ -20,12 +20,12 @@ SearchPatternState::SearchPatternState(yasmin::Blackboard::SharedPtr)
                      yasmin_ros::basic_outcomes::CANCEL}) {
     auto node = yasmin_ros::YasminNode::get_instance();
 
-    convergence_threshold_ =
-        pipeline_inspection_fsm::param_utils::get_double(node, "fsm.convergence_threshold");
+    convergence_threshold_ = pipeline_inspection_fsm::param_utils::get_double(
+        node, "fsm.convergence_threshold");
 
-    const auto default_path =
-        ament_index_cpp::get_package_share_directory("pipeline_inspection_fsm") +
-        "/config/search_waypoints.yaml";
+    const auto default_path = ament_index_cpp::get_package_share_directory(
+                                  "pipeline_inspection_fsm") +
+                              "/config/search_waypoints.yaml";
 
     if (!node->has_parameter("fsm.search_waypoints_file"))
         node->declare_parameter<std::string>("fsm.search_waypoints_file",
@@ -89,10 +89,12 @@ SearchPatternState::build_search_goal(
         geometry_msgs::msg::PoseStamped pose_in;
         pose_in.header.frame_id = search_source_frame_;
         pose_in.header.stamp = node->get_clock()->now();
-        pose_in.pose = vortex::utils::ros_conversions::to_pose_msg(waypoints[i]);
+        pose_in.pose =
+            vortex::utils::ros_conversions::to_pose_msg(waypoints[i]);
 
         const auto pose_odom =
-            pipeline_inspection_fsm::tf_utils::transform_pose(pose_in, search_target_frame_);
+            pipeline_inspection_fsm::tf_utils::transform_pose(
+                pose_in, search_target_frame_);
         if (!pose_odom) {
             YASMIN_LOG_ERROR(
                 "SearchPatternState: TF failure for waypoint %zu/%zu "
