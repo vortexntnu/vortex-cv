@@ -1,5 +1,7 @@
 #include "pipeline_inspection_fsm/states.hpp"
 
+#include <vortex_msgs/msg/detail/landmark_subtype__struct.hpp>
+#include <vortex_msgs/msg/detail/landmark_type__struct.hpp>
 #include <yasmin_ros/basic_outcomes.hpp>
 
 LandmarkPollingState::LandmarkPollingState(
@@ -14,8 +16,9 @@ LandmarkPollingState::LandmarkPollingState(
                     this,
                     std::placeholders::_1,
                     std::placeholders::_2)) {
-    landmark_type_.value = 1;
-    landmark_subtype_.value = 19;
+    landmark_type_.value = vortex_msgs::msg::LandmarkType::PIPELINE_START;
+    landmark_subtype_.value =
+        vortex_msgs::msg::LandmarkSubtype::PIPELINE_START_CAMERA;
 }
 
 pipeline_inspection_fsm::LandmarkPollingAction::Goal
