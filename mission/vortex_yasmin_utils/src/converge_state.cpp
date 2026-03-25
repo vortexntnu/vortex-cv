@@ -11,10 +11,9 @@ namespace vortex_yasmin_utils {
 ConvergeState::ConvergeState(
     const std::string& action_server_name,
     vortex::utils::waypoints::LandmarkConvergenceGoal convergence_goal)
-    : ActionState(action_server_name,
-                  std::bind(&ConvergeState::create_goal,
-                            this,
-                            std::placeholders::_1)),
+    : ActionState(
+          action_server_name,
+          std::bind(&ConvergeState::create_goal, this, std::placeholders::_1)),
       convergence_goal_(std::move(convergence_goal)) {}
 
 WaypointManagerAction::Goal ConvergeState::create_goal(

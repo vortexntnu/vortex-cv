@@ -13,10 +13,12 @@ find_package(vortex_msgs REQUIRED)
 find_package(vortex_utils REQUIRED)
 find_package(vortex_utils_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 
 add_library(vortex_yasmin_utils
   src/converge_state.cpp
   src/landmark_polling_state.cpp
+  src/trigger_wait_state.cpp
 )
 
 target_include_directories(vortex_yasmin_utils PUBLIC
@@ -33,6 +35,7 @@ ament_target_dependencies(vortex_yasmin_utils PUBLIC
   vortex_utils
   vortex_utils_ros
   geometry_msgs
+  std_srvs
 )
 
 install(
@@ -58,6 +61,7 @@ ament_export_dependencies(
   vortex_utils
   vortex_utils_ros
   geometry_msgs
+  std_srvs
 )
 ament_export_include_directories(include)
 
