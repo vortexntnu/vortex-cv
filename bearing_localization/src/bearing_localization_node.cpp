@@ -61,16 +61,17 @@ void BearingLocalizationNode::declare_parameters() {
     declare_parameter("landmark_subtype", 0);
     declare_parameter("landmark_id", 0);
 
-    declare_parameter("sub_topics.bearing", "/bearing_measurement");
-    declare_parameter("sub_topics.bearing_array",
+    declare_parameter("topics.bearing_measurement", "bearing_measurement");
+    declare_parameter("topics.bearing_array",
                       "/aruco_detector/marker_directions");
-    declare_parameter("pub_topics.landmarks", "/orca/landmarks");
-    declare_parameter("pub_topics.markers", "/bearing_localization/markers");
+    declare_parameter("topics.landmarks", "landmarks");
+    declare_parameter("topics.bearing_localization_markers",
+                      "bearing_localization/markers");
 }
 
 void BearingLocalizationNode::setup_pubsub() {
     bearing_sub_ = create_subscription<geometry_msgs::msg::Vector3Stamped>(
-        get_parameter("sub_topics.bearing").as_string(), 10,
+        get_parameter("topics.bearing_measurement").as_string(), 10,
         std::bind(&BearingLocalizationNode::bearing_callback, this,
                   std::placeholders::_1));
 
@@ -79,17 +80,18 @@ void BearingLocalizationNode::setup_pubsub() {
         rmw_qos_profile_sensor_data);
 
     bearing_array_sub_ = create_subscription<vortex_msgs::msg::Vector3Array>(
-        get_parameter("sub_topics.bearing_array").as_string(), qos_sensor,
+        get_parameter("topics.bearing_array").as_string(), qos_sensor,
         std::bind(&BearingLocalizationNode::bearing_array_callback, this,
                   std::placeholders::_1));
 
     if (publish_markers_) {
         markers_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
-            get_parameter("pub_topics.markers").as_string(), 10);
+            get_parameter("topics.bearing_localization_markers").as_string(),
+            10);
     }
 
     landmark_pub_ = create_publisher<vortex_msgs::msg::LandmarkArray>(
-        get_parameter("pub_topics.landmarks").as_string(), 10);
+        get_parameter("topics.landmarks").as_string(), 10);
 }
 
 void BearingLocalizationNode::bearing_callback(

@@ -25,11 +25,3 @@
       outlier_residual_threshold_m: 0.2
       max_outlier_iterations: 2
       publish_markers: true
-
-    sub_topics:
-      bearing: bearing_measurement
-      bearing_array: /aruco_detector/marker_directions
-
-    pub_topics:
-      landmarks: landmarks
-      markers: bearing_localization/markers
