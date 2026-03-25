@@ -20,34 +20,11 @@ find_package(yasmin_viewer REQUIRED)
 find_package(vortex_msgs REQUIRED)
 find_package(vortex_utils REQUIRED)
 find_package(vortex_utils_ros REQUIRED)
-find_package(vortex_utils_ros_tf REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(tf2 REQUIRED)
-find_package(tf2_ros REQUIRED)
-find_package(tf2_geometry_msgs REQUIRED)
 
 include_directories(include)
 
-set(DEPENDENCIES
-  ament_index_cpp
-  rclcpp
-  rclcpp_action
-  std_srvs
-  yasmin
-  yasmin_ros
-  yasmin_viewer
-  vortex_msgs
-  vortex_utils
-  vortex_utils_ros
-  vortex_utils_ros_tf
-  geometry_msgs
-  tf2
-  tf2_ros
-  tf2_geometry_msgs
-)
-
 add_executable(pipeline_inspection_fsm
-  src/tf_utils.cpp
   src/trigger_wait_state.cpp
   src/wait_for_start_state.cpp
   src/search_pattern_state.cpp
@@ -60,7 +37,19 @@ add_executable(pipeline_inspection_fsm
   src/fsm_runner.cpp
 )
 
-ament_target_dependencies(pipeline_inspection_fsm ${DEPENDENCIES})
+ament_target_dependencies(pipeline_inspection_fsm
+  ament_index_cpp
+  rclcpp
+  rclcpp_action
+  std_srvs
+  yasmin
+  yasmin_ros
+  yasmin_viewer
+  vortex_msgs
+  vortex_utils
+  vortex_utils_ros
+  geometry_msgs
+)
 
 install(TARGETS
   pipeline_inspection_fsm

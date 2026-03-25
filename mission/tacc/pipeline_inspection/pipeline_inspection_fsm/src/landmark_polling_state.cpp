@@ -1,14 +1,11 @@
-#include "pipeline_inspection_fsm/param_utils.hpp"
 #include "pipeline_inspection_fsm/states.hpp"
 
 #include <yasmin_ros/basic_outcomes.hpp>
-#include <yasmin_ros/yasmin_node.hpp>
 
-LandmarkPollingState::LandmarkPollingState(yasmin::Blackboard::SharedPtr)
+LandmarkPollingState::LandmarkPollingState(
+    yasmin::Blackboard::SharedPtr blackboard)
     : ActionState(
-          pipeline_inspection_fsm::param_utils::get_string(
-              yasmin_ros::YasminNode::get_instance(),
-              "action_servers.landmark_polling"),
+          blackboard->get<std::string>("action_server.landmark_polling"),
           std::bind(&LandmarkPollingState::create_goal,
                     this,
                     std::placeholders::_1),
@@ -17,14 +14,9 @@ LandmarkPollingState::LandmarkPollingState(yasmin::Blackboard::SharedPtr)
                     this,
                     std::placeholders::_1,
                     std::placeholders::_2)) {
-    auto node = yasmin_ros::YasminNode::get_instance();
-
-    landmark_type_ =
-        static_cast<int8_t>(pipeline_inspection_fsm::param_utils::get_int(
-            node, "fsm.landmark_type"));
-    landmark_subtype_ =
-        static_cast<int8_t>(pipeline_inspection_fsm::param_utils::get_int(
-            node, "fsm.landmark_subtype"));
+    landmark_type_.value = vortex_msgs::msg::LandmarkType::PIPELINE_START;
+    landmark_subtype_.value =
+        vortex_msgs::msg::LandmarkSubtype::PIPELINE_START_CAMERA;
 }
 
 pipeline_inspection_fsm::LandmarkPollingAction::Goal
@@ -33,8 +25,8 @@ LandmarkPollingState::create_goal(yasmin::Blackboard::SharedPtr blackboard) {
 
     (void)blackboard;
 
-    goal.type.value = landmark_type_;
-    goal.subtype.value = landmark_subtype_;
+    goal.type = landmark_type_;
+    goal.subtype = landmark_subtype_;
 
     return goal;
 }

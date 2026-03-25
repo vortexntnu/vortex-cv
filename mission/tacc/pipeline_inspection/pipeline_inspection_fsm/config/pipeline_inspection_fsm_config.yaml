@@ -1,24 +1,6 @@
 /**:
   ros__parameters:
-    action_servers:
-      waypoint_manager: "waypoint_manager"
-      landmark_polling: "landmark_polling"
-
     services:
       start_mission: "pipeline_inspection_fsm/start_mission"
       start_pipeline_following: "pipeline_inspection_fsm/start_pipeline_following"
       end_of_pipeline: "pipeline_inspection_fsm/pipeline_finished"
-
-    fsm:
-      landmark_type: 1
-      landmark_subtype: 19
-      convergence_threshold: 0.1
-      search_source_frame: "orca/base_link"
-      search_target_frame: "orca/odom"
-      landmark_offset:
-        x: 0.0
-        y: 0.0
-        z: -1.0
-        roll: 0.0
-        pitch: 0.0
-        yaw: 0.0

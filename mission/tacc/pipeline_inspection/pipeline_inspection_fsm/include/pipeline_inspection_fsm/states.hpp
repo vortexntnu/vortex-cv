@@ -14,7 +14,6 @@
 #include <rclcpp_action/rclcpp_action.hpp>
 
 #include <vortex/utils/ros/ros_conversions.hpp>
-#include <vortex/utils/ros/ros_transforms.hpp>
 #include <vortex/utils/types.hpp>
 #include <vortex/utils/waypoint_utils.hpp>
 
@@ -32,6 +31,8 @@
 #include <vortex_msgs/action/landmark_polling.hpp>
 #include <vortex_msgs/action/waypoint_manager.hpp>
 #include <vortex_msgs/msg/landmark.hpp>
+#include <vortex_msgs/msg/landmark_subtype.hpp>
+#include <vortex_msgs/msg/landmark_type.hpp>
 #include <vortex_msgs/msg/waypoint.hpp>
 
 namespace pipeline_inspection_fsm {
@@ -79,16 +80,15 @@ class SearchPatternState : public yasmin::State {
     void cancel_state() override;
 
    private:
-    std::vector<vortex::utils::types::Pose> load_search_waypoints() const;
+    std::vector<vortex::utils::waypoints::WaypointGoal> load_search_waypoints()
+        const;
     void cancel_active_goal();
 
     std::optional<pipeline_inspection_fsm::WaypointManagerAction::Goal>
-    build_search_goal(const std::vector<vortex::utils::types::Pose>& waypoints);
+    build_search_goal(
+        const std::vector<vortex::utils::waypoints::WaypointGoal>& waypoints);
 
     std::string waypoint_file_path_;
-    std::string search_source_frame_;
-    std::string search_target_frame_;
-    double convergence_threshold_{};
 
     std::atomic<pipeline_inspection_fsm::WaypointManagerGoalHandle::SharedPtr>
         goal_handle_;
@@ -115,8 +115,8 @@ class LandmarkPollingState
             result);
 
    private:
-    int8_t landmark_type_{};
-    int8_t landmark_subtype_{};
+    vortex_msgs::msg::LandmarkType landmark_type_;
+    vortex_msgs::msg::LandmarkSubtype landmark_subtype_;
 };
 
 class ConvergeState : public yasmin_ros::ActionState<
@@ -128,8 +128,8 @@ class ConvergeState : public yasmin_ros::ActionState<
         yasmin::Blackboard::SharedPtr blackboard);
 
    private:
-    double convergence_threshold_{};
-    vortex::utils::types::Pose pose_offset_{};
+    std::string convergence_file_path_;
+    vortex::utils::waypoints::LandmarkConvergenceGoal convergence_goal_;
 };
 
 class StartWaypointManagerState : public yasmin::State {
@@ -140,8 +140,6 @@ class StartWaypointManagerState : public yasmin::State {
     std::string execute(yasmin::Blackboard::SharedPtr blackboard) override;
 
    private:
-    double convergence_threshold_{};
-
     rclcpp_action::Client<
         pipeline_inspection_fsm::WaypointManagerAction>::SharedPtr client_;
 };

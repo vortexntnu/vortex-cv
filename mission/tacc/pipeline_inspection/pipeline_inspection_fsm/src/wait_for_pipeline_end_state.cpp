@@ -1,12 +1,9 @@
-#include "pipeline_inspection_fsm/param_utils.hpp"
 #include "pipeline_inspection_fsm/states.hpp"
 
-#include <yasmin_ros/yasmin_node.hpp>
-
-WaitForPipelineEndState::WaitForPipelineEndState(yasmin::Blackboard::SharedPtr)
-    : TriggerWaitState(pipeline_inspection_fsm::param_utils::get_string(
-          yasmin_ros::YasminNode::get_instance(),
-          "services.end_of_pipeline")) {}
+WaitForPipelineEndState::WaitForPipelineEndState(
+    yasmin::Blackboard::SharedPtr blackboard)
+    : TriggerWaitState(
+          blackboard->get<std::string>("service.end_of_pipeline")) {}
 
 void WaitForPipelineEndState::on_triggered(
     yasmin::Blackboard::SharedPtr blackboard) {

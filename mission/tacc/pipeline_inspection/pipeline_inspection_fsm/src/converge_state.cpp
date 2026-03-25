@@ -1,43 +1,18 @@
-#include "pipeline_inspection_fsm/param_utils.hpp"
 #include "pipeline_inspection_fsm/states.hpp"
 
-#include <yasmin_ros/yasmin_node.hpp>
-
-#include <vortex/utils/math.hpp>
 #include <vortex/utils/ros/ros_conversions.hpp>
 #include <vortex/utils/waypoint_utils.hpp>
 #include <vortex_msgs/msg/waypoint.hpp>
 #include <vortex_msgs/msg/waypoint_mode.hpp>
 
-ConvergeState::ConvergeState(yasmin::Blackboard::SharedPtr)
+ConvergeState::ConvergeState(yasmin::Blackboard::SharedPtr blackboard)
     : ActionState(
-          pipeline_inspection_fsm::param_utils::get_string(
-              yasmin_ros::YasminNode::get_instance(),
-              "action_servers.waypoint_manager"),
-          std::bind(&ConvergeState::create_goal, this, std::placeholders::_1)) {
-    auto node = yasmin_ros::YasminNode::get_instance();
-
-    convergence_threshold_ = pipeline_inspection_fsm::param_utils::get_double(
-        node, "fsm.convergence_threshold");
-
-    const double offset_x = pipeline_inspection_fsm::param_utils::get_double(
-        node, "fsm.landmark_offset.x");
-    const double offset_y = pipeline_inspection_fsm::param_utils::get_double(
-        node, "fsm.landmark_offset.y");
-    const double offset_z = pipeline_inspection_fsm::param_utils::get_double(
-        node, "fsm.landmark_offset.z");
-    const double offset_roll = pipeline_inspection_fsm::param_utils::get_double(
-        node, "fsm.landmark_offset.roll");
-    const double offset_pitch =
-        pipeline_inspection_fsm::param_utils::get_double(
-            node, "fsm.landmark_offset.pitch");
-    const double offset_yaw = pipeline_inspection_fsm::param_utils::get_double(
-        node, "fsm.landmark_offset.yaw");
-
-    pose_offset_ = vortex::utils::types::Pose::from_eigen(
-        Eigen::Vector3d{offset_x, offset_y, offset_z},
-        vortex::utils::math::euler_to_quat(offset_roll, offset_pitch,
-                                           offset_yaw));
+          blackboard->get<std::string>("action_server.waypoint_manager"),
+          std::bind(&ConvergeState::create_goal, this, std::placeholders::_1)),
+      convergence_file_path_(
+          blackboard->get<std::string>("convergence_file_path")) {
+    convergence_goal_ = vortex::utils::waypoints::load_landmark_goal_from_yaml(
+        convergence_file_path_, "pipeline_start_convergence");
 }
 
 pipeline_inspection_fsm::WaypointManagerAction::Goal ConvergeState::create_goal(
@@ -48,16 +23,16 @@ pipeline_inspection_fsm::WaypointManagerAction::Goal ConvergeState::create_goal(
     const auto landmark_pose =
         vortex::utils::ros_conversions::ros_pose_to_pose(landmark.pose.pose);
     const auto target_pose = vortex::utils::waypoints::apply_pose_offset(
-        landmark_pose, pose_offset_);
+        landmark_pose, convergence_goal_.convergence_offset);
 
     vortex_msgs::msg::Waypoint wp;
     wp.pose = vortex::utils::ros_conversions::to_pose_msg(target_pose);
-    wp.waypoint_mode.mode = vortex_msgs::msg::WaypointMode::FULL_POSE;
+    wp.waypoint_mode.mode = static_cast<uint8_t>(convergence_goal_.mode);
 
     pipeline_inspection_fsm::WaypointManagerAction::Goal goal;
     goal.waypoints = {wp};
     goal.persistent = false;
-    goal.convergence_threshold = convergence_threshold_;
+    goal.convergence_threshold = convergence_goal_.convergence_threshold;
 
     return goal;
 }

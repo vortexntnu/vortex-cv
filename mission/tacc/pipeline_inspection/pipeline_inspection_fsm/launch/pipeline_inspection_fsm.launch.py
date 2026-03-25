@@ -1,23 +1,43 @@
 import os
 
 from ament_index_python.packages import get_package_share_directory
+from auv_setup.launch_arg_common import (
+    declare_drone_and_namespace_args,
+    resolve_drone_and_namespace,
+)
 from launch import LaunchDescription
+from launch.actions import OpaqueFunction
 from launch_ros.actions import Node
 
 
-def generate_launch_description() -> LaunchDescription:
-    pipeline_inspection_fsm_config = os.path.join(
+def launch_setup(context, *args, **kwargs):
+    drone, namespace = resolve_drone_and_namespace(context)
+
+    fsm_config = os.path.join(
         get_package_share_directory('pipeline_inspection_fsm'),
         'config',
         'pipeline_inspection_fsm_config.yaml',
     )
 
-    pipeline_inspection_fsm_node = Node(
+    drone_config = os.path.join(
+        get_package_share_directory('auv_setup'),
+        'config',
+        'robots',
+        f'{drone}.yaml',
+    )
+
+    node = Node(
         package='pipeline_inspection_fsm',
         executable='pipeline_inspection_fsm',
-        namespace='orca',
-        parameters=[pipeline_inspection_fsm_config],
+        namespace=namespace,
+        parameters=[drone_config, fsm_config],
         output='screen',
     )
 
-    return LaunchDescription([pipeline_inspection_fsm_node])
+    return [node]
+
+
+def generate_launch_description() -> LaunchDescription:
+    return LaunchDescription(
+        declare_drone_and_namespace_args() + [OpaqueFunction(function=launch_setup)]
+    )

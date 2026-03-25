@@ -14,18 +14,6 @@
 
 using namespace std::chrono_literals;
 
-namespace {
-
-std::string get_string_parameter(const rclcpp::Node::SharedPtr& node,
-                                 const std::string& name) {
-    if (!node->has_parameter(name))
-        node->declare_parameter<std::string>(name);
-
-    return node->get_parameter(name).as_string();
-}
-
-}  // namespace
-
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
 
@@ -58,8 +46,7 @@ int main(int argc, char** argv) {
 
     auto start_pipeline_trg = std::make_shared<
         yasmin_ros::ServiceState<pipeline_inspection_fsm::TriggerSrv>>(
-        get_string_parameter(yasmin_ros::YasminNode::get_instance(),
-                             "services.start_pipeline_following"),
+        blackboard->get<std::string>("service.start_pipeline_following"),
         [](yasmin::Blackboard::SharedPtr) {
             return std::make_shared<
                 pipeline_inspection_fsm::TriggerSrv::Request>();

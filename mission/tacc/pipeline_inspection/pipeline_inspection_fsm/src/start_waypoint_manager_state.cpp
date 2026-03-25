@@ -1,4 +1,3 @@
-#include "pipeline_inspection_fsm/param_utils.hpp"
 #include "pipeline_inspection_fsm/states.hpp"
 
 #include <yasmin_ros/basic_outcomes.hpp>
@@ -8,18 +7,14 @@
 using namespace std::chrono_literals;
 
 StartWaypointManagerState::StartWaypointManagerState(
-    yasmin::Blackboard::SharedPtr)
+    yasmin::Blackboard::SharedPtr blackboard)
     : yasmin::State({yasmin_ros::basic_outcomes::SUCCEED,
                      yasmin_ros::basic_outcomes::ABORT}) {
     auto node = yasmin_ros::YasminNode::get_instance();
 
-    convergence_threshold_ = pipeline_inspection_fsm::param_utils::get_double(
-        node, "fsm.convergence_threshold");
-
     client_ = yasmin_ros::ROSClientsCache::get_or_create_action_client<
         pipeline_inspection_fsm::WaypointManagerAction>(
-        node, pipeline_inspection_fsm::param_utils::get_string(
-                  node, "action_servers.waypoint_manager"));
+        node, blackboard->get<std::string>("action_server.waypoint_manager"));
 }
 
 std::string StartWaypointManagerState::execute(
@@ -32,7 +27,7 @@ std::string StartWaypointManagerState::execute(
 
     pipeline_inspection_fsm::WaypointManagerAction::Goal goal;
     goal.persistent = true;
-    goal.convergence_threshold = convergence_threshold_;
+    goal.convergence_threshold = 0.1;
 
     auto future = client_->async_send_goal(goal);
     if (future.wait_for(5s) != std::future_status::ready) {

@@ -19,11 +19,9 @@
   <depend>vortex_msgs</depend>
   <depend>vortex_utils</depend>
   <depend>vortex_utils_ros</depend>
-  <depend>vortex_utils_ros_tf</depend>
   <depend>geometry_msgs</depend>
-  <depend>tf2</depend>
-  <depend>tf2_ros</depend>
-  <depend>tf2_geometry_msgs</depend>
+
+  <exec_depend>auv_setup</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

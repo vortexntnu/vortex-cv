@@ -1,4 +1,3 @@
-#include "pipeline_inspection_fsm/param_utils.hpp"
 #include "pipeline_inspection_fsm/states.hpp"
 
 #include <yasmin_ros/basic_outcomes.hpp>
@@ -6,14 +5,13 @@
 #include <yasmin_ros/yasmin_node.hpp>
 
 StopWaypointManagerState::StopWaypointManagerState(
-    yasmin::Blackboard::SharedPtr)
+    yasmin::Blackboard::SharedPtr blackboard)
     : yasmin::State({yasmin_ros::basic_outcomes::SUCCEED}) {
     auto node = yasmin_ros::YasminNode::get_instance();
 
     client_ = yasmin_ros::ROSClientsCache::get_or_create_action_client<
         pipeline_inspection_fsm::WaypointManagerAction>(
-        node, pipeline_inspection_fsm::param_utils::get_string(
-                  node, "action_servers.waypoint_manager"));
+        node, blackboard->get<std::string>("action_server.waypoint_manager"));
 }
 
 std::string StopWaypointManagerState::execute(

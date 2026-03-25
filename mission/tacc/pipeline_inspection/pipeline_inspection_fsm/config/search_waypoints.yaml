@@ -8,6 +8,8 @@ search_waypoint_1:
     roll: 0.0
     pitch: 0.0
     yaw: 0.0
+  mode: 0
+  convergence_threshold: 0.1
 
 search_waypoint_2:
   position:
@@ -18,6 +20,8 @@ search_waypoint_2:
     roll: 0.0
     pitch: 0.0
     yaw: 0.0
+  mode: 0
+  convergence_threshold: 0.1
 
 search_waypoint_3:
   position:
@@ -28,6 +32,8 @@ search_waypoint_3:
     roll: 0.0
     pitch: 0.0
     yaw: 0.0
+  mode: 0
+  convergence_threshold: 0.1
 
 search_waypoint_4:
   position:
@@ -38,3 +44,5 @@ search_waypoint_4:
     roll: 0.0
     pitch: 0.0
     yaw: 0.0
+  mode: 0
+  convergence_threshold: 0.1
