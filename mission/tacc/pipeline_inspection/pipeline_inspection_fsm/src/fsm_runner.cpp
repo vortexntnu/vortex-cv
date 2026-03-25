@@ -27,11 +27,24 @@ int main(int argc, char** argv) {
         std::set<std::string>{yasmin_ros::basic_outcomes::SUCCEED,
                               yasmin_ros::basic_outcomes::ABORT});
 
+    vortex_msgs::msg::LandmarkType landmark_type;
+    landmark_type.value = vortex_msgs::msg::LandmarkType::PIPELINE_START;
+
+    vortex_msgs::msg::LandmarkSubtype landmark_subtype;
+    landmark_subtype.value =
+        vortex_msgs::msg::LandmarkSubtype::PIPELINE_START_CAMERA;
+
+    auto landmark_polling =
+        std::make_shared<vortex_yasmin_utils::LandmarkPollingState>(
+            blackboard->get<std::string>("action_server.landmark_polling"),
+            landmark_type, landmark_subtype,
+            "found_landmarks",
+            "landmark_found");
+
     auto search = std::make_shared<yasmin::Concurrence>(
         yasmin::StateMap{{"SEARCH_PATTERN",
                           std::make_shared<SearchPatternState>(blackboard)},
-                         {"LANDMARK_POLLING",
-                          std::make_shared<LandmarkPollingState>(blackboard)}},
+                         {"LANDMARK_POLLING", landmark_polling}},
         yasmin_ros::basic_outcomes::ABORT,
         yasmin::OutcomeMap{
             {"landmark_found",

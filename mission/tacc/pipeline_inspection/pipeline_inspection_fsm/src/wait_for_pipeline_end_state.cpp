@@ -2,7 +2,7 @@
 
 WaitForPipelineEndState::WaitForPipelineEndState(
     yasmin::Blackboard::SharedPtr blackboard)
-    : TriggerWaitState(
+    : vortex_yasmin_utils::TriggerWaitState(
           blackboard->get<std::string>("service.end_of_pipeline")) {}
 
 void WaitForPipelineEndState::on_triggered(

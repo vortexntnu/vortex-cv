@@ -2,9 +2,7 @@
 #define PIPELINE_INSPECTION_FSM__STATES_HPP_
 
 #include <atomic>
-#include <condition_variable>
 #include <memory>
-#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -27,8 +25,10 @@
 #include <yasmin_ros/service_state.hpp>
 #include <yasmin_ros/yasmin_node.hpp>
 
+#include <vortex_yasmin_utils/landmark_polling_state.hpp>
+#include <vortex_yasmin_utils/trigger_wait_state.hpp>
+
 #include <std_srvs/srv/trigger.hpp>
-#include <vortex_msgs/action/landmark_polling.hpp>
 #include <vortex_msgs/action/waypoint_manager.hpp>
 #include <vortex_msgs/msg/landmark.hpp>
 #include <vortex_msgs/msg/landmark_subtype.hpp>
@@ -41,33 +41,11 @@ using WaypointManagerAction = vortex_msgs::action::WaypointManager;
 using WaypointManagerGoalHandle =
     rclcpp_action::ClientGoalHandle<WaypointManagerAction>;
 
-using LandmarkPollingAction = vortex_msgs::action::LandmarkPolling;
-
 using TriggerSrv = std_srvs::srv::Trigger;
 
 }  // namespace pipeline_inspection_fsm
 
-class TriggerWaitState : public yasmin::State {
-   public:
-    explicit TriggerWaitState(const std::string& service_name);
-
-    std::string execute(yasmin::Blackboard::SharedPtr blackboard) override;
-    void cancel_state() override;
-
-   protected:
-    virtual void on_triggered(yasmin::Blackboard::SharedPtr blackboard);
-
-   private:
-    void callback(pipeline_inspection_fsm::TriggerSrv::Request::SharedPtr req,
-                  pipeline_inspection_fsm::TriggerSrv::Response::SharedPtr res);
-
-    rclcpp::Service<pipeline_inspection_fsm::TriggerSrv>::SharedPtr service_;
-    std::condition_variable cv_;
-    std::mutex mutex_;
-    bool triggered_{false};
-};
-
-class WaitForStartState : public TriggerWaitState {
+class WaitForStartState : public vortex_yasmin_utils::TriggerWaitState {
    public:
     explicit WaitForStartState(yasmin::Blackboard::SharedPtr blackboard);
 };
@@ -97,28 +75,6 @@ class SearchPatternState : public yasmin::State {
         pipeline_inspection_fsm::WaypointManagerAction>::SharedPtr client_;
 };
 
-/*
- * Landmark polling action
- */
-class LandmarkPollingState
-    : public yasmin_ros::ActionState<
-          pipeline_inspection_fsm::LandmarkPollingAction> {
-   public:
-    explicit LandmarkPollingState(yasmin::Blackboard::SharedPtr blackboard);
-
-    pipeline_inspection_fsm::LandmarkPollingAction::Goal create_goal(
-        yasmin::Blackboard::SharedPtr blackboard);
-
-    std::string result_handler(
-        yasmin::Blackboard::SharedPtr blackboard,
-        pipeline_inspection_fsm::LandmarkPollingAction::Result::SharedPtr
-            result);
-
-   private:
-    vortex_msgs::msg::LandmarkType landmark_type_;
-    vortex_msgs::msg::LandmarkSubtype landmark_subtype_;
-};
-
 class ConvergeState : public yasmin_ros::ActionState<
                           pipeline_inspection_fsm::WaypointManagerAction> {
    public:
@@ -144,7 +100,7 @@ class StartWaypointManagerState : public yasmin::State {
         pipeline_inspection_fsm::WaypointManagerAction>::SharedPtr client_;
 };
 
-class WaitForPipelineEndState : public TriggerWaitState {
+class WaitForPipelineEndState : public vortex_yasmin_utils::TriggerWaitState {
    public:
     explicit WaitForPipelineEndState(yasmin::Blackboard::SharedPtr blackboard);
 

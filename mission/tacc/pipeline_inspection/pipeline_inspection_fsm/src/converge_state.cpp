@@ -17,8 +17,10 @@ ConvergeState::ConvergeState(yasmin::Blackboard::SharedPtr blackboard)
 
 pipeline_inspection_fsm::WaypointManagerAction::Goal ConvergeState::create_goal(
     yasmin::Blackboard::SharedPtr blackboard) {
-    auto landmark =
-        blackboard->get<vortex_msgs::msg::Landmark>("found_landmark");
+    auto landmarks =
+        blackboard->get<std::vector<vortex_msgs::msg::Landmark>>(
+            "found_landmarks");
+    auto landmark = landmarks.front();
 
     const auto landmark_pose =
         vortex::utils::ros_conversions::ros_pose_to_pose(landmark.pose.pose);

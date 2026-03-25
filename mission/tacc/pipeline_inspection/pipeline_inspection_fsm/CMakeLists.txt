@@ -21,20 +21,23 @@ find_package(vortex_msgs REQUIRED)
 find_package(vortex_utils REQUIRED)
 find_package(vortex_utils_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(vortex_yasmin_utils REQUIRED)
 
 include_directories(include)
 
 add_executable(pipeline_inspection_fsm
-  src/trigger_wait_state.cpp
   src/wait_for_start_state.cpp
   src/search_pattern_state.cpp
-  src/landmark_polling_state.cpp
   src/converge_state.cpp
   src/start_waypoint_manager_state.cpp
   src/wait_for_pipeline_end_state.cpp
   src/stop_waypoint_manager_state.cpp
   src/blackboard.cpp
   src/fsm_runner.cpp
+)
+
+target_link_libraries(pipeline_inspection_fsm
+  vortex_yasmin_utils::vortex_yasmin_utils
 )
 
 ament_target_dependencies(pipeline_inspection_fsm
@@ -49,6 +52,7 @@ ament_target_dependencies(pipeline_inspection_fsm
   vortex_utils
   vortex_utils_ros
   geometry_msgs
+  vortex_yasmin_utils
 )
 
 install(TARGETS
