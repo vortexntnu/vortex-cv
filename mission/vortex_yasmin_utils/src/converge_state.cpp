@@ -5,21 +5,31 @@
 #include <vortex_msgs/msg/landmark.hpp>
 #include <vortex_msgs/msg/waypoint.hpp>
 #include <vortex_msgs/msg/waypoint_mode.hpp>
+#include <yasmin/logs.hpp>
 
 namespace vortex_yasmin_utils {
 
 ConvergeState::ConvergeState(
     const std::string& action_server_name,
-    vortex::utils::waypoints::LandmarkConvergenceGoal convergence_goal)
+    vortex::utils::waypoints::LandmarkConvergenceGoal convergence_goal,
+    const std::string& landmarks_bb_key)
     : ActionState(
           action_server_name,
           std::bind(&ConvergeState::create_goal, this, std::placeholders::_1)),
-      convergence_goal_(std::move(convergence_goal)) {}
+      convergence_goal_(std::move(convergence_goal)),
+      landmarks_bb_key_(landmarks_bb_key) {}
 
 WaypointManagerAction::Goal ConvergeState::create_goal(
     yasmin::Blackboard::SharedPtr blackboard) {
-    auto landmark =
-        blackboard->get<vortex_msgs::msg::Landmark>("found_landmark");
+    auto landmarks = blackboard->get<std::vector<vortex_msgs::msg::Landmark>>(
+        landmarks_bb_key_);
+
+    if (landmarks.size() > 1) {
+        YASMIN_LOG_WARN("ConvergeState: received %zu landmarks, using first",
+                        landmarks.size());
+    }
+
+    auto landmark = landmarks.front();
 
     const auto landmark_pose =
         vortex::utils::ros_conversions::ros_pose_to_pose(landmark.pose.pose);
