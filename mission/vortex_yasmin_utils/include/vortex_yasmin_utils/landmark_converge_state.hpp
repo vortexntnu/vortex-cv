@@ -1,5 +1,5 @@
-#ifndef VORTEX_YASMIN_UTILS__CONVERGE_STATE_HPP_
-#define VORTEX_YASMIN_UTILS__CONVERGE_STATE_HPP_
+#ifndef VORTEX_YASMIN_UTILS__LANDMARK_CONVERGE_STATE_HPP_
+#define VORTEX_YASMIN_UTILS__LANDMARK_CONVERGE_STATE_HPP_
 
 #include <string>
 
@@ -24,9 +24,10 @@ using WaypointManagerAction = vortex_msgs::action::WaypointManager;
  * @param convergence_goal    Offset, mode, and threshold for convergence.
  * @param landmarks_bb_key    Blackboard key for the input landmarks vector.
  */
-class ConvergeState : public yasmin_ros::ActionState<WaypointManagerAction> {
+class LandmarkConvergeState
+    : public yasmin_ros::ActionState<WaypointManagerAction> {
    public:
-    ConvergeState(
+    LandmarkConvergeState(
         const std::string& action_server_name,
         vortex::utils::waypoints::LandmarkConvergenceGoal convergence_goal,
         const std::string& landmarks_bb_key);
@@ -41,4 +42,4 @@ class ConvergeState : public yasmin_ros::ActionState<WaypointManagerAction> {
 
 }  // namespace vortex_yasmin_utils
 
-#endif  // VORTEX_YASMIN_UTILS__CONVERGE_STATE_HPP_
+#endif  // VORTEX_YASMIN_UTILS__LANDMARK_CONVERGE_STATE_HPP_
