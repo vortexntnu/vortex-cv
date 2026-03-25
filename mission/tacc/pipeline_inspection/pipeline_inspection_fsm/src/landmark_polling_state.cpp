@@ -1,7 +1,5 @@
 #include "pipeline_inspection_fsm/states.hpp"
 
-#include <vortex_msgs/msg/detail/landmark_subtype__struct.hpp>
-#include <vortex_msgs/msg/detail/landmark_type__struct.hpp>
 #include <yasmin_ros/basic_outcomes.hpp>
 
 LandmarkPollingState::LandmarkPollingState(
