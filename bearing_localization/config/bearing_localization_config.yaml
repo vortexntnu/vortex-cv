@@ -6,7 +6,6 @@
     min_measurements: 5
     min_baseline_m: 0.5
     min_ray_angle_deg: 5.0
-    enable_outlier_rejection: true
     outlier_residual_threshold_m: 1.0
     max_outlier_iterations: 2
     publish_markers: true
@@ -21,7 +20,6 @@
       min_measurements: 4
       min_baseline_m: 0.2
       min_ray_angle_deg: 3.0
-      enable_outlier_rejection: true
       outlier_residual_threshold_m: 0.2
       max_outlier_iterations: 2
       publish_markers: true
