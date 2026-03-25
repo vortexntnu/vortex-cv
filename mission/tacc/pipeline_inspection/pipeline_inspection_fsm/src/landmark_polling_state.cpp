@@ -14,9 +14,8 @@ LandmarkPollingState::LandmarkPollingState(
                     this,
                     std::placeholders::_1,
                     std::placeholders::_2)) {
-    landmark_type_.value = vortex_msgs::msg::LandmarkType::PIPELINE_START;
-    landmark_subtype_.value =
-        vortex_msgs::msg::LandmarkSubtype::PIPELINE_START_CAMERA;
+    landmark_type_.value = 1;
+    landmark_subtype_.value = 19;
 }
 
 pipeline_inspection_fsm::LandmarkPollingAction::Goal

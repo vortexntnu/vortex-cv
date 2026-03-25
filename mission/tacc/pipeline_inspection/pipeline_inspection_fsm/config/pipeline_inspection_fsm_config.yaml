@@ -1,6 +1,5 @@
 /**:
   ros__parameters:
     services:
-      start_mission: "pipeline_inspection_fsm/start_mission"
       start_pipeline_following: "pipeline_inspection_fsm/start_pipeline_following"
       end_of_pipeline: "pipeline_inspection_fsm/pipeline_finished"
