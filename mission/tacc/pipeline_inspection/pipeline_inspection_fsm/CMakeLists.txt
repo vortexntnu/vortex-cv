@@ -28,7 +28,6 @@ include_directories(include)
 add_executable(pipeline_inspection_fsm
   src/wait_for_start_state.cpp
   src/search_pattern_state.cpp
-  src/converge_state.cpp
   src/start_waypoint_manager_state.cpp
   src/wait_for_pipeline_end_state.cpp
   src/stop_waypoint_manager_state.cpp

@@ -25,6 +25,7 @@
 #include <yasmin_ros/service_state.hpp>
 #include <yasmin_ros/yasmin_node.hpp>
 
+#include <vortex_yasmin_utils/landmark_converge_state.hpp>
 #include <vortex_yasmin_utils/landmark_polling_state.hpp>
 #include <vortex_yasmin_utils/trigger_wait_state.hpp>
 
@@ -73,19 +74,6 @@ class SearchPatternState : public yasmin::State {
 
     rclcpp_action::Client<
         pipeline_inspection_fsm::WaypointManagerAction>::SharedPtr client_;
-};
-
-class ConvergeState : public yasmin_ros::ActionState<
-                          pipeline_inspection_fsm::WaypointManagerAction> {
-   public:
-    explicit ConvergeState(yasmin::Blackboard::SharedPtr blackboard);
-
-    pipeline_inspection_fsm::WaypointManagerAction::Goal create_goal(
-        yasmin::Blackboard::SharedPtr blackboard);
-
-   private:
-    std::string convergence_file_path_;
-    vortex::utils::waypoints::LandmarkConvergenceGoal convergence_goal_;
 };
 
 class StartWaypointManagerState : public yasmin::State {

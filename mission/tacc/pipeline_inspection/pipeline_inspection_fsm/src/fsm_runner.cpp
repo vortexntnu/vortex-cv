@@ -37,8 +37,7 @@ int main(int argc, char** argv) {
     auto landmark_polling =
         std::make_shared<vortex_yasmin_utils::LandmarkPollingState>(
             blackboard->get<std::string>("action_server.landmark_polling"),
-            landmark_type, landmark_subtype,
-            "found_landmarks",
+            landmark_type, landmark_subtype, "found_landmarks",
             "landmark_found");
 
     auto search = std::make_shared<yasmin::Concurrence>(
@@ -76,8 +75,16 @@ int main(int argc, char** argv) {
                    {yasmin_ros::basic_outcomes::ABORT,
                     yasmin_ros::basic_outcomes::ABORT}});
 
+    auto convergence_goal =
+        vortex::utils::waypoints::load_landmark_goal_from_yaml(
+            blackboard->get<std::string>("convergence_file_path"),
+            "pipeline_start_convergence");
+
     sm->add_state(
-        "CONVERGE", std::make_shared<ConvergeState>(blackboard),
+        "CONVERGE",
+        std::make_shared<vortex_yasmin_utils::LandmarkConvergeState>(
+            blackboard->get<std::string>("action_server.waypoint_manager"),
+            convergence_goal, "found_landmarks"),
         {{yasmin_ros::basic_outcomes::SUCCEED, "START_PIPELINE_TRG"},
          {yasmin_ros::basic_outcomes::ABORT, yasmin_ros::basic_outcomes::ABORT},
          {yasmin_ros::basic_outcomes::CANCEL,
