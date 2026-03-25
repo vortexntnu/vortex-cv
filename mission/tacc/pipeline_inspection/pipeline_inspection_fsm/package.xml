@@ -21,8 +21,6 @@
   <depend>vortex_utils_ros</depend>
   <depend>geometry_msgs</depend>
 
-  <exec_depend>auv_setup</exec_depend>
-
   <export>
     <build_type>ament_cmake</build_type>
   </export>
