@@ -1,0 +1,35 @@
+/**:
+  ros__parameters:
+    target_frame: orca/odom
+    window_size: 30
+    max_measurement_age_sec: 5.0
+    min_measurements: 5
+    min_baseline_m: 0.5
+    min_ray_angle_deg: 5.0
+    enable_outlier_rejection: true
+    outlier_residual_threshold_m: 1.0
+    max_outlier_iterations: 2
+    publish_markers: true
+    landmark_type: 1
+    landmark_subtype: 8
+    landmark_id: 0
+
+    aruco:
+      target_frame: orca/odom
+      window_size: 15
+      max_measurement_age_sec: 2.0
+      min_measurements: 4
+      min_baseline_m: 0.2
+      min_ray_angle_deg: 3.0
+      enable_outlier_rejection: true
+      outlier_residual_threshold_m: 0.2
+      max_outlier_iterations: 2
+      publish_markers: true
+
+    sub_topics:
+      bearing: bearing_measurement
+      bearing_array: /aruco_detector/marker_directions
+
+    pub_topics:
+      landmarks: landmarks
+      markers: bearing_localization/markers
