@@ -27,8 +27,8 @@ namespace vortex_yasmin_utils {
 class ServiceTriggerWaitState : public yasmin::State {
    public:
     explicit ServiceTriggerWaitState(const std::string& service_name,
-                              std::chrono::duration<double> timeout =
-                                  std::chrono::duration<double>(0));
+                                     std::chrono::duration<double> timeout =
+                                         std::chrono::duration<double>(0));
 
     std::string execute(yasmin::Blackboard::SharedPtr blackboard) override;
     void cancel_state() override;

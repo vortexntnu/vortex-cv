@@ -5,6 +5,7 @@
 #include <condition_variable>
 #include <functional>
 #include <mutex>
+#include <set>
 #include <string>
 
 #include <rclcpp/rclcpp.hpp>
@@ -19,9 +20,9 @@ namespace vortex_yasmin_utils {
  * @brief A YASMIN state that blocks until a ROS service of type ServiceT is
  * called, then stores the request on the blackboard.
  *
- * This is a generic version of ServiceTriggerWaitState that works with any service
- * type, making the service request data available to downstream states via the
- * blackboard.
+ * This is a generic version of ServiceTriggerWaitState that works with any
+ * service type, making the service request data available to downstream states
+ * via the blackboard.
  *
  * @tparam ServiceT  The ROS service type (e.g. your_msgs::srv::SetPose).
  *                   The response type must have a `success` bool field.
@@ -34,11 +35,10 @@ namespace vortex_yasmin_utils {
 template <typename ServiceT>
 class ServiceRequestWaitState : public yasmin::State {
    public:
-    explicit ServiceRequestWaitState(
-        const std::string& service_name,
-        const std::string& request_bb_key,
-        std::chrono::duration<double> timeout =
-            std::chrono::duration<double>(0))
+    explicit ServiceRequestWaitState(const std::string& service_name,
+                                     const std::string& request_bb_key,
+                                     std::chrono::duration<double> timeout =
+                                         std::chrono::duration<double>(0))
         : yasmin::State(make_outcomes(timeout.count() > 0)),
           request_bb_key_(request_bb_key),
           timeout_(timeout) {
@@ -71,8 +71,8 @@ class ServiceRequestWaitState : public yasmin::State {
         if (is_canceled())
             return yasmin_ros::basic_outcomes::CANCEL;
 
-        blackboard->set<typename ServiceT::Request::SharedPtr>(
-            request_bb_key_, last_request_);
+        blackboard->set<typename ServiceT::Request::SharedPtr>(request_bb_key_,
+                                                               last_request_);
 
         on_triggered(blackboard, last_request_);
         return yasmin_ros::basic_outcomes::SUCCEED;
@@ -86,9 +86,8 @@ class ServiceRequestWaitState : public yasmin::State {
     static constexpr const char* TIMEOUT = "timeout";
 
    protected:
-    virtual void on_triggered(
-        yasmin::Blackboard::SharedPtr blackboard,
-        typename ServiceT::Request::SharedPtr request) {
+    virtual void on_triggered(yasmin::Blackboard::SharedPtr blackboard,
+                              typename ServiceT::Request::SharedPtr request) {
         (void)blackboard;
         (void)request;
     }
@@ -102,9 +101,8 @@ class ServiceRequestWaitState : public yasmin::State {
         return outcomes;
     }
 
-    void service_callback(
-        typename ServiceT::Request::SharedPtr req,
-        typename ServiceT::Response::SharedPtr res) {
+    void service_callback(typename ServiceT::Request::SharedPtr req,
+                          typename ServiceT::Response::SharedPtr res) {
         std::lock_guard lock(mutex_);
 
         last_request_ = req;

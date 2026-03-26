@@ -13,14 +13,16 @@ static std::set<std::string> make_outcomes(bool has_timeout) {
     return outcomes;
 }
 
-ServiceTriggerWaitState::ServiceTriggerWaitState(const std::string& service_name,
-                                   std::chrono::duration<double> timeout)
+ServiceTriggerWaitState::ServiceTriggerWaitState(
+    const std::string& service_name,
+    std::chrono::duration<double> timeout)
     : yasmin::State(make_outcomes(timeout.count() > 0)), timeout_(timeout) {
     auto node = yasmin_ros::YasminNode::get_instance();
 
     service_ = node->create_service<std_srvs::srv::Trigger>(
-        service_name, std::bind(&ServiceTriggerWaitState::service_callback, this,
-                                std::placeholders::_1, std::placeholders::_2));
+        service_name,
+        std::bind(&ServiceTriggerWaitState::service_callback, this,
+                  std::placeholders::_1, std::placeholders::_2));
 }
 
 std::string ServiceTriggerWaitState::execute(

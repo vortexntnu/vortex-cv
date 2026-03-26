@@ -31,9 +31,8 @@ class LandmarkPollingState
     LandmarkPollingAction::Goal create_goal(
         yasmin::Blackboard::SharedPtr blackboard);
 
-    std::string result_handler(
-        yasmin::Blackboard::SharedPtr blackboard,
-        LandmarkPollingAction::Result::SharedPtr result);
+    std::string result_handler(yasmin::Blackboard::SharedPtr blackboard,
+                               LandmarkPollingAction::Result::SharedPtr result);
 
    private:
     vortex_msgs::msg::LandmarkType landmark_type_;
