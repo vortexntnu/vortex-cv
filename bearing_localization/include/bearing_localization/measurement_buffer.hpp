@@ -14,7 +14,7 @@ class MeasurementBuffer {
 
     void add(const RayMeasurement& ray);
 
-    /// Remove entries older than max_age_sec relative to `now`.
+    /// Remove entries older than max_age_sec relative to now.
     void prune(const rclcpp::Time& now);
 
     void remove_indices(const std::vector<size_t>& indices);
