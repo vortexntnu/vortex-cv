@@ -27,7 +27,7 @@
 
 #include <vortex_yasmin_utils/landmark_converge_state.hpp>
 #include <vortex_yasmin_utils/landmark_polling_state.hpp>
-#include <vortex_yasmin_utils/trigger_wait_state.hpp>
+#include <vortex_yasmin_utils/service_trigger_wait_state.hpp>
 
 #include <std_srvs/srv/trigger.hpp>
 #include <vortex_msgs/action/waypoint_manager.hpp>
@@ -46,7 +46,7 @@ using TriggerSrv = std_srvs::srv::Trigger;
 
 }  // namespace pipeline_inspection_fsm
 
-class WaitForStartState : public vortex_yasmin_utils::TriggerWaitState {
+class WaitForStartState : public vortex_yasmin_utils::ServiceTriggerWaitState {
    public:
     explicit WaitForStartState(yasmin::Blackboard::SharedPtr blackboard);
 };
@@ -88,7 +88,8 @@ class StartWaypointManagerState : public yasmin::State {
         pipeline_inspection_fsm::WaypointManagerAction>::SharedPtr client_;
 };
 
-class WaitForPipelineEndState : public vortex_yasmin_utils::TriggerWaitState {
+class WaitForPipelineEndState
+    : public vortex_yasmin_utils::ServiceTriggerWaitState {
    public:
     explicit WaitForPipelineEndState(yasmin::Blackboard::SharedPtr blackboard);
 
