@@ -11,6 +11,8 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>libopencv-dev</depend>
+  <depend>vortex_utils</depend>
+  <depend>eigen</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
 
