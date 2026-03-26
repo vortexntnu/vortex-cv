@@ -60,7 +60,7 @@ ament_target_dependencies(${LIB_NAME} PUBLIC
   fmt
   message_filters
   #for testing:
-  visualization_msgs 
+  visualization_msgs
 )
 
 rclcpp_components_register_node(

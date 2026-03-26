@@ -1,11 +1,11 @@
 #include <gtest/gtest.h>
-#include <pool_exploration/pool_exploration.hpp>
-#include <vortex_msgs/msg/line_segment2_d.hpp>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <pool_exploration/pool_exploration.hpp>
+#include <vortex_msgs/msg/line_segment2_d.hpp>
 
-
-using namespace vortex::pool_exploration;
+using vortex::pool_exploration::PoolExplorationPlanner;
+using vortex::pool_exploration::PoolExplorationPlannerConfig;
 /*
 TEST(PoolExplorationTest, DrawLinesIdentityTransform)
 {
@@ -23,7 +23,7 @@ TEST(PoolExplorationTest, DrawLinesIdentityTransform)
     // Identitet transform
     Eigen::Matrix4f identity = Eigen::Matrix4f::Identity();
 
-    // Kjør funksjonen som tegner linjene
+    // Kjør funksjonen some tegner linjene
     map.setLineSegmentInMapFrame(array_msg, identity);
 
     const auto& grid = map.grid();
@@ -56,7 +56,7 @@ TEST(PoolExplorationTest, GridInitialization)
     EXPECT_EQ(grid.info.height, 10);
     EXPECT_EQ(grid.data.size(), 100);
 
-    // Alle celler skal være -1 (unknown)
+    // Alle cellar skal være -1 (unknown)
     for (auto cell : grid.data) {
         EXPECT_EQ(cell, -1);
     }
@@ -120,10 +120,10 @@ TEST(PoolExplorationTest, MultipleLinesIdentityTransform)
 
     const auto& grid = map.grid();
 
-    // Enkel sjekk: se at start- og sluttpunkt for hver linje er satt til OCCUPIED
-    auto check_cell = [&](double x, double y) {
-        int gx = static_cast<int>((x - grid.info.origin.position.x) / grid.info.resolution);
-        int gy = static_cast<int>((y - grid.info.origin.position.y) / grid.info.resolution);
+    // Enkel sjekk: se at start- og sluttpunkt for hver linje er satt til
+OCCUPIED auto check_cell = [&](double x, double y) { int gx =
+static_cast<int>((x - grid.info.origin.position.x) / grid.info.resolution); int
+gy = static_cast<int>((y - grid.info.origin.position.y) / grid.info.resolution);
         int index = gy * grid.info.width + gx;
         EXPECT_EQ(grid.data[index], OCCUPIED);
     };
@@ -164,11 +164,11 @@ TEST(GeometryTest, LineAngleDifference) {
 
     Eigen::Vector2f p0(0,0);
     Eigen::Vector2f p1(1,1);
-    float heading = 0.0f; // Drone peker mot x-akse
+    float heading = 0.0f; // Drone peker not x-akse
 
     float diff = map.lineAngleDifference({p0,p1}, heading);
 
-    // Linje 45 grader mot x-aksen
+    // Linje 45 grader not x-aksen
     EXPECT_NEAR(diff, M_PI/4, 1e-6);
 }
 

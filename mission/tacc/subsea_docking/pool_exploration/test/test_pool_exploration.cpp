@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
 #include <Eigen/Core>
-#include <vector>
 #include <cmath>
+#include <vector>
 
 #include <pool_exploration/pool_exploration.hpp>
 #include <vortex/utils/types.hpp>
@@ -33,15 +33,17 @@ PoolExplorationPlannerConfig make_config() {
     config.max_wall_distance_m = 10.0f;
 
     // Klassifisering
-    // Right wall: y må være negativ nok i NED
+    // Right wall: y må være negative nok i NED
     config.right_wall_max_y_m = -0.1f;
 
-    // Far/front wall: x må være positiv nok
+    // Far/front wall: x må være positive nok
     config.far_wall_min_x_m = 0.1f;
 
     // Vinkler
-    config.parallel_heading_angle_threshold_rad = 20.0f * static_cast<float>(M_PI) / 180.0f;
-    config.perpendicular_heading_angle_threshold_rad = 70.0f * static_cast<float>(M_PI) / 180.0f;
+    config.parallel_heading_angle_threshold_rad =
+        20.0f * static_cast<float>(M_PI) / 180.0f;
+    config.perpendicular_heading_angle_threshold_rad =
+        70.0f * static_cast<float>(M_PI) / 180.0f;
 
     // Hjørnevinkel
     config.min_corner_angle_rad = 70.0f * static_cast<float>(M_PI) / 180.0f;
@@ -57,28 +59,28 @@ PoolExplorationPlannerConfig make_config() {
 }  // namespace
 
 class PoolExplorationPlannerTest : public ::testing::Test {
-protected:
-    PoolExplorationPlannerTest()
-        : config(make_config()),
-          planner(config) {}
+   protected:
+    PoolExplorationPlannerTest() : config(make_config()), planner(config) {}
 
     PoolExplorationPlannerConfig config;
     PoolExplorationPlanner planner;
 };
 
-TEST_F(PoolExplorationPlannerTest, FindCornerEstimates_FindsCornerFromPerpendicularWalls) {
+TEST_F(PoolExplorationPlannerTest,
+       FindCornerEstimates_FindsCornerFromPerpendicularWalls) {
     // Drone i origo, heading langs +x
     const Eigen::Vector2f drone_pos{0.0f, 0.0f};
     const float drone_heading = 0.0f;
 
-    // "Right wall" i NED: horisontal linje under drone (negativ y)
-    // "Front wall": vertikal linje foran drone (positiv x)
+    // "Right wall" i NED: horizontal linje under drone (negative y)
+    // "Front wall": vertical linje foran drone (positive x)
     const LineSegment2D right_wall = make_line(0.0f, -2.0f, 10.0f, -2.0f);
     const LineSegment2D front_wall = make_line(5.0f, -5.0f, 5.0f, 5.0f);
 
     const std::vector<LineSegment2D> lines{right_wall, front_wall};
 
-    const auto corners = planner.find_corner_estimates(lines, drone_pos, drone_heading);
+    const auto corners =
+        planner.find_corner_estimates(lines, drone_pos, drone_heading);
 
     ASSERT_EQ(corners.size(), 1u);
 
@@ -96,22 +98,26 @@ TEST_F(PoolExplorationPlannerTest, FindCornerEstimates_RejectsParallelWalls) {
 
     const std::vector<LineSegment2D> lines{line0, line1};
 
-    const auto corners = planner.find_corner_estimates(lines, drone_pos, drone_heading);
+    const auto corners =
+        planner.find_corner_estimates(lines, drone_pos, drone_heading);
 
     EXPECT_TRUE(corners.empty());
 }
 
-TEST_F(PoolExplorationPlannerTest, FindCornerEstimates_RejectsWallsOutsideDistanceThreshold) {
+TEST_F(PoolExplorationPlannerTest,
+       FindCornerEstimates_RejectsWallsOutsideDistanceThreshold) {
     const Eigen::Vector2f drone_pos{0.0f, 0.0f};
     const float drone_heading = 0.0f;
 
     // Right wall er for langt unna
-    const LineSegment2D right_wall_too_far = make_line(0.0f, -20.0f, 10.0f, -20.0f);
+    const LineSegment2D right_wall_too_far =
+        make_line(0.0f, -20.0f, 10.0f, -20.0f);
     const LineSegment2D front_wall = make_line(5.0f, -5.0f, 5.0f, 5.0f);
 
     const std::vector<LineSegment2D> lines{right_wall_too_far, front_wall};
 
-    const auto corners = planner.find_corner_estimates(lines, drone_pos, drone_heading);
+    const auto corners =
+        planner.find_corner_estimates(lines, drone_pos, drone_heading);
 
     EXPECT_TRUE(corners.empty());
 }
@@ -119,17 +125,13 @@ TEST_F(PoolExplorationPlannerTest, FindCornerEstimates_RejectsWallsOutsideDistan
 TEST_F(PoolExplorationPlannerTest, SelectBestCorner_ReturnsClosestCorner) {
     const Eigen::Vector2f drone_pos{0.0f, 0.0f};
 
-    CornerEstimate c0{
-        .right_wall = make_line(0.0f, -2.0f, 10.0f, -2.0f),
-        .far_wall = make_line(5.0f, -5.0f, 5.0f, 5.0f),
-        .corner_point = Eigen::Vector2f{5.0f, -2.0f}
-    };
+    CornerEstimate c0{.right_wall = make_line(0.0f, -2.0f, 10.0f, -2.0f),
+                      .far_wall = make_line(5.0f, -5.0f, 5.0f, 5.0f),
+                      .corner_point = Eigen::Vector2f{5.0f, -2.0f}};
 
-    CornerEstimate c1{
-        .right_wall = make_line(0.0f, -4.0f, 10.0f, -4.0f),
-        .far_wall = make_line(8.0f, -5.0f, 8.0f, 5.0f),
-        .corner_point = Eigen::Vector2f{8.0f, -4.0f}
-    };
+    CornerEstimate c1{.right_wall = make_line(0.0f, -4.0f, 10.0f, -4.0f),
+                      .far_wall = make_line(8.0f, -5.0f, 8.0f, 5.0f),
+                      .corner_point = Eigen::Vector2f{8.0f, -4.0f}};
 
     const auto best = planner.select_best_corner({c1, c0}, drone_pos);
 
@@ -140,13 +142,11 @@ TEST_F(PoolExplorationPlannerTest, SelectBestCorner_ReturnsClosestCorner) {
 TEST_F(PoolExplorationPlannerTest, SelectBestCorner_ThrowsOnEmptyInput) {
     const Eigen::Vector2f drone_pos{0.0f, 0.0f};
 
-    EXPECT_THROW(
-        planner.select_best_corner({}, drone_pos),
-        std::runtime_error
-    );
+    EXPECT_THROW(planner.select_best_corner({}, drone_pos), std::runtime_error);
 }
 
-TEST_F(PoolExplorationPlannerTest, EstimateDockingPosition_OffsetsFromCornerTowardDroneSideOfWalls) {
+TEST_F(PoolExplorationPlannerTest,
+       EstimateDockingPosition_OffsetsFromCornerTowardDroneSideOfWalls) {
     const Eigen::Vector2f drone_pos{0.0f, 0.0f};
 
     // Hjørne i (5, -2)
@@ -154,25 +154,25 @@ TEST_F(PoolExplorationPlannerTest, EstimateDockingPosition_OffsetsFromCornerTowa
     // Front wall: x = 5
     //
     // Med drone i (0,0):
-    // - normal fra right wall mot drone peker opp: (0, +1)
-    // - normal fra front wall mot drone peker venstre: (-1, 0)
+    // - normal fra right wall not drone peker opp: (0, +1)
+    // - normal fra front wall not drone peker venstre: (-1, 0)
     //
     // Forventet docking:
     // (5, -2) + 1.0*(0,1) + 1.5*(-1,0) = (3.5, -1.0)
 
-    CornerEstimate corner{
-        .right_wall = make_line(0.0f, -2.0f, 10.0f, -2.0f),
-        .far_wall = make_line(5.0f, -5.0f, 5.0f, 5.0f),
-        .corner_point = Eigen::Vector2f{5.0f, -2.0f}
-    };
+    CornerEstimate corner{.right_wall = make_line(0.0f, -2.0f, 10.0f, -2.0f),
+                          .far_wall = make_line(5.0f, -5.0f, 5.0f, 5.0f),
+                          .corner_point = Eigen::Vector2f{5.0f, -2.0f}};
 
-    const Eigen::Vector2f docking = planner.estimate_docking_position(corner, drone_pos);
+    const Eigen::Vector2f docking =
+        planner.estimate_docking_position(corner, drone_pos);
 
     EXPECT_NEAR(docking.x(), 3.5f, 1e-4f);
     EXPECT_NEAR(docking.y(), -1.0f, 1e-4f);
 }
 
-TEST_F(PoolExplorationPlannerTest, FullPipeline_FindsCornerSelectsBestAndEstimatesDocking) {
+TEST_F(PoolExplorationPlannerTest,
+       FullPipeline_FindsCornerSelectsBestAndEstimatesDocking) {
     const Eigen::Vector2f drone_pos{0.0f, 0.0f};
     const float drone_heading = 0.0f;
 
@@ -184,16 +184,15 @@ TEST_F(PoolExplorationPlannerTest, FullPipeline_FindsCornerSelectsBestAndEstimat
     const LineSegment2D right_wall_far = make_line(0.0f, -4.0f, 10.0f, -4.0f);
     const LineSegment2D front_wall_far = make_line(9.0f, -5.0f, 9.0f, 5.0f);
 
-    // Litt støy som ikke skal bli brukt
+    // Litt støy some ikke skal bli brukt
     const LineSegment2D noise = make_line(-5.0f, 3.0f, -2.0f, 3.0f);
 
-    const std::vector<LineSegment2D> lines{
-        right_wall_near, front_wall_near,
-        right_wall_far, front_wall_far,
-        noise
-    };
+    const std::vector<LineSegment2D> lines{right_wall_near, front_wall_near,
+                                           right_wall_far, front_wall_far,
+                                           noise};
 
-    const auto corners = planner.find_corner_estimates(lines, drone_pos, drone_heading);
+    const auto corners =
+        planner.find_corner_estimates(lines, drone_pos, drone_heading);
 
     ASSERT_GE(corners.size(), 2u);
 
@@ -207,7 +206,8 @@ TEST_F(PoolExplorationPlannerTest, FullPipeline_FindsCornerSelectsBestAndEstimat
     EXPECT_NEAR(docking.y(), -1.0f, 1e-4f);
 }
 
-TEST_F(PoolExplorationPlannerTest, FindCornerEstimates_AcceptsApproximatelyPerpendicularWalls) {
+TEST_F(PoolExplorationPlannerTest,
+       FindCornerEstimates_AcceptsApproximatelyPerpendicularWalls) {
     const Eigen::Vector2f drone_pos{0.0f, 0.0f};
     const float drone_heading = 0.0f;
 
@@ -217,7 +217,8 @@ TEST_F(PoolExplorationPlannerTest, FindCornerEstimates_AcceptsApproximatelyPerpe
 
     const std::vector<LineSegment2D> lines{right_wall, front_wall};
 
-    const auto corners = planner.find_corner_estimates(lines, drone_pos, drone_heading);
+    const auto corners =
+        planner.find_corner_estimates(lines, drone_pos, drone_heading);
 
     EXPECT_EQ(corners.size(), 1u);
 }
