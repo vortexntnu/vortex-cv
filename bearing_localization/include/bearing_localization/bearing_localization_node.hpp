@@ -4,6 +4,7 @@
 #include "bearing_localization/measurement_buffer.hpp"
 #include "bearing_localization/ray_measurement.hpp"
 #include "bearing_localization/triangulation_solver.hpp"
+#include "vortex/utils/ros/qos_profiles.hpp"
 
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
@@ -54,7 +55,6 @@ class BearingLocalizationNode : public rclcpp::Node {
     bool publish_markers_;
     int landmark_type_;
     int landmark_subtype_;
-    int landmark_id_;
 
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;

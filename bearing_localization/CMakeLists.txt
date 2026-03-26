@@ -19,6 +19,7 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(vortex_msgs REQUIRED)
+find_package(vortex_utils_ros REQUIRED)
 
 include_directories(include)
 
@@ -62,6 +63,7 @@ ament_target_dependencies(bearing_localization_node
   tf2_geometry_msgs
   vortex_msgs
   Eigen3
+  vortex_utils_ros
 )
 
 target_link_libraries(bearing_localization_node

@@ -1,5 +1,4 @@
 #include "bearing_localization/bearing_localization_node.hpp"
-
 #include <tf2/exceptions.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <visualization_msgs/msg/marker.hpp>
@@ -31,7 +30,6 @@ BearingLocalizationNode::BearingLocalizationNode(
     publish_markers_ = get_parameter(p("publish_markers")).as_bool();
     landmark_type_ = get_parameter(p("landmark_type")).as_int();
     landmark_subtype_ = get_parameter(p("landmark_subtype")).as_int();
-    landmark_id_ = get_parameter(p("landmark_id")).as_int();
 
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
@@ -75,12 +73,9 @@ void BearingLocalizationNode::setup_pubsub() {
         std::bind(&BearingLocalizationNode::bearing_callback, this,
                   std::placeholders::_1));
 
-    auto qos_sensor = rclcpp::QoS(
-        rclcpp::QoSInitialization(rmw_qos_profile_sensor_data.history, 1),
-        rmw_qos_profile_sensor_data);
-
     bearing_array_sub_ = create_subscription<vortex_msgs::msg::Vector3Array>(
-        get_parameter("topics.bearing_array").as_string(), qos_sensor,
+        get_parameter("topics.bearing_array").as_string(),
+        vortex::utils::qos_profiles::sensor_data_profile(1),
         std::bind(&BearingLocalizationNode::bearing_array_callback, this,
                   std::placeholders::_1));
 
@@ -210,7 +205,7 @@ void BearingLocalizationNode::publish_result(const Eigen::Vector3d& position,
     vortex_msgs::msg::Landmark landmark;
     landmark.header.stamp = stamp;
     landmark.header.frame_id = target_frame_;
-    landmark.id = landmark_id_;
+    landmark.id = 0;
     landmark.type.value = static_cast<uint16_t>(landmark_type_);
     landmark.subtype.value = static_cast<uint16_t>(landmark_subtype_);
     landmark.pose.pose.position.x = position.x();

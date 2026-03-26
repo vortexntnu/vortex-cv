@@ -19,6 +19,7 @@
   <depend>tf2_geometry_msgs</depend>
   <depend>libeigen3-dev</depend>
   <depend>vortex_msgs</depend>
+  <depend>vortex_utils_ros</depend>
   <export>
     <build_type>ament_cmake</build_type>
   </export>
