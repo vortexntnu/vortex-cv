@@ -17,6 +17,7 @@ find_package(geometry_msgs REQUIRED)
 add_library(vortex_yasmin_utils
   src/converge_state.cpp
   src/landmark_polling_state.cpp
+  src/service_trigger_wait_state.cpp
 )
 
 target_include_directories(vortex_yasmin_utils PUBLIC
