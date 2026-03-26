@@ -18,7 +18,7 @@ find_package(std_srvs REQUIRED)
 add_library(vortex_yasmin_utils
   src/landmark_converge_state.cpp
   src/landmark_polling_state.cpp
-  src/trigger_wait_state.cpp
+  src/service_trigger_wait_state.cpp
 )
 
 target_include_directories(vortex_yasmin_utils PUBLIC

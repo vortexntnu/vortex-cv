@@ -1,5 +1,5 @@
-#ifndef VORTEX_YASMIN_UTILS__TRIGGER_WAIT_STATE_HPP_
-#define VORTEX_YASMIN_UTILS__TRIGGER_WAIT_STATE_HPP_
+#ifndef VORTEX_YASMIN_UTILS__SERVICE_TRIGGER_WAIT_STATE_HPP_
+#define VORTEX_YASMIN_UTILS__SERVICE_TRIGGER_WAIT_STATE_HPP_
 
 #include <chrono>
 #include <condition_variable>
@@ -24,11 +24,11 @@ namespace vortex_yasmin_utils {
  * @param timeout       How long to wait before timing out.
  *                      A duration of zero (default) means wait indefinitely.
  */
-class TriggerWaitState : public yasmin::State {
+class ServiceTriggerWaitState : public yasmin::State {
    public:
-    explicit TriggerWaitState(const std::string& service_name,
-                              std::chrono::duration<double> timeout =
-                                  std::chrono::duration<double>(0));
+    explicit ServiceTriggerWaitState(const std::string& service_name,
+                                     std::chrono::duration<double> timeout =
+                                         std::chrono::duration<double>(0));
 
     std::string execute(yasmin::Blackboard::SharedPtr blackboard) override;
     void cancel_state() override;
@@ -51,4 +51,4 @@ class TriggerWaitState : public yasmin::State {
 
 }  // namespace vortex_yasmin_utils
 
-#endif  // VORTEX_YASMIN_UTILS__TRIGGER_WAIT_STATE_HPP_
+#endif  // VORTEX_YASMIN_UTILS__SERVICE_TRIGGER_WAIT_STATE_HPP_
