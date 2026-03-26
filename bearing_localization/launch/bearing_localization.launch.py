@@ -48,7 +48,7 @@ def launch_setup(context, *args, **kwargs):
 def generate_launch_description():
     profile_arg = DeclareLaunchArgument(
         "profile",
-        default_value="aruco",
+        default_value="default",
         description="Parameter profile to use. Options: default, aruco.",
     )
 

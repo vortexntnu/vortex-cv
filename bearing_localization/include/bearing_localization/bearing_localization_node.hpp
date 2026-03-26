@@ -4,7 +4,6 @@
 #include "bearing_localization/measurement_buffer.hpp"
 #include "bearing_localization/ray_measurement.hpp"
 #include "bearing_localization/triangulation_solver.hpp"
-#include "vortex/utils/ros/qos_profiles.hpp"
 
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
@@ -14,6 +13,7 @@
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <vortex_msgs/msg/landmark_array.hpp>
 #include <vortex_msgs/msg/vector3_array.hpp>
+#include "vortex/utils/ros/qos_profiles.hpp"
 
 #include <string>
 #include <vector>
