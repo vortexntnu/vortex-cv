@@ -18,16 +18,19 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(yaml-cpp REQUIRED)
 find_package(vortex_msgs REQUIRED)
 find_package(vortex_utils_ros REQUIRED)
+find_package(spdlog REQUIRED)
 
 include_directories(include)
 
-
+# --- ROS-independent library ---
 add_library(bearing_localization_core SHARED
-  src/measurement_buffer.cpp
-  src/triangulation_solver.cpp
-  src/geometry_checks.cpp
+  src/lib/measurement_buffer.cpp
+  src/lib/triangulation_solver.cpp
+  src/lib/geometry_checks.cpp
+  src/lib/bearing_localizer.cpp
 )
 
 target_include_directories(bearing_localization_core
@@ -37,14 +40,16 @@ target_include_directories(bearing_localization_core
   ${EIGEN3_INCLUDE_DIRS}
 )
 
-ament_target_dependencies(bearing_localization_core
-  rclcpp
-  Eigen3
+target_link_libraries(bearing_localization_core
+  yaml-cpp
+  spdlog::spdlog
 )
 
+# --- ROS node executable ---
 add_executable(bearing_localization_node
-  src/main.cpp
-  src/bearing_localization_node.cpp
+  src/ros/main.cpp
+  src/ros/bearing_localization_node.cpp
+  src/ros/debug_markers.cpp
 )
 
 target_include_directories(bearing_localization_node

@@ -1,4 +1,4 @@
-#include "bearing_localization/triangulation_solver.hpp"
+#include "bearing_localization/lib/triangulation_solver.hpp"
 
 #include <algorithm>
 #include <numeric>

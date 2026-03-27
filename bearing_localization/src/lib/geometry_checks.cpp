@@ -1,4 +1,4 @@
-#include "bearing_localization/geometry_checks.hpp"
+#include "bearing_localization/lib/geometry_checks.hpp"
 
 #include <cmath>
 

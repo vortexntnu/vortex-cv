@@ -29,6 +29,12 @@ def launch_setup(context, *args, **kwargs):
 
     profile = LaunchConfiguration("profile").perform(context)
 
+    config_file = os.path.join(
+        FindPackageShare("bearing_localization").perform(context),
+        "config",
+        f"{profile}.yaml",
+    )
+
     node = Node(
         package="bearing_localization",
         executable="bearing_localization_node",
@@ -38,7 +44,7 @@ def launch_setup(context, *args, **kwargs):
         parameters=[
             robot_config,
             bearing_config,
-            {"profile": profile},
+            {"config_file": config_file},
         ],
     )
 

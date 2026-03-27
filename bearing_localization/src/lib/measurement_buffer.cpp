@@ -1,4 +1,4 @@
-#include "bearing_localization/measurement_buffer.hpp"
+#include "bearing_localization/lib/measurement_buffer.hpp"
 
 #include <utility>
 
@@ -14,15 +14,14 @@ void MeasurementBuffer::add(const RayMeasurement& ray) {
     }
 }
 
-void MeasurementBuffer::prune(const rclcpp::Time& now) {
-    const rclcpp::Time cutoff =
-        now - rclcpp::Duration::from_seconds(max_age_sec_);
+void MeasurementBuffer::prune(double now_sec) {
+    const double cutoff = now_sec - max_age_sec_;
 
     std::vector<RayMeasurement> kept;
     kept.reserve(buffer_.size());
 
     for (const auto& ray : buffer_) {
-        if (ray.stamp >= cutoff) {
+        if (ray.stamp_sec >= cutoff) {
             kept.push_back(ray);
         }
     }

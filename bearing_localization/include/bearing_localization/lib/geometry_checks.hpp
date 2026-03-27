@@ -1,6 +1,7 @@
-#pragma once
+#ifndef BEARING_LOCALIZATION__LIB__GEOMETRY_CHECKS_HPP_
+#define BEARING_LOCALIZATION__LIB__GEOMETRY_CHECKS_HPP_
 
-#include "bearing_localization/ray_measurement.hpp"
+#include "bearing_localization/lib/ray_measurement.hpp"
 
 #include <Eigen/Dense>
 #include <string>
@@ -15,24 +16,18 @@ class GeometryChecks {
         std::string reason;
     };
 
-    /// Require at least min_rays measurements.
     static CheckResult check_minimum_rays(
         const std::vector<RayMeasurement>& rays,
         size_t min_rays);
 
-    /// Require the farthest pair of ray origins to be at least min_baseline_m
-    /// apart.
     static CheckResult check_minimum_baseline(
         const std::vector<RayMeasurement>& rays,
         double min_baseline_m);
 
-    /// Require the widest angle between any two ray directions to exceed
-    /// min_angle_deg.
     static CheckResult check_angular_spread(
         const std::vector<RayMeasurement>& rays,
         double min_angle_deg);
 
-    /// Require at least min_fraction of rays to have positive depth
     static CheckResult check_positive_depth(
         const std::vector<RayMeasurement>& rays,
         const Eigen::Vector3d& point,
@@ -48,3 +43,5 @@ class GeometryChecks {
 };
 
 }  // namespace bearing_localization
+
+#endif  // BEARING_LOCALIZATION__LIB__GEOMETRY_CHECKS_HPP_

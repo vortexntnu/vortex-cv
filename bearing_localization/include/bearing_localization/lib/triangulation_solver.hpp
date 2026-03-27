@@ -1,6 +1,7 @@
-#pragma once
+#ifndef BEARING_LOCALIZATION__LIB__TRIANGULATION_SOLVER_HPP_
+#define BEARING_LOCALIZATION__LIB__TRIANGULATION_SOLVER_HPP_
 
-#include "bearing_localization/ray_measurement.hpp"
+#include "bearing_localization/lib/ray_measurement.hpp"
 
 #include <Eigen/Dense>
 #include <optional>
@@ -34,3 +35,5 @@ class TriangulationSolver {
 };
 
 }  // namespace bearing_localization
+
+#endif  // BEARING_LOCALIZATION__LIB__TRIANGULATION_SOLVER_HPP_

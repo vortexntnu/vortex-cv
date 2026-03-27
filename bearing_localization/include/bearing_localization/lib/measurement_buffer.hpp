@@ -1,21 +1,19 @@
-#pragma once
+#ifndef BEARING_LOCALIZATION__LIB__MEASUREMENT_BUFFER_HPP_
+#define BEARING_LOCALIZATION__LIB__MEASUREMENT_BUFFER_HPP_
 
-#include "bearing_localization/ray_measurement.hpp"
+#include "bearing_localization/lib/ray_measurement.hpp"
 
-#include <rclcpp/rclcpp.hpp>
 #include <vector>
 
 namespace bearing_localization {
 
-/// Stores a sliding window of RayMeasurements.
 class MeasurementBuffer {
    public:
     MeasurementBuffer(size_t window_size, double max_age_sec);
 
     void add(const RayMeasurement& ray);
 
-    /// Remove entries older than max_age_sec relative to now.
-    void prune(const rclcpp::Time& now);
+    void prune(double now_sec);
 
     void remove_indices(const std::vector<size_t>& indices);
 
@@ -31,3 +29,5 @@ class MeasurementBuffer {
 };
 
 }  // namespace bearing_localization
+
+#endif  // BEARING_LOCALIZATION__LIB__MEASUREMENT_BUFFER_HPP_

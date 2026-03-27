@@ -1,4 +1,4 @@
-#include "bearing_localization/bearing_localization_node.hpp"
+#include "bearing_localization/ros/bearing_localization_node.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 

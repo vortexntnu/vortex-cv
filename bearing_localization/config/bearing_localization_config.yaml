@@ -4,27 +4,3 @@
       bearing_measurement: bearing_measurement # Single bearing input
       bearing_array: /aruco_detector/marker_directions # Array bearing input
       bearing_localization_markers: bearing_localization/markers # Debug markers
-
-    # Default values
-    target_frame: orca/odom # TF frame to transform measurements into
-    window_size: 30 # Max number of measurements kept in buffer
-    max_measurement_age_sec: 5.0 # Remove measurements older than this (s)
-    min_measurements: 5 # Min measurements needed to triangulate
-    min_baseline_m: 0.5 # Min distance between first and last measurement (m)
-    min_ray_angle_deg: 5.0 # Min angle between rays to accept solution (deg)
-    outlier_residual_threshold_m: 1.0 # Residual above this marks a measurement as outlier (m)
-    max_outlier_iterations: 2 # Max rounds of outlier rejection
-    publish_markers: true # Publish Foxglove markers for debugging
-    landmark_type: 3 # Landmark type ID sent in output message
-    landmark_subtype: 2 # Landmark subtype ID sent in output message
-
-    aruco:
-      target_frame: orca/odom
-      window_size: 15
-      max_measurement_age_sec: 2
-      min_measurements: 4
-      min_baseline_m: 0.1
-      min_ray_angle_deg: 1.0
-      outlier_residual_threshold_m: 0.1
-      max_outlier_iterations: 2
-      publish_markers: true
