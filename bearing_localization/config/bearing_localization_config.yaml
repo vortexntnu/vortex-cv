@@ -3,8 +3,6 @@
     target_frame: orca/odom # TF frame to transform measurements into
     publish_debug_markers: true # Publish Foxglove markers for debugging
     landmark_type: 3 # Landmark type ID sent in output message
-    landmark_subtype: 2 # Landmark subtype ID sent in output message
     topics:
-      bearing_measurement: bearing_measurement # Single bearing input
-      bearing_array: /aruco_detector/marker_directions # Array bearing input
+      bearing_measurements: bearing_measurements # BearingMeasurementArray input
       bearing_localization_markers: bearing_localization/markers # Debug markers

@@ -55,7 +55,7 @@ def generate_launch_description():
     profile_arg = DeclareLaunchArgument(
         "profile",
         default_value="default",
-        description="Parameter profile to use. Options: default, aruco.",
+        description="Parameter profile to use. Options: default, aruco, pinger.",
     )
 
     return LaunchDescription(

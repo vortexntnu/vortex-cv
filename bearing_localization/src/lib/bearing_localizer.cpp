@@ -50,8 +50,15 @@ std::optional<LocalizationResult> BearingLocalizer::solve(double now_sec) {
         return std::nullopt;
     }
 
+    Eigen::Vector3d smoothed = result.position;
+    if (prev_position_.has_value() && cfg_.ema_alpha < 1.0) {
+        smoothed = cfg_.ema_alpha * result.position +
+                   (1.0 - cfg_.ema_alpha) * prev_position_.value();
+    }
+    prev_position_ = smoothed;
+
     LocalizationResult loc_result;
-    loc_result.position = result.position;
+    loc_result.position = smoothed;
     loc_result.mean_residual = result.mean_residual;
     loc_result.inlier_rays = std::move(inlier_rays);
     return loc_result;

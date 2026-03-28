@@ -27,7 +27,9 @@ struct BearingLocalizationConfig {
     double outlier_residual_threshold_m =
         1.0;  // Residual above this marks a measurement as outlier (m).
     int max_outlier_iterations =
-        2;  // Max rounds of iterative outlier rejection.
+        2;                   // Max rounds of iterative outlier rejection.
+    double ema_alpha = 1.0;  // EMA smoothing factor (1.0 = no smoothing, 0.0 =
+                             // fully smoothed).
 
     /**
      * @brief Load configuration from a YAML file.
@@ -62,6 +64,8 @@ struct BearingLocalizationConfig {
         if (yaml["max_outlier_iterations"])
             cfg.max_outlier_iterations =
                 yaml["max_outlier_iterations"].as<int>();
+        if (yaml["ema_alpha"])
+            cfg.ema_alpha = yaml["ema_alpha"].as<double>();
         return cfg;
     }
 };

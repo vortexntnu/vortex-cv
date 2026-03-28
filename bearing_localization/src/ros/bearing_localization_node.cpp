@@ -20,9 +20,6 @@ BearingLocalizationNode::BearingLocalizationNode(
     node_cfg_.publish_debug_markers =
         get_parameter("publish_debug_markers").as_bool();
     node_cfg_.landmark_type = get_parameter("landmark_type").as_int();
-    node_cfg_.landmark_subtype = get_parameter("landmark_subtype").as_int();
-
-    localizer_ = std::make_unique<BearingLocalizer>(cfg_);
 
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
@@ -37,29 +34,22 @@ BearingLocalizationNode::BearingLocalizationNode(
 
 void BearingLocalizationNode::declare_parameters() {
     declare_parameter<std::string>("config_file");
-    declare_parameter<std::string>("target_frame", "orca/odom");
-    declare_parameter<bool>("publish_debug_markers", true);
-    declare_parameter<int>("landmark_type", 0);
-    declare_parameter<int>("landmark_subtype", 0);
+    declare_parameter<std::string>("target_frame");
+    declare_parameter<bool>("publish_debug_markers");
+    declare_parameter<int>("landmark_type");
 
-    declare_parameter<std::string>("topics.bearing_measurement");
-    declare_parameter<std::string>("topics.bearing_array");
+    declare_parameter<std::string>("topics.bearing_measurements");
     declare_parameter<std::string>("topics.landmarks");
     declare_parameter<std::string>("topics.bearing_localization_markers");
 }
 
 void BearingLocalizationNode::setup_pubsub() {
-    bearing_sub_ = create_subscription<geometry_msgs::msg::Vector3Stamped>(
-        get_parameter("topics.bearing_measurement").as_string(),
-        vortex::utils::qos_profiles::sensor_data_profile(1),
-        std::bind(&BearingLocalizationNode::bearing_callback, this,
-                  std::placeholders::_1));
-
-    bearing_array_sub_ = create_subscription<vortex_msgs::msg::Vector3Array>(
-        get_parameter("topics.bearing_array").as_string(),
-        vortex::utils::qos_profiles::sensor_data_profile(1),
-        std::bind(&BearingLocalizationNode::bearing_array_callback, this,
-                  std::placeholders::_1));
+    bearing_sub_ =
+        create_subscription<vortex_msgs::msg::BearingMeasurementArray>(
+            get_parameter("topics.bearing_measurements").as_string(),
+            vortex::utils::qos_profiles::sensor_data_profile(1),
+            std::bind(&BearingLocalizationNode::bearing_callback, this,
+                      std::placeholders::_1));
 
     if (node_cfg_.publish_debug_markers) {
         markers_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
@@ -73,62 +63,70 @@ void BearingLocalizationNode::setup_pubsub() {
 }
 
 void BearingLocalizationNode::bearing_callback(
-    const geometry_msgs::msg::Vector3Stamped::SharedPtr msg) {
-    process_bearing(msg->vector, msg->header);
+    const vortex_msgs::msg::BearingMeasurementArray::SharedPtr msg) {
+    std::unordered_map<int32_t, bool> updated_targets;
 
-    auto result = localizer_->solve(now().seconds());
-    if (!result) {
-        return;
+    for (const auto& measurement : msg->bearings) {
+        const auto& bearing = measurement.bearing;
+        auto ray = transform_bearing(bearing.vector, bearing.header,
+                                     measurement.weight);
+        if (!ray) {
+            continue;
+        }
+
+        const int32_t target_id = measurement.target_id;
+        get_localizer(target_id).add_measurement(*ray);
+        updated_targets[target_id] = true;
     }
-    publish_result(*result);
-    if (node_cfg_.publish_debug_markers && markers_pub_) {
-        markers_pub_->publish(
-            build_debug_markers(*result, node_cfg_.target_frame, now()));
+
+    for (const auto& [target_id, _] : updated_targets) {
+        auto result = get_localizer(target_id).solve(now().seconds());
+        if (!result) {
+            continue;
+        }
+        publish_result(*result, target_id);
+        if (node_cfg_.publish_debug_markers && markers_pub_) {
+            markers_pub_->publish(
+                build_debug_markers(*result, node_cfg_.target_frame, now()));
+        }
     }
 }
 
-void BearingLocalizationNode::bearing_array_callback(
-    const vortex_msgs::msg::Vector3Array::SharedPtr msg) {
-    for (const auto& vec : msg->vectors) {
-        process_bearing(vec, msg->header);
-    }
-
-    auto result = localizer_->solve(now().seconds());
-    if (!result) {
-        return;
-    }
-    publish_result(*result);
-    if (node_cfg_.publish_debug_markers && markers_pub_) {
-        markers_pub_->publish(
-            build_debug_markers(*result, node_cfg_.target_frame, now()));
-    }
-}
-
-bool BearingLocalizationNode::process_bearing(
+std::optional<RayMeasurement> BearingLocalizationNode::transform_bearing(
     const geometry_msgs::msg::Vector3& vec,
-    const std_msgs::msg::Header& header) {
+    const std_msgs::msg::Header& header,
+    double weight) {
     Eigen::Vector3d dir(vec.x, vec.y, vec.z);
     const double norm = dir.norm();
     if (!std::isfinite(norm) || norm < 1e-6) {
         spdlog::warn("Invalid direction vector (norm={:.6f}), skipping.", norm);
-        return false;
+        return std::nullopt;
     }
     dir /= norm;
 
     const std::string& source_frame = header.frame_id;
     if (source_frame.empty()) {
         spdlog::warn("Received measurement with empty frame_id, skipping.");
-        return false;
+        return std::nullopt;
     }
 
     geometry_msgs::msg::TransformStamped tf_stamped;
     try {
         tf_stamped = tf_buffer_->lookupTransform(
-            node_cfg_.target_frame, source_frame, tf2::TimePointZero);
+            node_cfg_.target_frame, source_frame, rclcpp::Time(header.stamp));
+    } catch (const tf2::ExtrapolationException&) {
+        try {
+            tf_stamped = tf_buffer_->lookupTransform(
+                node_cfg_.target_frame, source_frame, tf2::TimePointZero);
+        } catch (const tf2::TransformException& ex) {
+            spdlog::warn("TF lookup failed ({} -> {}): {}", source_frame,
+                         node_cfg_.target_frame, ex.what());
+            return std::nullopt;
+        }
     } catch (const tf2::TransformException& ex) {
         spdlog::warn("TF lookup failed ({} -> {}): {}", source_frame,
                      node_cfg_.target_frame, ex.what());
-        return false;
+        return std::nullopt;
     }
 
     const auto& rot = tf_stamped.transform.rotation;
@@ -142,11 +140,22 @@ bool BearingLocalizationNode::process_bearing(
     ray.stamp_sec = rclcpp::Time(header.stamp).seconds();
     ray.origin_world = origin;
     ray.direction_world = dir_world;
-    localizer_->add_measurement(ray);
-    return true;
+    ray.weight = weight;
+    return ray;
 }
 
-void BearingLocalizationNode::publish_result(const LocalizationResult& result) {
+BearingLocalizer& BearingLocalizationNode::get_localizer(int32_t target_id) {
+    auto it = target_localizers_.find(target_id);
+    if (it != target_localizers_.end()) {
+        return *it->second;
+    }
+    auto [inserted, _] = target_localizers_.emplace(
+        target_id, std::make_unique<BearingLocalizer>(cfg_));
+    return *inserted->second;
+}
+
+void BearingLocalizationNode::publish_result(const LocalizationResult& result,
+                                             int32_t target_id) {
     auto stamp = now();
 
     vortex_msgs::msg::Landmark landmark;
@@ -154,7 +163,7 @@ void BearingLocalizationNode::publish_result(const LocalizationResult& result) {
     landmark.header.frame_id = node_cfg_.target_frame;
     landmark.id = 0;
     landmark.type.value = static_cast<uint16_t>(node_cfg_.landmark_type);
-    landmark.subtype.value = static_cast<uint16_t>(node_cfg_.landmark_subtype);
+    landmark.subtype.value = static_cast<uint16_t>(target_id);
     landmark.pose.pose.position.x = result.position.x();
     landmark.pose.pose.position.y = result.position.y();
     landmark.pose.pose.position.z = result.position.z();

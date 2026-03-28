@@ -5,3 +5,4 @@ min_baseline_m: 0.5 # Min distance between first and last measurement (m)
 min_ray_angle_deg: 5.0 # Min angle between rays to accept solution (deg)
 outlier_residual_threshold_m: 1.0 # Residual above this marks a measurement as outlier (m)
 max_outlier_iterations: 2 # Max rounds of outlier rejection
+ema_alpha: 0.5 # EMA smoothing factor (1.0 = no smoothing, lower = smoother)

@@ -56,6 +56,7 @@ class BearingLocalizer {
     BearingLocalizationConfig cfg_;
     MeasurementBuffer buffer_;
     TriangulationSolver solver_;
+    std::optional<Eigen::Vector3d> prev_position_;
 };
 
 }  // namespace bearing_localization
