@@ -15,23 +15,23 @@ namespace valve_detection {
  * typically rectified before publication by the camera driver.
  */
 void project_pixel_to_point(int u,
-                             int v,
-                             float depth,
-                             double fx,
-                             double fy,
-                             double cx,
-                             double cy,
-                             pcl::PointXYZ& out);
+                            int v,
+                            float depth,
+                            double fx,
+                            double fy,
+                            double cx,
+                            double cy,
+                            pcl::PointXYZ& out);
 
 // Projects a color image pixel to depth image coordinates.
 // u_c, v_c: pixel coordinates in the color image.
 // Z:        depth of the point in the color camera frame (metres).
 cv::Point2f project_color_pixel_to_depth(float u_c,
-                                          float v_c,
-                                          float Z,
-                                          const ImageProperties& color_props,
-                                          const ImageProperties& depth_props,
-                                          const DepthColorExtrinsic& extr);
+                                         float v_c,
+                                         float Z,
+                                         const ImageProperties& color_props,
+                                         const ImageProperties& depth_props,
+                                         const DepthColorExtrinsic& extr);
 
 }  // namespace valve_detection
 

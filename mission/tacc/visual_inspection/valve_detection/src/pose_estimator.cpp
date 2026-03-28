@@ -207,10 +207,13 @@ DetectionResult PoseEstimator::compute_pose_from_depth(
     const BoundingBox& bbox_org,
     DetectorMode mode) const {
     // Reject bounding boxes whose center projects entirely outside the depth
-    // image.  The scale factor maps from color pixel space to depth pixel space.
+    // image.  The scale factor maps from color pixel space to depth pixel
+    // space.
     const float scale =
-        (depth_image_properties_.intr.fx > 0.0 && color_image_properties_.intr.fx > 0.0)
-            ? static_cast<float>(depth_image_properties_.intr.fx / color_image_properties_.intr.fx)
+        (depth_image_properties_.intr.fx > 0.0 &&
+         color_image_properties_.intr.fx > 0.0)
+            ? static_cast<float>(depth_image_properties_.intr.fx /
+                                 color_image_properties_.intr.fx)
             : 1.0f;
     const float u_d = bbox_org.center_x * scale;
     const float v_d = bbox_org.center_y * scale;
@@ -244,8 +247,7 @@ DetectionResult PoseEstimator::compute_pose_from_depth(
         return {};
 
     if (mode == DetectorMode::debug) {
-        result.plane_cloud =
-            std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+        result.plane_cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
         for (int idx : inliers->indices)
             result.plane_cloud->points.push_back(cloud->points[idx]);
         result.plane_cloud->width =
@@ -280,14 +282,13 @@ DetectionResult PoseEstimator::compute_pose_from_depth(
     if (pos.isZero())
         return {};
 
-    const Eigen::Vector3f pos_shifted =
-        shift_point_along_normal(pos, normal);
+    const Eigen::Vector3f pos_shifted = shift_point_along_normal(pos, normal);
     const Eigen::Matrix3f rot = create_rotation_matrix_depth(
         coeff, normal, bbox_org.theta, color_origin_in_depth_frame,
         R_depth_from_color);
-    result.pose = Pose::from_eigen(
-        pos_shifted.cast<double>(),
-        Eigen::Quaternionf(rot).normalized().cast<double>());
+    result.pose =
+        Pose::from_eigen(pos_shifted.cast<double>(),
+                         Eigen::Quaternionf(rot).normalized().cast<double>());
     result.valid = true;
     return result;
 }

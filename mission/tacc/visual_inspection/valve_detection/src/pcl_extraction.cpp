@@ -241,9 +241,9 @@ void extract_bbox_pcl_depth(const cv::Mat& depth_image,
 
     std::vector<cv::Point2f> depth_corners(4);
     for (int i = 0; i < 4; ++i) {
-        depth_corners[i] =
-            project_color_pixel_to_depth(color_corners[i].x, color_corners[i].y,
-                                         Z_est, color_props, depth_props, extrinsic);
+        depth_corners[i] = project_color_pixel_to_depth(
+            color_corners[i].x, color_corners[i].y, Z_est, color_props,
+            depth_props, extrinsic);
     }
 
     // Fit a rotated rect to the 4 projected corners in depth image space.

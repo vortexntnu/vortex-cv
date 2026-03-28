@@ -3,6 +3,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
+#include <utility>
 
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/msg/pose_array.hpp>
@@ -62,12 +63,11 @@ class ValvePoseNode : public rclcpp::Node {
     void publish_empty_results(const std_msgs::msg::Header& header) const;
     cv::Mat build_depth_colormap(
         const sensor_msgs::msg::Image::ConstSharedPtr& depth) const;
-    void publish_debug(
-        const sensor_msgs::msg::Image::ConstSharedPtr& depth,
-        const std::vector<BoundingBox>& boxes,
-        const std::vector<Pose>& poses,
-        const pcl::PointCloud<pcl::PointXYZ>& ann_cloud,
-        const pcl::PointCloud<pcl::PointXYZ>& pln_cloud) const;
+    void publish_debug(const sensor_msgs::msg::Image::ConstSharedPtr& depth,
+                       const std::vector<BoundingBox>& boxes,
+                       const std::vector<Pose>& poses,
+                       const pcl::PointCloud<pcl::PointXYZ>& ann_cloud,
+                       const pcl::PointCloud<pcl::PointXYZ>& pln_cloud) const;
 
     using SyncPolicy = message_filters::sync_policies::ApproximateTime<
         sensor_msgs::msg::Image,

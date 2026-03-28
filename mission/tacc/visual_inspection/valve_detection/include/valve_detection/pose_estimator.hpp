@@ -44,11 +44,12 @@ class PoseEstimator {
     void set_depth_image_properties(const ImageProperties& props);
     void set_depth_color_extrinsic(const DepthColorExtrinsic& extr);
 
-    /// @brief Computes letterbox scale and padding from color image dimensions and YOLO input size.
-    /// Must be called after set_color_image_properties().
+    /// @brief Computes letterbox scale and padding from color image dimensions
+    /// and YOLO input size. Must be called after set_color_image_properties().
     void compute_letterbox_transform();
 
-    /// @brief Remaps a bounding box from YOLO letterbox coordinates to original image coordinates.
+    /// @brief Remaps a bounding box from YOLO letterbox coordinates to original
+    /// image coordinates.
     BoundingBox letterbox_to_image_coords(const BoundingBox& bbox) const;
 
     DetectionResult compute_pose_from_depth(

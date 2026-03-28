@@ -27,11 +27,13 @@ void ValvePoseNode::declare_params() {
     iou_duplicate_threshold_ = static_cast<float>(
         declare_parameter<double>("iou_duplicate_threshold"));
 
-    const std::string frame_base = declare_parameter<std::string>("output_frame_id");
+    const std::string frame_base =
+        declare_parameter<std::string>("output_frame_id");
     if (frame_base.empty()) {
         throw std::runtime_error("output_frame_id must not be empty");
     }
-    const std::string drone = declare_parameter<std::string>("drone", "nautilus");
+    const std::string drone =
+        declare_parameter<std::string>("drone", "nautilus");
     output_frame_id_ = drone + "/" + frame_base;
 
     // Estimator config params
@@ -43,8 +45,10 @@ void ValvePoseNode::declare_params() {
     handle_offset_ = declare_parameter<float>("valve_handle_offset");
 
     // TF frame IDs for the depth-to-color extrinsic lookup.
-    const std::string depth_frame_base = declare_parameter<std::string>("depth_frame_id");
-    const std::string color_frame_base = declare_parameter<std::string>("color_frame_id");
+    const std::string depth_frame_base =
+        declare_parameter<std::string>("depth_frame_id");
+    const std::string color_frame_base =
+        declare_parameter<std::string>("color_frame_id");
     depth_frame_id_ = drone + "/" + depth_frame_base;
     color_frame_id_ = drone + "/" + color_frame_base;
 
@@ -53,32 +57,46 @@ void ValvePoseNode::declare_params() {
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
     // Periodically attempt to look up the static transform until it arrives.
-    extrinsic_timer_ = create_wall_timer(
-        std::chrono::milliseconds(500),
-        std::bind(&ValvePoseNode::lookup_extrinsic, this));
+    extrinsic_timer_ =
+        create_wall_timer(std::chrono::milliseconds(500),
+                          std::bind(&ValvePoseNode::lookup_extrinsic, this));
 
     if (debug_visualize_) {
-        const auto pose_topic = declare_parameter<std::string>("debug.valve_poses_pub_topic");
-        const auto depth_cloud_topic = declare_parameter<std::string>("debug.depth_cloud_pub_topic");
-        const auto depth_color_topic = declare_parameter<std::string>("debug.depth_colormap_pub_topic");
-        const auto ann_topic = declare_parameter<std::string>("debug.annulus_pub_topic");
-        const auto pln_topic = declare_parameter<std::string>("debug.plane_pub_topic");
-        depth_colormap_vmin_ = static_cast<float>(declare_parameter<double>("debug.depth_colormap_value_min"));
-        depth_colormap_vmax_ = static_cast<float>(declare_parameter<double>("debug.depth_colormap_value_max"));
+        const auto pose_topic =
+            declare_parameter<std::string>("debug.valve_poses_pub_topic");
+        const auto depth_cloud_topic =
+            declare_parameter<std::string>("debug.depth_cloud_pub_topic");
+        const auto depth_color_topic =
+            declare_parameter<std::string>("debug.depth_colormap_pub_topic");
+        const auto ann_topic =
+            declare_parameter<std::string>("debug.annulus_pub_topic");
+        const auto pln_topic =
+            declare_parameter<std::string>("debug.plane_pub_topic");
+        depth_colormap_vmin_ = static_cast<float>(
+            declare_parameter<double>("debug.depth_colormap_value_min"));
+        depth_colormap_vmax_ = static_cast<float>(
+            declare_parameter<double>("debug.depth_colormap_value_max"));
 
-        const auto qos = rclcpp::QoS(rclcpp::KeepLast(10))
-                             .reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
-        pose_pub_ = create_publisher<geometry_msgs::msg::PoseArray>(pose_topic, qos);
-        depth_cloud_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(depth_cloud_topic, qos);
-        depth_colormap_pub_ = create_publisher<sensor_msgs::msg::Image>(depth_color_topic, qos);
-        annulus_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(ann_topic, qos);
-        plane_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(pln_topic, qos);
+        const auto qos =
+            rclcpp::QoS(rclcpp::KeepLast(10))
+                .reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
+        pose_pub_ =
+            create_publisher<geometry_msgs::msg::PoseArray>(pose_topic, qos);
+        depth_cloud_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
+            depth_cloud_topic, qos);
+        depth_colormap_pub_ =
+            create_publisher<sensor_msgs::msg::Image>(depth_color_topic, qos);
+        annulus_pub_ =
+            create_publisher<sensor_msgs::msg::PointCloud2>(ann_topic, qos);
+        plane_pub_ =
+            create_publisher<sensor_msgs::msg::PointCloud2>(pln_topic, qos);
     }
 
     const auto lm_topic = declare_parameter<std::string>("landmarks_pub_topic");
     const auto qos = rclcpp::QoS(rclcpp::KeepLast(10))
                          .reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
-    landmark_pub_ = create_publisher<vortex_msgs::msg::LandmarkArray>(lm_topic, qos);
+    landmark_pub_ =
+        create_publisher<vortex_msgs::msg::LandmarkArray>(lm_topic, qos);
 
     try_activate_detector();
 }
@@ -97,16 +115,17 @@ void ValvePoseNode::lookup_extrinsic() {
             static_cast<float>(q.w), static_cast<float>(q.x),
             static_cast<float>(q.y), static_cast<float>(q.z));
         depth_color_extrinsic_.R = quat.toRotationMatrix();
-        depth_color_extrinsic_.t = Eigen::Vector3f(
-            static_cast<float>(t.x), static_cast<float>(t.y),
-            static_cast<float>(t.z));
+        depth_color_extrinsic_.t =
+            Eigen::Vector3f(static_cast<float>(t.x), static_cast<float>(t.y),
+                            static_cast<float>(t.z));
 
         extrinsic_ready_ = true;
         extrinsic_timer_->cancel();
         RCLCPP_INFO(get_logger(),
-                    "Depth-to-color extrinsic loaded from TF (%s -> %s, t=[%.4f, %.4f, %.4f])",
-                    depth_frame_id_.c_str(), color_frame_id_.c_str(),
-                    t.x, t.y, t.z);
+                    "Depth-to-color extrinsic loaded from TF (%s -> %s, "
+                    "t=[%.4f, %.4f, %.4f])",
+                    depth_frame_id_.c_str(), color_frame_id_.c_str(), t.x, t.y,
+                    t.z);
 
         if (detector_) {
             detector_->set_depth_color_extrinsic(depth_color_extrinsic_);
@@ -114,19 +133,20 @@ void ValvePoseNode::lookup_extrinsic() {
             try_activate_detector();
         }
     } catch (const tf2::TransformException& ex) {
-        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
-                             "Waiting for TF: %s -> %s: %s",
-                             depth_frame_id_.c_str(), color_frame_id_.c_str(),
-                             ex.what());
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 5000, "Waiting for TF: %s -> %s: %s",
+            depth_frame_id_.c_str(), color_frame_id_.c_str(), ex.what());
     }
 }
 
 void ValvePoseNode::try_activate_detector() {
-    if (!color_props_ready_ || !depth_props_ready_ || !extrinsic_ready_ || detector_)
+    if (!color_props_ready_ || !depth_props_ready_ || !extrinsic_ready_ ||
+        detector_)
         return;
 
-    detector_ = std::make_unique<PoseEstimator>(
-        yolo_w_, yolo_h_, annulus_ratio_, ransac_thresh_, ransac_iters_, handle_offset_);
+    detector_ = std::make_unique<PoseEstimator>(yolo_w_, yolo_h_,
+                                                annulus_ratio_, ransac_thresh_,
+                                                ransac_iters_, handle_offset_);
     detector_->set_color_image_properties(color_props_);
     detector_->set_depth_image_properties(depth_props_);
     detector_->set_depth_color_extrinsic(depth_color_extrinsic_);
@@ -135,10 +155,14 @@ void ValvePoseNode::try_activate_detector() {
 }
 
 void ValvePoseNode::init_subscriptions() {
-    const auto depth_topic = declare_parameter<std::string>("depth_image_sub_topic");
-    const auto det_topic = declare_parameter<std::string>("detections_sub_topic");
-    const auto depth_info_topic = declare_parameter<std::string>("depth_image_info_topic");
-    const auto color_info_topic = declare_parameter<std::string>("color_image_info_topic");
+    const auto depth_topic =
+        declare_parameter<std::string>("depth_image_sub_topic");
+    const auto det_topic =
+        declare_parameter<std::string>("detections_sub_topic");
+    const auto depth_info_topic =
+        declare_parameter<std::string>("depth_image_info_topic");
+    const auto color_info_topic =
+        declare_parameter<std::string>("color_image_info_topic");
 
     const auto info_qos = rclcpp::QoS(rclcpp::KeepLast(1))
                               .reliability(RMW_QOS_POLICY_RELIABILITY_RELIABLE);
@@ -150,8 +174,9 @@ void ValvePoseNode::init_subscriptions() {
         depth_info_topic, info_qos,
         std::bind(&ValvePoseNode::depth_camera_info_cb, this, _1));
 
-    const auto data_qos = rclcpp::QoS(rclcpp::KeepLast(10))
-                              .reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
+    const auto data_qos =
+        rclcpp::QoS(rclcpp::KeepLast(10))
+            .reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
     depth_sub_.subscribe(this, depth_topic, data_qos.get_rmw_qos_profile());
     det_sub_.subscribe(this, det_topic, data_qos.get_rmw_qos_profile());
 
@@ -217,9 +242,10 @@ std::vector<std::pair<float, BoundingBox>> ValvePoseNode::collect_scored_boxes(
     std::vector<std::pair<float, BoundingBox>> boxes;
     boxes.reserve(det.detections.size());
     for (const auto& d : det.detections) {
-        const float score = d.results.empty()
-            ? static_cast<float>(d.bbox.size_x * d.bbox.size_y)
-            : static_cast<float>(d.results[0].hypothesis.score);
+        const float score =
+            d.results.empty()
+                ? static_cast<float>(d.bbox.size_x * d.bbox.size_y)
+                : static_cast<float>(d.results[0].hypothesis.score);
         boxes.emplace_back(score, to_bbox(d.bbox));
     }
     return boxes;
@@ -266,8 +292,9 @@ void ValvePoseNode::publish_debug(
         for (size_t i = 0; i < boxes.size(); ++i) {
             const auto& box = boxes[i];
 
-            // poses[i] is in the depth camera frame.  project_color_pixel_to_depth
-            // needs Z in the color camera frame, so transform the 3-D point first.
+            // poses[i] is in the depth camera frame.
+            // project_color_pixel_to_depth needs Z in the color camera frame,
+            // so transform the 3-D point first.
             const Eigen::Vector3f P_depth(static_cast<float>(poses[i].x),
                                           static_cast<float>(poses[i].y),
                                           static_cast<float>(poses[i].z));
@@ -277,16 +304,20 @@ void ValvePoseNode::publish_debug(
             if (Z_color <= 0.0f)
                 continue;
 
-            const float angle_deg = box.theta * 180.0f / static_cast<float>(M_PI);
+            const float angle_deg =
+                box.theta * 180.0f / static_cast<float>(M_PI);
             cv::RotatedRect rrect(cv::Point2f(box.center_x, box.center_y),
-                                  cv::Size2f(box.size_x, box.size_y), angle_deg);
+                                  cv::Size2f(box.size_x, box.size_y),
+                                  angle_deg);
             cv::Point2f corners[4];
             rrect.points(corners);
             for (auto& c : corners)
-                c = project_color_pixel_to_depth(c.x, c.y, Z_color, color_props_,
-                                                 depth_props_, depth_color_extrinsic_);
+                c = project_color_pixel_to_depth(c.x, c.y, Z_color,
+                                                 color_props_, depth_props_,
+                                                 depth_color_extrinsic_);
             for (int j = 0; j < 4; ++j)
-                cv::line(colormap, corners[j], corners[(j + 1) % 4], cv::Scalar(0, 255, 0), 2);
+                cv::line(colormap, corners[j], corners[(j + 1) % 4],
+                         cv::Scalar(0, 255, 0), 2);
         }
         depth_colormap_pub_->publish(
             *cv_bridge::CvImage(depth->header, "bgr8", colormap).toImageMsg());
@@ -321,13 +352,16 @@ void ValvePoseNode::sync_cb(
     if (det->detections.empty()) {
         publish_empty_results(pose_header);
         if (debug_visualize_ && depth_colormap_pub_)
-            depth_colormap_pub_->publish(*cv_bridge::CvImage(
-                depth->header, "bgr8", build_depth_colormap(depth)).toImageMsg());
+            depth_colormap_pub_->publish(
+                *cv_bridge::CvImage(depth->header, "bgr8",
+                                    build_depth_colormap(depth))
+                     .toImageMsg());
         return;
     }
 
     const cv::Mat depth_img = decode_depth_to_float(depth);
-    const DetectorMode mode = debug_visualize_ ? DetectorMode::debug : DetectorMode::standard;
+    const DetectorMode mode =
+        debug_visualize_ ? DetectorMode::debug : DetectorMode::standard;
 
     std::vector<BoundingBox> raw_boxes;
     std::vector<Pose> poses;
@@ -335,12 +369,16 @@ void ValvePoseNode::sync_cb(
 
     for (size_t idx : kept) {
         const BoundingBox& yolo_box = scored_boxes[idx].second;
-        // YOLO outputs in 640×640 letterbox space — convert to color image space first,
-        // then undistort. Both pcl extraction and ray casting use color intrinsics.
-        const BoundingBox color_box = detector_->letterbox_to_image_coords(yolo_box);
-        const BoundingBox org_box = undistort_bbox(color_box, color_props_.intr);
+        // YOLO outputs in 640×640 letterbox space — convert to color image
+        // space first, then undistort. Both pcl extraction and ray casting use
+        // color intrinsics.
+        const BoundingBox color_box =
+            detector_->letterbox_to_image_coords(yolo_box);
+        const BoundingBox org_box =
+            undistort_bbox(color_box, color_props_.intr);
 
-        const auto result = detector_->compute_pose_from_depth(depth_img, org_box, mode);
+        const auto result =
+            detector_->compute_pose_from_depth(depth_img, org_box, mode);
         if (!result.valid)
             continue;
 
@@ -348,8 +386,10 @@ void ValvePoseNode::sync_cb(
         raw_boxes.push_back(color_box);
         poses.push_back(result.pose);
         if (mode == DetectorMode::debug) {
-            if (result.annulus_cloud) ann_dbg += *result.annulus_cloud;
-            if (result.plane_cloud)   pln_dbg += *result.plane_cloud;
+            if (result.annulus_cloud)
+                ann_dbg += *result.annulus_cloud;
+            if (result.plane_cloud)
+                pln_dbg += *result.plane_cloud;
         }
     }
 

@@ -7,13 +7,12 @@
 
 namespace valve_detection {
 
-BoundingBox undistort_bbox(const BoundingBox& bbox, const CameraIntrinsics& intr) {
-    const cv::Mat K = (cv::Mat_<double>(3, 3) << intr.fx, 0, intr.cx,
-                                                  0, intr.fy, intr.cy,
-                                                  0, 0, 1);
+BoundingBox undistort_bbox(const BoundingBox& bbox,
+                           const CameraIntrinsics& intr) {
+    const cv::Mat K = (cv::Mat_<double>(3, 3) << intr.fx, 0, intr.cx, 0,
+                       intr.fy, intr.cy, 0, 0, 1);
     const cv::Mat D = (cv::Mat_<double>(5, 1) << intr.dist_k1, intr.dist_k2,
-                                                 intr.dist_p1, intr.dist_p2,
-                                                 intr.dist_k3);
+                       intr.dist_p1, intr.dist_p2, intr.dist_k3);
 
     const float cos_t = std::cos(bbox.theta);
     const float sin_t = std::sin(bbox.theta);
@@ -24,10 +23,10 @@ BoundingBox undistort_bbox(const BoundingBox& bbox, const CameraIntrinsics& intr
     // 4 edge midpoints of the OBB + center to anchor the undistorted box.
     std::vector<cv::Point2f> pts = {
         c,
-        c + cv::Point2f( hx * cos_t,  hx * sin_t),
+        c + cv::Point2f(hx * cos_t, hx * sin_t),
         c + cv::Point2f(-hx * cos_t, -hx * sin_t),
-        c + cv::Point2f(-hy * sin_t,  hy * cos_t),
-        c + cv::Point2f( hy * sin_t, -hy * cos_t),
+        c + cv::Point2f(-hy * sin_t, hy * cos_t),
+        c + cv::Point2f(hy * sin_t, -hy * cos_t),
     };
 
     std::vector<cv::Point2f> undistorted;
