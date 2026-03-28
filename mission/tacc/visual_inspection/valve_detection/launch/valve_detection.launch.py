@@ -17,14 +17,8 @@ def generate_launch_description():
 
     drone_arg = DeclareLaunchArgument(
         'drone',
-        default_value='moby',
+        default_value='nautilus',
         description='Robot name, prepended to TF frame IDs (e.g. moby, orca)',
-    )
-
-    debug_visualize_arg = DeclareLaunchArgument(
-        'debug_visualize',
-        default_value='false',
-        description='Enable debug visualization topics (valve_pose, valve_poses, annulus, plane)',
     )
 
     container = ComposableNodeContainer(
@@ -41,7 +35,6 @@ def generate_launch_description():
                     cfg,
                     {
                         'drone': LaunchConfiguration('drone'),
-                        'debug_visualize': LaunchConfiguration('debug_visualize'),
                     },
                 ],
             )
@@ -49,4 +42,4 @@ def generate_launch_description():
         output='screen',
     )
 
-    return LaunchDescription([drone_arg, debug_visualize_arg, container])
+    return LaunchDescription([drone_arg, container])

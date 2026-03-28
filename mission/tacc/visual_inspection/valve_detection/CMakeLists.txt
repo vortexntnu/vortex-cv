@@ -23,6 +23,9 @@ find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED)
 find_package(pcl_conversions REQUIRED)
 
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+
 find_package(vortex_msgs REQUIRED)
 find_package(vortex_utils REQUIRED)
 
@@ -32,6 +35,8 @@ set(LIB_NAME "${PROJECT_NAME}_component")
 
 add_library(${LIB_NAME} SHARED
   src/depth_image_processing.cpp
+  src/detection_utils.cpp
+  src/pcl_extraction.cpp
   src/pose_estimator.cpp
   src/ros_utils.cpp
   src/valve_pose_ros.cpp
@@ -60,6 +65,8 @@ ament_target_dependencies(${LIB_NAME} PUBLIC
   cv_bridge
   OpenCV
   pcl_conversions
+  tf2
+  tf2_ros
   vortex_msgs
   vortex_utils
 )

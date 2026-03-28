@@ -1,6 +1,7 @@
-#pragma once
+#ifndef VALVE_DETECTION__TYPES_HPP_
+#define VALVE_DETECTION__TYPES_HPP_
+
 #include <Eigen/Dense>
-#include <array>
 #include <cstdint>
 #include <vortex/utils/types.hpp>
 
@@ -9,7 +10,7 @@ namespace valve_detection {
 struct CameraIntrinsics {
     double fx{0}, fy{0}, cx{0}, cy{0};
     // Plumb-bob distortion coefficients [k1, k2, p1, p2, k3].
-    std::array<double, 5> dist{0, 0, 0, 0, 0};
+    double dist_k1{0}, dist_k2{0}, dist_p1{0}, dist_p2{0}, dist_k3{0};
 };
 
 struct ImageDimensions {
@@ -44,3 +45,5 @@ struct DepthColorExtrinsic {
 };
 
 }  // namespace valve_detection
+
+#endif  // VALVE_DETECTION__TYPES_HPP_

@@ -2,6 +2,9 @@
 // RANSAC plane fitting, normal/ray-plane intersection, and 3D pose computation.
 #include "valve_detection/pose_estimator.hpp"
 
+#include <opencv2/calib3d.hpp>
+#include <opencv2/imgproc.hpp>
+
 namespace valve_detection {
 
 // Initializes YOLO dimensions, annulus ratio, RANSAC parameters, and handle
@@ -27,7 +30,6 @@ void PoseEstimator::set_color_image_properties(const ImageProperties& props) {
 // Stores depth camera intrinsics and image dimensions.
 void PoseEstimator::set_depth_image_properties(const ImageProperties& props) {
     depth_image_properties_ = props;
-    has_depth_props_ = (props.intr.fx > 0.0);
 }
 
 // Stores the depth-to-color extrinsic transform.
@@ -37,7 +39,7 @@ void PoseEstimator::set_depth_color_extrinsic(const DepthColorExtrinsic& extr) {
 
 // Computes letterbox scale factor and padding from the color image and YOLO
 // dimensions.
-void PoseEstimator::calculate_letterbox_padding() {
+void PoseEstimator::compute_letterbox_transform() {
     int org_image_width = color_image_properties_.dim.width;
     int org_image_height = color_image_properties_.dim.height;
 
@@ -54,7 +56,7 @@ void PoseEstimator::calculate_letterbox_padding() {
 
 // Remaps a bounding box from YOLO letterbox space back to original image
 // coordinates.
-BoundingBox PoseEstimator::transform_bounding_box(
+BoundingBox PoseEstimator::letterbox_to_image_coords(
     const BoundingBox& bbox) const {
     BoundingBox transformed = bbox;
     transformed.center_x =
@@ -85,19 +87,6 @@ bool PoseEstimator::segment_plane(
     seg.segment(*inliers, *coefficients);
 
     return !inliers->indices.empty();
-}
-
-// Returns the normalized 3D ray direction from the camera origin through the
-// bbox center.
-Eigen::Vector3f PoseEstimator::get_ray_direction(
-    const BoundingBox& bbox) const {
-    const float xc =
-        (bbox.center_x - static_cast<float>(color_image_properties_.intr.cx)) /
-        static_cast<float>(color_image_properties_.intr.fx);
-    const float yc =
-        (bbox.center_y - static_cast<float>(color_image_properties_.intr.cy)) /
-        static_cast<float>(color_image_properties_.intr.fy);
-    return Eigen::Vector3f(xc, yc, 1.0f).normalized();
 }
 
 // Extracts and normalizes the plane normal, flipping it to face the camera.
@@ -148,66 +137,6 @@ Eigen::Vector3f PoseEstimator::shift_point_along_normal(
     return intersection_point + (plane_normal * valve_handle_offset_);
 }
 
-// Builds a 3×3 rotation matrix from the plane normal (Z) and the projected bbox
-// angle (X).
-Eigen::Matrix3f PoseEstimator::create_rotation_matrix(
-    const pcl::ModelCoefficients::Ptr& coefficients,
-    const Eigen::Vector3f& plane_normal,
-    float angle) const {
-    if (!coefficients || coefficients->values.size() < 4)
-        return Eigen::Matrix3f::Identity();
-
-    const Eigen::Vector3f z_axis = plane_normal;
-    const float D = coefficients->values[3];
-    const float fx = static_cast<float>(color_image_properties_.intr.fx);
-    const float fy = static_cast<float>(color_image_properties_.intr.fy);
-    const float cx = static_cast<float>(color_image_properties_.intr.cx);
-    const float cy = static_cast<float>(color_image_properties_.intr.cy);
-
-    Eigen::Matrix3f K;
-    K << fx, 0, cx, 0, fy, cy, 0, 0, 1;
-    const Eigen::Matrix3f Kinv = K.inverse();
-
-    // Two image points along the bbox angle through the principal point.
-    const float len = 50.0f;
-    const Eigen::Vector3f p1(cx, cy, 1.f);
-    const Eigen::Vector3f p2(cx + len * std::cos(angle),
-                             cy + len * std::sin(angle), 1.f);
-
-    // Back project points to rays.
-    const Eigen::Vector3f r1 = (Kinv * p1).normalized();
-    const Eigen::Vector3f r2 = (Kinv * p2).normalized();
-
-    // Compute intersections of rays with the plane.
-    const float denom1 = z_axis.dot(r1);
-    const float denom2 = z_axis.dot(r2);
-    if (std::abs(denom1) < 1e-6f || std::abs(denom2) < 1e-6f)
-        return Eigen::Matrix3f::Identity();
-
-    const Eigen::Vector3f X1 = (-D / denom1) * r1;
-    const Eigen::Vector3f X2 = (-D / denom2) * r2;
-
-    // Compute in-plane direction corresponding to the image line angle.
-    Eigen::Vector3f x_axis = (X2 - X1).normalized();
-
-    // Project onto the plane (for numerical stability).
-    x_axis = (x_axis - x_axis.dot(z_axis) * z_axis).normalized();
-
-    // Ensure consistent direction (avoid flipping frame between frames).
-    if (filter_direction_.dot(x_axis) < 0)
-        x_axis = -x_axis;
-    filter_direction_ = x_axis;
-
-    const Eigen::Vector3f y_axis = z_axis.cross(x_axis).normalized();
-    x_axis = y_axis.cross(z_axis).normalized();
-
-    Eigen::Matrix3f rot;
-    rot.col(0) = x_axis;  // X_obj: direction of the image line
-    rot.col(1) = y_axis;  // Y_obj: perpendicular in-plane
-    rot.col(2) = z_axis;  // Z_obj: plane normal
-    return rot;
-}
-
 // Builds a 3×3 rotation matrix from the plane normal (Z) and the projected
 // bbox angle (X), working entirely in the depth camera frame.  Color-image
 // rays are rotated into depth frame before intersecting the plane, and
@@ -217,7 +146,7 @@ Eigen::Matrix3f PoseEstimator::create_rotation_matrix_depth(
     const Eigen::Vector3f& plane_normal,
     float angle,
     const Eigen::Vector3f& ray_origin,
-    const Eigen::Matrix3f& R_dc) const {
+    const Eigen::Matrix3f& R_depth_from_color) const {
     if (!coefficients || coefficients->values.size() < 4)
         return Eigen::Matrix3f::Identity();
 
@@ -239,8 +168,8 @@ Eigen::Matrix3f PoseEstimator::create_rotation_matrix_depth(
                              cy + len * std::sin(angle), 1.f);
 
     // Back-project color pixels to rays, then rotate into depth frame.
-    const Eigen::Vector3f r1 = (R_dc * (Kinv * p1)).normalized();
-    const Eigen::Vector3f r2 = (R_dc * (Kinv * p2)).normalized();
+    const Eigen::Vector3f r1 = (R_depth_from_color * (Kinv * p1)).normalized();
+    const Eigen::Vector3f r2 = (R_depth_from_color * (Kinv * p2)).normalized();
 
     // Intersect each ray (from color origin in depth frame) with the plane.
     const float denom1 = z_axis.dot(r1);
@@ -273,102 +202,94 @@ Eigen::Matrix3f PoseEstimator::create_rotation_matrix_depth(
 
 // Extracts a point cloud from the depth image, fits a plane, and returns the
 // valve pose.
-PoseResult PoseEstimator::compute_pose_from_depth(
+DetectionResult PoseEstimator::compute_pose_from_depth(
     const cv::Mat& depth_image,
     const BoundingBox& bbox_org,
-    pcl::PointCloud<pcl::PointXYZ>::Ptr annulus_dbg,
-    pcl::PointCloud<pcl::PointXYZ>::Ptr plane_dbg,
-    bool debug_visualize) const {
+    DetectorMode mode) const {
+    // Reject bounding boxes whose center projects entirely outside the depth
+    // image.  The scale factor maps from color pixel space to depth pixel space.
+    const float scale =
+        (depth_image_properties_.intr.fx > 0.0 && color_image_properties_.intr.fx > 0.0)
+            ? static_cast<float>(depth_image_properties_.intr.fx / color_image_properties_.intr.fx)
+            : 1.0f;
+    const float u_d = bbox_org.center_x * scale;
+    const float v_d = bbox_org.center_y * scale;
+    if (u_d < 0.0f || u_d >= static_cast<float>(depth_image.cols) ||
+        v_d < 0.0f || v_d >= static_cast<float>(depth_image.rows))
+        return {};
+
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(
         new pcl::PointCloud<pcl::PointXYZ>);
 
-    if (has_depth_props_) {
-        // Extract points directly in the depth camera frame; only the OBB
-        // membership test is done in the color frame (a per-pixel projection
-        // that cannot be avoided without approximating the bbox in depth
-        // space).
-        extract_bbox_pcl_depth(depth_image, bbox_org, color_image_properties_,
-                               depth_image_properties_, depth_color_extrinsic_,
-                               cloud);
-    } else {
-        extract_annulus_pcl(depth_image, bbox_org, color_image_properties_,
-                            annulus_radius_ratio_, cloud);
-    }
+    // Extract points directly in the depth camera frame; only the OBB
+    // membership test is done in the color frame (a per-pixel projection
+    // that cannot be avoided without approximating the bbox in depth space).
+    extract_bbox_pcl_depth(depth_image, bbox_org, color_image_properties_,
+                           depth_image_properties_, depth_color_extrinsic_,
+                           cloud);
 
     if (cloud->points.size() < 4)
         return {};
 
-    if (debug_visualize && annulus_dbg)
-        *annulus_dbg += *cloud;
+    DetectionResult result;
+
+    if (mode == DetectorMode::debug) {
+        result.annulus_cloud =
+            std::make_shared<pcl::PointCloud<pcl::PointXYZ>>(*cloud);
+    }
 
     pcl::ModelCoefficients::Ptr coeff(new pcl::ModelCoefficients);
     pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
     if (!segment_plane(cloud, coeff, inliers))
         return {};
 
-    if (debug_visualize && plane_dbg) {
+    if (mode == DetectorMode::debug) {
+        result.plane_cloud =
+            std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
         for (int idx : inliers->indices)
-            plane_dbg->points.push_back(cloud->points[idx]);
-        plane_dbg->width = static_cast<uint32_t>(plane_dbg->points.size());
-        plane_dbg->height = 1;
-        plane_dbg->is_dense = false;
+            result.plane_cloud->points.push_back(cloud->points[idx]);
+        result.plane_cloud->width =
+            static_cast<uint32_t>(result.plane_cloud->points.size());
+        result.plane_cloud->height = 1;
+        result.plane_cloud->is_dense = false;
     }
 
-    PoseResult out;
+    // The color bbox center defines a ray that originates at the color
+    // camera, not the depth camera.  Express that ray in depth frame:
+    //   origin    = -R^T * t      (color camera origin in depth frame)
+    //   direction = R^T * K_c⁻¹ * [cx, cy, 1]ᵀ  (normalized)
+    const Eigen::Matrix3f R_depth_from_color =
+        depth_color_extrinsic_.R.transpose();
+    const Eigen::Vector3f color_origin_in_depth_frame =
+        -(R_depth_from_color * depth_color_extrinsic_.t);
 
-    if (has_depth_props_) {
-        // The color bbox center defines a ray that originates at the color
-        // camera, not the depth camera.  Express that ray in depth frame:
-        //   origin    = -R^T * t      (color camera origin in depth frame)
-        //   direction = R^T * K_c⁻¹ * [cx, cy, 1]ᵀ  (normalized)
-        const Eigen::Matrix3f R_dc = depth_color_extrinsic_.R.transpose();
-        const Eigen::Vector3f O_d = -(R_dc * depth_color_extrinsic_.t);
+    const float fx_c = static_cast<float>(color_image_properties_.intr.fx);
+    const float fy_c = static_cast<float>(color_image_properties_.intr.fy);
+    const float cx_c = static_cast<float>(color_image_properties_.intr.cx);
+    const float cy_c = static_cast<float>(color_image_properties_.intr.cy);
+    const Eigen::Vector3f r_c((bbox_org.center_x - cx_c) / fx_c,
+                              (bbox_org.center_y - cy_c) / fy_c, 1.0f);
+    const Eigen::Vector3f ray = (R_depth_from_color * r_c).normalized();
 
-        const float fx_c = static_cast<float>(color_image_properties_.intr.fx);
-        const float fy_c = static_cast<float>(color_image_properties_.intr.fy);
-        const float cx_c = static_cast<float>(color_image_properties_.intr.cx);
-        const float cy_c = static_cast<float>(color_image_properties_.intr.cy);
-        const Eigen::Vector3f r_c((bbox_org.center_x - cx_c) / fx_c,
-                                  (bbox_org.center_y - cy_c) / fy_c, 1.0f);
-        const Eigen::Vector3f ray = (R_dc * r_c).normalized();
+    const Eigen::Vector3f normal = compute_plane_normal(coeff, ray);
+    if (normal.isZero())
+        return {};
 
-        const Eigen::Vector3f normal = compute_plane_normal(coeff, ray);
-        if (normal.isZero())
-            return {};
+    const Eigen::Vector3f pos =
+        find_ray_plane_intersection(coeff, ray, color_origin_in_depth_frame);
+    if (pos.isZero())
+        return {};
 
-        const Eigen::Vector3f pos =
-            find_ray_plane_intersection(coeff, ray, O_d);
-        if (pos.isZero())
-            return {};
-
-        const Eigen::Vector3f pos_shifted =
-            shift_point_along_normal(pos, normal);
-        const Eigen::Matrix3f rot = create_rotation_matrix_depth(
-            coeff, normal, bbox_org.theta, O_d, R_dc);
-        out.result = Pose::from_eigen(
-            pos_shifted.cast<double>(),
-            Eigen::Quaternionf(rot).normalized().cast<double>());
-    } else {
-        const Eigen::Vector3f ray = get_ray_direction(bbox_org);
-        const Eigen::Vector3f normal = compute_plane_normal(coeff, ray);
-        if (normal.isZero())
-            return {};
-
-        const Eigen::Vector3f pos = find_ray_plane_intersection(coeff, ray);
-        if (pos.isZero())
-            return {};
-
-        const Eigen::Vector3f pos_shifted =
-            shift_point_along_normal(pos, normal);
-        const Eigen::Matrix3f rot =
-            create_rotation_matrix(coeff, normal, bbox_org.theta);
-        out.result = Pose::from_eigen(
-            pos_shifted.cast<double>(),
-            Eigen::Quaternionf(rot).normalized().cast<double>());
-    }
-
-    out.result_valid = true;
-    return out;
+    const Eigen::Vector3f pos_shifted =
+        shift_point_along_normal(pos, normal);
+    const Eigen::Matrix3f rot = create_rotation_matrix_depth(
+        coeff, normal, bbox_org.theta, color_origin_in_depth_frame,
+        R_depth_from_color);
+    result.pose = Pose::from_eigen(
+        pos_shifted.cast<double>(),
+        Eigen::Quaternionf(rot).normalized().cast<double>());
+    result.valid = true;
+    return result;
 }
 
 }  // namespace valve_detection

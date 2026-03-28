@@ -38,8 +38,7 @@ geometry_msgs::msg::PoseArray make_pose_array(
 
 vortex_msgs::msg::LandmarkArray make_landmark_array(
     const std::vector<Pose>& poses,
-    const std_msgs::msg::Header& header,
-    int type) {
+    const std_msgs::msg::Header& header) {
     vortex_msgs::msg::LandmarkArray out;
     out.header = header;
     out.landmarks.reserve(poses.size());
@@ -47,8 +46,7 @@ vortex_msgs::msg::LandmarkArray make_landmark_array(
         vortex_msgs::msg::Landmark lm;
         lm.header = header;
         lm.id = static_cast<int32_t>(i);
-        lm.type.value = type;
-        lm.subtype.value = 0;  // unset — resolved by valve_subtype_resolver
+        lm.type.value = vortex_msgs::msg::LandmarkType::VALVE;
         lm.pose.pose.position.x = poses[i].x;
         lm.pose.pose.position.y = poses[i].y;
         lm.pose.pose.position.z = poses[i].z;
@@ -66,8 +64,7 @@ cv::Mat decode_depth_to_float(
     cv::Mat depth_img;
     // RealSense publishes depth as 16UC1 (uint16 millimetres).
     // cv_bridge type-casts without scaling, so we must divide by 1000.
-    if (depth->encoding == sensor_msgs::image_encodings::TYPE_16UC1 ||
-        depth->encoding == "16UC1") {
+    if (depth->encoding == sensor_msgs::image_encodings::TYPE_16UC1) {
         cv_bridge::CvImageConstPtr cv_depth =
             cv_bridge::toCvShare(depth, "16UC1");
         cv_depth->image.convertTo(depth_img, CV_32FC1, 0.001);
