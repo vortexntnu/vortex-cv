@@ -23,6 +23,7 @@
   <depend>tf2_ros</depend>
   <depend>vortex_msgs</depend>
   <depend>vortex_utils</depend>
+  <depend>vortex_utils_ros</depend>
 
   <exec_depend>rosidl_default_runtime</exec_depend>
 

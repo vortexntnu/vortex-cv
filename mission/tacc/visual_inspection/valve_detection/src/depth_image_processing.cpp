@@ -33,14 +33,14 @@ cv::Point2f project_color_pixel_to_depth(const float u_c,
                                          const ImageProperties& color_props,
                                          const ImageProperties& depth_props,
                                          const DepthColorExtrinsic& extr) {
-    // Back-project color pixel → 3-D point in color camera frame.
+    // Back-project color pixel -> 3-D point in color camera frame.
     const float Xc = (u_c - static_cast<float>(color_props.intr.cx)) * Z /
                      static_cast<float>(color_props.intr.fx);
     const float Yc = (v_c - static_cast<float>(color_props.intr.cy)) * Z /
                      static_cast<float>(color_props.intr.fy);
     const Eigen::Vector3f Pc(Xc, Yc, Z);
 
-    // Transform to depth camera frame:  P_depth = R^T * (P_color - t)
+    // Transform to depth camera frame: P_depth = R^T * (P_color - t)
     const Eigen::Vector3f Pd = extr.R.transpose() * (Pc - extr.t);
 
     if (Pd.z() <= 0.0f)

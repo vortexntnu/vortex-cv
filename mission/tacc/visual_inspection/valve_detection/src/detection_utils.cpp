@@ -2,47 +2,20 @@
 
 #include <algorithm>
 #include <cmath>
-#include <opencv2/calib3d.hpp>
-#include <opencv2/imgproc.hpp>
 
 namespace valve_detection {
 
-BoundingBox undistort_bbox(const BoundingBox& bbox,
-                           const CameraIntrinsics& intr) {
-    const cv::Mat K = (cv::Mat_<double>(3, 3) << intr.fx, 0, intr.cx, 0,
-                       intr.fy, intr.cy, 0, 0, 1);
-    const cv::Mat D = (cv::Mat_<double>(5, 1) << intr.dist_k1, intr.dist_k2,
-                       intr.dist_p1, intr.dist_p2, intr.dist_k3);
-
-    const float cos_t = std::cos(bbox.theta);
-    const float sin_t = std::sin(bbox.theta);
-    const float hx = bbox.size_x * 0.5f;
-    const float hy = bbox.size_y * 0.5f;
-    const cv::Point2f c(bbox.center_x, bbox.center_y);
-
-    // 4 edge midpoints of the OBB + center to anchor the undistorted box.
-    std::vector<cv::Point2f> pts = {
-        c,
-        c + cv::Point2f(hx * cos_t, hx * sin_t),
-        c + cv::Point2f(-hx * cos_t, -hx * sin_t),
-        c + cv::Point2f(-hy * sin_t, hy * cos_t),
-        c + cv::Point2f(hy * sin_t, -hy * cos_t),
-    };
-
-    std::vector<cv::Point2f> undistorted;
-    cv::undistortPoints(pts, undistorted, K, D, cv::noArray(), K);
-
-    cv::RotatedRect fitted = cv::minAreaRect(undistorted);
-
-    BoundingBox result = bbox;
-    result.center_x = fitted.center.x;
-    result.center_y = fitted.center.y;
-    result.size_x = fitted.size.width;
-    result.size_y = fitted.size.height;
-    result.theta = fitted.angle * static_cast<float>(M_PI) / 180.0f;
-    return result;
-}
-
+// Greedy NMS (non-maximum suppression) that keeps at most 2 detections.
+//
+// Boxes are processed in descending confidence order. For each kept box,
+// all remaining boxes that overlap it above the IoU threshold OR whose
+// intersection-over-minimum (IoM) exceeds 70 % are suppressed. IoM
+// catches the case where a small spurious detection sits inside a
+// larger, higher-confidence one.
+//
+// Uses axis-aligned bounding rectangles for the overlap test (ignoring
+// OBB rotation) since the YOLO OBB angles are small and the cost of
+// exact OBB intersection is not justified here.
 std::vector<size_t> filter_duplicate_detections(
     const std::vector<std::pair<float, BoundingBox>>& scored_boxes,
     float iou_duplicate_threshold) {
@@ -50,6 +23,7 @@ std::vector<size_t> filter_duplicate_detections(
     if (n == 0)
         return {};
 
+    // Sort indices by descending confidence score.
     std::vector<std::pair<float, size_t>> order;
     order.reserve(n);
     for (size_t i = 0; i < n; ++i)
@@ -67,6 +41,7 @@ std::vector<size_t> filter_duplicate_detections(
 
         kept.push_back(i);
 
+        // Compute AABB of the kept box for overlap tests.
         const BoundingBox& bi = scored_boxes[i].second;
         const float ai = bi.size_x * bi.size_y;
         const float bx1i = bi.center_x - bi.size_x * 0.5f;
@@ -74,6 +49,7 @@ std::vector<size_t> filter_duplicate_detections(
         const float bx2i = bi.center_x + bi.size_x * 0.5f;
         const float by2i = bi.center_y + bi.size_y * 0.5f;
 
+        // Suppress lower-confidence boxes that overlap too much.
         for (size_t sj = si + 1; sj < order.size(); ++sj) {
             const size_t j = order[sj].second;
             if (suppressed[j])
@@ -86,13 +62,14 @@ std::vector<size_t> filter_duplicate_detections(
             const float bx2j = bj.center_x + bj.size_x * 0.5f;
             const float by2j = bj.center_y + bj.size_y * 0.5f;
 
+            // AABB intersection rectangle.
             const float ix1 = std::max(bx1i, bx1j);
             const float iy1 = std::max(by1i, by1j);
             const float ix2 = std::min(bx2i, bx2j);
             const float iy2 = std::min(by2i, by2j);
 
             if (ix2 <= ix1 || iy2 <= iy1)
-                continue;
+                continue;  // no overlap
 
             const float inter = (ix2 - ix1) * (iy2 - iy1);
             const float iou = inter / (ai + aj - inter);

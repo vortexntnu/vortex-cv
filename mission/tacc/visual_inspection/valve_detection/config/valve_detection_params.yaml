@@ -1,32 +1,37 @@
 /**:
   ros__parameters:
-    # ── Inputs ────────────────────────────────────────────────────────────────
-    # depth_image_sub_topic: "/realsense/D555_409122300281_Depth"
+    # Inputs
     depth_image_sub_topic: "/realsense_d555/depth/image"
     detections_sub_topic: "/obb_detections_output"
-
-    # Depth camera-info topic (intrinsics loaded from this topic).
     depth_image_info_topic: "/realsense_d555/depth/camera_info"
+    color_image_info_topic: "/yolo_obb_encoder/internal/resize/camera_info"
 
-    # Color camera-info topic (intrinsics and distortion loaded from this topic).
-    color_image_info_topic: "/yolo_obb_encoder/internal/crop/camera_info"
-
-    # ── Depth-to-color extrinsic ──────────────────────────────────────────────
+    # Depth-to-color extrinsic
     # TF frame names (without drone prefix) used to look up the depth-to-color
     # transform from /tf_static.  The node will wait until this transform is
     # available before initialising the detector.
+    # NOTE: When launched via valve_intervention.launch.py these are overridden
+    # from cameras.yaml.  Values here are standalone-launch defaults.
     depth_frame_id: "front_camera_depth_optical"
     color_frame_id: "front_camera_color_optical"
 
-    # ── Outputs ───────────────────────────────────────────────────────────────
-    # Primary output consumed by downstream nodes (e.g. EKF, mission planner).
+    # Outputs
     landmarks_pub_topic: "/valve_landmarks"
 
-    # ── YOLO letterbox reference size ─────────────────────────────────────────
+    # TF frame used as the frame_id for all published poses and landmarks.
+    # Must match the depth optical frame in the robot's TF tree.
+    # NOTE: When launched via valve_intervention.launch.py this is set from
+    # cameras.yaml depth_frame_id.
+    output_frame_id: "front_camera_depth_optical"
+
+    # Prepended to all TF frame names (e.g. "nautilus" -> "nautilus/front_camera_depth_optical").
+    drone: "nautilus"
+
+    # YOLO letterbox reference size
     yolo_img_width: 640
     yolo_img_height: 640
 
-    # ── Annulus and plane fit ─────────────────────────────────────────────────
+    # Annulus and plane fit
     # Fraction of the bounding-box half-size used as the annulus ring radius
     # (unitless, 0–1). At 0.8 the ring samples the outer 80 % of the box,
     # avoiding the central hub while staying inside the valve rim.
@@ -38,38 +43,26 @@
     # at ~0.5–1 m range without accepting gross outliers.
     plane_ransac_threshold: 0.01
 
-    # Number of RANSAC iterations. 50 gives >99 % probability of finding a
-    # good plane when the inlier ratio is ≥ 50 %, while keeping CPU load low.
-    plane_ransac_max_iterations: 50
+    # Number of RANSAC iterations. 150 gives >99 % probability of finding a
+    # good plane even when the inlier ratio drops to ~30 %.
+    plane_ransac_max_iterations: 150
 
-    # ── Duplicate-detection suppression ──────────────────────────────────────
+    # Duplicate-detection suppression
     # Two bounding boxes are considered the same valve when their
     # axis-aligned IoU exceeds this threshold OR when the smaller box
     # overlaps the larger by more than 70 % (intersection-over-minimum).
     # Maximum 2 landmarks are published per frame.
     iou_duplicate_threshold: 0.5
 
-    # ── Pose offset ───────────────────────────────────────────────────────────
+    # Pose offset
     # Shift the estimated position along the plane normal by this amount (metres).
     # Value taken from the official valve CAD file: distance between the valve
     # face frame and the inside length of the handle is 0.065 m.
     valve_handle_offset: 0.065
 
-    # ── Output frame ──────────────────────────────────────────────────────────
-    # TF frame used as the frame_id for all published poses and landmarks.
-    # Must match the depth optical frame in the robot's TF tree.
-    # Depth is from the realsense bag, pretending to be nautilus/depth_camera/image_depth.
-    # See: auv_setup/description/nautilus.urdf.xacro
-    output_frame_id: "front_camera_depth_optical"
+    debug_visualize: true # enable all debug visualization topics
 
-    # Prepended to all TF frame names (e.g. "moby" → "moby/front_camera_depth_optical").
-    # Override at launch time to switch between robots: drone:=orca
-    drone: "nautilus"
-
-    # ── Behaviour toggles ─────────────────────────────────────────────────────
-    debug_visualize: true       # enable all debug visualization topics
-
-    # ── Debug visualization (only active when debug_visualize: true) ──────────
+    # Debug visualization only active when debug_visualize: true
     debug:
       # All detected valve poses in one PoseArray – useful for visualising
       # multiple simultaneous detections in Foxglove.

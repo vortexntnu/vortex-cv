@@ -11,6 +11,8 @@
 
 #include <cmath>
 
+#include <vortex/utils/ros/qos_profiles.hpp>
+
 namespace valve_detection {
 
 using std::placeholders::_1;
@@ -77,26 +79,23 @@ void ValvePoseNode::declare_params() {
         depth_colormap_vmax_ = static_cast<float>(
             declare_parameter<double>("debug.depth_colormap_value_max"));
 
-        const auto qos =
-            rclcpp::QoS(rclcpp::KeepLast(10))
-                .reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
-        pose_pub_ =
-            create_publisher<geometry_msgs::msg::PoseArray>(pose_topic, qos);
+        const auto sensor_qos =
+            vortex::utils::qos_profiles::reliable_profile(10);
+        pose_pub_ = create_publisher<geometry_msgs::msg::PoseArray>(pose_topic,
+                                                                    sensor_qos);
         depth_cloud_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
-            depth_cloud_topic, qos);
-        depth_colormap_pub_ =
-            create_publisher<sensor_msgs::msg::Image>(depth_color_topic, qos);
-        annulus_pub_ =
-            create_publisher<sensor_msgs::msg::PointCloud2>(ann_topic, qos);
-        plane_pub_ =
-            create_publisher<sensor_msgs::msg::PointCloud2>(pln_topic, qos);
+            depth_cloud_topic, sensor_qos);
+        depth_colormap_pub_ = create_publisher<sensor_msgs::msg::Image>(
+            depth_color_topic, sensor_qos);
+        annulus_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
+            ann_topic, sensor_qos);
+        plane_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
+            pln_topic, sensor_qos);
     }
 
     const auto lm_topic = declare_parameter<std::string>("landmarks_pub_topic");
-    const auto qos = rclcpp::QoS(rclcpp::KeepLast(10))
-                         .reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
-    landmark_pub_ =
-        create_publisher<vortex_msgs::msg::LandmarkArray>(lm_topic, qos);
+    landmark_pub_ = create_publisher<vortex_msgs::msg::LandmarkArray>(
+        lm_topic, vortex::utils::qos_profiles::reliable_profile(10));
 
     try_activate_detector();
 }
@@ -164,8 +163,7 @@ void ValvePoseNode::init_subscriptions() {
     const auto color_info_topic =
         declare_parameter<std::string>("color_image_info_topic");
 
-    const auto info_qos = rclcpp::QoS(rclcpp::KeepLast(1))
-                              .reliability(RMW_QOS_POLICY_RELIABILITY_RELIABLE);
+    const auto info_qos = vortex::utils::qos_profiles::sensor_data_profile(1);
 
     color_cam_info_sub_ = create_subscription<sensor_msgs::msg::CameraInfo>(
         color_info_topic, info_qos,
@@ -174,9 +172,7 @@ void ValvePoseNode::init_subscriptions() {
         depth_info_topic, info_qos,
         std::bind(&ValvePoseNode::depth_camera_info_cb, this, _1));
 
-    const auto data_qos =
-        rclcpp::QoS(rclcpp::KeepLast(10))
-            .reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
+    const auto data_qos = vortex::utils::qos_profiles::sensor_data_profile(10);
     depth_sub_.subscribe(this, depth_topic, data_qos.get_rmw_qos_profile());
     det_sub_.subscribe(this, det_topic, data_qos.get_rmw_qos_profile());
 
@@ -198,13 +194,6 @@ void ValvePoseNode::color_camera_info_cb(
     color_props_.intr.cy = msg->k[5];
     color_props_.dim.width = static_cast<int>(msg->width);
     color_props_.dim.height = static_cast<int>(msg->height);
-    if (msg->d.size() >= 5) {
-        color_props_.intr.dist_k1 = msg->d[0];
-        color_props_.intr.dist_k2 = msg->d[1];
-        color_props_.intr.dist_p1 = msg->d[2];
-        color_props_.intr.dist_p2 = msg->d[3];
-        color_props_.intr.dist_k3 = msg->d[4];
-    }
     color_props_ready_ = true;
     color_cam_info_sub_.reset();
     RCLCPP_INFO(get_logger(), "Color camera_info received (fx=%.2f fy=%.2f)",
@@ -370,15 +359,13 @@ void ValvePoseNode::sync_cb(
     for (size_t idx : kept) {
         const BoundingBox& yolo_box = scored_boxes[idx].second;
         // YOLO outputs in 640×640 letterbox space — convert to color image
-        // space first, then undistort. Both pcl extraction and ray casting use
-        // color intrinsics.
+        // space.  The input image is already undistorted upstream, so no
+        // lens distortion correction is needed here.
         const BoundingBox color_box =
             detector_->letterbox_to_image_coords(yolo_box);
-        const BoundingBox org_box =
-            undistort_bbox(color_box, color_props_.intr);
 
         const auto result =
-            detector_->compute_pose_from_depth(depth_img, org_box, mode);
+            detector_->compute_pose_from_depth(depth_img, color_box, mode);
         if (!result.valid)
             continue;
 

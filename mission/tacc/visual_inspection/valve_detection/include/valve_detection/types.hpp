@@ -9,8 +9,6 @@ namespace valve_detection {
 
 struct CameraIntrinsics {
     double fx{0}, fy{0}, cx{0}, cy{0};
-    // Plumb-bob distortion coefficients [k1, k2, p1, p2, k3].
-    double dist_k1{0}, dist_k2{0}, dist_p1{0}, dist_p2{0}, dist_k3{0};
 };
 
 struct ImageDimensions {
@@ -31,11 +29,6 @@ struct BoundingBox {
 };
 
 using Pose = vortex::utils::types::Pose;
-
-struct PoseResult {
-    Pose result;
-    bool result_valid{false};
-};
 
 // Rigid transform from depth camera frame to color camera frame.
 // Rotation R and translation t satisfy:  P_color = R * P_depth + t

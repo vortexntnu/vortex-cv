@@ -29,6 +29,8 @@ find_package(tf2_ros REQUIRED)
 find_package(vortex_msgs REQUIRED)
 find_package(vortex_utils REQUIRED)
 
+find_package(vortex_utils_ros REQUIRED)
+
 include_directories(include)
 
 set(LIB_NAME "${PROJECT_NAME}_component")
@@ -69,6 +71,7 @@ ament_target_dependencies(${LIB_NAME} PUBLIC
   tf2_ros
   vortex_msgs
   vortex_utils
+  vortex_utils_ros
 )
 
 rclcpp_components_register_node(

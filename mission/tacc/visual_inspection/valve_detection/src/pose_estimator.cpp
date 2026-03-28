@@ -107,7 +107,7 @@ Eigen::Vector3f PoseEstimator::compute_plane_normal(
 
 // Finds the 3D point where a ray intersects the fitted plane.
 // ray_origin defaults to the camera origin (zero), which is correct for the
-// color-frame path.  Pass the actual origin when the ray does not start at
+// color-frame path. Pass the actual origin when the ray does not start at
 // the frame origin (e.g. the color camera origin expressed in depth frame).
 Eigen::Vector3f PoseEstimator::find_ray_plane_intersection(
     const pcl::ModelCoefficients::Ptr& coefficients,
@@ -141,6 +141,11 @@ Eigen::Vector3f PoseEstimator::shift_point_along_normal(
 // bbox angle (X), working entirely in the depth camera frame.  Color-image
 // rays are rotated into depth frame before intersecting the plane, and
 // ray_origin is the color camera origin expressed in depth frame.
+//
+// Axis convention (valve body frame):
+//   X = handle dir     -> roll  = valve face tilt
+//   Y = cross product  -> pitch = valve face tilt
+//   Z = plane normal   -> yaw   = handle rotation around normal
 Eigen::Matrix3f PoseEstimator::create_rotation_matrix_depth(
     const pcl::ModelCoefficients::Ptr& coefficients,
     const Eigen::Vector3f& plane_normal,
@@ -186,8 +191,12 @@ Eigen::Matrix3f PoseEstimator::create_rotation_matrix_depth(
     x_axis = (x_axis - x_axis.dot(z_axis) * z_axis).normalized();
 
     // Ensure consistent direction (avoid flipping between frames).
-    if (filter_direction_.dot(x_axis) < 0)
-        x_axis = -x_axis;
+    // On the first valid computation filter_direction_ is zero; just accept
+    // whatever direction the geometry gives us.
+    if (!filter_direction_.isZero()) {
+        if (filter_direction_.dot(x_axis) < 0)
+            x_axis = -x_axis;
+    }
     filter_direction_ = x_axis;
 
     const Eigen::Vector3f y_axis = z_axis.cross(x_axis).normalized();
@@ -283,8 +292,16 @@ DetectionResult PoseEstimator::compute_pose_from_depth(
         return {};
 
     const Eigen::Vector3f pos_shifted = shift_point_along_normal(pos, normal);
+
+    // The OBB theta gives the direction of size_x.  The valve handle
+    // aligns with the longer side of the bounding box, so rotate by
+    // 90° when size_y > size_x.
+    float handle_angle = bbox_org.theta;
+    if (bbox_org.size_y > bbox_org.size_x)
+        handle_angle += static_cast<float>(M_PI / 2.0);
+
     const Eigen::Matrix3f rot = create_rotation_matrix_depth(
-        coeff, normal, bbox_org.theta, color_origin_in_depth_frame,
+        coeff, normal, handle_angle, color_origin_in_depth_frame,
         R_depth_from_color);
     result.pose =
         Pose::from_eigen(pos_shifted.cast<double>(),

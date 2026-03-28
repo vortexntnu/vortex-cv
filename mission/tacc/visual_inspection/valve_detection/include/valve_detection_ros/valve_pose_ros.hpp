@@ -47,7 +47,7 @@ class ValvePoseNode : public rclcpp::Node {
     void try_activate_detector();
     void lookup_extrinsic();
 
-    // Camera info callbacks (one-shot, override config fallback).
+    // Camera info callbacks (one-shot).
     void color_camera_info_cb(
         const sensor_msgs::msg::CameraInfo::SharedPtr msg);
     void depth_camera_info_cb(
