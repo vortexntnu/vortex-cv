@@ -1,4 +1,3 @@
-target_frame: orca/odom
 window_size: 15
 max_measurement_age_sec: 2.0
 min_measurements: 4
@@ -6,4 +5,3 @@ min_baseline_m: 0.1
 min_ray_angle_deg: 1.0
 outlier_residual_threshold_m: 0.1
 max_outlier_iterations: 2
-publish_debug_markers: true

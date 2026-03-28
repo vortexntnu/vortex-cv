@@ -4,8 +4,10 @@
 
 namespace bearing_localization {
 
-MeasurementBuffer::MeasurementBuffer(size_t window_size, double max_age_sec)
-    : window_size_(window_size), max_age_sec_(max_age_sec) {}
+MeasurementBuffer::MeasurementBuffer(size_t window_size,
+                                     double max_measurement_age_sec)
+    : window_size_(window_size),
+      max_measurement_age_sec_(max_measurement_age_sec) {}
 
 void MeasurementBuffer::add(const RayMeasurement& ray) {
     buffer_.push_back(ray);
@@ -15,7 +17,7 @@ void MeasurementBuffer::add(const RayMeasurement& ray) {
 }
 
 void MeasurementBuffer::prune(double now_sec) {
-    const double cutoff = now_sec - max_age_sec_;
+    const double cutoff = now_sec - max_measurement_age_sec_;
 
     std::vector<RayMeasurement> kept;
     kept.reserve(buffer_.size());

@@ -8,19 +8,33 @@
 
 namespace bearing_localization {
 
+/**
+ * @brief Configuration parameters for the bearing localization triangulator.
+ *
+ * Holds algorithm settings that control the measurement buffer,
+ * geometry checks, outlier rejection, and output landmark.
+ * Loaded from a YAML profile file via from_yaml().
+ */
 struct BearingLocalizationConfig {
-    std::string target_frame = "orca/odom";
-    int window_size = 30;
-    double max_measurement_age_sec = 5.0;
-    int min_measurements = 5;
-    double min_baseline_m = 0.5;
-    double min_ray_angle_deg = 5.0;
-    double outlier_residual_threshold_m = 1.0;
-    int max_outlier_iterations = 2;
-    bool publish_debug_markers = true;
-    int landmark_type = 0;
-    int landmark_subtype = 0;
+    int window_size = 30;  // Max measurements kept in the buffer.
+    double max_measurement_age_sec =
+        5.0;                   // Discard measurements older than this (s).
+    int min_measurements = 5;  // Min measurements required to triangulate.
+    double min_baseline_m =
+        0.5;  // Min distance between first and last origin (m).
+    double min_ray_angle_deg =
+        5.0;  // Min angle between rays to accept a solution (deg).
+    double outlier_residual_threshold_m =
+        1.0;  // Residual above this marks a measurement as outlier (m).
+    int max_outlier_iterations =
+        2;  // Max rounds of iterative outlier rejection.
 
+    /**
+     * @brief Load configuration from a YAML file.
+     * @param path Filesystem path to the YAML profile.
+     * @return Populated BearingLocalizationConfig.
+     * @throws std::runtime_error if the file cannot be loaded.
+     */
     static BearingLocalizationConfig from_yaml(const std::string& path) {
         YAML::Node yaml;
         try {
@@ -31,8 +45,6 @@ struct BearingLocalizationConfig {
         }
 
         BearingLocalizationConfig cfg;
-        if (yaml["target_frame"])
-            cfg.target_frame = yaml["target_frame"].as<std::string>();
         if (yaml["window_size"])
             cfg.window_size = yaml["window_size"].as<int>();
         if (yaml["max_measurement_age_sec"])
@@ -50,13 +62,6 @@ struct BearingLocalizationConfig {
         if (yaml["max_outlier_iterations"])
             cfg.max_outlier_iterations =
                 yaml["max_outlier_iterations"].as<int>();
-        if (yaml["publish_debug_markers"])
-            cfg.publish_debug_markers =
-                yaml["publish_debug_markers"].as<bool>();
-        if (yaml["landmark_type"])
-            cfg.landmark_type = yaml["landmark_type"].as<int>();
-        if (yaml["landmark_subtype"])
-            cfg.landmark_subtype = yaml["landmark_subtype"].as<int>();
         return cfg;
     }
 };

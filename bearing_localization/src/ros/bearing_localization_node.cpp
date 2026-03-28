@@ -1,6 +1,7 @@
 #include "bearing_localization/ros/bearing_localization_node.hpp"
 #include "bearing_localization/ros/debug_markers.hpp"
 
+#include <spdlog/spdlog.h>
 #include <tf2/exceptions.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include "vortex/utils/ros/qos_profiles.hpp"
@@ -15,6 +16,12 @@ BearingLocalizationNode::BearingLocalizationNode(
     const std::string config_file = get_parameter("config_file").as_string();
     cfg_ = BearingLocalizationConfig::from_yaml(config_file);
 
+    node_cfg_.target_frame = get_parameter("target_frame").as_string();
+    node_cfg_.publish_debug_markers =
+        get_parameter("publish_debug_markers").as_bool();
+    node_cfg_.landmark_type = get_parameter("landmark_type").as_int();
+    node_cfg_.landmark_subtype = get_parameter("landmark_subtype").as_int();
+
     localizer_ = std::make_unique<BearingLocalizer>(cfg_);
 
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
@@ -22,14 +29,18 @@ BearingLocalizationNode::BearingLocalizationNode(
 
     setup_pubsub();
 
-    RCLCPP_INFO(get_logger(),
-                "BearingLocalizationNode started. config_file='%s', "
-                "target_frame='%s'",
-                config_file.c_str(), cfg_.target_frame.c_str());
+    spdlog::info(
+        "BearingLocalizationNode started. config_file='{}', "
+        "target_frame='{}'",
+        config_file, node_cfg_.target_frame);
 }
 
 void BearingLocalizationNode::declare_parameters() {
     declare_parameter<std::string>("config_file");
+    declare_parameter<std::string>("target_frame", "orca/odom");
+    declare_parameter<bool>("publish_debug_markers", true);
+    declare_parameter<int>("landmark_type", 0);
+    declare_parameter<int>("landmark_subtype", 0);
 
     declare_parameter<std::string>("topics.bearing_measurement");
     declare_parameter<std::string>("topics.bearing_array");
@@ -50,7 +61,7 @@ void BearingLocalizationNode::setup_pubsub() {
         std::bind(&BearingLocalizationNode::bearing_array_callback, this,
                   std::placeholders::_1));
 
-    if (cfg_.publish_debug_markers) {
+    if (node_cfg_.publish_debug_markers) {
         markers_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
             get_parameter("topics.bearing_localization_markers").as_string(),
             vortex::utils::qos_profiles::reliable_profile());
@@ -70,9 +81,9 @@ void BearingLocalizationNode::bearing_callback(
         return;
     }
     publish_result(*result);
-    if (cfg_.publish_debug_markers && markers_pub_) {
+    if (node_cfg_.publish_debug_markers && markers_pub_) {
         markers_pub_->publish(
-            build_debug_markers(*result, cfg_.target_frame, now()));
+            build_debug_markers(*result, node_cfg_.target_frame, now()));
     }
 }
 
@@ -87,9 +98,9 @@ void BearingLocalizationNode::bearing_array_callback(
         return;
     }
     publish_result(*result);
-    if (cfg_.publish_debug_markers && markers_pub_) {
+    if (node_cfg_.publish_debug_markers && markers_pub_) {
         markers_pub_->publish(
-            build_debug_markers(*result, cfg_.target_frame, now()));
+            build_debug_markers(*result, node_cfg_.target_frame, now()));
     }
 }
 
@@ -99,29 +110,24 @@ bool BearingLocalizationNode::process_bearing(
     Eigen::Vector3d dir(vec.x, vec.y, vec.z);
     const double norm = dir.norm();
     if (!std::isfinite(norm) || norm < 1e-6) {
-        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                             "Invalid direction vector (norm=%.6f), skipping.",
-                             norm);
+        spdlog::warn("Invalid direction vector (norm={:.6f}), skipping.", norm);
         return false;
     }
     dir /= norm;
 
     const std::string& source_frame = header.frame_id;
     if (source_frame.empty()) {
-        RCLCPP_WARN_THROTTLE(
-            get_logger(), *get_clock(), 1000,
-            "Received measurement with empty frame_id, skipping.");
+        spdlog::warn("Received measurement with empty frame_id, skipping.");
         return false;
     }
 
     geometry_msgs::msg::TransformStamped tf_stamped;
     try {
         tf_stamped = tf_buffer_->lookupTransform(
-            cfg_.target_frame, source_frame, tf2::TimePointZero);
+            node_cfg_.target_frame, source_frame, tf2::TimePointZero);
     } catch (const tf2::TransformException& ex) {
-        RCLCPP_WARN_THROTTLE(
-            get_logger(), *get_clock(), 1000, "TF lookup failed (%s -> %s): %s",
-            source_frame.c_str(), cfg_.target_frame.c_str(), ex.what());
+        spdlog::warn("TF lookup failed ({} -> {}): {}", source_frame,
+                     node_cfg_.target_frame, ex.what());
         return false;
     }
 
@@ -145,10 +151,10 @@ void BearingLocalizationNode::publish_result(const LocalizationResult& result) {
 
     vortex_msgs::msg::Landmark landmark;
     landmark.header.stamp = stamp;
-    landmark.header.frame_id = cfg_.target_frame;
+    landmark.header.frame_id = node_cfg_.target_frame;
     landmark.id = 0;
-    landmark.type.value = static_cast<uint16_t>(cfg_.landmark_type);
-    landmark.subtype.value = static_cast<uint16_t>(cfg_.landmark_subtype);
+    landmark.type.value = static_cast<uint16_t>(node_cfg_.landmark_type);
+    landmark.subtype.value = static_cast<uint16_t>(node_cfg_.landmark_subtype);
     landmark.pose.pose.position.x = result.position.x();
     landmark.pose.pose.position.y = result.position.y();
     landmark.pose.pose.position.z = result.position.z();
@@ -160,7 +166,7 @@ void BearingLocalizationNode::publish_result(const LocalizationResult& result) {
 
     vortex_msgs::msg::LandmarkArray landmark_array;
     landmark_array.header.stamp = stamp;
-    landmark_array.header.frame_id = cfg_.target_frame;
+    landmark_array.header.frame_id = node_cfg_.target_frame;
     landmark_array.landmarks.push_back(landmark);
     landmark_pub_->publish(landmark_array);
 }
