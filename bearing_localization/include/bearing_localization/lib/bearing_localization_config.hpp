@@ -28,7 +28,6 @@ struct BearingLocalizationConfig {
         1.0;  // Residual above this marks a measurement as outlier (m).
     int max_outlier_iterations =
         2;  // Max rounds of iterative outlier rejection.
-
     /**
      * @brief Load configuration from a YAML file.
      * @param path Filesystem path to the YAML profile.
