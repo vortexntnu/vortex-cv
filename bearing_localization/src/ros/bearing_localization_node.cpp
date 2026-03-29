@@ -113,16 +113,8 @@ std::optional<RayMeasurement> BearingLocalizationNode::transform_bearing(
     geometry_msgs::msg::TransformStamped tf_stamped;
     try {
         tf_stamped = tf_buffer_->lookupTransform(
-            node_cfg_.target_frame, source_frame, rclcpp::Time(header.stamp));
-    } catch (const tf2::ExtrapolationException&) {
-        try {
-            tf_stamped = tf_buffer_->lookupTransform(
-                node_cfg_.target_frame, source_frame, tf2::TimePointZero);
-        } catch (const tf2::TransformException& ex) {
-            spdlog::warn("TF lookup failed ({} -> {}): {}", source_frame,
-                         node_cfg_.target_frame, ex.what());
-            return std::nullopt;
-        }
+            node_cfg_.target_frame, source_frame, rclcpp::Time(header.stamp),
+            rclcpp::Duration::from_seconds(0.2));
     } catch (const tf2::TransformException& ex) {
         spdlog::warn("TF lookup failed ({} -> {}): {}", source_frame,
                      node_cfg_.target_frame, ex.what());

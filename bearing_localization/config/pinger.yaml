@@ -5,4 +5,3 @@ min_baseline_m: 1.0
 min_ray_angle_deg: 5.0
 outlier_residual_threshold_m: 3.0
 max_outlier_iterations: 3
-ema_alpha: 0.3
