@@ -14,7 +14,7 @@ namespace bearing_localization {
  * @brief Build a MarkerArray visualising a localisation result.
  *
  * Creates arrow markers for each inlier ray and a sphere marker at the
- * estimated target position, suitable for display in Foxglove or RViz.
+ * estimated target position, suitable for display in Foxglove.
  *
  * @param result   Localisation result containing position and inlier rays.
  * @param frame_id TF frame in which to publish the markers.
