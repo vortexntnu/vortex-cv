@@ -1,6 +1,6 @@
 # Bearing Localization
 
-ROS 2 node that estimates the 3D position of targets using bearing-only triangulation. It collects directional measurements from different viewpoints, transforms them into a common frame via TF, and solves for the point in space that best fits all rays. Supports multiple simultaneous targets via per-target localizers.
+ROS 2 node that estimates the 3D position of targets using bearing-only triangulation. It collects directional measurements from different viewpoints, and solves for the point in space that best fits all rays. Supports multiple simultaneous targets via per-target localizers.
 
 ## Topics
 
