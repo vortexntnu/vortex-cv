@@ -18,7 +18,8 @@
 
 namespace vortex::docking_position_estimator {
 
-DockingPositionEstimatorNode::DockingPositionEstimatorNode(const rclcpp::NodeOptions& options)
+DockingPositionEstimatorNode::DockingPositionEstimatorNode(
+    const rclcpp::NodeOptions& options)
     : rclcpp::Node("docking_position_estimator_node", options) {
     setup_parameters();
     setup_publishers_and_subscribers();
@@ -70,8 +71,9 @@ void DockingPositionEstimatorNode::setup_publishers_and_subscribers() {
         line_sub_, *tf_buffer_, odom_frame_, 10,
         this->get_node_logging_interface(), this->get_node_clock_interface());
 
-    line_filter_->registerCallback(std::bind(
-        &DockingPositionEstimatorNode::line_callback, this, std::placeholders::_1));
+    line_filter_->registerCallback(
+        std::bind(&DockingPositionEstimatorNode::line_callback, this,
+                  std::placeholders::_1));
 
     send_pose_client_ = this->create_client<vortex_msgs::srv::SendPose>(
         "/docking_position_estimator/docking_pose");
@@ -102,7 +104,8 @@ void DockingPositionEstimatorNode::setup_estimator() {
         this->declare_parameter<double>("far_wall_min_x_m");
     config.right_wall_max_y_m =
         this->declare_parameter<double>("right_wall_max_y_m");
-    // config.choose_right_corner = this->declare_parameter<int>("choose_right_corner"); //not used yet
+    // config.choose_right_corner =
+    // this->declare_parameter<int>("choose_right_corner"); //not used yet
     config.right_wall_offset_m =
         this->declare_parameter<double>("right_wall_offset_m");
     config.far_wall_offset_m =

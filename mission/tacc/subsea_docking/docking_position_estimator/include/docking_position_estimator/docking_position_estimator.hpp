@@ -108,7 +108,8 @@ struct DockingPositionEstimatorConfig {
 };
 
 /**
- * @brief Estimator for detecting wall corners and estimating a docking position.
+ * @brief Estimator for detecting wall corners and estimating a docking
+ * position.
  *
  * The estimator classifies detected line segments as candidate pool walls,
  * combines compatible wall pairs into corner estimates, and computes a docking
@@ -121,7 +122,8 @@ class DockingPositionEstimator {
      *
      * @param config Estimator configuration parameters.
      */
-    explicit DockingPositionEstimator(const DockingPositionEstimatorConfig& config);
+    explicit DockingPositionEstimator(
+        const DockingPositionEstimatorConfig& config);
 
     /**
      * @brief Find all valid corner estimates from a set of detected line

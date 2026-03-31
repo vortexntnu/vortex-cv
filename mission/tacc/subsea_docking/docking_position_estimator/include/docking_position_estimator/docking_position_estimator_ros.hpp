@@ -29,26 +29,29 @@
 namespace vortex::docking_position_estimator {
 
 /**
-* @brief ROS 2 node for estimating a docking position from sonar line detections.
-*
-* This node provides the ROS interface for the docking position estimator.
-* It subscribes to detected sonar line segments, drone pose, and sonar
-* image metadata, transforms the incoming line segments into the odometry
-* frame, and classifies them as candidate walls relative to the drone.
-*
-* From the classified walls, the node estimates corner candidates by
-* intersecting right-wall and far-wall segments. The most suitable corner
-* is selected, and a docking position is computed by offsetting from the
-* corner along the wall normals.
-*
-* If a valid docking estimate is found, it is sent through the SendPose service.
-*/
+ * @brief ROS 2 node for estimating a docking position from sonar line
+ * detections.
+ *
+ * This node provides the ROS interface for the docking position estimator.
+ * It subscribes to detected sonar line segments, drone pose, and sonar
+ * image metadata, transforms the incoming line segments into the odometry
+ * frame, and classifies them as candidate walls relative to the drone.
+ *
+ * From the classified walls, the node estimates corner candidates by
+ * intersecting right-wall and far-wall segments. The most suitable corner
+ * is selected, and a docking position is computed by offsetting from the
+ * corner along the wall normals.
+ *
+ * If a valid docking estimate is found, it is sent through the SendPose
+ * service.
+ */
 class DockingPositionEstimatorNode : public rclcpp::Node {
    public:
     /**
      * @brief Construct a new DockingPositionEstimatorNode.
      *
-     * The constructor initializes parameters, ROS interfaces, and the estimator.
+     * The constructor initializes parameters, ROS interfaces, and the
+     * estimator.
      *
      * @param options ROS node options.
      */
@@ -127,8 +130,8 @@ class DockingPositionEstimatorNode : public rclcpp::Node {
      * @brief Estimate and send a docking position from detected line segments.
      *
      * The input segments are transformed into the odometry frame, passed to the
-     * estimator for wall classification and corner detection, and then used to 
-     * compute a docking position. If a valid estimate is found, it is sent 
+     * estimator for wall classification and corner detection, and then used to
+     * compute a docking position. If a valid estimate is found, it is sent
      * through the SendPose service.
      *
      * @param msg Array of detected 2D line segments.

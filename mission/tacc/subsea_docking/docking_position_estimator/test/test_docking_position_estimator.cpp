@@ -43,10 +43,8 @@ DockingPositionEstimatorConfig make_config() {
     config.perpendicular_heading_angle_threshold_rad =
         70.0f * static_cast<float>(M_PI) / 180.0f;
 
-    config.min_corner_angle_rad =
-        70.0f * static_cast<float>(M_PI) / 180.0f;
-    config.max_corner_angle_rad =
-        110.0f * static_cast<float>(M_PI) / 180.0f;
+    config.min_corner_angle_rad = 70.0f * static_cast<float>(M_PI) / 180.0f;
+    config.max_corner_angle_rad = 110.0f * static_cast<float>(M_PI) / 180.0f;
 
     config.right_wall_offset_m = 1.0f;
     config.far_wall_offset_m = 1.5f;
@@ -58,8 +56,7 @@ DockingPositionEstimatorConfig make_config() {
 
 class DockingPositionEstimatorTest : public ::testing::Test {
    protected:
-    DockingPositionEstimatorTest()
-        : config(make_config()), estimator(config) {}
+    DockingPositionEstimatorTest() : config(make_config()), estimator(config) {}
 
     DockingPositionEstimatorConfig config;
     DockingPositionEstimator estimator;
@@ -78,7 +75,6 @@ class DockingPositionEstimatorTest : public ::testing::Test {
 //   right   = +x
 // -----------------------------------------------------------------------------
 
-
 TEST_F(DockingPositionEstimatorTest,
        FacingNorth_RightWallToEast_AndFarWallAhead_ProducesCorner) {
     const Eigen::Vector2f drone_pos{0.0f, 0.0f};
@@ -92,10 +88,8 @@ TEST_F(DockingPositionEstimatorTest,
     // and approximately perpendicular to heading.
     const LineSegment2D far_wall = make_line(5.0f, -5.0f, 5.0f, 5.0f);
 
-    const auto corners =
-        estimator.find_corner_estimates({right_wall, far_wall},
-                                        drone_pos,
-                                        drone_heading);
+    const auto corners = estimator.find_corner_estimates(
+        {right_wall, far_wall}, drone_pos, drone_heading);
 
     ASSERT_EQ(corners.size(), 1u);
     EXPECT_NEAR(corners.front().corner_point.x(), 5.0f, kEps);
@@ -112,10 +106,8 @@ TEST_F(DockingPositionEstimatorTest,
 
     const LineSegment2D far_wall = make_line(5.0f, -5.0f, 5.0f, 5.0f);
 
-    const auto corners =
-        estimator.find_corner_estimates({left_wall, far_wall},
-                                        drone_pos,
-                                        drone_heading);
+    const auto corners = estimator.find_corner_estimates(
+        {left_wall, far_wall}, drone_pos, drone_heading);
 
     EXPECT_TRUE(corners.empty());
 }
@@ -128,13 +120,10 @@ TEST_F(DockingPositionEstimatorTest,
     const LineSegment2D right_wall = make_line(0.0f, 2.0f, 10.0f, 2.0f);
 
     // Behind the drone => x < 0
-    const LineSegment2D far_wall_behind =
-        make_line(-5.0f, -5.0f, -5.0f, 5.0f);
+    const LineSegment2D far_wall_behind = make_line(-5.0f, -5.0f, -5.0f, 5.0f);
 
-    const auto corners =
-        estimator.find_corner_estimates({right_wall, far_wall_behind},
-                                        drone_pos,
-                                        drone_heading);
+    const auto corners = estimator.find_corner_estimates(
+        {right_wall, far_wall_behind}, drone_pos, drone_heading);
 
     EXPECT_TRUE(corners.empty());
 }
@@ -150,10 +139,8 @@ TEST_F(DockingPositionEstimatorTest,
 
     const LineSegment2D far_wall = make_line(5.0f, -5.0f, 5.0f, 5.0f);
 
-    const auto corners =
-        estimator.find_corner_estimates({right_wall_too_far, far_wall},
-                                        drone_pos,
-                                        drone_heading);
+    const auto corners = estimator.find_corner_estimates(
+        {right_wall_too_far, far_wall}, drone_pos, drone_heading);
 
     EXPECT_TRUE(corners.empty());
 }
@@ -169,10 +156,8 @@ TEST_F(DockingPositionEstimatorTest,
     // Slightly tilted but still close to perpendicular
     const LineSegment2D far_wall = make_line(5.0f, -5.0f, 5.4f, 5.0f);
 
-    const auto corners =
-        estimator.find_corner_estimates({right_wall, far_wall},
-                                        drone_pos,
-                                        drone_heading);
+    const auto corners = estimator.find_corner_estimates(
+        {right_wall, far_wall}, drone_pos, drone_heading);
 
     EXPECT_EQ(corners.size(), 1u);
 }
@@ -186,10 +171,8 @@ TEST_F(DockingPositionEstimatorTest,
     const LineSegment2D line0 = make_line(0.0f, 2.0f, 10.0f, 2.0f);
     const LineSegment2D line1 = make_line(0.0f, 4.0f, 10.0f, 4.0f);
 
-    const auto corners =
-        estimator.find_corner_estimates({line0, line1},
-                                        drone_pos,
-                                        drone_heading);
+    const auto corners = estimator.find_corner_estimates(
+        {line0, line1}, drone_pos, drone_heading);
 
     EXPECT_TRUE(corners.empty());
 }
@@ -217,8 +200,9 @@ TEST_F(DockingPositionEstimatorTest,
     EXPECT_NEAR(best.corner_point.y(), 2.0f, kEps);
 }
 
-TEST_F(DockingPositionEstimatorTest,
-       EstimateDockingPosition_OffsetsFromCornerTowardPoolInterior_FacingNorth) {
+TEST_F(
+    DockingPositionEstimatorTest,
+    EstimateDockingPosition_OffsetsFromCornerTowardPoolInterior_FacingNorth) {
     const Eigen::Vector2f drone_pos{0.0f, 0.0f};
 
     // Corner at (5, 2)
@@ -250,25 +234,17 @@ TEST_F(DockingPositionEstimatorTest,
     const Eigen::Vector2f drone_pos{0.0f, 0.0f};
     const float drone_heading = 0.0f;
 
-    const LineSegment2D right_wall_near =
-        make_line(0.0f, 2.0f, 10.0f, 2.0f);
-    const LineSegment2D far_wall_near =
-        make_line(5.0f, -5.0f, 5.0f, 5.0f);
+    const LineSegment2D right_wall_near = make_line(0.0f, 2.0f, 10.0f, 2.0f);
+    const LineSegment2D far_wall_near = make_line(5.0f, -5.0f, 5.0f, 5.0f);
 
-    const LineSegment2D right_wall_far =
-        make_line(0.0f, 4.0f, 10.0f, 4.0f);
-    const LineSegment2D far_wall_far =
-        make_line(9.0f, -5.0f, 9.0f, 5.0f);
+    const LineSegment2D right_wall_far = make_line(0.0f, 4.0f, 10.0f, 4.0f);
+    const LineSegment2D far_wall_far = make_line(9.0f, -5.0f, 9.0f, 5.0f);
 
     // Noise: behind drone, should not contribute
-    const LineSegment2D noise =
-        make_line(-5.0f, -3.0f, -2.0f, -3.0f);
+    const LineSegment2D noise = make_line(-5.0f, -3.0f, -2.0f, -3.0f);
 
-    const std::vector<LineSegment2D> lines{
-        right_wall_near, far_wall_near,
-        right_wall_far, far_wall_far,
-        noise
-    };
+    const std::vector<LineSegment2D> lines{right_wall_near, far_wall_near,
+                                           right_wall_far, far_wall_far, noise};
 
     const auto corners =
         estimator.find_corner_estimates(lines, drone_pos, drone_heading);

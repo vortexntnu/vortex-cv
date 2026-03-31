@@ -136,8 +136,8 @@ WallClassification DockingPositionEstimator::classify_wall(
 
     // RIGHT WALL: projection has negative y-value in NED, wall is approximately
     // parallel to heading
-    if (  // projection.y() < config_.right_wall_max_y_m &&
-        right_dist < 0 && //USIKKER PÅ DENNE? TO DO
+    if (                   // projection.y() < config_.right_wall_max_y_m &&
+        right_dist < 0 &&  // USIKKER PÅ DENNE? TO DO
         heading_wall_angle < config_.parallel_heading_angle_threshold_rad) {
         spdlog::info("  -> Classified as RIGHT candidate");
         return WallClassification::RightWall;
