@@ -61,7 +61,7 @@ TEST(PoolExplorationTest, GridInitialization)
         EXPECT_EQ(cell, -1);
     }
 }
-/*
+
 TEST(PoolExplorationTest, SetGridCellInsideBounds)
 {
     PoolExplorationMap map(10.0, 10.0, 1.0, "map");
