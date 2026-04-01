@@ -35,13 +35,16 @@ ament_target_dependencies(valve_inspection_fsm
   std_srvs
   yasmin
   yasmin_ros
-  yasmin_viewer
   vortex_msgs
   vortex_yasmin_utils
   geometry_msgs
   tf2
   tf2_ros
   tf2_geometry_msgs
+)
+
+target_link_libraries(valve_inspection_fsm
+  yasmin_viewer::yasmin_viewer
 )
 
 install(TARGETS
