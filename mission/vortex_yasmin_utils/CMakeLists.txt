@@ -10,8 +10,6 @@ find_package(rclcpp_action REQUIRED)
 find_package(yasmin REQUIRED)
 find_package(yasmin_ros REQUIRED)
 find_package(vortex_msgs REQUIRED)
-find_package(vortex_utils REQUIRED)
-find_package(vortex_utils_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 
@@ -32,8 +30,6 @@ ament_target_dependencies(vortex_yasmin_utils PUBLIC
   yasmin
   yasmin_ros
   vortex_msgs
-  vortex_utils
-  vortex_utils_ros
   geometry_msgs
   std_srvs
 )
@@ -58,8 +54,6 @@ ament_export_dependencies(
   yasmin
   yasmin_ros
   vortex_msgs
-  vortex_utils
-  vortex_utils_ros
   geometry_msgs
   std_srvs
 )
