@@ -28,17 +28,14 @@ using WaypointManagerAction = vortex_msgs::action::WaypointManager;
  * @param waypoint_goal       Waypoint to send, including pose, mode, and
  *                            convergence threshold.
  */
-class WaypointGoalState : public yasmin_ros::ActionState<WaypointManagerAction> {
+class WaypointGoalState
+    : public yasmin_ros::ActionState<WaypointManagerAction> {
    public:
     WaypointGoalState(const std::string& action_server_name,
                       vortex::utils::waypoints::WaypointGoal waypoint_goal);
 
     WaypointManagerAction::Goal create_goal(
         yasmin::Blackboard::SharedPtr blackboard);
-
-    std::string result_handler(
-        yasmin::Blackboard::SharedPtr blackboard,
-        WaypointManagerAction::Result::SharedPtr result);
 
    private:
     vortex::utils::waypoints::WaypointGoal waypoint_goal_;

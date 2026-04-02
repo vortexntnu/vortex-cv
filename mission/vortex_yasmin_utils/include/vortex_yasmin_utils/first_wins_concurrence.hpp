@@ -20,12 +20,14 @@ namespace vortex_yasmin_utils {
  * @code
  * FirstWinsOutcomeMap om = {
  *     {"WAYPOINT_GOAL",     {{SUCCEED, "waypoint_reached"}, {ABORT, ABORT}}},
- *     {"LANDMARK_POLLING",  {{"landmarks_found", "landmarks_found"}, {ABORT, ABORT}}},
+ *     {"LANDMARK_POLLING",  {{"landmarks_found", "landmarks_found"}, {ABORT,
+ * ABORT}}},
  * };
  * @endcode
  */
 using FirstWinsOutcomeMap =
-    std::unordered_map<std::string, std::unordered_map<std::string, std::string>>;
+    std::unordered_map<std::string,
+                       std::unordered_map<std::string, std::string>>;
 
 /**
  * @brief Runs a set of states concurrently; the first to finish cancels all
@@ -70,8 +72,9 @@ class FirstWinsConcurrence : public yasmin::State {
     std::condition_variable notify_cv_;
     std::mutex notify_mutex_;
 
-    static yasmin::Outcomes collect_outcomes(const FirstWinsOutcomeMap& outcome_map,
-                                             const std::string& default_outcome);
+    static yasmin::Outcomes collect_outcomes(
+        const FirstWinsOutcomeMap& outcome_map,
+        const std::string& default_outcome);
 };
 
 }  // namespace vortex_yasmin_utils

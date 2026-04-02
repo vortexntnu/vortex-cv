@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(pipeline_inspection_fsm)
+project(valve_inspection_fsm)
 
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 20)
@@ -10,52 +10,45 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake REQUIRED)
-find_package(ament_index_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(rclcpp_action REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(yasmin REQUIRED)
 find_package(yasmin_ros REQUIRED)
 find_package(yasmin_viewer REQUIRED)
 find_package(vortex_msgs REQUIRED)
-find_package(vortex_utils REQUIRED)
-find_package(vortex_utils_ros REQUIRED)
+find_package(vortex_yasmin_utils REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 include_directories(include)
 
-add_executable(pipeline_inspection_fsm
-  src/trigger_wait_state.cpp
-  src/wait_for_start_state.cpp
-  src/search_pattern_state.cpp
-  src/landmark_polling_state.cpp
-  src/converge_state.cpp
-  src/start_waypoint_manager_state.cpp
-  src/wait_for_pipeline_end_state.cpp
-  src/stop_waypoint_manager_state.cpp
+add_executable(valve_inspection_fsm
   src/blackboard.cpp
+  src/valve_converge_state.cpp
   src/fsm_runner.cpp
 )
 
-ament_target_dependencies(pipeline_inspection_fsm
-  ament_index_cpp
+ament_target_dependencies(valve_inspection_fsm
   rclcpp
-  rclcpp_action
   std_srvs
   yasmin
   yasmin_ros
   vortex_msgs
-  vortex_utils
-  vortex_utils_ros
+  vortex_yasmin_utils
   geometry_msgs
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
 )
 
-target_link_libraries(pipeline_inspection_fsm
+target_link_libraries(valve_inspection_fsm
   yasmin_viewer::yasmin_viewer
 )
 
 install(TARGETS
-  pipeline_inspection_fsm
+  valve_inspection_fsm
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -23,13 +23,12 @@ LandmarkConvergenceAction::Goal LandmarkConvergeState::create_goal(
     LandmarkConvergenceAction::Goal goal;
     goal.type = type_;
     goal.subtype = subtype_;
-    goal.convergence_offset =
-        vortex::utils::ros_conversions::to_pose_msg(
-            convergence_goal_.convergence_offset);
+    goal.convergence_offset = vortex::utils::ros_conversions::to_pose_msg(
+        convergence_goal_.convergence_offset);
     goal.convergence_threshold = convergence_goal_.convergence_threshold;
     goal.dead_reckoning_threshold = convergence_goal_.dead_reckoning_threshold;
-    goal.convergence_mode.mode =
-        static_cast<uint8_t>(convergence_goal_.mode);
+    goal.track_loss_timeout_sec = convergence_goal_.track_loss_timeout_sec;
+    goal.convergence_mode.mode = static_cast<uint8_t>(convergence_goal_.mode);
 
     return goal;
 }
