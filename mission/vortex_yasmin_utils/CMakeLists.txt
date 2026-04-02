@@ -10,13 +10,17 @@ find_package(rclcpp_action REQUIRED)
 find_package(yasmin REQUIRED)
 find_package(yasmin_ros REQUIRED)
 find_package(vortex_msgs REQUIRED)
+find_package(vortex_utils REQUIRED)
+find_package(vortex_utils_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 
 add_library(vortex_yasmin_utils
+  src/first_wins_concurrence.cpp
   src/landmark_converge_state.cpp
   src/landmark_polling_state.cpp
   src/service_trigger_wait_state.cpp
+  src/waypoint_goal_state.cpp
 )
 
 target_include_directories(vortex_yasmin_utils PUBLIC
@@ -30,6 +34,8 @@ ament_target_dependencies(vortex_yasmin_utils PUBLIC
   yasmin
   yasmin_ros
   vortex_msgs
+  vortex_utils
+  vortex_utils_ros
   geometry_msgs
   std_srvs
 )
@@ -54,6 +60,8 @@ ament_export_dependencies(
   yasmin
   yasmin_ros
   vortex_msgs
+  vortex_utils
+  vortex_utils_ros
   geometry_msgs
   std_srvs
 )
