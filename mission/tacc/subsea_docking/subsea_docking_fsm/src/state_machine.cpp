@@ -47,24 +47,12 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
     landmark_subtype.value =
         0;  // Accept all subtypes under the specified type.
 
-    // -------------------------------------------------------------------------
-    // START_MISSION_WAIT
-    // Blocks until the mission start trigger service is called.
-    // Routes to LANDMARK_CONVERGENCE directly when skip_mode is enabled,
-    // otherwise to SEARCH.
-    // -------------------------------------------------------------------------
     sm->add_state(
         "START_MISSION_WAIT",
         std::make_shared<ServiceTriggerWaitState>(config.start_mission_service),
         {{SUCCEED, config.skip_search ? "LANDMARK_CONVERGENCE" : "SEARCH"},
          {CANCEL, ABORT}});
 
-    // -------------------------------------------------------------------------
-    // SEARCH  (only when skip_mode=false)
-    // Runs SERVICE_REQUEST and LANDMARK_POLLING concurrently.
-    // - Landmark found first  → LANDMARK_CONVERGENCE
-    // - Service request times out → FALLBACK_WAYPOINT
-    // -------------------------------------------------------------------------
     if (!config.skip_search) {
         using SendPoseSrv = vortex_msgs::srv::SendPose;
 
@@ -99,7 +87,14 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         sm->add_state("FALLBACK_WAYPOINT",
                       std::make_shared<WaypointGoalState>(
                           config.waypoint_manager_action_server, fallback_goal),
-                      {{SUCCEED, "DONE"}, {ABORT, ABORT}});
+                      {{SUCCEED, "FALLBACK_LANDMARK_POLLING"}, {ABORT, ABORT}});
+
+        sm->add_state(
+            "FALLBACK_LANDMARK_POLLING",
+            std::make_shared<LandmarkPollingState>(
+                config.landmark_polling_action_server, landmark_type,
+                landmark_subtype, "landmarks"),
+            {{"landmarks_found", "LANDMARK_CONVERGENCE"}, {ABORT, ABORT}});
     }
 
     sm->add_state("LANDMARK_CONVERGENCE",
