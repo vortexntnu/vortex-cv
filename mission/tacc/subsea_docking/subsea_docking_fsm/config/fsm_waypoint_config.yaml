@@ -1,4 +1,4 @@
-initial_docking_position_guess: # Used when skip_search=true and use_service_waypoint=false.
+fallback_docking_waypoint:  # Navigated to when service_request_state times out during search.
   mode: only_position
   position:
     x: 7.5
