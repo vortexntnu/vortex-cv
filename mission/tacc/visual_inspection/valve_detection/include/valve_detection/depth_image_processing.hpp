@@ -3,6 +3,7 @@
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <opencv2/calib3d.hpp>
 #include <opencv2/core.hpp>
 #include "valve_detection/types.hpp"
 
@@ -22,6 +23,13 @@ void project_pixel_to_point(int u,
                             double cx,
                             double cy,
                             pcl::PointXYZ& out);
+
+/// @brief Undistorts a bounding box by undistorting the edge midpoints and
+/// center, then refitting an oriented bounding box.
+/// TODO: Had problems with this, when it undistorted the orientation would be off by a constant offset
+/// Workaround is to just disable this and undistort the whole image instead (done upstream in perception_setup)
+BoundingBox undistort_bbox(const BoundingBox& bbox,
+                           const CameraIntrinsics& intr);
 
 // Projects a color image pixel to depth image coordinates.
 // u_c, v_c: pixel coordinates in the color image.

@@ -2,6 +2,7 @@
 #define VALVE_DETECTION__TYPES_HPP_
 
 #include <Eigen/Dense>
+#include <array>
 #include <cstdint>
 #include <vortex/utils/types.hpp>
 
@@ -9,6 +10,7 @@ namespace valve_detection {
 
 struct CameraIntrinsics {
     double fx{0}, fy{0}, cx{0}, cy{0};
+    std::array<double, 5> dist{0, 0, 0, 0, 0};  // k1, k2, p1, p2, k3
 };
 
 struct ImageDimensions {

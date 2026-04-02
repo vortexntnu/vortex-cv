@@ -82,6 +82,7 @@ class ValvePoseNode : public rclcpp::Node {
     int yolo_w_, yolo_h_;
     float annulus_ratio_, ransac_thresh_, handle_offset_;
     int ransac_iters_;
+    bool undistort_detections_{false};
 
     // camera data (owned by node, passed to estimator and depth functions)
     ImageProperties color_props_{};

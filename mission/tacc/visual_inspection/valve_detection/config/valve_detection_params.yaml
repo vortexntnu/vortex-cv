@@ -1,9 +1,9 @@
 /**:
   ros__parameters:
     # Inputs
-    depth_image_sub_topic: "/realsense_d555/depth/image"
+    depth_image_sub_topic: "/camera/camera/depth/image_rect_raw"
     detections_sub_topic: "/obb_detections_output"
-    depth_image_info_topic: "/realsense_d555/depth/camera_info"
+    depth_image_info_topic: "/camera/camera/depth/camera_info"
     color_image_info_topic: "/yolo_obb_encoder/internal/resize/camera_info"
 
     # Depth-to-color extrinsic
@@ -30,6 +30,12 @@
     # YOLO letterbox reference size
     yolo_img_width: 640
     yolo_img_height: 640
+
+    # Undistort bounding-box detections using the color camera distortion
+    # coefficients from camera_info.  Samples edge midpoints and center,
+    # undistorts them, and refits the OBB — gives a tighter fit than
+    # corner-based undistortion for round objects like valves.
+    undistort_detections: false
 
     # Annulus and plane fit
     # Fraction of the bounding-box half-size used as the annulus ring radius

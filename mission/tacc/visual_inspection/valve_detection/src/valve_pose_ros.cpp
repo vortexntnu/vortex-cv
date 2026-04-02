@@ -45,6 +45,7 @@ void ValvePoseNode::declare_params() {
     ransac_thresh_ = declare_parameter<float>("plane_ransac_threshold");
     ransac_iters_ = declare_parameter<int>("plane_ransac_max_iterations");
     handle_offset_ = declare_parameter<float>("valve_handle_offset");
+    undistort_detections_ = declare_parameter<bool>("undistort_detections");
 
     // TF frame IDs for the depth-to-color extrinsic lookup.
     const std::string depth_frame_base =
@@ -192,6 +193,8 @@ void ValvePoseNode::color_camera_info_cb(
     color_props_.intr.fy = msg->k[4];
     color_props_.intr.cx = msg->k[2];
     color_props_.intr.cy = msg->k[5];
+    for (size_t i = 0; i < 5 && i < msg->d.size(); ++i)
+        color_props_.intr.dist[i] = msg->d[i];
     color_props_.dim.width = static_cast<int>(msg->width);
     color_props_.dim.height = static_cast<int>(msg->height);
     color_props_ready_ = true;
@@ -359,10 +362,11 @@ void ValvePoseNode::sync_cb(
     for (size_t idx : kept) {
         const BoundingBox& yolo_box = scored_boxes[idx].second;
         // YOLO outputs in 640×640 letterbox space — convert to color image
-        // space.  The input image is already undistorted upstream, so no
-        // lens distortion correction is needed here.
-        const BoundingBox color_box =
+        // space, then optionally correct for lens distortion.
+        BoundingBox color_box =
             detector_->letterbox_to_image_coords(yolo_box);
+        if (undistort_detections_)
+            color_box = undistort_bbox(color_box, color_props_.intr);
 
         const auto result =
             detector_->compute_pose_from_depth(depth_img, color_box, mode);
