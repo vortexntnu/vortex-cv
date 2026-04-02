@@ -2,6 +2,7 @@
 
 #include <vortex/utils/ros/ros_conversions.hpp>
 #include <vortex/utils/waypoint_utils.hpp>
+#include <vortex_msgs/msg/landmark.hpp>
 
 namespace vortex_yasmin_utils {
 
@@ -19,10 +20,24 @@ LandmarkConvergeState::LandmarkConvergeState(
       subtype_(subtype) {}
 
 LandmarkConvergenceAction::Goal LandmarkConvergeState::create_goal(
-    yasmin::Blackboard::SharedPtr /*blackboard*/) {
+    yasmin::Blackboard::SharedPtr blackboard) {
     LandmarkConvergenceAction::Goal goal;
-    goal.type = type_;
-    goal.subtype = subtype_;
+
+    if (blackboard->contains("landmarks")) {
+        auto landmarks =
+            blackboard->get<std::vector<vortex_msgs::msg::Landmark>>(
+                "landmarks");
+        if (!landmarks.empty()) {
+            goal.type = landmarks.front().type;
+            goal.subtype = landmarks.front().subtype;
+        } else {
+            goal.type = type_;
+            goal.subtype = subtype_;
+        }
+    } else {
+        goal.type = type_;
+        goal.subtype = subtype_;
+    }
     goal.convergence_offset = vortex::utils::ros_conversions::to_pose_msg(
         convergence_goal_.convergence_offset);
     goal.convergence_threshold = convergence_goal_.convergence_threshold;
