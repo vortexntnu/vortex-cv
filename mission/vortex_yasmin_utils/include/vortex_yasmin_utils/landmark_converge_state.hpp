@@ -4,40 +4,43 @@
 #include <string>
 
 #include <vortex/utils/waypoint_utils.hpp>
-#include <vortex_msgs/action/waypoint_manager.hpp>
+#include <vortex_msgs/action/landmark_convergence.hpp>
+#include <vortex_msgs/msg/landmark_subtype.hpp>
+#include <vortex_msgs/msg/landmark_type.hpp>
 
 #include <yasmin_ros/action_state.hpp>
 
 namespace vortex_yasmin_utils {
 
-using WaypointManagerAction = vortex_msgs::action::WaypointManager;
+using LandmarkConvergenceAction = vortex_msgs::action::LandmarkConvergence;
 
 /**
- * @brief Converges on the first landmark in a vector read from the blackboard.
+ * @brief Converges on a landmark of a specific type using the LandmarkServer.
  *
- * Reads a std::vector<vortex_msgs::msg::Landmark> from the blackboard
- * under the caller-specified key, takes the first element, applies the
- * convergence offset, and sends the resulting waypoint to the
- * WaypointManager action server.
+ * Sends a LandmarkConvergence action goal to the landmark server,
+ * which internally tracks and converges on the target landmark.
  *
- * @param action_server_name  Name of the WaypointManager action server.
- * @param convergence_goal    Offset, mode, and threshold for convergence.
- * @param landmarks_bb_key    Blackboard key for the input landmarks vector.
+ * @param action_server_name  Name of the LandmarkConvergence action server.
+ * @param convergence_goal    Offset, mode, and thresholds for convergence.
+ * @param type                Landmark type to converge on.
+ * @param subtype             Landmark subtype to converge on.
  */
 class LandmarkConvergeState
-    : public yasmin_ros::ActionState<WaypointManagerAction> {
+    : public yasmin_ros::ActionState<LandmarkConvergenceAction> {
    public:
     LandmarkConvergeState(
         const std::string& action_server_name,
         vortex::utils::waypoints::LandmarkConvergenceGoal convergence_goal,
-        const std::string& landmarks_bb_key);
+        vortex_msgs::msg::LandmarkType type,
+        vortex_msgs::msg::LandmarkSubtype subtype);
 
-    WaypointManagerAction::Goal create_goal(
+    LandmarkConvergenceAction::Goal create_goal(
         yasmin::Blackboard::SharedPtr blackboard);
 
    private:
     vortex::utils::waypoints::LandmarkConvergenceGoal convergence_goal_;
-    std::string landmarks_bb_key_;
+    vortex_msgs::msg::LandmarkType type_;
+    vortex_msgs::msg::LandmarkSubtype subtype_;
 };
 
 }  // namespace vortex_yasmin_utils
