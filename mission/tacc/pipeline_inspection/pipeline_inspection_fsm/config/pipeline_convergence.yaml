@@ -9,4 +9,3 @@ pipeline_start_convergence:
     yaw: 0.0
   mode: 0
   convergence_threshold: 0.1
-  dead_reckoning_threshold: 0.5
