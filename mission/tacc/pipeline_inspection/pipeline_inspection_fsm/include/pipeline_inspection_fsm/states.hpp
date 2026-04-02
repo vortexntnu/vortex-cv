@@ -1,39 +1,23 @@
 #ifndef PIPELINE_INSPECTION_FSM__STATES_HPP_
 #define PIPELINE_INSPECTION_FSM__STATES_HPP_
 
-#include <atomic>
-#include <condition_variable>
 #include <memory>
-#include <mutex>
-#include <optional>
 #include <string>
 #include <vector>
 
-#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 
-#include <vortex/utils/ros/ros_conversions.hpp>
-#include <vortex/utils/types.hpp>
 #include <vortex/utils/waypoint_utils.hpp>
-
-#include <yasmin/blackboard.hpp>
-#include <yasmin/logs.hpp>
-#include <yasmin/state.hpp>
-
-#include <yasmin_ros/action_state.hpp>
-#include <yasmin_ros/basic_outcomes.hpp>
-#include <yasmin_ros/ros_clients_cache.hpp>
-#include <yasmin_ros/service_state.hpp>
-#include <yasmin_ros/yasmin_node.hpp>
-
-#include <std_srvs/srv/trigger.hpp>
-#include <vortex_msgs/action/landmark_polling.hpp>
 #include <vortex_msgs/action/waypoint_manager.hpp>
 #include <vortex_msgs/msg/landmark.hpp>
-#include <vortex_msgs/msg/landmark_subtype.hpp>
-#include <vortex_msgs/msg/landmark_type.hpp>
-#include <vortex_msgs/msg/waypoint.hpp>
+
+#include <yasmin/blackboard.hpp>
+#include <yasmin/state.hpp>
+#include <yasmin_ros/action_state.hpp>
+#include <yasmin_ros/basic_outcomes.hpp>
+
+#include <std_srvs/srv/trigger.hpp>
 
 namespace pipeline_inspection_fsm {
 
@@ -41,94 +25,52 @@ using WaypointManagerAction = vortex_msgs::action::WaypointManager;
 using WaypointManagerGoalHandle =
     rclcpp_action::ClientGoalHandle<WaypointManagerAction>;
 
-using LandmarkPollingAction = vortex_msgs::action::LandmarkPolling;
-
 using TriggerSrv = std_srvs::srv::Trigger;
 
 }  // namespace pipeline_inspection_fsm
 
-class TriggerWaitState : public yasmin::State {
-   public:
-    explicit TriggerWaitState(const std::string& service_name);
-
-    std::string execute(yasmin::Blackboard::SharedPtr blackboard) override;
-    void cancel_state() override;
-
-   protected:
-    virtual void on_triggered(yasmin::Blackboard::SharedPtr blackboard);
-
-   private:
-    void callback(pipeline_inspection_fsm::TriggerSrv::Request::SharedPtr req,
-                  pipeline_inspection_fsm::TriggerSrv::Response::SharedPtr res);
-
-    rclcpp::Service<pipeline_inspection_fsm::TriggerSrv>::SharedPtr service_;
-    std::condition_variable cv_;
-    std::mutex mutex_;
-    bool triggered_{false};
-};
-
-class WaitForStartState : public TriggerWaitState {
-   public:
-    explicit WaitForStartState(yasmin::Blackboard::SharedPtr blackboard);
-};
-
-class SearchPatternState : public yasmin::State {
-   public:
-    explicit SearchPatternState(yasmin::Blackboard::SharedPtr blackboard);
-
-    std::string execute(yasmin::Blackboard::SharedPtr blackboard) override;
-    void cancel_state() override;
-
-   private:
-    std::vector<vortex::utils::waypoints::WaypointGoal> load_search_waypoints()
-        const;
-    void cancel_active_goal();
-
-    std::optional<pipeline_inspection_fsm::WaypointManagerAction::Goal>
-    build_search_goal(
-        const std::vector<vortex::utils::waypoints::WaypointGoal>& waypoints);
-
-    std::string waypoint_file_path_;
-
-    std::atomic<pipeline_inspection_fsm::WaypointManagerGoalHandle::SharedPtr>
-        goal_handle_;
-
-    rclcpp_action::Client<
-        pipeline_inspection_fsm::WaypointManagerAction>::SharedPtr client_;
-};
-
-/*
- * Landmark polling action
+/**
+ * @brief Sends all search waypoints in one WaypointManager action goal.
+ *
+ * Loads a vector of WaypointGoal (e.g. from load_waypoint_goal_from_yaml) and
+ * sends them all at once as a single non-persistent WaypointManager goal.
+ * Returns SUCCEED when all waypoints are visited, ABORT on failure.
  */
-class LandmarkPollingState
+class SearchWaypointGoalState
     : public yasmin_ros::ActionState<
-          pipeline_inspection_fsm::LandmarkPollingAction> {
+          pipeline_inspection_fsm::WaypointManagerAction> {
    public:
-    explicit LandmarkPollingState(yasmin::Blackboard::SharedPtr blackboard);
-
-    pipeline_inspection_fsm::LandmarkPollingAction::Goal create_goal(
-        yasmin::Blackboard::SharedPtr blackboard);
-
-    std::string result_handler(
-        yasmin::Blackboard::SharedPtr blackboard,
-        pipeline_inspection_fsm::LandmarkPollingAction::Result::SharedPtr
-            result);
-
-   private:
-    vortex_msgs::msg::LandmarkType landmark_type_;
-    vortex_msgs::msg::LandmarkSubtype landmark_subtype_;
-};
-
-class ConvergeState : public yasmin_ros::ActionState<
-                          pipeline_inspection_fsm::WaypointManagerAction> {
-   public:
-    explicit ConvergeState(yasmin::Blackboard::SharedPtr blackboard);
+    SearchWaypointGoalState(
+        const std::string& action_server_name,
+        std::vector<vortex::utils::waypoints::WaypointGoal> waypoints);
 
     pipeline_inspection_fsm::WaypointManagerAction::Goal create_goal(
         yasmin::Blackboard::SharedPtr blackboard);
 
    private:
-    std::string convergence_file_path_;
+    std::vector<vortex::utils::waypoints::WaypointGoal> waypoints_;
+};
+
+/**
+ * @brief Converges on the pipeline start by sending a single WaypointManager
+ * goal computed from the detected landmark pose.
+ *
+ * Reads the first landmark from the blackboard key "pipeline_landmarks",
+ * applies the configured pose offset via apply_pose_offset, then sends
+ * the resulting target pose to the WaypointManager action server.
+ */
+class LandmarkConvergeState
+    : public yasmin_ros::ActionState<
+          pipeline_inspection_fsm::WaypointManagerAction> {
+   public:
+    LandmarkConvergeState(
+        const std::string& action_server_name,
+        vortex::utils::waypoints::LandmarkConvergenceGoal convergence_goal);
+
+    pipeline_inspection_fsm::WaypointManagerAction::Goal create_goal(
+        yasmin::Blackboard::SharedPtr blackboard);
+
+   private:
     vortex::utils::waypoints::LandmarkConvergenceGoal convergence_goal_;
 };
 
@@ -142,14 +84,6 @@ class StartWaypointManagerState : public yasmin::State {
    private:
     rclcpp_action::Client<
         pipeline_inspection_fsm::WaypointManagerAction>::SharedPtr client_;
-};
-
-class WaitForPipelineEndState : public TriggerWaitState {
-   public:
-    explicit WaitForPipelineEndState(yasmin::Blackboard::SharedPtr blackboard);
-
-   protected:
-    void on_triggered(yasmin::Blackboard::SharedPtr blackboard) override;
 };
 
 class StopWaypointManagerState : public yasmin::State {
