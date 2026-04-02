@@ -26,8 +26,9 @@ void project_pixel_to_point(int u,
 
 /// @brief Undistorts a bounding box by undistorting the edge midpoints and
 /// center, then refitting an oriented bounding box.
-/// TODO: Had problems with this, when it undistorted the orientation would be off by a constant offset
-/// Workaround is to just disable this and undistort the whole image instead (done upstream in perception_setup)
+/// TODO: Had problems with this, when it undistorted the orientation would be
+/// off by a constant offset Workaround is to just disable this and undistort
+/// the whole image instead (done upstream in perception_setup)
 BoundingBox undistort_bbox(const BoundingBox& bbox,
                            const CameraIntrinsics& intr);
 

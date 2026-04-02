@@ -2,16 +2,17 @@
 // Depth-to-3D back-projection and color-to-depth pixel projection.
 #include "valve_detection/depth_image_processing.hpp"
 #include <Eigen/Dense>
-#include <opencv2/calib3d.hpp>
-#include <opencv2/imgproc.hpp>
 #include <cmath>
 #include <limits>
+#include <opencv2/calib3d.hpp>
+#include <opencv2/imgproc.hpp>
 #include <vector>
 
 namespace valve_detection {
 
-/// TODO: Had problems with this, when it undistorted the orientation would be off by a constant offset
-/// Workaround is to just disable this and undistort the whole image instead (done upstream in perception_setup)
+/// TODO: Had problems with this, when it undistorted the orientation would be
+/// off by a constant offset Workaround is to just disable this and undistort
+/// the whole image instead (done upstream in perception_setup)
 BoundingBox undistort_bbox(const BoundingBox& bbox,
                            const CameraIntrinsics& intr) {
     const cv::Mat K = (cv::Mat_<double>(3, 3) << intr.fx, 0, intr.cx, 0,
@@ -51,15 +52,21 @@ BoundingBox undistort_bbox(const BoundingBox& bbox,
     // of the input angle and swap width/height accordingly.
     float fitted_angle_deg = fitted.angle;
     float diff = fitted_angle_deg - angle_deg;
-    while (diff >  90.0f) { diff -= 180.0f; fitted_angle_deg -= 180.0f; }
-    while (diff < -90.0f) { diff += 180.0f; fitted_angle_deg += 180.0f; }
+    while (diff > 90.0f) {
+        diff -= 180.0f;
+        fitted_angle_deg -= 180.0f;
+    }
+    while (diff < -90.0f) {
+        diff += 180.0f;
+        fitted_angle_deg += 180.0f;
+    }
     const bool swapped = std::abs(fitted_angle_deg - fitted.angle) > 45.0f;
 
     BoundingBox result = bbox;
     result.center_x = undist_center.x;
     result.center_y = undist_center.y;
     result.size_x = swapped ? fitted.size.height : fitted.size.width;
-    result.size_y = swapped ? fitted.size.width  : fitted.size.height;
+    result.size_y = swapped ? fitted.size.width : fitted.size.height;
     result.theta = fitted_angle_deg * static_cast<float>(M_PI) / 180.0f;
     return result;
 }

@@ -363,8 +363,7 @@ void ValvePoseNode::sync_cb(
         const BoundingBox& yolo_box = scored_boxes[idx].second;
         // YOLO outputs in 640×640 letterbox space — convert to color image
         // space, then optionally correct for lens distortion.
-        BoundingBox color_box =
-            detector_->letterbox_to_image_coords(yolo_box);
+        BoundingBox color_box = detector_->letterbox_to_image_coords(yolo_box);
         if (undistort_detections_)
             color_box = undistort_bbox(color_box, color_props_.intr);
 

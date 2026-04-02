@@ -92,17 +92,33 @@ def generate_launch_description():
                         parameters=[
                             cfg,
                             {
-                                'depth_image_sub_topic': LaunchConfiguration('depth_image_sub_topic'),
-                                'detections_sub_topic': LaunchConfiguration('detections_sub_topic'),
-                                'depth_image_info_topic': LaunchConfiguration('depth_image_info_topic'),
-                                'color_image_info_topic': LaunchConfiguration('color_image_info_topic'),
+                                'depth_image_sub_topic': LaunchConfiguration(
+                                    'depth_image_sub_topic'
+                                ),
+                                'detections_sub_topic': LaunchConfiguration(
+                                    'detections_sub_topic'
+                                ),
+                                'depth_image_info_topic': LaunchConfiguration(
+                                    'depth_image_info_topic'
+                                ),
+                                'color_image_info_topic': LaunchConfiguration(
+                                    'color_image_info_topic'
+                                ),
                                 'depth_frame_id': LaunchConfiguration('depth_frame_id'),
                                 'color_frame_id': LaunchConfiguration('color_frame_id'),
-                                'landmarks_pub_topic': LaunchConfiguration('landmarks_pub_topic'),
-                                'output_frame_id': LaunchConfiguration('output_frame_id'),
+                                'landmarks_pub_topic': LaunchConfiguration(
+                                    'landmarks_pub_topic'
+                                ),
+                                'output_frame_id': LaunchConfiguration(
+                                    'output_frame_id'
+                                ),
                                 'drone': LaunchConfiguration('drone'),
-                                'undistort_detections': LaunchConfiguration('undistort_detections'),
-                                'debug_visualize': LaunchConfiguration('debug_visualize'),
+                                'undistort_detections': LaunchConfiguration(
+                                    'undistort_detections'
+                                ),
+                                'debug_visualize': LaunchConfiguration(
+                                    'debug_visualize'
+                                ),
                             },
                         ],
                     )
