@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 #include <thread>
+#include <unordered_set>
 #include <vector>
 
 #include <yasmin/logs.hpp>
@@ -27,16 +28,26 @@ yasmin::Outcomes FirstWinsConcurrence::collect_outcomes(
 FirstWinsConcurrence::FirstWinsConcurrence(
     const yasmin::StateMap& states,
     const std::string& default_outcome,
-    const FirstWinsOutcomeMap& outcome_map)
+    const FirstWinsOutcomeMap& outcome_map,
+    const std::unordered_set<std::string>& winner_states)
     : State(collect_outcomes(outcome_map, default_outcome)),
       states_(states),
       default_outcome_(default_outcome),
-      outcome_map_(outcome_map) {
+      outcome_map_(outcome_map),
+      winner_states_(winner_states) {
     for (const auto& [state_name, _] : outcome_map) {
         if (states.find(state_name) == states.end()) {
             throw std::invalid_argument(
                 "FirstWinsConcurrence: outcome_map references unknown state '" +
                 state_name + "'");
+        }
+    }
+    for (const auto& name : winner_states_) {
+        if (states.find(name) == states.end()) {
+            throw std::invalid_argument(
+                "FirstWinsConcurrence: winner_states references unknown "
+                "state '" +
+                name + "'");
         }
     }
 }
@@ -54,7 +65,18 @@ std::string FirstWinsConcurrence::execute(
         threads.emplace_back([this, blackboard, name = name, state = state]() {
             const std::string outcome = (*state)(blackboard);
 
-            // Only the first completion wins; subsequent ones are ignored.
+            // If winner_states is set, only those states can win the race.
+            if (!winner_states_.empty() &&
+                winner_states_.find(name) == winner_states_.end()) {
+                YASMIN_LOG_INFO(
+                    "FirstWinsConcurrence: '%s' finished with '%s' but is not "
+                    "an eligible winner, ignoring",
+                    name.c_str(), outcome.c_str());
+                return;
+            }
+
+            // Only the first eligible completion wins; subsequent ones are
+            // ignored.
             bool expected = false;
             if (first_done_.compare_exchange_strong(expected, true)) {
                 {

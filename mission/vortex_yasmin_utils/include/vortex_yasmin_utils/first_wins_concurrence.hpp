@@ -6,6 +6,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <yasmin/state.hpp>
 #include <yasmin/types.hpp>
@@ -48,14 +49,21 @@ using FirstWinsOutcomeMap =
  * @param states         Map of logical name → state to run concurrently.
  * @param default_outcome Returned when the winner's outcome has no mapping.
  * @param outcome_map    Per-state outcome translation table (see above).
+ * @param winner_states  Optional set of state names that are eligible to win.
+ *                       If empty (default), every state can win.  When
+ *                       non-empty, only a state whose name appears in this set
+ *                       can trigger "first done"; other states run alongside
+ *                       but their completion is silently ignored.
  */
 class FirstWinsConcurrence : public yasmin::State {
    public:
     YASMIN_PTR_ALIASES(FirstWinsConcurrence)
 
-    FirstWinsConcurrence(const yasmin::StateMap& states,
-                         const std::string& default_outcome,
-                         const FirstWinsOutcomeMap& outcome_map);
+    FirstWinsConcurrence(
+        const yasmin::StateMap& states,
+        const std::string& default_outcome,
+        const FirstWinsOutcomeMap& outcome_map,
+        const std::unordered_set<std::string>& winner_states = {});
 
     std::string execute(yasmin::Blackboard::SharedPtr blackboard) override;
 
@@ -65,6 +73,7 @@ class FirstWinsConcurrence : public yasmin::State {
     const yasmin::StateMap states_;
     const std::string default_outcome_;
     const FirstWinsOutcomeMap outcome_map_;
+    const std::unordered_set<std::string> winner_states_;
 
     std::atomic<bool> first_done_{false};
     std::string winning_state_name_;
