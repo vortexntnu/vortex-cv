@@ -1,5 +1,6 @@
 #include "vortex_yasmin_utils/first_wins_concurrence.hpp"
 
+#include <stdexcept>
 #include <thread>
 #include <vector>
 
@@ -23,13 +24,22 @@ yasmin::Outcomes FirstWinsConcurrence::collect_outcomes(
     return outcomes;
 }
 
-FirstWinsConcurrence::FirstWinsConcurrence(const yasmin::StateMap& states,
-                                           const std::string& default_outcome,
-                                           const FirstWinsOutcomeMap& outcome_map)
+FirstWinsConcurrence::FirstWinsConcurrence(
+    const yasmin::StateMap& states,
+    const std::string& default_outcome,
+    const FirstWinsOutcomeMap& outcome_map)
     : State(collect_outcomes(outcome_map, default_outcome)),
       states_(states),
       default_outcome_(default_outcome),
-      outcome_map_(outcome_map) {}
+      outcome_map_(outcome_map) {
+    for (const auto& [state_name, _] : outcome_map) {
+        if (states.find(state_name) == states.end()) {
+            throw std::invalid_argument(
+                "FirstWinsConcurrence: outcome_map references unknown state '" +
+                state_name + "'");
+        }
+    }
+}
 
 std::string FirstWinsConcurrence::execute(
     yasmin::Blackboard::SharedPtr blackboard) {
@@ -104,14 +114,13 @@ void FirstWinsConcurrence::cancel_state() {
     // Set the canceled flag first so execute()'s wait condition sees it.
     yasmin::State::cancel_state();
 
+    notify_cv_.notify_all();
+
     for (const auto& [name, state] : states_) {
         if (state->is_running()) {
             state->cancel_state();
         }
     }
-
-    // Wake execute() in case it is still waiting for the first completion.
-    notify_cv_.notify_all();
 }
 
 }  // namespace vortex_yasmin_utils
