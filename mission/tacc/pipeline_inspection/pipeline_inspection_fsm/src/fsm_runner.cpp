@@ -13,6 +13,7 @@
 
 #include <vortex_yasmin_utils/first_wins_concurrence.hpp>
 #include <vortex_yasmin_utils/landmark_polling_state.hpp>
+#include <vortex_yasmin_utils/persistent_waypoint_manager_state.hpp>
 #include <vortex_yasmin_utils/service_trigger_wait_state.hpp>
 
 #include <rclcpp/rclcpp.hpp>
@@ -123,26 +124,41 @@ int main(int argc, char** argv) {
           yasmin_ros::basic_outcomes::ABORT}});
 
     sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
-                  {{yasmin_ros::basic_outcomes::SUCCEED, "START_WM"},
-                   {yasmin_ros::basic_outcomes::ABORT,
-                    yasmin_ros::basic_outcomes::ABORT}});
-
-    sm->add_state("START_WM",
-                  std::make_shared<StartWaypointManagerState>(blackboard),
                   {{yasmin_ros::basic_outcomes::SUCCEED, "PIPELINE_FOLLOWING"},
                    {yasmin_ros::basic_outcomes::ABORT,
                     yasmin_ros::basic_outcomes::ABORT}});
 
-    sm->add_state(
-        "PIPELINE_FOLLOWING",
-        std::make_shared<vortex_yasmin_utils::ServiceTriggerWaitState>(
-            blackboard->get<std::string>("service.end_of_pipeline")),
-        {{yasmin_ros::basic_outcomes::SUCCEED, "STOP_WM"},
-         {yasmin_ros::basic_outcomes::CANCEL, "STOP_WM"}});
+    auto pipeline_following =
+        std::make_shared<vortex_yasmin_utils::FirstWinsConcurrence>(
+            yasmin::StateMap{
+                {"PERSISTENT_WM",
+                 std::make_shared<
+                     vortex_yasmin_utils::PersistentWaypointManagerState>(
+                     blackboard->get<std::string>(
+                         "action_server.waypoint_manager"))},
+                {"WAIT_FOR_END_OF_PIPELINE",
+                 std::make_shared<vortex_yasmin_utils::ServiceTriggerWaitState>(
+                     blackboard->get<std::string>("service.end_of_pipeline"))}},
+            yasmin_ros::basic_outcomes::ABORT,
+            vortex_yasmin_utils::FirstWinsOutcomeMap{
+                {"PERSISTENT_WM",
+                 {{yasmin_ros::basic_outcomes::SUCCEED,
+                   yasmin_ros::basic_outcomes::ABORT},
+                  {yasmin_ros::basic_outcomes::ABORT,
+                   yasmin_ros::basic_outcomes::ABORT}}},
+                {"WAIT_FOR_END_OF_PIPELINE",
+                 {{yasmin_ros::basic_outcomes::SUCCEED,
+                   yasmin_ros::basic_outcomes::SUCCEED},
+                  {yasmin_ros::basic_outcomes::CANCEL,
+                   yasmin_ros::basic_outcomes::CANCEL}}}},
+            std::unordered_set<std::string>{"WAIT_FOR_END_OF_PIPELINE"});
 
-    sm->add_state("STOP_WM",
-                  std::make_shared<StopWaypointManagerState>(blackboard),
-                  {{yasmin_ros::basic_outcomes::SUCCEED, "DONE"}});
+    sm->add_state("PIPELINE_FOLLOWING", pipeline_following,
+                  {{yasmin_ros::basic_outcomes::SUCCEED, "DONE"},
+                   {yasmin_ros::basic_outcomes::CANCEL,
+                    yasmin_ros::basic_outcomes::ABORT},
+                   {yasmin_ros::basic_outcomes::ABORT,
+                    yasmin_ros::basic_outcomes::ABORT}});
 
     sm->add_state(
         "DONE",
