@@ -9,4 +9,9 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}
 )
 
+install(PROGRAMS
+  scripts/pipeline_inspection.sh
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_package()

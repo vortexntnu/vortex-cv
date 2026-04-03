@@ -1,0 +1,25 @@
+# Subsea docking - Simulation scenario
+# All scenario-specific parameters in one place.
+
+scenario:
+  name: sim
+  use_camera_driver: false
+
+  aruco_board:
+    marker_size: 0.150  # TAC board marker size [m]
+    xDist: 0.430
+    yDist: 0.830
+    ids: [28, 7, 96, 19]
+
+  front_camera:
+    image_topic: "/{ns}/front_camera"
+    camera_info_topic: "/{ns}/front_camera/camera_info"
+    camera_frame: "/{ns}/front_camera_link"
+
+  down_camera:
+    image_topic: "/{ns}/down_camera/image_color"
+    camera_info_topic: "/{ns}/down_camera/camera_info"
+    camera_frame: "/{ns}/down_camera_link"
+
+  sonar:
+    launch_driver: false

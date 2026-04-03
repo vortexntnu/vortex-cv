@@ -9,4 +9,9 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}
 )
 
+install(PROGRAMS
+  scripts/subsea_docking.sh
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_package()

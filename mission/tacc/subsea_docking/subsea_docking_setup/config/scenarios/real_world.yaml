@@ -1,0 +1,27 @@
+# Subsea docking - Real world scenario
+# All scenario-specific parameters in one place.
+
+scenario:
+  name: real_world
+  use_camera_driver: true
+
+  aruco_board:
+    marker_size: 0.140  # Vortex docking plate marker size [m]
+    xDist: 0.448
+    yDist: 0.853
+    ids: [28, 7, 96, 19]
+
+  front_camera:
+    image_topic: "/{ns}/front_camera/image_raw"
+    camera_info_topic: "/{ns}/front_camera/camera_info"
+    camera_frame: "/{ns}/front_camera_link"
+    serial_number: "23494259"
+
+  down_camera:
+    image_topic: "/{ns}/down_camera/image_raw"
+    camera_info_topic: "/{ns}/down_camera/camera_info"
+    camera_frame: "/{ns}/down_camera_link"
+    serial_number: "23494258"
+
+  sonar:
+    launch_driver: true

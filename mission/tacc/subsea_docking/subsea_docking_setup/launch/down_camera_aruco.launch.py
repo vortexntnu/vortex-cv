@@ -1,5 +1,6 @@
 import os
 
+import yaml
 from ament_index_python.packages import get_package_share_directory
 from auv_setup.launch_arg_common import (
     declare_drone_and_namespace_args,
@@ -13,117 +14,97 @@ from launch_ros.descriptions import ComposableNode
 from launch_ros.substitutions import FindPackageShare
 
 
-def launch_setup(context, *args, **kwargs):
-    drone, namespace = resolve_drone_and_namespace(context)
-    use_sim = context.launch_configurations["use_sim"].lower() == "true"
-    board = context.launch_configurations["board"]
-
-    perception_setup_share = get_package_share_directory("perception_setup")
-
-    aruco_base_params = os.path.join(
-        perception_setup_share, "config", "aruco_detector_params.yaml"
-    )
-
-    aruco_board_params = os.path.join(
+def load_scenario(scenario, namespace):
+    path = os.path.join(
         get_package_share_directory("subsea_docking_setup"),
         "config",
-        f"aruco_{board}.yaml",
+        "scenarios",
+        f"{scenario}.yaml",
+    )
+    with open(path) as f:
+        raw = f.read().replace("{ns}", namespace)
+    return yaml.safe_load(raw)["scenario"]
+
+
+def launch_setup(context, *args, **kwargs):
+    drone, namespace = resolve_drone_and_namespace(context)
+    scenario = context.launch_configurations["scenario"]
+    cfg = load_scenario(scenario, namespace)
+
+    perception_share = get_package_share_directory("perception_setup")
+    aruco_base_params = os.path.join(
+        perception_share, "config", "aruco_detector_params.yaml"
     )
 
-    if use_sim:
-        image_topic = f"/{namespace}/down_camera/image_color"
-        camera_info_topic = f"/{namespace}/down_camera/camera_info"
+    cam = cfg["down_camera"]
+    board = cfg["aruco_board"]
 
-        container = ComposableNodeContainer(
-            name="down_camera_aruco_container",
-            namespace=namespace,
-            package="rclcpp_components",
-            executable="component_container_mt",
-            composable_node_descriptions=[
-                ComposableNode(
-                    package="aruco_detector",
-                    plugin="vortex::aruco_detector::ArucoDetectorNode",
-                    name="aruco_detector",
-                    namespace=namespace,
-                    parameters=[
-                        aruco_base_params,
-                        aruco_board_params,
-                        {
-                            "subs.image_topic": image_topic,
-                            "subs.camera_info_topic": camera_info_topic,
-                            "camera_frame": f"{namespace}/down_camera_link",
-                        },
-                    ],
-                    extra_arguments=[{"use_intra_process_comms": False}],
-                ),
-            ],
-            output="screen",
-            arguments=["--ros-args", "--log-level", "error"],
-        )
-    else:
-        down_camera_params_file = PathJoinSubstitution(
+    aruco_node = ComposableNode(
+        package="aruco_detector",
+        plugin="vortex::aruco_detector::ArucoDetectorNode",
+        name="down_aruco_detector",
+        namespace=namespace,
+        parameters=[
+            aruco_base_params,
+            {
+                "aruco.marker_size": board["marker_size"],
+                "board.xDist": board["xDist"],
+                "board.yDist": board["yDist"],
+                "board.ids": board["ids"],
+                "subs.image_topic": cam["image_topic"],
+                "subs.camera_info_topic": cam["camera_info_topic"],
+                "camera_frame": cam["camera_frame"],
+            },
+        ],
+        extra_arguments=[{"use_intra_process_comms": cfg["use_camera_driver"]}],
+    )
+
+    nodes = [aruco_node]
+
+    if cfg["use_camera_driver"]:
+        camera_params = PathJoinSubstitution(
             [
                 FindPackageShare("perception_setup"),
                 "config",
                 "downwards_cam_params.yaml",
             ]
         )
-
-        blackfly_s_config_file = PathJoinSubstitution(
+        blackfly_config = PathJoinSubstitution(
             [FindPackageShare("perception_setup"), "config", "blackfly_s_params.yaml"]
         )
+        calib_url = f"file://{os.path.join(perception_share, 'config', 'downwards_cam_calib.yaml')}"
 
-        down_camera_calib_url = f"file://{os.path.join(perception_setup_share, 'config', 'downwards_cam_calib.yaml')}"
-
-        image_topic = f"/{namespace}/down_camera/image_raw"
-        camera_info_topic = f"/{namespace}/down_camera/camera_info"
-
-        container = ComposableNodeContainer(
-            name="down_camera_aruco_container",
+        driver_node = ComposableNode(
+            package="spinnaker_camera_driver",
+            plugin="spinnaker_camera_driver::CameraDriver",
+            name="down_camera",
             namespace=namespace,
-            package="rclcpp_components",
-            executable="component_container_mt",
-            composable_node_descriptions=[
-                ComposableNode(
-                    package="spinnaker_camera_driver",
-                    plugin="spinnaker_camera_driver::CameraDriver",
-                    name="down_camera",
-                    namespace=namespace,
-                    parameters=[
-                        down_camera_params_file,
-                        {
-                            "parameter_file": blackfly_s_config_file,
-                            "serial_number": "23494258",
-                            "camerainfo_url": down_camera_calib_url,
-                        },
-                    ],
-                    remappings=[
-                        ("~/control", "/exposure_control/control"),
-                        ("/flir_camera/image_raw", image_topic),
-                        ("/flir_camera/camera_info", camera_info_topic),
-                    ],
-                    extra_arguments=[{"use_intra_process_comms": False}],
-                ),
-                ComposableNode(
-                    package="aruco_detector",
-                    plugin="vortex::aruco_detector::ArucoDetectorNode",
-                    name="aruco_detector",
-                    namespace=namespace,
-                    parameters=[
-                        aruco_base_params,
-                        aruco_board_params,
-                        {
-                            "subs.image_topic": image_topic,
-                            "subs.camera_info_topic": camera_info_topic,
-                            "camera_frame": f"{namespace}/down_camera_link",
-                        },
-                    ],
-                    extra_arguments=[{"use_intra_process_comms": True}],
-                ),
+            parameters=[
+                camera_params,
+                {
+                    "parameter_file": blackfly_config,
+                    "serial_number": cam["serial_number"],
+                    "camerainfo_url": calib_url,
+                },
             ],
-            output="screen",
-            arguments=["--ros-args", "--log-level", "error"],
+            remappings=[
+                ("~/control", "/exposure_control/control"),
+                ("/flir_camera/image_raw", cam["image_topic"]),
+                ("/flir_camera/camera_info", cam["camera_info_topic"]),
+            ],
+            extra_arguments=[{"use_intra_process_comms": False}],
         )
+        nodes.insert(0, driver_node)
+
+    container = ComposableNodeContainer(
+        name="down_camera_aruco_container",
+        namespace=namespace,
+        package="rclcpp_components",
+        executable="component_container_mt",
+        composable_node_descriptions=nodes,
+        output="screen",
+        arguments=["--ros-args", "--log-level", "error"],
+    )
 
     return [container]
 
@@ -133,14 +114,9 @@ def generate_launch_description():
         declare_drone_and_namespace_args()
         + [
             DeclareLaunchArgument(
-                "use_sim",
-                default_value="false",
-                description="Skip camera driver and subscribe to sim topics",
-            ),
-            DeclareLaunchArgument(
-                "board",
-                default_value="tacc",
-                description="ArUco board config: tacc or vortex_plate",
+                "scenario",
+                default_value="sim",
+                description="Scenario to load: sim, real_world",
             ),
             OpaqueFunction(function=launch_setup),
         ]
