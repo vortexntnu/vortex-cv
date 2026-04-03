@@ -28,8 +28,6 @@ include_directories(include)
 add_executable(pipeline_inspection_fsm
   src/search_waypoint_goal_state.cpp
   src/converge_state.cpp
-  src/start_waypoint_manager_state.cpp
-  src/stop_waypoint_manager_state.cpp
   src/blackboard.cpp
   src/fsm_runner.cpp
 )
@@ -37,7 +35,6 @@ add_executable(pipeline_inspection_fsm
 ament_target_dependencies(pipeline_inspection_fsm
   ament_index_cpp
   rclcpp
-  rclcpp_action
   std_srvs
   yasmin
   yasmin_ros

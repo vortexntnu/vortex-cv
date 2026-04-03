@@ -22,8 +22,6 @@ std::shared_ptr<yasmin::Blackboard> initialize_blackboard() {
 
     auto bb = std::make_shared<yasmin::Blackboard>();
 
-    bb->set<pipeline_inspection_fsm::WaypointManagerGoalHandle::SharedPtr>(
-        "wm_handle", nullptr);
     bb->set<std::string>("action_server.waypoint_manager", wm_action);
     bb->set<std::string>("action_server.landmark_polling", lp_action);
     bb->set<std::string>("service.start_mission", start_service);

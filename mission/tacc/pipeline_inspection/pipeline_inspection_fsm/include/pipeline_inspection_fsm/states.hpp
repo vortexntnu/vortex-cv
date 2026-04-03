@@ -6,7 +6,6 @@
 #include <vector>
 
 #include <rclcpp/rclcpp.hpp>
-#include <rclcpp_action/rclcpp_action.hpp>
 
 #include <vortex/utils/waypoint_utils.hpp>
 #include <vortex_msgs/action/waypoint_manager.hpp>
@@ -22,8 +21,6 @@
 namespace pipeline_inspection_fsm {
 
 using WaypointManagerAction = vortex_msgs::action::WaypointManager;
-using WaypointManagerGoalHandle =
-    rclcpp_action::ClientGoalHandle<WaypointManagerAction>;
 
 using TriggerSrv = std_srvs::srv::Trigger;
 
@@ -72,29 +69,6 @@ class LandmarkConvergeState
 
    private:
     vortex::utils::waypoints::LandmarkConvergenceGoal convergence_goal_;
-};
-
-class StartWaypointManagerState : public yasmin::State {
-   public:
-    explicit StartWaypointManagerState(
-        yasmin::Blackboard::SharedPtr blackboard);
-
-    std::string execute(yasmin::Blackboard::SharedPtr blackboard) override;
-
-   private:
-    rclcpp_action::Client<
-        pipeline_inspection_fsm::WaypointManagerAction>::SharedPtr client_;
-};
-
-class StopWaypointManagerState : public yasmin::State {
-   public:
-    explicit StopWaypointManagerState(yasmin::Blackboard::SharedPtr blackboard);
-
-    std::string execute(yasmin::Blackboard::SharedPtr blackboard) override;
-
-   private:
-    rclcpp_action::Client<
-        pipeline_inspection_fsm::WaypointManagerAction>::SharedPtr client_;
 };
 
 std::shared_ptr<yasmin::Blackboard> initialize_blackboard();
