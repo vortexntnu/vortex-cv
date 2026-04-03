@@ -1,7 +1,0 @@
-initial_docking_guess:
-  position:
-    x: 10.0
-    y: -5.0
-    z: 0.0
-  mode: 1
-  convergence_threshold: 0.5
