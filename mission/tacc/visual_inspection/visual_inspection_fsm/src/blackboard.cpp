@@ -1,3 +1,5 @@
+#include <spdlog/spdlog.h>
+#include <vortex/utils/waypoint_utils.hpp>
 #include "valve_inspection_fsm/states.hpp"
 
 StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
@@ -10,21 +12,29 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         node->declare_parameter<std::string>("action_servers.landmark_polling");
     config.start_mission_service =
         node->declare_parameter<std::string>("services.start_mission");
-    config.gripper_frame =
-        node->declare_parameter<std::string>("frames.gripper_frame");
-    config.base_frame =
-        node->declare_parameter<std::string>("frames.base_frame");
-    config.convergence_threshold =
-        node->declare_parameter<double>("convergence_threshold", 0.05);
-    config.dead_reckoning_threshold =
-        node->declare_parameter<double>("dead_reckoning_threshold", 0.5);
-    config.track_loss_timeout_sec =
-        node->declare_parameter<double>("track_loss_timeout_sec", 5.0);
+    config.landmark_convergence_yaml_path =
+        node->declare_parameter<std::string>("landmark_convergence_config");
+    config.landmark_convergence_goal_id = node->declare_parameter<std::string>(
+        "landmark_convergence_goal_id", "visual_inspection_convergence");
+    config.landmark_type_value =
+        static_cast<uint16_t>(node->declare_parameter<int>("landmark.type", 5));
+    config.landmark_subtype_value = static_cast<uint16_t>(
+        node->declare_parameter<int>("landmark.subtype", 1));
 
     return config;
 }
 
 std::shared_ptr<yasmin::Blackboard> initialize_blackboard(
-    const StateMachineConfig& /*config*/) {
-    return std::make_shared<yasmin::Blackboard>();
+    const StateMachineConfig& config) {
+    auto bb = std::make_shared<yasmin::Blackboard>();
+
+    const auto landmark_convergence_goal =
+        vortex::utils::waypoints::load_landmark_goal_from_yaml(
+            config.landmark_convergence_yaml_path,
+            config.landmark_convergence_goal_id);
+
+    bb->set<vortex::utils::waypoints::LandmarkConvergenceGoal>(
+        "landmark_convergence_goal", landmark_convergence_goal);
+
+    return bb;
 }

@@ -20,15 +20,23 @@ def launch_setup(context, *args, **kwargs):
         f"{drone}.yaml",
     )
 
+    landmark_convergence_config = os.path.join(
+        get_package_share_directory("visual_inspection_fsm"),
+        "config",
+        "landmark_convergence.yaml",
+    )
+
     node = Node(
-        package="valve_inspection_fsm",
-        executable="valve_inspection_fsm",
+        package="visual_inspection_fsm",
+        executable="visual_inspection_fsm",
         namespace=namespace,
         parameters=[
             drone_config,
             {
-                "frames.gripper_frame": f"{namespace}/gripper_tip",
-                "frames.base_frame": f"{namespace}/odom",
+                "landmark_convergence_config": landmark_convergence_config,
+                "landmark_convergence_goal_id": "visual_inspection_convergence",
+                "landmark.type": 5,  # LandmarkType::VALVE
+                "landmark.subtype": 1,  # LandmarkSubtype::VALVE_VERTICAL
             },
         ],
         output="screen",

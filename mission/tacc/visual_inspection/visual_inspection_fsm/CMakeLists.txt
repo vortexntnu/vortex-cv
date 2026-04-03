@@ -16,17 +16,15 @@ find_package(yasmin REQUIRED)
 find_package(yasmin_ros REQUIRED)
 find_package(yasmin_viewer REQUIRED)
 find_package(vortex_msgs REQUIRED)
+find_package(vortex_utils REQUIRED)
 find_package(vortex_yasmin_utils REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(tf2 REQUIRED)
-find_package(tf2_ros REQUIRED)
-find_package(tf2_geometry_msgs REQUIRED)
+find_package(spdlog REQUIRED)
+find_package(fmt REQUIRED)
 
 include_directories(include)
 
 add_executable(visual_inspection_fsm
   src/blackboard.cpp
-  src/valve_converge_state.cpp
   src/build_state_machine.cpp
   src/main.cpp
 )
@@ -37,14 +35,12 @@ ament_target_dependencies(visual_inspection_fsm
   yasmin
   yasmin_ros
   vortex_msgs
+  vortex_utils
   vortex_yasmin_utils
-  geometry_msgs
-  tf2
-  tf2_ros
-  tf2_geometry_msgs
 )
 
 target_link_libraries(visual_inspection_fsm
+  spdlog::spdlog fmt::fmt
   yasmin_viewer::yasmin_viewer
 )
 
@@ -58,6 +54,9 @@ install(
   DESTINATION include
 )
 
-
+install(
+  DIRECTORY config
+  DESTINATION share/${PROJECT_NAME}
+)
 
 ament_package()
