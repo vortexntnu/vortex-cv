@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
 
     sm->add_state(
         "CONVERGE", converge,
-        {{yasmin_ros::basic_outcomes::SUCCEED, "START_PIPELINE_TRG"},
+        {{yasmin_ros::basic_outcomes::SUCCEED, "PIPELINE_FOLLOWING"},
          {yasmin_ros::basic_outcomes::ABORT, yasmin_ros::basic_outcomes::ABORT},
          {yasmin_ros::basic_outcomes::CANCEL,
           yasmin_ros::basic_outcomes::ABORT}});

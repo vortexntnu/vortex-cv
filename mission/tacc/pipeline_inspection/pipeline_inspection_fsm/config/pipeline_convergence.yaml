@@ -8,4 +8,4 @@ pipeline_start_convergence:
     pitch: 0.0
     yaw: 0.0
   mode: 0
-  convergence_threshold: 0.1
+  convergence_threshold: 0.3
