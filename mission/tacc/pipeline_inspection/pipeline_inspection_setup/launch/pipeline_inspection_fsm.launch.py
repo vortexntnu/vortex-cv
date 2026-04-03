@@ -13,10 +13,16 @@ from launch_ros.actions import Node
 def launch_setup(context, *args, **kwargs):
     drone, namespace = resolve_drone_and_namespace(context)
 
-    fsm_config = os.path.join(
+    fsm_waypoint_config = os.path.join(
         get_package_share_directory("pipeline_inspection_fsm"),
         "config",
-        "pipeline_inspection_fsm_config.yaml",
+        "search_waypoints.yaml",
+    )
+
+    pipeline_convergence_config = os.path.join(
+        get_package_share_directory("pipeline_inspection_fsm"),
+        "config",
+        "pipeline_convergence.yaml",
     )
 
     drone_config = os.path.join(
@@ -30,7 +36,15 @@ def launch_setup(context, *args, **kwargs):
         package="pipeline_inspection_fsm",
         executable="pipeline_inspection_fsm",
         namespace=namespace,
-        parameters=[drone_config, fsm_config],
+        parameters=[
+            drone_config,
+            {
+                "fsm_waypoint_config": fsm_waypoint_config,
+                "pipeline_convergence_config": pipeline_convergence_config,
+                "services.start_pipeline_following": "pipeline_inspection_fsm/start_pipeline_following",
+                "services.end_of_pipeline": "pipeline_inspection_fsm/pipeline_finished",
+            },
+        ],
         output="screen",
     )
 
