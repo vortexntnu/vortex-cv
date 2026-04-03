@@ -31,7 +31,10 @@ add_executable(subsea_docking_fsm
   src/main.cpp
 )
 
-target_link_libraries(subsea_docking_fsm spdlog::spdlog fmt::fmt)
+target_link_libraries(subsea_docking_fsm
+spdlog::spdlog fmt::fmt
+yasmin_viewer::yasmin_viewer
+)
 
 ament_target_dependencies(subsea_docking_fsm
   ament_index_cpp
@@ -40,7 +43,6 @@ ament_target_dependencies(subsea_docking_fsm
   std_srvs
   yasmin
   yasmin_ros
-  yasmin_viewer
   vortex_msgs
   vortex_utils
   vortex_yasmin_utils

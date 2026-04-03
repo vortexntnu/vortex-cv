@@ -19,6 +19,12 @@ def launch_setup(context, *args, **kwargs):
         'fsm_waypoint_config.yaml',
     )
 
+    landmark_convergence_config = os.path.join(
+        get_package_share_directory('subsea_docking_fsm'),
+        'config',
+        'landmark_convergence.yaml',
+    )
+
     drone_config = os.path.join(
         get_package_share_directory('auv_setup'),
         'config',
@@ -30,14 +36,19 @@ def launch_setup(context, *args, **kwargs):
         package='subsea_docking_fsm',
         executable='subsea_docking_fsm',
         namespace=namespace,
-        parameters=[drone_config,
-                    {
-                        'fsm_waypoint_config': fsm_waypoint_config,
-                        'skip_search': False,
-                        'use_service_waypoint': False,
-                        'docking_position_service': 'subsea_docking_fsm/send_docking_position',
-                    }
-                    ]
+        parameters=[
+            drone_config,
+            {
+                'fsm_waypoint_config': fsm_waypoint_config,
+                'landmark_convergence_config': landmark_convergence_config,
+                'skip_search': True,
+                'use_service_waypoint': True,
+                'service_request_timeout_sec': 20.0,
+                'docking_position_service': 'subsea_docking_fsm/send_docking_position',
+                'fallback_waypoint_id': 'fallback_docking_waypoint',
+                'landmark_convergence_goal_id': 'power_puck_landmark_convergence',
+            },
+        ],
         output='screen',
     )
 

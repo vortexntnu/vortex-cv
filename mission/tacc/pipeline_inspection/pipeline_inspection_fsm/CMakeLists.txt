@@ -49,13 +49,6 @@ target_link_libraries(pipeline_inspection_fsm
   yasmin_viewer::yasmin_viewer
 )
 
-target_link_libraries(pipeline_inspection_fsm
-  yasmin_viewer::yasmin_viewer
-)
-
-target_link_libraries(pipeline_inspection_fsm
-  yasmin_viewer::yasmin_viewer
-)
 
 install(TARGETS
   pipeline_inspection_fsm

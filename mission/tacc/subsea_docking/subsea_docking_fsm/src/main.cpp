@@ -3,10 +3,8 @@
 #include <yasmin_ros/ros_logs.hpp>
 #include <yasmin_viewer/yasmin_viewer_pub.hpp>
 
-#include <rclcpp/rclcpp.hpp>
 #include <spdlog/spdlog.h>
-
-#include <thread>
+#include <rclcpp/rclcpp.hpp>
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
@@ -16,15 +14,11 @@ int main(int argc, char** argv) {
 
     auto node = rclcpp::Node::make_shared("subsea_docking_fsm");
 
-    rclcpp::executors::MultiThreadedExecutor executor;
-    executor.add_node(node);
-    auto spin_thread = std::thread([&executor]() { executor.spin(); });
-
     const auto config = load_config(node);
     auto blackboard = initialize_blackboard(config);
     auto sm = build_state_machine(config, blackboard);
 
-    yasmin_viewer::YasminViewerPub viewer(node, sm, "SUBSEA_DOCKING_FSM");
+    yasmin_viewer::YasminViewerPub viewer(sm, "SUBSEA_DOCKING_FSM");
 
     rclcpp::on_shutdown([sm]() {
         if (sm->is_running())
@@ -45,9 +39,6 @@ int main(int argc, char** argv) {
         blackboard.reset();
         rclcpp::shutdown();
     }
-
-    executor.cancel();
-    spin_thread.join();
 
     return 0;
 }
