@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(valve_inspection_fsm)
+project(visual_inspection_fsm)
 
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 20)
@@ -24,14 +24,14 @@ find_package(tf2_geometry_msgs REQUIRED)
 
 include_directories(include)
 
-add_executable(valve_inspection_fsm
+add_executable(visual_inspection_fsm
   src/blackboard.cpp
   src/valve_converge_state.cpp
   src/build_state_machine.cpp
   src/main.cpp
 )
 
-ament_target_dependencies(valve_inspection_fsm
+ament_target_dependencies(visual_inspection_fsm
   rclcpp
   std_srvs
   yasmin
@@ -44,12 +44,12 @@ ament_target_dependencies(valve_inspection_fsm
   tf2_geometry_msgs
 )
 
-target_link_libraries(valve_inspection_fsm
+target_link_libraries(visual_inspection_fsm
   yasmin_viewer::yasmin_viewer
 )
 
 install(TARGETS
-  valve_inspection_fsm
+  visual_inspection_fsm
   DESTINATION lib/${PROJECT_NAME}
 )
 

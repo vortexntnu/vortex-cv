@@ -25,7 +25,7 @@ def launch_setup(context, *args, **kwargs):
     )
 
     aruco_board_params = os.path.join(
-        get_package_share_directory("subsea_docking_setup"),
+        get_package_share_directory("pipeline_inspection_setup"),
         "config",
         f"aruco_{board}.yaml",
     )
@@ -140,7 +140,7 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 "board",
                 default_value="tacc",
-                description="ArUco board config: tacc or vortex_plate",
+                description="ArUco board config: tacc or vortex",
             ),
             OpaqueFunction(function=launch_setup),
         ]

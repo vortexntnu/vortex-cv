@@ -1,0 +1,10 @@
+/**:
+  ros__parameters:
+
+    aruco:
+      marker_size: 0.140  # Vortex docking plate marker size [m]
+
+    board:
+      xDist: 0.448
+      yDist: 0.853
+      ids: [28, 7, 96, 19]
