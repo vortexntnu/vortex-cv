@@ -56,7 +56,9 @@ int main(int argc, char** argv) {
         "CONVERGE_VALVE",
         std::make_shared<valve_inspection_fsm::ValveConvergeState>(
             blackboard->get<std::string>("action_server.landmark_convergence"),
-            valve_type, valve_subtype),
+            valve_type, valve_subtype, 0.05, 0.5, 5.0,
+            blackboard->get<std::string>("frames.gripper_frame"),
+            blackboard->get<std::string>("frames.base_frame")),
         {{yasmin_ros::basic_outcomes::SUCCEED, "DONE"},
          {yasmin_ros::basic_outcomes::ABORT, yasmin_ros::basic_outcomes::ABORT},
          {yasmin_ros::basic_outcomes::CANCEL,
