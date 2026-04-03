@@ -13,12 +13,6 @@ from launch_ros.actions import Node
 def launch_setup(context, *args, **kwargs):
     drone, namespace = resolve_drone_and_namespace(context)
 
-    fsm_config = os.path.join(
-        get_package_share_directory("valve_inspection_fsm"),
-        "config",
-        "valve_inspection_fsm_config.yaml",
-    )
-
     drone_config = os.path.join(
         get_package_share_directory("auv_setup"),
         "config",
@@ -30,7 +24,13 @@ def launch_setup(context, *args, **kwargs):
         package="valve_inspection_fsm",
         executable="valve_inspection_fsm",
         namespace=namespace,
-        parameters=[drone_config, fsm_config],
+        parameters=[
+            drone_config,
+            {
+                "frames.gripper_frame": f"{namespace}/gripper_tip",
+                "frames.base_frame": f"{namespace}/odom",
+            },
+        ],
         output="screen",
     )
 

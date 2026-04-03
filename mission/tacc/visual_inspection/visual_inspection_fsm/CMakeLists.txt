@@ -27,7 +27,8 @@ include_directories(include)
 add_executable(valve_inspection_fsm
   src/blackboard.cpp
   src/valve_converge_state.cpp
-  src/fsm_runner.cpp
+  src/build_state_machine.cpp
+  src/main.cpp
 )
 
 ament_target_dependencies(valve_inspection_fsm
@@ -57,10 +58,6 @@ install(
   DESTINATION include
 )
 
-install(
-  DIRECTORY launch
-  DESTINATION share/${PROJECT_NAME}
-)
 
 
 ament_package()

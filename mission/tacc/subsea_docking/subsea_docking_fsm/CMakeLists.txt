@@ -27,7 +27,7 @@ include_directories(include)
 
 add_executable(subsea_docking_fsm
   src/blackboard.cpp
-  src/state_machine.cpp
+  src/build_state_machine.cpp
   src/main.cpp
 )
 

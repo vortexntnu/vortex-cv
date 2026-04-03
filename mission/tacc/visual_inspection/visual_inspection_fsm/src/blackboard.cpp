@@ -1,28 +1,30 @@
 #include "valve_inspection_fsm/states.hpp"
 
-#include <rclcpp/rclcpp.hpp>
+StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
+    StateMachineConfig config;
 
-std::shared_ptr<yasmin::Blackboard> initialize_blackboard() {
-    auto params = rclcpp::Node::make_shared("valve_inspection_params");
+    config.landmark_convergence_action_server =
+        node->declare_parameter<std::string>(
+            "action_servers.landmark_convergence");
+    config.landmark_polling_action_server =
+        node->declare_parameter<std::string>("action_servers.landmark_polling");
+    config.start_mission_service =
+        node->declare_parameter<std::string>("services.start_mission");
+    config.gripper_frame =
+        node->declare_parameter<std::string>("frames.gripper_frame");
+    config.base_frame =
+        node->declare_parameter<std::string>("frames.base_frame");
+    config.convergence_threshold =
+        node->declare_parameter<double>("convergence_threshold", 0.05);
+    config.dead_reckoning_threshold =
+        node->declare_parameter<double>("dead_reckoning_threshold", 0.5);
+    config.track_loss_timeout_sec =
+        node->declare_parameter<double>("track_loss_timeout_sec", 5.0);
 
-    const std::string lc_action = params->declare_parameter<std::string>(
-        "action_servers.landmark_convergence");
-    const std::string lp_action = params->declare_parameter<std::string>(
-        "action_servers.landmark_polling");
-    const std::string start_service =
-        params->declare_parameter<std::string>("services.start_mission");
-    const std::string gripper_frame =
-        params->declare_parameter<std::string>("frames.gripper_frame");
-    const std::string base_frame =
-        params->declare_parameter<std::string>("frames.base_frame");
+    return config;
+}
 
-    auto bb = std::make_shared<yasmin::Blackboard>();
-
-    bb->set<std::string>("action_server.landmark_convergence", lc_action);
-    bb->set<std::string>("action_server.landmark_polling", lp_action);
-    bb->set<std::string>("service.start_mission", start_service);
-    bb->set<std::string>("frames.gripper_frame", gripper_frame);
-    bb->set<std::string>("frames.base_frame", base_frame);
-
-    return bb;
+std::shared_ptr<yasmin::Blackboard> initialize_blackboard(
+    const StateMachineConfig& /*config*/) {
+    return std::make_shared<yasmin::Blackboard>();
 }

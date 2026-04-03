@@ -13,6 +13,7 @@
 
 #include <yasmin/blackboard.hpp>
 #include <yasmin/state.hpp>
+#include <yasmin/state_machine.hpp>
 #include <yasmin_ros/action_state.hpp>
 #include <yasmin_ros/basic_outcomes.hpp>
 
@@ -21,10 +22,19 @@
 namespace pipeline_inspection_fsm {
 
 using WaypointManagerAction = vortex_msgs::action::WaypointManager;
-
 using TriggerSrv = std_srvs::srv::Trigger;
 
 }  // namespace pipeline_inspection_fsm
+
+struct StateMachineConfig {
+    std::string waypoint_manager_action_server;
+    std::string landmark_polling_action_server;
+    std::string start_mission_service;
+    std::string start_pipeline_following_service;
+    std::string end_of_pipeline_service;
+    std::string waypoint_yaml_path;
+    std::string convergence_yaml_path;
+};
 
 /**
  * @brief Sends all search waypoints in one WaypointManager action goal.
@@ -71,6 +81,13 @@ class LandmarkConvergeState
     vortex::utils::waypoints::LandmarkConvergenceGoal convergence_goal_;
 };
 
-std::shared_ptr<yasmin::Blackboard> initialize_blackboard();
+StateMachineConfig load_config(rclcpp::Node::SharedPtr node);
+
+std::shared_ptr<yasmin::Blackboard> initialize_blackboard(
+    const StateMachineConfig& config);
+
+std::shared_ptr<yasmin::StateMachine> build_state_machine(
+    const StateMachineConfig& config,
+    yasmin::Blackboard::SharedPtr blackboard);
 
 #endif  // PIPELINE_INSPECTION_FSM__STATES_HPP_

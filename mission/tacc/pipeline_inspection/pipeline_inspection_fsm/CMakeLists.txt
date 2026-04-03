@@ -10,7 +10,6 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake REQUIRED)
-find_package(ament_index_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(std_srvs REQUIRED)
@@ -29,11 +28,11 @@ add_executable(pipeline_inspection_fsm
   src/search_waypoint_goal_state.cpp
   src/converge_state.cpp
   src/blackboard.cpp
-  src/fsm_runner.cpp
+  src/build_state_machine.cpp
+  src/main.cpp
 )
 
 ament_target_dependencies(pipeline_inspection_fsm
-  ament_index_cpp
   rclcpp
   std_srvs
   yasmin
