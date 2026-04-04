@@ -8,12 +8,12 @@
 
 #include <vortex_msgs/msg/landmark_subtype.hpp>
 #include <vortex_msgs/msg/landmark_type.hpp>
-#include <vortex_yasmin_utils/landmark_converge_state.hpp>
 #include <vortex_yasmin_utils/landmark_polling_state.hpp>
+#include <vortex_yasmin_utils/landmark_waypoint_state.hpp>
 #include <vortex_yasmin_utils/service_trigger_wait_state.hpp>
 
-using vortex_yasmin_utils::LandmarkConvergeState;
 using vortex_yasmin_utils::LandmarkPollingState;
+using vortex_yasmin_utils::LandmarkWaypointState;
 using vortex_yasmin_utils::ServiceTriggerWaitState;
 using yasmin_ros::basic_outcomes::ABORT;
 using yasmin_ros::basic_outcomes::CANCEL;
@@ -36,8 +36,8 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
     }
 
     const auto convergence_goal =
-        blackboard->get<vortex::utils::waypoints::LandmarkConvergenceGoal>(
-            "landmark_convergence_goal");
+        blackboard->get<vortex::utils::waypoints::WaypointGoal>(
+            "landmark_waypoint_goal");
 
     auto sm = std::make_shared<yasmin::StateMachine>(
         std::set<std::string>{SUCCEED, ABORT});
@@ -54,9 +54,9 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                   {{"landmark_found", "LANDMARK_CONVERGENCE"}, {ABORT, ABORT}});
 
     sm->add_state("LANDMARK_CONVERGENCE",
-                  std::make_shared<LandmarkConvergeState>(
-                      config.landmark_convergence_action_server,
-                      convergence_goal, landmark_type, landmark_subtype),
+                  std::make_shared<LandmarkWaypointState>(
+                      config.waypoint_manager_action_server, convergence_goal,
+                      "landmarks"),
                   {{SUCCEED, "DONE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     sm->add_state(

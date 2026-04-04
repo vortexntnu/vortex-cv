@@ -5,9 +5,8 @@
 StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
     StateMachineConfig config;
 
-    config.landmark_convergence_action_server =
-        node->declare_parameter<std::string>(
-            "action_servers.landmark_convergence");
+    config.waypoint_manager_action_server =
+        node->declare_parameter<std::string>("action_servers.waypoint_manager");
     config.landmark_polling_action_server =
         node->declare_parameter<std::string>("action_servers.landmark_polling");
     config.start_mission_service =
@@ -26,13 +25,13 @@ std::shared_ptr<yasmin::Blackboard> initialize_blackboard(
     const StateMachineConfig& config) {
     auto bb = std::make_shared<yasmin::Blackboard>();
 
-    const auto landmark_convergence_goal =
-        vortex::utils::waypoints::load_landmark_goal_from_yaml(
+    const auto landmark_waypoint_goal =
+        vortex::utils::waypoints::load_waypoint_goal_from_yaml(
             config.landmark_convergence_yaml_path,
             config.landmark_convergence_goal_id);
 
-    bb->set<vortex::utils::waypoints::LandmarkConvergenceGoal>(
-        "landmark_convergence_goal", landmark_convergence_goal);
+    bb->set<vortex::utils::waypoints::WaypointGoal>("landmark_waypoint_goal",
+                                                    landmark_waypoint_goal);
 
     return bb;
 }

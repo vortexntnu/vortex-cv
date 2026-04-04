@@ -15,17 +15,19 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         node->declare_parameter<std::string>("action_servers.waypoint_manager");
     config.landmark_polling_action_server =
         node->declare_parameter<std::string>("action_servers.landmark_polling");
-    config.skip_search = node->declare_parameter<bool>("skip_search", false);
+
+    config.skip_search = node->declare_parameter<bool>("skip_search");
+
     config.service_request_timeout_sec =
-        node->declare_parameter<double>("service_request_timeout_sec", 20.0);
+        node->declare_parameter<double>("service_request_timeout_sec");
     config.use_service_waypoint =
         node->declare_parameter<bool>("use_service_waypoint");
-    config.fallback_waypoint_id = node->declare_parameter<std::string>(
-        "fallback_waypoint_id", "fallback_docking_waypoint");
-    config.landmark_convergence_goal_id = node->declare_parameter<std::string>(
-        "landmark_convergence_goal_id", "power_puck_waypoint");
-    config.pre_dock_convergence_goal_id = node->declare_parameter<std::string>(
-        "pre_dock_convergence_goal_id", "pre_dock_waypoint");
+    config.fallback_waypoint_id =
+        node->declare_parameter<std::string>("fallback_waypoint_id");
+    config.landmark_convergence_goal_id =
+        node->declare_parameter<std::string>("landmark_convergence_goal_id");
+    config.pre_dock_convergence_goal_id =
+        node->declare_parameter<std::string>("pre_dock_convergence_goal_id");
 
     if (config.skip_search) {
         spdlog::info("skip_search enabled: search phase will be skipped.");

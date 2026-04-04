@@ -26,7 +26,6 @@ include_directories(include)
 
 add_executable(pipeline_inspection_fsm
   src/search_waypoint_goal_state.cpp
-  src/converge_state.cpp
   src/blackboard.cpp
   src/build_state_machine.cpp
   src/main.cpp

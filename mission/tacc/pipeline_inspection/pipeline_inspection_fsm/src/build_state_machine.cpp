@@ -13,6 +13,7 @@
 
 #include <vortex_yasmin_utils/first_wins_concurrence.hpp>
 #include <vortex_yasmin_utils/landmark_polling_state.hpp>
+#include <vortex_yasmin_utils/landmark_waypoint_state.hpp>
 #include <vortex_yasmin_utils/persistent_waypoint_manager_state.hpp>
 #include <vortex_yasmin_utils/service_trigger_wait_state.hpp>
 
@@ -28,7 +29,7 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
             "search_waypoints");
 
     const auto convergence_goal =
-        blackboard->get<vortex::utils::waypoints::LandmarkConvergenceGoal>(
+        blackboard->get<vortex::utils::waypoints::WaypointGoal>(
             "convergence_goal");
 
     vortex_msgs::msg::LandmarkType pipeline_type;
@@ -53,8 +54,10 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
             {"SEARCH_PATTERN", {{SUCCEED, ABORT}}},
             {"LANDMARK_POLLING", {{"landmark_found", "landmark_found"}}}});
 
-    auto converge = std::make_shared<LandmarkConvergeState>(
-        config.waypoint_manager_action_server, convergence_goal);
+    auto converge =
+        std::make_shared<vortex_yasmin_utils::LandmarkWaypointState>(
+            config.waypoint_manager_action_server, convergence_goal,
+            "pipeline_landmarks");
 
     auto start_pipeline_trg = std::make_shared<
         yasmin_ros::ServiceState<pipeline_inspection_fsm::TriggerSrv>>(

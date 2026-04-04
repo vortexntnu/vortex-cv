@@ -43,13 +43,13 @@ std::shared_ptr<yasmin::Blackboard> initialize_blackboard(
     }
 
     const auto convergence_goal =
-        vortex::utils::waypoints::load_landmark_goal_from_yaml(
+        vortex::utils::waypoints::load_waypoint_goal_from_yaml(
             config.convergence_yaml_path, "pipeline_start_convergence");
 
     bb->set<std::vector<vortex::utils::waypoints::WaypointGoal>>(
         "search_waypoints", search_waypoints);
-    bb->set<vortex::utils::waypoints::LandmarkConvergenceGoal>(
-        "convergence_goal", convergence_goal);
+    bb->set<vortex::utils::waypoints::WaypointGoal>("convergence_goal",
+                                                    convergence_goal);
 
     return bb;
 }

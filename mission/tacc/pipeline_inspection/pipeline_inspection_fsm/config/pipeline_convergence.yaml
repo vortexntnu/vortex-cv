@@ -7,5 +7,5 @@ pipeline_start_convergence:
     roll: 0.0
     pitch: 0.0
     yaw: 0.0
-  mode: 0
-  convergence_threshold: 0.3
+  mode: full_pose
+  convergence_threshold: 0.1

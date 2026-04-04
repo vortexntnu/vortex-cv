@@ -11,7 +11,7 @@
 #include <yasmin/state_machine.hpp>
 
 struct StateMachineConfig {
-    std::string landmark_convergence_action_server;
+    std::string waypoint_manager_action_server;
     std::string landmark_polling_action_server;
     std::string start_mission_service;
     std::string landmark_convergence_yaml_path;

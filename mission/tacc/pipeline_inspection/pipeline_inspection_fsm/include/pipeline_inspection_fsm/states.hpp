@@ -58,29 +58,6 @@ class SearchWaypointGoalState
     std::vector<vortex::utils::waypoints::WaypointGoal> waypoints_;
 };
 
-/**
- * @brief Converges on the pipeline start by sending a single WaypointManager
- * goal computed from the detected landmark pose.
- *
- * Reads the first landmark from the blackboard key "pipeline_landmarks",
- * applies the configured pose offset via apply_pose_offset, then sends
- * the resulting target pose to the WaypointManager action server.
- */
-class LandmarkConvergeState
-    : public yasmin_ros::ActionState<
-          pipeline_inspection_fsm::WaypointManagerAction> {
-   public:
-    LandmarkConvergeState(
-        const std::string& action_server_name,
-        vortex::utils::waypoints::LandmarkConvergenceGoal convergence_goal);
-
-    pipeline_inspection_fsm::WaypointManagerAction::Goal create_goal(
-        yasmin::Blackboard::SharedPtr blackboard);
-
-   private:
-    vortex::utils::waypoints::LandmarkConvergenceGoal convergence_goal_;
-};
-
 StateMachineConfig load_config(rclcpp::Node::SharedPtr node);
 
 std::shared_ptr<yasmin::Blackboard> initialize_blackboard(
