@@ -3,6 +3,7 @@
 #include <stdexcept>
 
 #include <vortex/utils/ros/ros_conversions.hpp>
+#include <vortex/utils/ros/waypoint_ros_conversions.hpp>
 #include <vortex/utils/waypoint_utils.hpp>
 #include <vortex_msgs/msg/landmark.hpp>
 #include <vortex_msgs/msg/waypoint.hpp>
@@ -44,7 +45,8 @@ WaypointManagerAction::Goal LandmarkWaypointState::create_goal(
 
     vortex_msgs::msg::Waypoint wp;
     wp.pose = vortex::utils::ros_conversions::to_pose_msg(target_pose);
-    wp.waypoint_mode.mode = static_cast<uint8_t>(waypoint_goal_.mode);
+    wp.waypoint_mode =
+        vortex::utils::waypoints::waypoint_mode_to_ros(waypoint_goal_.mode);
 
     WaypointManagerAction::Goal goal;
     goal.waypoints = {wp};
