@@ -193,20 +193,24 @@ def launch_setup(context, *args, **kwargs):
 
 ### Step 4 — Build the ArUco node
 
+Use the `aruco_detector` package's own config as the base — it always exists since it is the same package as the node, and it contains all required defaults (`detect_board`, `visualize`, `log_markers`, etc.).
+
 ```python
-    perception_share = get_package_share_directory("perception_setup")
-    aruco_base_params = os.path.join(perception_share, "config", "aruco_detector_params.yaml")
+    aruco_base_params = os.path.join(
+        get_package_share_directory("aruco_detector"),
+        "config", "aruco_detector_params.yaml",
+    )
 
     cam = cfg["front_camera"]
     board = cfg["aruco_board"]
 
     aruco_node = ComposableNode(
         package="aruco_detector",
-        plugin="vortex::aruco_detector::ArucoDetectorNode",
+        plugin="ArucoDetectorNode",
         name="front_aruco_detector",
         namespace=namespace,
         parameters=[
-            aruco_base_params,           # base defaults from perception_setup
+            aruco_base_params,           # base defaults — always available
             {                            # scenario-specific overrides
                 "aruco.marker_size": board["marker_size"],
                 "board.xDist":       board["xDist"],
@@ -225,6 +229,14 @@ def launch_setup(context, *args, **kwargs):
 ```
 
 Parameters are applied in order — the dict at the end overrides values from the YAML file.
+
+**Common mistakes here:**
+
+- **Wrong plugin name.** The plugin is registered as `"ArucoDetectorNode"` (no namespace). Do not write `"vortex::aruco_detector::ArucoDetectorNode"` — that name does not exist at runtime and will produce: `Failed to find class with the requested plugin name`.  Check the actual name by looking for `RCLCPP_COMPONENTS_REGISTER_NODE(...)` in the node's `.cpp` file.
+
+- **Using `perception_setup` as the base params source.** `perception_setup` is not always built (it has hardware dependencies). Calling `get_package_share_directory("perception_setup")` unconditionally will crash with `PackageNotFoundError` in any environment where it is not installed, including a clean sim build. Always use the node's own package for its base config.
+
+- **Missing required parameters.** The aruco detector node declares several parameters without defaults (`detect_board`, `visualize`, `log_markers`, `publish_detections`, `publish_landmarks`, `enu_ned_rotation`). If the base config file is not loaded these are unset and the node will throw at startup: `Statically typed parameter 'detect_board' must be initialized`. The `aruco_detector/config/aruco_detector_params.yaml` file provides all of them.
 
 ### Step 5 — Conditionally add the camera driver
 
@@ -545,7 +557,7 @@ When a node receives parameters, they are merged in order. Later entries overrid
 
 ```python
 parameters=[
-    "/path/to/base_defaults.yaml",    # 1. base defaults (from perception_setup)
+    "/path/to/base_defaults.yaml",    # 1. base defaults (node's own config)
     "/path/to/robot_config.yaml",     # 2. robot-level overrides
     {                                  # 3. scenario-specific overrides (highest priority)
         "some.param": value_from_cfg,
@@ -553,7 +565,112 @@ parameters=[
 ],
 ```
 
-Use this layering deliberately: keep stable defaults in the YAML files and only put scenario-varying values in the inline dict.
+Use this layering deliberately: keep stable defaults in the node's own YAML and only put scenario-varying values in the inline dict.
+
+The base config for `aruco_detector` is always:
+```python
+os.path.join(get_package_share_directory("aruco_detector"), "config", "aruco_detector_params.yaml")
+```
+Not anything from `perception_setup`.
+
+---
+
+## Known Pitfalls
+
+These are real bugs that were hit during development. Read these before writing a new launch file.
+
+### 1 — Wrong composable node plugin name
+
+**Error:**
+```
+Failed to find class with the requested plugin name 'vortex::aruco_detector::ArucoDetectorNode'
+```
+
+**Cause:** The `plugin=` field in `ComposableNode` must exactly match the string passed to `RCLCPP_COMPONENTS_REGISTER_NODE(...)` in the node's C++ source. Namespaced names like `vortex::aruco_detector::ArucoDetectorNode` look plausible but are wrong if the macro was called without a namespace.
+
+**Fix:** Search the node's `.cpp` file for the registration macro:
+```bash
+grep -r "RCLCPP_COMPONENTS_REGISTER_NODE" src/vortex-aruco-detection/
+# → RCLCPP_COMPONENTS_REGISTER_NODE(ArucoDetectorNode)
+```
+Use exactly that string: `plugin="ArucoDetectorNode"`.
+
+---
+
+### 2 — Calling `get_package_share_directory` on an unbuilt package
+
+**Error:**
+```
+PackageNotFoundError: "perception_setup" not found, searched: ['/home/.../install/aruco_detector', ...]
+```
+
+**Cause:** `get_package_share_directory(name)` raises immediately if the package is not in the install tree. If this is called unconditionally at the top of `launch_setup`, the entire launch crashes — even in sim where the package is not needed.
+
+**Fix:** Only reference packages that are always installed. For aruco launch files, use the `aruco_detector` package's own config instead of `perception_setup`:
+```python
+# WRONG — crashes if perception_setup not built
+perception_share = get_package_share_directory("perception_setup")
+
+# CORRECT — aruco_detector is always installed when you are launching it
+aruco_base_params = os.path.join(
+    get_package_share_directory("aruco_detector"),
+    "config", "aruco_detector_params.yaml",
+)
+```
+If you genuinely need an optional package, wrap it in a try/except and handle the missing case explicitly.
+
+---
+
+### 3 — Missing required node parameters
+
+**Error:**
+```
+Component constructor threw an exception: Statically typed parameter 'detect_board' must be initialized.
+```
+
+**Cause:** The aruco detector node declares several parameters without default values. If no base config file is loaded, they are unset and the node throws on startup. The full list of required parameters (from the node source):
+
+| Parameter | Type | Typical value |
+|---|---|---|
+| `detect_board` | bool | `true` |
+| `visualize` | bool | `true` |
+| `log_markers` | bool | `false` |
+| `publish_detections` | bool | `true` |
+| `publish_landmarks` | bool | `true` |
+| `enu_ned_rotation` | bool | `true` |
+| `aruco.marker_size` | float | board-specific |
+| `aruco.dictionary` | string | `"DICT_ARUCO_ORIGINAL"` |
+| `board.xDist` | float | board-specific |
+| `board.yDist` | float | board-specific |
+| `board.ids` | int[] | board-specific |
+
+**Fix:** Always load `aruco_detector/config/aruco_detector_params.yaml` as the first entry in `parameters=`. It provides all required defaults. The inline dict then overrides only the scenario-specific values.
+
+---
+
+### 4 — `get_package_share_directory` called outside `OpaqueFunction`
+
+**Cause:** If you call `get_package_share_directory` at module level or in `generate_launch_description()` directly (outside `launch_setup`), it runs at parse time before the ROS environment is fully set up. This can produce confusing failures.
+
+**Fix:** All `get_package_share_directory` calls belong inside `launch_setup(context, ...)`, which is called via `OpaqueFunction` at actual launch time.
+
+---
+
+### 5 — Scenario YAML key missing in one scenario file
+
+**Error:**
+```
+KeyError: 'serial_number'
+```
+
+**Cause:** You added a key to `real_world.yaml` but forgot to add it (or a suitable placeholder) to `sim.yaml`. When the launch file does `cfg["front_camera"]["serial_number"]` it crashes in sim.
+
+**Fix:** Only access keys inside conditionals that gate on whether they are needed:
+```python
+if cfg["use_camera_driver"]:
+    serial = cam["serial_number"]   # safe — only real_world has this key
+```
+Never read a real-world-only key unconditionally. Keep `serial_number` out of `sim.yaml` entirely and only access it behind the `use_camera_driver` check.
 
 ---
 

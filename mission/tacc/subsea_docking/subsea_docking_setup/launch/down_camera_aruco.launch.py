@@ -31,9 +31,10 @@ def launch_setup(context, *args, **kwargs):
     scenario = context.launch_configurations["scenario"]
     cfg = load_scenario(scenario, namespace)
 
-    perception_share = get_package_share_directory("perception_setup")
     aruco_base_params = os.path.join(
-        perception_share, "config", "aruco_detector_params.yaml"
+        get_package_share_directory("aruco_detector"),
+        "config",
+        "aruco_detector_params.yaml",
     )
 
     cam = cfg["down_camera"]
@@ -41,7 +42,7 @@ def launch_setup(context, *args, **kwargs):
 
     aruco_node = ComposableNode(
         package="aruco_detector",
-        plugin="vortex::aruco_detector::ArucoDetectorNode",
+        plugin="ArucoDetectorNode",
         name="down_aruco_detector",
         namespace=namespace,
         parameters=[
@@ -72,6 +73,7 @@ def launch_setup(context, *args, **kwargs):
         blackfly_config = PathJoinSubstitution(
             [FindPackageShare("perception_setup"), "config", "blackfly_s_params.yaml"]
         )
+        perception_share = get_package_share_directory("perception_setup")
         calib_url = f"file://{os.path.join(perception_share, 'config', 'downwards_cam_calib.yaml')}"
 
         driver_node = ComposableNode(
