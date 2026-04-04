@@ -19,6 +19,7 @@ add_library(vortex_yasmin_utils
   src/first_wins_concurrence.cpp
   src/landmark_converge_state.cpp
   src/landmark_polling_state.cpp
+  src/landmark_waypoint_state.cpp
   src/service_trigger_wait_state.cpp
   src/waypoint_goal_state.cpp
   src/persistent_waypoint_manager_state.cpp
