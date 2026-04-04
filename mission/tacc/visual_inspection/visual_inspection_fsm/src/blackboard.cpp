@@ -16,10 +16,8 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         node->declare_parameter<std::string>("landmark_convergence_config");
     config.landmark_convergence_goal_id = node->declare_parameter<std::string>(
         "landmark_convergence_goal_id", "visual_inspection_convergence");
-    config.landmark_type_value =
-        static_cast<uint16_t>(node->declare_parameter<int>("landmark.type", 5));
-    config.landmark_subtype_value = static_cast<uint16_t>(
-        node->declare_parameter<int>("landmark.subtype", 1));
+    config.vertical_mounted_valve =
+        node->declare_parameter<bool>("vertical_mounted_valve");
 
     return config;
 }

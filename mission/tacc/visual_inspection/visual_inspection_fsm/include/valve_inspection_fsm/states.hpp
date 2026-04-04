@@ -16,8 +16,7 @@ struct StateMachineConfig {
     std::string start_mission_service;
     std::string landmark_convergence_yaml_path;
     std::string landmark_convergence_goal_id;
-    uint16_t landmark_type_value;
-    uint16_t landmark_subtype_value;
+    bool vertical_mounted_valve;
 };
 
 StateMachineConfig load_config(rclcpp::Node::SharedPtr node);

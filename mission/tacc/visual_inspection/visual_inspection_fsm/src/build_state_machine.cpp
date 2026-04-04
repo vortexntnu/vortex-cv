@@ -23,10 +23,17 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
     const StateMachineConfig& config,
     yasmin::Blackboard::SharedPtr blackboard) {
     vortex_msgs::msg::LandmarkType landmark_type;
-    landmark_type.value = config.landmark_type_value;
-
     vortex_msgs::msg::LandmarkSubtype landmark_subtype;
-    landmark_subtype.value = config.landmark_subtype_value;
+
+    landmark_type.value = vortex_msgs::msg::LandmarkType::VALVE;
+
+    if (config.vertical_mounted_valve) {
+        landmark_subtype.value =
+            vortex_msgs::msg::LandmarkSubtype::VALVE_VERTICAL;
+    } else {
+        landmark_subtype.value =
+            vortex_msgs::msg::LandmarkSubtype::VALVE_HORIZONTAL;
+    }
 
     const auto convergence_goal =
         blackboard->get<vortex::utils::waypoints::LandmarkConvergenceGoal>(

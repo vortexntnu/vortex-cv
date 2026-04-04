@@ -35,8 +35,7 @@ def launch_setup(context, *args, **kwargs):
             {
                 "landmark_convergence_config": landmark_convergence_config,
                 "landmark_convergence_goal_id": "visual_inspection_convergence",
-                "landmark.type": 5,  # LandmarkType::VALVE
-                "landmark.subtype": 1,  # LandmarkSubtype::VALVE_VERTICAL
+                "vertical_mounted_valve": True,
             },
         ],
         output="screen",
