@@ -1,8 +1,8 @@
 power_puck_landmark_convergence:
   position:
-    x: 0.66
+    x: 0.06
     y: -0.005
-    z: -0.77  # offset toward the power puck connector
+    z: -0.23  # offset toward the power puck connector
   orientation:
     roll: 0.0
     pitch: 0.0
