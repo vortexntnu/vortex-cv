@@ -27,6 +27,8 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         "fallback_waypoint_id", "fallback_docking_waypoint");
     config.landmark_convergence_goal_id = node->declare_parameter<std::string>(
         "landmark_convergence_goal_id", "power_puck_landmark_convergence");
+    config.pre_dock_convergence_goal_id = node->declare_parameter<std::string>(
+        "pre_dock_convergence_goal_id", "pre_dock_landmark_convergence");
 
     if (config.skip_search) {
         spdlog::info("skip_search enabled: search phase will be skipped.");
@@ -57,10 +59,17 @@ std::shared_ptr<yasmin::Blackboard> initialize_blackboard(
             config.landmark_convergence_yaml_path,
             config.landmark_convergence_goal_id);
 
+    const auto pre_dock_convergence_goal =
+        vortex::utils::waypoints::load_landmark_goal_from_yaml(
+            config.landmark_convergence_yaml_path,
+            config.pre_dock_convergence_goal_id);
+
     bb->set<vortex::utils::waypoints::WaypointGoal>("fallback_waypoint_goal",
                                                     fallback_waypoint_goal);
     bb->set<vortex::utils::waypoints::LandmarkConvergenceGoal>(
         "landmark_convergence_goal", landmark_convergence_goal);
+    bb->set<vortex::utils::waypoints::LandmarkConvergenceGoal>(
+        "pre_dock_convergence_goal", pre_dock_convergence_goal);
 
     return bb;
 }

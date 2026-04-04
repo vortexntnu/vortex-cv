@@ -42,6 +42,10 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         blackboard->get<vortex::utils::waypoints::LandmarkConvergenceGoal>(
             "landmark_convergence_goal");
 
+    const auto pre_dock_convergence_goal =
+        blackboard->get<vortex::utils::waypoints::LandmarkConvergenceGoal>(
+            "pre_dock_convergence_goal");
+
     vortex_msgs::msg::LandmarkType landmark_type;
     landmark_type.value = vortex_msgs::msg::LandmarkType::ARUCO_BOARD;
 
@@ -74,9 +78,16 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         std::unordered_set<std::string>{"FALLBACK_LANDMARK_POLLING"});
 
     sm->add_state("FALLBACK_SEARCH", fallback_search,
-                  {{"landmark_found", "LANDMARK_CONVERGENCE"},
+                  {{"landmark_found", "PRE_DOCK_CONVERGENCE"},
                    {ABORT, ABORT},
                    {CANCEL, ABORT}});
+
+    sm->add_state(
+        "PRE_DOCK_CONVERGENCE",
+        std::make_shared<LandmarkConvergeState>(
+            config.landmark_convergence_action_server,
+            pre_dock_convergence_goal, landmark_type, landmark_subtype),
+        {{SUCCEED, "LANDMARK_CONVERGENCE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     if (!config.skip_search) {
         using SendPoseSrv = vortex_msgs::srv::SendPose;
@@ -104,7 +115,7 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                  {{"landmarks_found", "landmark_found"}, {ABORT, ABORT}}}});
 
         sm->add_state("SEARCH", search,
-                      {{"landmark_found", "LANDMARK_CONVERGENCE"},
+                      {{"landmark_found", "PRE_DOCK_CONVERGENCE"},
                        {"service_timeout", "FALLBACK_SEARCH"},
                        {ABORT, ABORT},
                        {CANCEL, ABORT}});

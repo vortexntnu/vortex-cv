@@ -1,3 +1,17 @@
+pre_dock_landmark_convergence:
+  position:
+    x: 0.0
+    y: 0.0
+    z: -2.0  # 2m above the docking station landmark (NED: negative z = up)
+  orientation:
+    roll: 0.0
+    pitch: 0.0
+    yaw: 90.0
+  mode: 0
+  convergence_threshold: 0.5
+  dead_reckoning_threshold: 2
+  track_loss_timeout_sec: 15.0
+
 power_puck_landmark_convergence:
   position:
     x: 0.06
@@ -6,7 +20,7 @@ power_puck_landmark_convergence:
   orientation:
     roll: 0.0
     pitch: 0.0
-    yaw: 0.0
+    yaw: 90.0
   mode: 0
   convergence_threshold: 0.3
   dead_reckoning_threshold: 1

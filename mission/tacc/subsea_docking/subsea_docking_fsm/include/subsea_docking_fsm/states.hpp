@@ -23,6 +23,7 @@ struct StateMachineConfig {
     double service_request_timeout_sec;
     std::string fallback_waypoint_id;
     std::string landmark_convergence_goal_id;
+    std::string pre_dock_convergence_goal_id;
     std::string docking_position_service;
 };
 
