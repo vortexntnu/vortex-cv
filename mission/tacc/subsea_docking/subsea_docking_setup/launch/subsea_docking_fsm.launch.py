@@ -46,7 +46,7 @@ def launch_setup(context, *args, **kwargs):
                 "service_request_timeout_sec": 20.0,
                 "docking_position_service": "subsea_docking_fsm/send_docking_position",
                 "fallback_waypoint_id": "fallback_docking_waypoint",
-                "landmark_convergence_goal_id": "power_puck_landmark_convergence",
+                "landmark_convergence_goal_id": "power_puck_waypoint",
             },
         ],
         output="screen",

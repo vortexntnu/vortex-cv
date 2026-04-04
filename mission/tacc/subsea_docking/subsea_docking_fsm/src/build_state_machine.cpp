@@ -1,5 +1,7 @@
 #include "subsea_docking_fsm/states.hpp"
 
+#include <chrono>
+#include <thread>
 #include <unordered_set>
 
 #include <yasmin/cb_state.hpp>
@@ -11,16 +13,16 @@
 #include <vortex_msgs/srv/send_pose.hpp>
 
 #include <vortex_yasmin_utils/first_wins_concurrence.hpp>
-#include <vortex_yasmin_utils/landmark_converge_state.hpp>
 #include <vortex_yasmin_utils/landmark_polling_state.hpp>
+#include <vortex_yasmin_utils/landmark_waypoint_state.hpp>
 #include <vortex_yasmin_utils/service_request_wait_state.hpp>
 #include <vortex_yasmin_utils/service_trigger_wait_state.hpp>
 #include <vortex_yasmin_utils/waypoint_goal_state.hpp>
 
 using vortex_yasmin_utils::FirstWinsConcurrence;
 using vortex_yasmin_utils::FirstWinsOutcomeMap;
-using vortex_yasmin_utils::LandmarkConvergeState;
 using vortex_yasmin_utils::LandmarkPollingState;
+using vortex_yasmin_utils::LandmarkWaypointState;
 using vortex_yasmin_utils::ServiceRequestWaitState;
 using vortex_yasmin_utils::ServiceTriggerWaitState;
 using vortex_yasmin_utils::WaypointGoalState;
@@ -38,13 +40,13 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         blackboard->get<vortex::utils::waypoints::WaypointGoal>(
             "fallback_waypoint_goal");
 
-    const auto convergence_goal =
-        blackboard->get<vortex::utils::waypoints::LandmarkConvergenceGoal>(
-            "landmark_convergence_goal");
+    const auto pre_dock_waypoint_goal =
+        blackboard->get<vortex::utils::waypoints::WaypointGoal>(
+            "pre_dock_waypoint_goal");
 
-    const auto pre_dock_convergence_goal =
-        blackboard->get<vortex::utils::waypoints::LandmarkConvergenceGoal>(
-            "pre_dock_convergence_goal");
+    const auto power_puck_waypoint_goal =
+        blackboard->get<vortex::utils::waypoints::WaypointGoal>(
+            "power_puck_waypoint_goal");
 
     vortex_msgs::msg::LandmarkType landmark_type;
     landmark_type.value = vortex_msgs::msg::LandmarkType::ARUCO_BOARD;
@@ -78,16 +80,9 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         std::unordered_set<std::string>{"FALLBACK_LANDMARK_POLLING"});
 
     sm->add_state("FALLBACK_SEARCH", fallback_search,
-                  {{"landmark_found", "PRE_DOCK_CONVERGENCE"},
+                  {{"landmark_found", "PRE_DOCK_WAYPOINT"},
                    {ABORT, ABORT},
                    {CANCEL, ABORT}});
-
-    sm->add_state(
-        "PRE_DOCK_CONVERGENCE",
-        std::make_shared<LandmarkConvergeState>(
-            config.landmark_convergence_action_server,
-            pre_dock_convergence_goal, landmark_type, landmark_subtype),
-        {{SUCCEED, "LANDMARK_CONVERGENCE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     if (!config.skip_search) {
         using SendPoseSrv = vortex_msgs::srv::SendPose;
@@ -115,16 +110,44 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                  {{"landmarks_found", "landmark_found"}, {ABORT, ABORT}}}});
 
         sm->add_state("SEARCH", search,
-                      {{"landmark_found", "PRE_DOCK_CONVERGENCE"},
+                      {{"landmark_found", "PRE_DOCK_WAYPOINT"},
                        {"service_timeout", "FALLBACK_SEARCH"},
                        {ABORT, ABORT},
                        {CANCEL, ABORT}});
     }
 
+    // Navigate above the docking station using the polled landmark position.
+    sm->add_state("PRE_DOCK_WAYPOINT",
+                  std::make_shared<LandmarkWaypointState>(
+                      config.waypoint_manager_action_server,
+                      pre_dock_waypoint_goal, "landmarks"),
+                  {{SUCCEED, "STABILIZE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+
+    // Hold position for 5 seconds before re-polling to get a stable estimate.
+    sm->add_state("STABILIZE",
+                  yasmin::CbState::make_shared(
+                      yasmin::Outcomes{SUCCEED},
+                      [](auto) {
+                          YASMIN_LOG_INFO("Stabilizing for 5 seconds...");
+                          std::this_thread::sleep_for(std::chrono::seconds(5));
+                          return SUCCEED;
+                      }),
+                  {{SUCCEED, "LANDMARK_POLLING_2"}});
+
+    // Re-poll to get a fresh landmark estimate after stabilization.
+    sm->add_state(
+        "LANDMARK_POLLING_2",
+        std::make_shared<LandmarkPollingState>(
+            config.landmark_polling_action_server, landmark_type,
+            landmark_subtype, "landmarks"),
+        {{"landmarks_found", "LANDMARK_CONVERGENCE"}, {ABORT, ABORT}});
+
+    // Converge on the docking station using the fresh landmark + power puck
+    // offset.
     sm->add_state("LANDMARK_CONVERGENCE",
-                  std::make_shared<LandmarkConvergeState>(
-                      config.landmark_convergence_action_server,
-                      convergence_goal, landmark_type, landmark_subtype),
+                  std::make_shared<LandmarkWaypointState>(
+                      config.waypoint_manager_action_server,
+                      power_puck_waypoint_goal, "landmarks"),
                   {{SUCCEED, "DONE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     sm->add_state("DONE",

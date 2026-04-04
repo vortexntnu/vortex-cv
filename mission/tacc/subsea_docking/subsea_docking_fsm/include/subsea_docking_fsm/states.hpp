@@ -16,7 +16,6 @@ struct StateMachineConfig {
     bool use_service_waypoint;
     std::string start_mission_service;
     std::string waypoint_manager_action_server;
-    std::string landmark_convergence_action_server;
     std::string landmark_polling_action_server;
     std::string waypoint_yaml_path;
     std::string landmark_convergence_yaml_path;
