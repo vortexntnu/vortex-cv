@@ -13,8 +13,10 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         node->declare_parameter<std::string>("services.start_mission");
     config.landmark_convergence_yaml_path =
         node->declare_parameter<std::string>("landmark_convergence_config");
-    config.landmark_convergence_goal_id = node->declare_parameter<std::string>(
-        "landmark_convergence_goal_id", "visual_inspection_convergence");
+    config.standoff_waypoint_goal_id =
+        node->declare_parameter<std::string>("standoff_waypoint_goal_id");
+    config.tcp_offset_goal_id =
+        node->declare_parameter<std::string>("tcp_offset_goal_id");
     config.vertical_mounted_valve =
         node->declare_parameter<bool>("vertical_mounted_valve");
 
@@ -25,13 +27,19 @@ std::shared_ptr<yasmin::Blackboard> initialize_blackboard(
     const StateMachineConfig& config) {
     auto bb = std::make_shared<yasmin::Blackboard>();
 
-    const auto landmark_waypoint_goal =
+    const auto standoff_waypoint_goal =
         vortex::utils::waypoints::load_waypoint_goal_from_yaml(
             config.landmark_convergence_yaml_path,
-            config.landmark_convergence_goal_id);
+            config.standoff_waypoint_goal_id);
 
-    bb->set<vortex::utils::waypoints::WaypointGoal>("landmark_waypoint_goal",
-                                                    landmark_waypoint_goal);
+    const auto tcp_offset_goal =
+        vortex::utils::waypoints::load_waypoint_goal_from_yaml(
+            config.landmark_convergence_yaml_path, config.tcp_offset_goal_id);
+
+    bb->set<vortex::utils::waypoints::WaypointGoal>("standoff_waypoint_goal",
+                                                    standoff_waypoint_goal);
+    bb->set<vortex::utils::waypoints::WaypointGoal>("tcp_offset_goal",
+                                                    tcp_offset_goal);
 
     return bb;
 }

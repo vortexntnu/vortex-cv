@@ -34,7 +34,8 @@ def launch_setup(context, *args, **kwargs):
             drone_config,
             {
                 "landmark_convergence_config": landmark_convergence_config,
-                "landmark_convergence_goal_id": "visual_inspection_convergence",
+                "standoff_waypoint_goal_id": "standoff_waypoint",
+                "tcp_offset_goal_id": "tcp_offset",
                 "vertical_mounted_valve": True,
             },
         ],

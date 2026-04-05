@@ -17,6 +17,7 @@ find_package(yasmin_ros REQUIRED)
 find_package(yasmin_viewer REQUIRED)
 find_package(vortex_msgs REQUIRED)
 find_package(vortex_utils REQUIRED)
+find_package(vortex_utils_ros REQUIRED)
 find_package(vortex_yasmin_utils REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
@@ -36,6 +37,7 @@ ament_target_dependencies(visual_inspection_fsm
   yasmin_ros
   vortex_msgs
   vortex_utils
+  vortex_utils_ros
   vortex_yasmin_utils
 )
 

@@ -15,7 +15,8 @@ struct StateMachineConfig {
     std::string landmark_polling_action_server;
     std::string start_mission_service;
     std::string landmark_convergence_yaml_path;
-    std::string landmark_convergence_goal_id;
+    std::string standoff_waypoint_goal_id;
+    std::string tcp_offset_goal_id;
     bool vertical_mounted_valve;
 };
 
