@@ -1,21 +1,10 @@
-# Pipeline inspection - Real world scenario
-# All scenario-specific parameters in one place.
-
+# Pipeline inspection — Real world
 scenario:
-  name: real_world
-  use_camera_driver: true
-
   aruco_board:
-    marker_size: 0.140  # Vortex plate marker size [m]
+    marker_size: 0.140  # Vortex plate [m]
     xDist: 0.448
     yDist: 0.853
     ids: [28, 7, 96, 19]
-
-  down_camera:
-    image_topic: "/{ns}/down_camera/image_raw"
-    camera_info_topic: "/{ns}/down_camera/camera_info"
-    camera_frame: "/{ns}/down_camera_link"
-    serial_number: "23494258"
 
   bearing_localization:
     profile: default
