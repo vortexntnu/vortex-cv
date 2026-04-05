@@ -54,7 +54,7 @@ def launch_setup(context, *args, **kwargs):
                 "board.ids": board["ids"],
                 "subs.image_topic": cam["image_topic"],
                 "subs.camera_info_topic": cam["camera_info_topic"],
-                "camera_frame": cam["camera_frame"],
+                "out_tf_frame": "nautilus/downwards_camera_optical",
             },
         ],
         extra_arguments=[{"use_intra_process_comms": cfg["use_camera_driver"]}],

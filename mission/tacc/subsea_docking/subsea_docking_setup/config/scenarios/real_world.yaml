@@ -14,13 +14,13 @@ scenario:
   front_camera:
     image_topic: "/{ns}/front_camera/image_raw"
     camera_info_topic: "/{ns}/front_camera/camera_info"
-    camera_frame: "/{ns}/front_camera_link"
+    camera_frame: "/nautilus/front_camera_optical"
     serial_number: "23494259"
 
   down_camera:
     image_topic: "/{ns}/down_camera/image_raw"
     camera_info_topic: "/{ns}/down_camera/camera_info"
-    camera_frame: "/{ns}/down_camera_link"
+    camera_frame: "/nautilus/downwards_camera_optical"
     serial_number: "23494258"
 
   sonar:
