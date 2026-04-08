@@ -35,6 +35,7 @@ void LineDetectionRansacNode::declare_parameters() {
     this->declare_parameter<float>("ransac.inlier_threshold");
     this->declare_parameter<int>("ransac.min_remaining_points");
     this->declare_parameter<int>("ransac.min_inliers");
+    this->declare_parameter<float>("ransac.max_distance");
 
     this->declare_parameter<std::string>("mode");
 }
@@ -98,6 +99,8 @@ void LineDetectionRansacNode::set_detector() {
         this->get_parameter("ransac.min_remaining_points").as_int();
     ransac_config.min_inliers =
         this->get_parameter("ransac.min_inliers").as_int();
+    ransac_config.max_distance =
+        this->get_parameter("ransac.max_distance").as_double();
 
     detector_ =
         std::make_unique<LineDetectorRansac>(boundary_config, ransac_config);
