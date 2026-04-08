@@ -1,0 +1,8 @@
+/**:
+  ros__parameters:
+    target_frame: orca/odom # TF frame to transform measurements into
+    publish_debug_markers: true # Publish Foxglove markers for debugging
+    landmark_type: 3 # Landmark type ID sent in output message
+    topics:
+      bearing_measurements: bearing_measurements # BearingMeasurementArray input
+      bearing_localization_markers: bearing_localization/markers # Debug markers
