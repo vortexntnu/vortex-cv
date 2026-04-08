@@ -3,6 +3,8 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <Eigen/Dense>
+
 #include <cmath>
 #include <vector>
 #include <vortex/utils/types.hpp>
@@ -34,7 +36,7 @@ enum class WallClassification {
     /** @brief Wall segment classified as the right wall. */
     RightWall,
 
-    /** @brief Wall segment classified as the left wall. (for future use)*/
+    /** @brief Wall segment classified as the left wall. */
     LeftWall,
 
     /** @brief Wall segment classified as the far wall. */
@@ -100,6 +102,8 @@ struct DockingPositionEstimatorConfig {
     /** @brief Offset from the far wall when estimating docking position [m]. */
     float far_wall_offset_m;
 
+    int use_left_wall;
+
     /** @brief
      * Selects whether to prefer the right-side corner in the mission logic.
      */
@@ -126,24 +130,27 @@ class DockingPositionEstimator {
         const DockingPositionEstimatorConfig& config);
 
     /**
-     * @brief Find all valid corner estimates from a set of detected line
-     * segments.
-     *
-     * Each line segment is first classified as a candidate wall. Candidate
-     * right walls and far walls are then paired, and their intersection is
-     * checked. A pair is accepted as a corner if the angle between the two
-     * walls lies within the configured corner-angle interval.
-     *
-     * @param lines Input line segments expressed in the reference frame.
-     * @param drone_pos Current drone position in the same frame as the lines.
-     * @param drone_heading Current drone heading [rad].
-     * @return Vector of valid corner estimates.
-     */
-    //  EVT LAGE FOR VENSTRE VEGG, TO DO
+    * @brief Find all valid corner estimates from a set of detected line segments.
+    *
+    * Each line segment is first classified as a candidate wall. Candidate
+    * side walls (right or left, depending on configuration) are paired with
+    * far walls, and their intersection is computed.
+    *
+    * Right walls are used when left-wall mode is disabled.
+    * Left walls are used when left-wall mode is enabled.
+    *
+    * A pair is accepted as a corner if:
+    * - the line intersection exists,
+    * - the angle between the two walls lies within the configured corner-angle interval.
+    *
+    * @param lines Input line segments expressed in the reference frame.
+    * @param drone_pos Current drone position in the same frame as the lines.
+    * @param drone_heading Current drone heading [rad].
+    * @return Vector of valid corner estimates.
+    */
     std::vector<CornerEstimate> find_corner_estimates(
         const std::vector<vortex::utils::types::LineSegment2D>& lines,
-        const Eigen::Vector2f&
-            drone_pos,  // sjekk at får inn pos og heading riktig?
+        const Eigen::Vector2f& drone_pos,  // sjekk at får inn pos og heading riktig?
         float drone_heading) const;
 
     /**
@@ -178,25 +185,27 @@ class DockingPositionEstimator {
 
    private:
     /**
-     * @brief Classify a line segment as a right wall, far wall, or rejected.
-     *
-     * A line is classified using:
-     * - the distance from the drone to the orthogonal projection on the line,
-     * - the position of that projection relative to the expected mission
-     * geometry,
-     * - and the unsigned angle between the wall direction and drone heading.
-     *
-     * Right-wall candidates must satisfy the configured right-side projection
-     * test and be approximately parallel to the drone heading.
-     *
-     * Far-wall candidates must satisfy the configured forward projection test
-     * and be approximately perpendicular to the drone heading.
-     *
-     * @param line Input line segment.
-     * @param drone_pos Current drone position.
-     * @param drone_heading Current drone heading [rad].
-     * @return Wall classification result.
-     */
+    * @brief Classify a line segment as a right wall, left wall, far wall, or rejected.
+    *
+    * A line is classified using:
+    * - the distance from the drone to the orthogonal projection on the line,
+    * - the position of that projection relative to the expected mission geometry,
+    * - and the unsigned angle between the wall direction and drone heading.
+    *
+    * Right-wall candidates must satisfy the configured right-side projection test
+    * and be approximately parallel to the drone heading.
+    *
+    * Left-wall candidates must satisfy the configured left-side projection test
+    * and be approximately parallel to the drone heading.
+    *
+    * Far-wall candidates must satisfy the configured forward projection test
+    * and be approximately perpendicular to the drone heading.
+    *
+    * @param line Input line segment.
+    * @param drone_pos Current drone position.
+    * @param drone_heading Current drone heading [rad].
+    * @return Wall classification result.
+    */
     WallClassification classify_wall(
         const vortex::utils::types::LineSegment2D& line,
         const Eigen::Vector2f& drone_pos,

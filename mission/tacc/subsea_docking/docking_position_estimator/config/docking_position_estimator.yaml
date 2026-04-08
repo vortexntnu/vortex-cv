@@ -28,7 +28,7 @@
     right_wall_max_y_m: 0.4
     far_wall_min_x_m: 0.5
 
-    # choose_right_corner: 1 #not used yet
+    use_left_wall: 0
 
     # Waypoint (not used now)
     switching_threshold: 0.5

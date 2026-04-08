@@ -110,6 +110,8 @@ void DockingPositionEstimatorNode::setup_estimator() {
         this->declare_parameter<double>("right_wall_offset_m");
     config.far_wall_offset_m =
         this->declare_parameter<double>("far_wall_offset_m");
+    config.use_left_wall = 
+        this->declare_parameter<int>("use_left_wall");
 
     estimator_ = std::make_unique<DockingPositionEstimator>(config);
 }
