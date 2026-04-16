@@ -10,11 +10,11 @@ tcp_offset:  # Gripper tip position in base_link body frame (NED). Tweak to cali
   mode: 0
   convergence_threshold: 0.1
 
-standoff_waypoint:  # Offset along the valve outward z-normal in odom for approach/retreat.
+standoff_waypoint:  # Offset along valve normal for approach and retreat.
   position:
     x: 0.0
     y: 0.0
-    z: 1.0  # 1.0m along valve outward normal
+    z: 0.5  # 0.5m along valve outward normal
   orientation:
     roll: 0.0
     pitch: 0.0
