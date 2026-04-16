@@ -77,6 +77,8 @@ class ValvePoseNode : public rclcpp::Node {
     bool debug_visualize_;
     float iou_duplicate_threshold_;
     std::string output_frame_id_;
+    bool clamp_rotation_{false};
+    bool use_hardcoded_extrinsic_{false};
 
     // estimator config params (stored for deferred detector init)
     int yolo_w_, yolo_h_;

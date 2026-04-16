@@ -9,6 +9,7 @@
 
 #include <opencv2/imgproc.hpp>
 
+#include <algorithm>
 #include <cmath>
 
 #include <vortex/utils/ros/qos_profiles.hpp>
@@ -46,6 +47,7 @@ void ValvePoseNode::declare_params() {
     ransac_iters_ = declare_parameter<int>("plane_ransac_max_iterations");
     handle_offset_ = declare_parameter<float>("valve_handle_offset");
     undistort_detections_ = declare_parameter<bool>("undistort_detections");
+    clamp_rotation_ = declare_parameter<bool>("clamp_rotation", false);
 
     // TF frame IDs for the depth-to-color extrinsic lookup.
     const std::string depth_frame_base =
@@ -55,14 +57,33 @@ void ValvePoseNode::declare_params() {
     depth_frame_id_ = drone + "/" + depth_frame_base;
     color_frame_id_ = drone + "/" + color_frame_base;
 
-    // TF2 buffer and listener for extrinsic lookup.
-    tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
-    tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+    use_hardcoded_extrinsic_ =
+        declare_parameter<bool>("use_hardcoded_extrinsic", false);
 
-    // Periodically attempt to look up the static transform until it arrives.
-    extrinsic_timer_ =
-        create_wall_timer(std::chrono::milliseconds(500),
-                          std::bind(&ValvePoseNode::lookup_extrinsic, this));
+    if (use_hardcoded_extrinsic_) {
+        const double tx = declare_parameter<double>("extrinsic_tx", -0.059);
+        const double ty = declare_parameter<double>("extrinsic_ty", 0.0);
+        const double tz = declare_parameter<double>("extrinsic_tz", 0.0);
+        depth_color_extrinsic_.R = Eigen::Matrix3f::Identity();
+        depth_color_extrinsic_.t =
+            Eigen::Vector3f(static_cast<float>(tx), static_cast<float>(ty),
+                            static_cast<float>(tz));
+        extrinsic_ready_ = true;
+        RCLCPP_INFO(get_logger(),
+                    "Using hardcoded extrinsic (t=[%.4f, %.4f, %.4f])", tx, ty,
+                    tz);
+    } else {
+        // TF2 buffer and listener for extrinsic lookup.
+        tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
+        tf_listener_ =
+            std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
+        // Periodically attempt to look up the static transform until it
+        // arrives.
+        extrinsic_timer_ =
+            create_wall_timer(std::chrono::milliseconds(500),
+                              std::bind(&ValvePoseNode::lookup_extrinsic, this));
+    }
 
     if (debug_visualize_) {
         const auto pose_topic =
@@ -374,7 +395,29 @@ void ValvePoseNode::sync_cb(
 
         // Keep raw_boxes and poses aligned: only push when pose succeeded.
         raw_boxes.push_back(color_box);
-        poses.push_back(result.pose);
+        if (clamp_rotation_) {
+            Pose clamped = result.pose;
+            Eigen::Quaterniond q(clamped.qw, clamped.qx, clamped.qy, clamped.qz);
+            // ZYX intrinsic Euler: (yaw, pitch, roll)
+            Eigen::Vector3d euler = q.normalized().toRotationMatrix().eulerAngles(2, 1, 0);
+            double yaw = std::abs(euler[0]);
+            yaw = std::fmod(yaw, M_PI);
+            if (yaw > M_PI / 2.0)
+                yaw = M_PI - yaw;
+            // 0 = vertical, 90 = horizontal
+            euler[0] = yaw;
+            Eigen::Quaterniond q_new =
+                Eigen::AngleAxisd(euler[0], Eigen::Vector3d::UnitZ()) *
+                Eigen::AngleAxisd(euler[1], Eigen::Vector3d::UnitY()) *
+                Eigen::AngleAxisd(euler[2], Eigen::Vector3d::UnitX());
+            clamped.qw = q_new.w();
+            clamped.qx = q_new.x();
+            clamped.qy = q_new.y();
+            clamped.qz = q_new.z();
+            poses.push_back(clamped);
+        } else {
+            poses.push_back(result.pose);
+        }
         if (mode == DetectorMode::debug) {
             if (result.annulus_cloud)
                 ann_dbg += *result.annulus_cloud;
