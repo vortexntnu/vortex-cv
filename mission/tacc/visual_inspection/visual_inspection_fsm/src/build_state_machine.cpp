@@ -67,43 +67,6 @@ class BlackboardWaypointState
     std::string waypoint_goal_bb_key_;
 };
 
-/// @brief Compute the drone base_link orientation such that its +x axis
-/// points opposite to the valve's +z normal (toward the valve surface).
-///
-/// Wall valve (horizontal normal): drone yaws to face it, stays level.
-/// Floor valve (normal = [0,0,-1] up in NED): drone pitches down 90°.
-static Eigen::Quaterniond compute_drone_orientation(
-    const Eigen::Quaterniond& q_valve) {
-    // Valve outward normal in odom frame
-    const Eigen::Vector3d n = (q_valve * Eigen::Vector3d::UnitZ()).normalized();
-
-    // Drone +x must point toward the valve surface = -n
-    const Eigen::Vector3d x_drone = -n;
-
-    // Keep y-axis horizontal. If approach direction is near-vertical
-    // (floor/ceiling valve), cross with world-x instead of world-z.
-    const Eigen::Vector3d world_z(0, 0, 1);
-    Eigen::Vector3d y_drone;
-
-    if (std::abs(x_drone.dot(world_z)) > 0.99) {
-        // Near-vertical approach (floor valve)
-        const Eigen::Vector3d world_x(1, 0, 0);
-        y_drone = x_drone.cross(world_x).normalized();
-    } else {
-        // Wall valve: y perpendicular to approach and gravity
-        y_drone = x_drone.cross(world_z).normalized();
-    }
-
-    const Eigen::Vector3d z_drone = x_drone.cross(y_drone).normalized();
-
-    Eigen::Matrix3d R;
-    R.col(0) = x_drone;
-    R.col(1) = y_drone;
-    R.col(2) = z_drone;
-
-    return Eigen::Quaterniond(R).normalized();
-}
-
 /// @brief Compute gripper roll servo angle to align fingers with valve handle.
 ///
 /// The residual rotation q_drone^{-1} * q_valve captures the mismatch
@@ -116,21 +79,16 @@ static double compute_gripper_roll(const Eigen::Quaterniond& q_drone,
     return std::atan2(R(2, 1), R(1, 1));
 }
 
-/// @brief Compute an odom-frame WaypointGoal using TCP kinematic inversion.
+/// @brief Compute a standoff waypoint along the approach direction defined by
+/// the valve handle yaw. The drone is positioned standoff_distance metres from
+/// the valve along that direction and oriented to face back at the valve
+/// (yaw + 180°).
 ///
-/// Given a valve pose, a standoff in the valve's local frame, and a TCP
-/// offset (gripper tip in body frame), computes the base_link position
-/// such that the gripper tip lands exactly on the target point.
-///
-/// p_tcp_target = p_valve + R_valve * standoff_local
-/// q_drone      = orientation facing opposite to valve normal
-/// p_base       = p_tcp_target - R_drone * tcp_offset
-///
-/// @brief Compute a standoff waypoint: drone base_link goes to
-/// p_valve + R_valve * standoff, facing the valve. No TCP inversion.
+/// Standoff distance = norm of standoff_goal.pose position vector.
 ///
 /// @param landmarks_bb_key      BB key for the landmark vector.
-/// @param standoff_goal_bb_key  BB key for standoff WaypointGoal.
+/// @param standoff_goal_bb_key  BB key for standoff WaypointGoal (position
+///                              norm = standoff distance).
 /// @param output_bb_key         BB key to store the computed WaypointGoal.
 static std::function<std::string(yasmin::Blackboard::SharedPtr)>
 make_standoff_waypoint_cb(const std::string& landmarks_bb_key,
@@ -149,41 +107,46 @@ make_standoff_waypoint_cb(const std::string& landmarks_bb_key,
             landmarks.front().pose.pose);
         auto standoff_goal = bb->get<WaypointGoal>(standoff_goal_bb_key);
 
-        // --- Valve pose in odom ---
+        const Eigen::Vector3d p_valve = landmark_pose.pos_vector();
         const Eigen::Quaterniond q_valve =
             landmark_pose.ori_quaternion().normalized();
-        const Eigen::Vector3d p_valve = landmark_pose.pos_vector();
 
-        // --- Standoff: base_link goes to valve + offset along normal ---
+        // Standoff position: offset along the valve's outward z-normal in odom.
         const Eigen::Vector3d standoff_odom =
             q_valve * standoff_goal.pose.pos_vector();
-        const Eigen::Vector3d p_target = p_valve + standoff_odom;
+        const Eigen::Vector3d p_standoff = p_valve + standoff_odom;
 
-        // --- Drone orientation (face the valve) ---
-        const Eigen::Quaterniond q_drone = compute_drone_orientation(q_valve);
+        // Extract handle yaw: z-rotation of the valve quaternion in Euler.
+        // 90 deg = handle straight reference position.
+        // Use this to set the drone heading so it faces the valve handle.
+        const double yaw = vortex::utils::math::quat_to_euler(q_valve).z();
+        const Eigen::Quaterniond q_drone =
+            vortex::utils::math::euler_to_quat(0.0, 0.0, yaw + M_PI);
 
         WaypointGoal computed_goal;
-        computed_goal.pose = Pose::from_eigen(p_target, q_drone);
+        computed_goal.pose = Pose::from_eigen(p_standoff, q_drone);
         computed_goal.mode = standoff_goal.mode;
         computed_goal.convergence_threshold =
             standoff_goal.convergence_threshold;
 
         bb->set<WaypointGoal>(output_bb_key, computed_goal);
 
-        const auto euler = vortex::utils::math::quat_to_euler(q_drone);
         YASMIN_LOG_INFO(
-            "Standoff waypoint: base=[%.3f, %.3f, %.3f], "
-            "RPY=[%.1f, %.1f, %.1f] deg",
-            p_target.x(), p_target.y(), p_target.z(), euler.x() * 180.0 / M_PI,
-            euler.y() * 180.0 / M_PI, euler.z() * 180.0 / M_PI);
+            "Standoff waypoint: pos=[%.3f, %.3f, %.3f], "
+            "handle_yaw=%.1f deg",
+            p_standoff.x(), p_standoff.y(), p_standoff.z(), yaw * 180.0 / M_PI);
 
         return SUCCEED;
     };
 }
 
-/// @brief Compute a convergence waypoint: gripper tip goes to the valve
-/// position using TCP kinematic inversion. Also stores the valve quaternion
-/// and gripper roll angle on the blackboard.
+/// @brief Compute a convergence waypoint using TCP kinematic inversion so that
+/// the gripper tip lands exactly on the valve handle center.
+///
+/// Drone orientation is derived from the handle yaw (yaw + 180° to face
+/// the valve). Gripper roll is stored on the blackboard for future use.
+///
+/// p_base = p_valve - R_drone * tcp_offset
 ///
 /// @param landmarks_bb_key BB key for the landmark vector.
 /// @param output_bb_key    BB key to store the computed WaypointGoal.
@@ -203,39 +166,41 @@ make_convergence_waypoint_cb(const std::string& landmarks_bb_key,
             landmarks.front().pose.pose);
         auto tcp_goal = bb->get<WaypointGoal>("tcp_offset_goal");
 
-        // --- Valve pose in odom (= TCP target) ---
+        const Eigen::Vector3d p_valve = landmark_pose.pos_vector();
         const Eigen::Quaterniond q_valve =
             landmark_pose.ori_quaternion().normalized();
-        const Eigen::Vector3d p_valve = landmark_pose.pos_vector();
 
-        // --- Drone orientation (face the valve) ---
-        const Eigen::Quaterniond q_drone = compute_drone_orientation(q_valve);
+        // Extract handle yaw: z-rotation of the valve quaternion in Euler.
+        // 90 deg = handle straight reference position.
+        const double yaw = vortex::utils::math::quat_to_euler(q_valve).z();
 
-        // --- TCP kinematic inversion ---
-        // p_tcp = p_base + R_drone * tcp_offset
-        // => p_base = p_tcp - R_drone * tcp_offset
+        // Drone faces back at the valve: heading = yaw + 180°.
+        const Eigen::Quaterniond q_drone =
+            vortex::utils::math::euler_to_quat(0.0, 0.0, yaw + M_PI);
+
+        // TCP kinematic inversion:
+        // p_tcp = p_base + R_drone * tcp_offset  =>  p_base = p_valve - R_drone
+        // * tcp_offset
         const Eigen::Vector3d tcp_body = tcp_goal.pose.pos_vector();
-        const Eigen::Vector3d p_target_base = p_valve - q_drone * tcp_body;
+        const Eigen::Vector3d p_base = p_valve - q_drone * tcp_body;
 
-        // --- Gripper roll for servo command ---
+        // Store gripper roll for later use (servo command, not yet applied).
         const double gripper_roll = compute_gripper_roll(q_drone, q_valve);
+        bb->set<double>("gripper_roll_angle", gripper_roll);
+        bb->set<Eigen::Quaterniond>("valve_quaternion", q_valve);
 
         WaypointGoal computed_goal;
-        computed_goal.pose = Pose::from_eigen(p_target_base, q_drone);
+        computed_goal.pose = Pose::from_eigen(p_base, q_drone);
         computed_goal.mode = tcp_goal.mode;
         computed_goal.convergence_threshold = tcp_goal.convergence_threshold;
 
         bb->set<WaypointGoal>(output_bb_key, computed_goal);
-        bb->set<double>("gripper_roll_angle", gripper_roll);
-        bb->set<Eigen::Quaterniond>("valve_quaternion", q_valve);
 
-        const auto euler = vortex::utils::math::quat_to_euler(q_drone);
         YASMIN_LOG_INFO(
             "TCP waypoint: base=[%.3f, %.3f, %.3f], "
-            "RPY=[%.1f, %.1f, %.1f] deg, gripper_roll=%.1f deg",
-            p_target_base.x(), p_target_base.y(), p_target_base.z(),
-            euler.x() * 180.0 / M_PI, euler.y() * 180.0 / M_PI,
-            euler.z() * 180.0 / M_PI, gripper_roll * 180.0 / M_PI);
+            "handle_yaw=%.1f deg, gripper_roll=%.1f deg",
+            p_base.x(), p_base.y(), p_base.z(), yaw * 180.0 / M_PI,
+            gripper_roll * 180.0 / M_PI);
 
         return SUCCEED;
     };
@@ -273,7 +238,8 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                       landmark_subtype, "landmarks", "landmark_found"),
                   {{"landmark_found", "COMPUTE_APPROACH"}, {ABORT, ABORT}});
 
-    // --- COMPUTE_APPROACH: base_link 0.5m from valve, facing it ---
+    // --- COMPUTE_APPROACH: 1m from valve along handle yaw direction, facing it
+    // ---
     sm->add_state(
         "COMPUTE_APPROACH",
         yasmin::CbState::make_shared(
@@ -311,7 +277,8 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
             config.waypoint_manager_action_server, "computed_convergence_goal"),
         {{SUCCEED, "COMPUTE_RETREAT"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
-    // --- COMPUTE_RETREAT: base_link backs off 0.5m (same as approach) ---
+    // --- COMPUTE_RETREAT: backs off 1m along handle yaw direction (same as
+    // approach) ---
     sm->add_state(
         "COMPUTE_RETREAT",
         yasmin::CbState::make_shared(
