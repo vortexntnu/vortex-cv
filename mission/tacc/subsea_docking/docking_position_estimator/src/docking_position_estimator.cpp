@@ -26,11 +26,9 @@ std::vector<CornerEstimate> DockingPositionEstimator::find_corner_estimates(
 
         if (classification == WallClassification::RightWall) {
             right_wall_candidates.push_back(line);
-        } 
-        else if (classification == WallClassification::FarWall) {
+        } else if (classification == WallClassification::FarWall) {
             far_wall_candidates.push_back(line);
-        }
-        else if (classification == WallClassification::LeftWall) {
+        } else if (classification == WallClassification::LeftWall) {
             left_wall_candidates.push_back(line);
         }
     }
@@ -40,12 +38,11 @@ std::vector<CornerEstimate> DockingPositionEstimator::find_corner_estimates(
     spdlog::info("Far wall candidates: {}", far_wall_candidates.size());
     spdlog::info("Left wall candidates: {}", left_wall_candidates.size());
 
-    auto process_corner = [&](const auto& side_wall,
-                              const auto& far_wall) {
-
+    auto process_corner = [&](const auto& side_wall, const auto& far_wall) {
         Eigen::Vector2f corner_intersection;
 
-        if (!compute_line_intersection(side_wall, far_wall, corner_intersection)) {
+        if (!compute_line_intersection(side_wall, far_wall,
+                                       corner_intersection)) {
             return;
         }
 
@@ -56,15 +53,10 @@ std::vector<CornerEstimate> DockingPositionEstimator::find_corner_estimates(
             return;
         }
 
-        corner_estimates.push_back({
-            side_wall,
-            far_wall,
-            corner_intersection
-        });
+        corner_estimates.push_back({side_wall, far_wall, corner_intersection});
     };
 
     for (const auto& far_wall : far_wall_candidates) {
-
         if (!config_.use_left_wall) {
             for (const auto& right_wall : right_wall_candidates) {
                 process_corner(right_wall, far_wall);
@@ -83,7 +75,6 @@ std::vector<CornerEstimate> DockingPositionEstimator::find_corner_estimates(
 CornerEstimate DockingPositionEstimator::select_best_corner(
     const std::vector<CornerEstimate>& possible_corners,
     const Eigen::Vector2f& drone_pos) const {
-
     float min_distance = std::numeric_limits<float>::max();
     CornerEstimate best_corner = possible_corners.front();
 
@@ -161,9 +152,8 @@ WallClassification DockingPositionEstimator::classify_wall(
 
     // RIGHT WALL: projection has negative y-value in NED, wall is approximately
     // parallel to heading
-    if (                   // projection.y() < config_.right_wall_max_y_m &&
-        !config_.use_left_wall &&
-        right_dist > 0 && 
+    if (  // projection.y() < config_.right_wall_max_y_m &&
+        !config_.use_left_wall && right_dist > 0 &&
         heading_wall_angle < config_.parallel_heading_angle_threshold_rad) {
         spdlog::info("  -> Classified as RIGHT candidate");
         return WallClassification::RightWall;
@@ -173,14 +163,14 @@ WallClassification DockingPositionEstimator::classify_wall(
     // perpendicular to heading
     if (  // projection.x() > config_.far_wall_min_x_m &&
         forward_dist > 0 &&
-        heading_wall_angle > config_.perpendicular_heading_angle_threshold_rad) {
+        heading_wall_angle >
+            config_.perpendicular_heading_angle_threshold_rad) {
         spdlog::info("  -> Classified as FAR candidate");
         return WallClassification::FarWall;
     }
 
     // LEFT WALL
-    if (config_.use_left_wall &&
-        left_dist > 0 &&
+    if (config_.use_left_wall && left_dist > 0 &&
         heading_wall_angle < config_.parallel_heading_angle_threshold_rad) {
         spdlog::info("  -> Classified as LEFT candidate");
         return WallClassification::LeftWall;
