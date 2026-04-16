@@ -86,7 +86,7 @@
       # Min ~0 mm clips near-zero noise; max ~1125 mm (≈1.1 m) covers the
       # expected close-range operating distance for valve interaction.
       depth_colormap_value_min: 0.1
-      depth_colormap_value_max: 1125.5
+      depth_colormap_value_max: 2.0
 
       # Points sampled from the annulus region of the bounding box, collected
       # as a byproduct of pose estimation – useful for verifying the depth

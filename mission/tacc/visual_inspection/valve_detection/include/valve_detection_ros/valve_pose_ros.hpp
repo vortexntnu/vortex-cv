@@ -7,6 +7,7 @@
 
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/msg/pose_array.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
 #include <opencv2/core.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -121,6 +122,8 @@ class ValvePoseNode : public rclcpp::Node {
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr plane_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr
         depth_cloud_pub_;
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr
+        handle_marker_pub_;
 
     float depth_colormap_vmin_;
     float depth_colormap_vmax_;

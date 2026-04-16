@@ -2,6 +2,7 @@
 // RANSAC plane fitting, normal/ray-plane intersection, and 3D pose computation.
 #include "valve_detection/pose_estimator.hpp"
 
+#include <algorithm>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/imgproc.hpp>
 
@@ -199,6 +200,29 @@ Eigen::Matrix3f PoseEstimator::create_rotation_matrix_depth(
     }
     filter_direction_ = x_axis;
 
+    // Clamp handle angle to [0, 90°] where 90° = vertical, 0° = horizontal.
+    // Measure angle of x_axis (handle dir) relative to the image Y-axis
+    // projected onto the plane.
+    if (clamp_rotation_) {
+        // Project image-Y (downward in optical frame) onto the plane.
+        Eigen::Vector3f img_y(0.f, 1.f, 0.f);
+        Eigen::Vector3f vert = (img_y - img_y.dot(z_axis) * z_axis);
+        if (vert.norm() > 1e-6f) {
+            vert.normalize();
+            Eigen::Vector3f horiz = z_axis.cross(vert).normalized();
+            // Angle from vertical: 0 when handle is vertical, pi/2 when
+            // horizontal.
+            float ang = std::atan2(std::abs(x_axis.dot(horiz)),
+                                   std::abs(x_axis.dot(vert)));
+            ang = std::clamp(ang, 0.f, static_cast<float>(M_PI / 2.0));
+            // Rebuild x_axis at clamped angle: 90° = vertical (vert),
+            // 0° = horizontal (horiz).
+            float clamped = static_cast<float>(M_PI / 2.0) - ang;
+            x_axis = std::cos(clamped) * vert + std::sin(clamped) * horiz;
+            //x_axis = (x_axis - x_axis.dot(z_axis) * z_axis).normalized();
+        }
+    }
+
     const Eigen::Vector3f y_axis = z_axis.cross(x_axis).normalized();
     x_axis = y_axis.cross(z_axis).normalized();
 
@@ -293,12 +317,7 @@ DetectionResult PoseEstimator::compute_pose_from_depth(
 
     const Eigen::Vector3f pos_shifted = shift_point_along_normal(pos, normal);
 
-    // The OBB theta gives the direction of size_x.  The valve handle
-    // aligns with the longer side of the bounding box, so rotate by
-    // 90° when size_y > size_x.
     float handle_angle = bbox_org.theta;
-    if (bbox_org.size_y > bbox_org.size_x)
-        handle_angle += static_cast<float>(M_PI / 2.0);
 
     const Eigen::Matrix3f rot = create_rotation_matrix_depth(
         coeff, normal, handle_angle, color_origin_in_depth_frame,

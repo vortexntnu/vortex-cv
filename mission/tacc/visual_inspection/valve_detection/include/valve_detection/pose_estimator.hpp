@@ -43,6 +43,7 @@ class PoseEstimator {
     void set_color_image_properties(const ImageProperties& props);
     void set_depth_image_properties(const ImageProperties& props);
     void set_depth_color_extrinsic(const DepthColorExtrinsic& extr);
+    void set_clamp_rotation(bool clamp) { clamp_rotation_ = clamp; }
 
     /// @brief Computes letterbox scale and padding from color image dimensions
     /// and YOLO input size. Must be called after set_color_image_properties().
@@ -97,6 +98,7 @@ class PoseEstimator {
     double letterbox_pad_y_{0};
 
     mutable Eigen::Vector3f filter_direction_{Eigen::Vector3f::Zero()};
+    bool clamp_rotation_{false};
 };
 
 }  // namespace valve_detection

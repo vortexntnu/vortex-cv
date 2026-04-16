@@ -47,7 +47,7 @@ void ValvePoseNode::declare_params() {
     ransac_iters_ = declare_parameter<int>("plane_ransac_max_iterations");
     handle_offset_ = declare_parameter<float>("valve_handle_offset");
     undistort_detections_ = declare_parameter<bool>("undistort_detections");
-    clamp_rotation_ = declare_parameter<bool>("clamp_rotation", false);
+    clamp_rotation_ = declare_parameter<bool>("clamp_rotation");
 
     // TF frame IDs for the depth-to-color extrinsic lookup.
     const std::string depth_frame_base =
@@ -58,12 +58,12 @@ void ValvePoseNode::declare_params() {
     color_frame_id_ = drone + "/" + color_frame_base;
 
     use_hardcoded_extrinsic_ =
-        declare_parameter<bool>("use_hardcoded_extrinsic", false);
+        declare_parameter<bool>("use_hardcoded_extrinsic");
 
     if (use_hardcoded_extrinsic_) {
-        const double tx = declare_parameter<double>("extrinsic_tx", -0.059);
-        const double ty = declare_parameter<double>("extrinsic_ty", 0.0);
-        const double tz = declare_parameter<double>("extrinsic_tz", 0.0);
+        const double tx = declare_parameter<double>("extrinsic_tx");
+        const double ty = declare_parameter<double>("extrinsic_ty");
+        const double tz = declare_parameter<double>("extrinsic_tz");
         depth_color_extrinsic_.R = Eigen::Matrix3f::Identity();
         depth_color_extrinsic_.t =
             Eigen::Vector3f(static_cast<float>(tx), static_cast<float>(ty),
@@ -113,6 +113,9 @@ void ValvePoseNode::declare_params() {
             ann_topic, sensor_qos);
         plane_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
             pln_topic, sensor_qos);
+        handle_marker_pub_ =
+            create_publisher<visualization_msgs::msg::MarkerArray>(
+                "/valve_handle_markers", sensor_qos);
     }
 
     const auto lm_topic = declare_parameter<std::string>("landmarks_pub_topic");
@@ -171,6 +174,7 @@ void ValvePoseNode::try_activate_detector() {
     detector_->set_color_image_properties(color_props_);
     detector_->set_depth_image_properties(depth_props_);
     detector_->set_depth_color_extrinsic(depth_color_extrinsic_);
+    detector_->set_clamp_rotation(clamp_rotation_);
     detector_->compute_letterbox_transform();
     RCLCPP_INFO(get_logger(), "Detector initialised");
 }
@@ -395,29 +399,7 @@ void ValvePoseNode::sync_cb(
 
         // Keep raw_boxes and poses aligned: only push when pose succeeded.
         raw_boxes.push_back(color_box);
-        if (clamp_rotation_) {
-            Pose clamped = result.pose;
-            Eigen::Quaterniond q(clamped.qw, clamped.qx, clamped.qy, clamped.qz);
-            // ZYX intrinsic Euler: (yaw, pitch, roll)
-            Eigen::Vector3d euler = q.normalized().toRotationMatrix().eulerAngles(2, 1, 0);
-            double yaw = std::abs(euler[0]);
-            yaw = std::fmod(yaw, M_PI);
-            if (yaw > M_PI / 2.0)
-                yaw = M_PI - yaw;
-            // 0 = vertical, 90 = horizontal
-            euler[0] = yaw;
-            Eigen::Quaterniond q_new =
-                Eigen::AngleAxisd(euler[0], Eigen::Vector3d::UnitZ()) *
-                Eigen::AngleAxisd(euler[1], Eigen::Vector3d::UnitY()) *
-                Eigen::AngleAxisd(euler[2], Eigen::Vector3d::UnitX());
-            clamped.qw = q_new.w();
-            clamped.qx = q_new.x();
-            clamped.qy = q_new.y();
-            clamped.qz = q_new.z();
-            poses.push_back(clamped);
-        } else {
-            poses.push_back(result.pose);
-        }
+        poses.push_back(result.pose);
         if (mode == DetectorMode::debug) {
             if (result.annulus_cloud)
                 ann_dbg += *result.annulus_cloud;
@@ -432,6 +414,68 @@ void ValvePoseNode::sync_cb(
     if (debug_visualize_ && pose_pub_)
         pose_pub_->publish(make_pose_array(poses, pose_header));
     landmark_pub_->publish(make_landmark_array(poses, pose_header));
+
+    // Publish handle direction line markers for Foxglove visualization.
+    if (debug_visualize_ && handle_marker_pub_) {
+        visualization_msgs::msg::MarkerArray marker_array;
+        // First, add a DELETE_ALL marker to clear old markers.
+        visualization_msgs::msg::Marker delete_marker;
+        delete_marker.action = visualization_msgs::msg::Marker::DELETEALL;
+        marker_array.markers.push_back(delete_marker);
+
+        const float line_half_len = 0.05f;  // 5 cm each side
+        for (size_t i = 0; i < poses.size(); ++i) {
+            const auto& p = poses[i];
+            Eigen::Quaterniond q(p.qw, p.qx, p.qy, p.qz);
+            Eigen::Matrix3d R = q.normalized().toRotationMatrix();
+            Eigen::Vector3d pos(p.x, p.y, p.z);
+            Eigen::Vector3d x_axis = R.col(0);  // handle direction
+
+            Eigen::Vector3d p1 = pos - line_half_len * x_axis;
+            Eigen::Vector3d p2 = pos + line_half_len * x_axis;
+
+            visualization_msgs::msg::Marker m;
+            m.header = pose_header;
+            m.ns = "valve_handle";
+            m.id = static_cast<int>(i);
+            m.type = visualization_msgs::msg::Marker::LINE_STRIP;
+            m.action = visualization_msgs::msg::Marker::ADD;
+            m.scale.x = 0.005;  // line width 5 mm
+            m.color.r = 0.0f;
+            m.color.g = 1.0f;
+            m.color.b = 0.0f;
+            m.color.a = 1.0f;
+
+            geometry_msgs::msg::Point pt1, pt2;
+            pt1.x = p1.x(); pt1.y = p1.y(); pt1.z = p1.z();
+            pt2.x = p2.x(); pt2.y = p2.y(); pt2.z = p2.z();
+            m.points.push_back(pt1);
+            m.points.push_back(pt2);
+
+            // Sphere at each endpoint
+            visualization_msgs::msg::Marker s1;
+            s1.header = pose_header;
+            s1.ns = "valve_handle_endpoints";
+            s1.id = static_cast<int>(i * 2);
+            s1.type = visualization_msgs::msg::Marker::SPHERE;
+            s1.action = visualization_msgs::msg::Marker::ADD;
+            s1.pose.position = pt1;
+            s1.pose.orientation.w = 1.0;
+            s1.scale.x = s1.scale.y = s1.scale.z = 0.01;
+            s1.color.r = 1.0f; s1.color.g = 0.0f; s1.color.b = 0.0f;
+            s1.color.a = 1.0f;
+
+            visualization_msgs::msg::Marker s2 = s1;
+            s2.id = static_cast<int>(i * 2 + 1);
+            s2.pose.position = pt2;
+            s2.color.r = 0.0f; s2.color.g = 0.0f; s2.color.b = 1.0f;
+
+            marker_array.markers.push_back(m);
+            marker_array.markers.push_back(s1);
+            marker_array.markers.push_back(s2);
+        }
+        handle_marker_pub_->publish(marker_array);
+    }
 }
 
 }  // namespace valve_detection
