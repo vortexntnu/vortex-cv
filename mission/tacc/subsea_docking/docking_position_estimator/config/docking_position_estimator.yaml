@@ -22,13 +22,13 @@
     perpendicular_heading_angle_threshold_rad: 1.35
     min_corner_angle_rad: 1.50
     max_corner_angle_rad: 1.70
-    right_wall_offset_m: 2.5 #offset along right wall
+    side_wall_offset_m: 2.5 #offset along right wall og left wall
     far_wall_offset_m: 4.0 #offset along far wall
 
     right_wall_max_y_m: 0.4
     far_wall_min_x_m: 0.5
 
-    use_left_wall: 0
+    use_left_wall: false
 
     # Waypoint (not used now)
     switching_threshold: 0.5

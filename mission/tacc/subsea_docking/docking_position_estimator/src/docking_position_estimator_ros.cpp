@@ -100,20 +100,20 @@ void DockingPositionEstimatorNode::setup_estimator() {
         this->declare_parameter<double>("min_corner_angle_rad");
     config.max_corner_angle_rad =
         this->declare_parameter<double>("max_corner_angle_rad");
+    config.side_wall_offset_m =
+        this->declare_parameter<double>("side_wall_offset_m");
+    config.far_wall_offset_m =
+        this->declare_parameter<double>("far_wall_offset_m");
+    config.use_left_wall = 
+        this->declare_parameter<bool>("use_left_wall");
+
+    estimator_ = std::make_unique<DockingPositionEstimator>(config);
+
+    // FJERNE? TO DO
     config.far_wall_min_x_m =
         this->declare_parameter<double>("far_wall_min_x_m");
     config.right_wall_max_y_m =
         this->declare_parameter<double>("right_wall_max_y_m");
-    // config.choose_right_corner =
-    // this->declare_parameter<int>("choose_right_corner"); //not used yet
-    config.right_wall_offset_m =
-        this->declare_parameter<double>("right_wall_offset_m");
-    config.far_wall_offset_m =
-        this->declare_parameter<double>("far_wall_offset_m");
-    config.use_left_wall = 
-        this->declare_parameter<int>("use_left_wall");
-
-    estimator_ = std::make_unique<DockingPositionEstimator>(config);
 }
 
 void DockingPositionEstimatorNode::pose_callback(
@@ -136,7 +136,6 @@ void DockingPositionEstimatorNode::sonar_info_callback(
 void DockingPositionEstimatorNode::line_callback(
     const vortex_msgs::msg::LineSegment2DArray::ConstSharedPtr& msg) {
     estimate_and_send_docking_waypoint(*msg);
-    // drawSegmentsInMapFrame(*msg);
 }
 
 void DockingPositionEstimatorNode::estimate_and_send_docking_waypoint(

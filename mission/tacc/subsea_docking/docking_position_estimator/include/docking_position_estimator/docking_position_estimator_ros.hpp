@@ -38,9 +38,9 @@ namespace vortex::docking_position_estimator {
  * frame, and classifies them as candidate walls relative to the drone.
  *
  * From the classified walls, the node estimates corner candidates by
- * intersecting right-wall and far-wall segments. The most suitable corner
- * is selected, and a docking position is computed by offsetting from the
- * corner along the wall normals.
+ * intersecting right-wall or left-wall and far-wall segments. The most 
+ * suitable corner is selected, and a docking position is computed by 
+ * offsetting from the corner along the wall normals.
  *
  * If a valid docking estimate is found, it is sent through the SendPose
  * service.

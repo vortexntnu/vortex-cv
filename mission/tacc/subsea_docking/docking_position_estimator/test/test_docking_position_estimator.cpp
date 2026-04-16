@@ -46,7 +46,7 @@ DockingPositionEstimatorConfig make_config() {
     config.min_corner_angle_rad = 70.0f * static_cast<float>(M_PI) / 180.0f;
     config.max_corner_angle_rad = 110.0f * static_cast<float>(M_PI) / 180.0f;
 
-    config.right_wall_offset_m = 1.0f;
+    config.side_wall_offset_m = 1.0f;
     config.far_wall_offset_m = 1.5f;
 
     return config;
@@ -182,13 +182,13 @@ TEST_F(DockingPositionEstimatorTest,
     const Eigen::Vector2f drone_pos{0.0f, 0.0f};
 
     CornerEstimate near_corner{
-        .right_wall = make_line(0.0f, 2.0f, 10.0f, 2.0f),
+        .side_wall = make_line(0.0f, 2.0f, 10.0f, 2.0f),
         .far_wall = make_line(5.0f, -5.0f, 5.0f, 5.0f),
         .corner_point = Eigen::Vector2f{5.0f, 2.0f},
     };
 
     CornerEstimate far_corner{
-        .right_wall = make_line(0.0f, 4.0f, 10.0f, 4.0f),
+        .side_wall = make_line(0.0f, 4.0f, 10.0f, 4.0f),
         .far_wall = make_line(8.0f, -5.0f, 8.0f, 5.0f),
         .corner_point = Eigen::Vector2f{8.0f, 4.0f},
     };
@@ -217,7 +217,7 @@ TEST_F(
     // (5, 2) + 1.0*(0, -1) + 1.5*(-1, 0) = (3.5, 1.0)
 
     CornerEstimate corner{
-        .right_wall = make_line(0.0f, 2.0f, 10.0f, 2.0f),
+        .side_wall = make_line(0.0f, 2.0f, 10.0f, 2.0f),
         .far_wall = make_line(5.0f, -5.0f, 5.0f, 5.0f),
         .corner_point = Eigen::Vector2f{5.0f, 2.0f},
     };

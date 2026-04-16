@@ -12,15 +12,15 @@
 namespace vortex::docking_position_estimator {
 
 /**
- * @brief Represents a candidate docking corner formed by a right wall and a far
+ * @brief Represents a candidate docking corner formed by a side wall and a far
  * wall.
  *
  * A corner estimate consists of two detected wall segments and their
  * intersection point in the reference frame.
  */
 struct CornerEstimate {
-    /** @brief Line segment classified as the right wall. */
-    vortex::utils::types::LineSegment2D right_wall;
+    /** @brief Line segment classified as the side wall. */
+    vortex::utils::types::LineSegment2D side_wall;
 
     /** @brief Line segment classified as the far wall. */
     vortex::utils::types::LineSegment2D far_wall;
@@ -79,14 +79,27 @@ struct DockingPositionEstimatorConfig {
      * perpendicular [rad]. */
     float perpendicular_heading_angle_threshold_rad;
 
-    /** @brief Minimum allowed angle between right wall and far wall for a valid
+    /** @brief Minimum allowed angle between side wall and far wall for a valid
      * corner [rad]. */
     float min_corner_angle_rad;
 
-    /** @brief Maximum allowed angle between right wall and far wall for a valid
+    /** @brief Maximum allowed angle between side wall and far wall for a valid
      * corner [rad]. */
     float max_corner_angle_rad;
 
+    /** @brief Offset from the right or left wall when estimating docking position [m].
+     */
+    float side_wall_offset_m;
+
+    /** @brief Offset from the far wall when estimating docking position [m]. */
+    float far_wall_offset_m;
+
+    /** @brief Selects whether to use the left wall instead of the right wall
+    *  for corner detection. false = right wall, true = left wall. */
+    bool use_left_wall;
+
+
+    //REMOVE THIS? TO DO
     /** @brief Maximum y-value used when checking whether a projection belongs
      * to the right wall. */
     float right_wall_max_y_m;
@@ -95,20 +108,6 @@ struct DockingPositionEstimatorConfig {
      * to the far wall. */
     float far_wall_min_x_m;
 
-    /** @brief Offset from the right wall when estimating docking position [m].
-     */
-    float right_wall_offset_m;
-
-    /** @brief Offset from the far wall when estimating docking position [m]. */
-    float far_wall_offset_m;
-
-    int use_left_wall;
-
-    /** @brief
-     * Selects whether to prefer the right-side corner in the mission logic.
-     */
-
-    // int choose_right_corner; // not used yet
 };
 
 /**
@@ -171,7 +170,8 @@ class DockingPositionEstimator {
      * @brief Estimate a docking position from a validated corner estimate.
      *
      * The docking point is computed by offsetting the detected corner along the
-     * inward-facing normals of the right wall and far wall.
+     * inward-facing normals of the side wall (right or left, depending on
+     * configuration) and the far wall.
      *
      * @param estimated_corner Corner estimate containing the two wall segments
      * and their intersection.
@@ -200,6 +200,9 @@ class DockingPositionEstimator {
     *
     * Far-wall candidates must satisfy the configured forward projection test
     * and be approximately perpendicular to the drone heading.
+    *
+    * Classification of right and left walls is gated by the use_left_wall
+    * configuration flag — only the relevant side wall type is evaluated.
     *
     * @param line Input line segment.
     * @param drone_pos Current drone position.

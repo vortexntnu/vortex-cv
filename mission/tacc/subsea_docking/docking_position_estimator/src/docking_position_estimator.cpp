@@ -83,8 +83,6 @@ std::vector<CornerEstimate> DockingPositionEstimator::find_corner_estimates(
 CornerEstimate DockingPositionEstimator::select_best_corner(
     const std::vector<CornerEstimate>& possible_corners,
     const Eigen::Vector2f& drone_pos) const {
-    // if (possible_corners.empty()) {throw std::runtime_error("No candidate
-    // corners available"); } // UNNTAKSHÅNDTERING I ROS I STEDET
 
     float min_distance = std::numeric_limits<float>::max();
     CornerEstimate best_corner = possible_corners.front();
@@ -100,18 +98,17 @@ CornerEstimate DockingPositionEstimator::select_best_corner(
     return best_corner;
 }
 
-// TO DO for left wall as well
 Eigen::Vector2f DockingPositionEstimator::estimate_docking_position(
     const CornerEstimate& estimated_corner,
     const Eigen::Vector2f& drone_pos) const {
-    Eigen::Vector2f right_normal =
-        compute_normal_towards_point(estimated_corner.right_wall, drone_pos);
+    Eigen::Vector2f side_normal =
+        compute_normal_towards_point(estimated_corner.side_wall, drone_pos);
     Eigen::Vector2f far_normal =
         compute_normal_towards_point(estimated_corner.far_wall, drone_pos);
 
     Eigen::Vector2f docking_estimate =
         estimated_corner.corner_point +
-        right_normal * config_.right_wall_offset_m +
+        side_normal * config_.side_wall_offset_m +
         far_normal * config_.far_wall_offset_m;
 
     return docking_estimate;
@@ -165,6 +162,7 @@ WallClassification DockingPositionEstimator::classify_wall(
     // RIGHT WALL: projection has negative y-value in NED, wall is approximately
     // parallel to heading
     if (                   // projection.y() < config_.right_wall_max_y_m &&
+        !config_.use_left_wall &&
         right_dist > 0 && 
         heading_wall_angle < config_.parallel_heading_angle_threshold_rad) {
         spdlog::info("  -> Classified as RIGHT candidate");
@@ -181,8 +179,9 @@ WallClassification DockingPositionEstimator::classify_wall(
     }
 
     // LEFT WALL
-    if (left_dist > 0 &&
-        heading_wall_angle > config_.parallel_heading_angle_threshold_rad) {
+    if (config_.use_left_wall &&
+        left_dist > 0 &&
+        heading_wall_angle < config_.parallel_heading_angle_threshold_rad) {
         spdlog::info("  -> Classified as LEFT candidate");
         return WallClassification::LeftWall;
     }
