@@ -1,7 +1,7 @@
 /**:
   ros__parameters:
     topic:
-      image_sub_topic: /forward_looking_sonar/display
+      image_sub_topic: /orca/fls_image/display
       line_segments_pub_topic: line_detection/line_segments
       color_overlay_pub_topic: line_detection/visualization
       boundary_debug_pub_topic: line_detection/boundary_image
@@ -13,12 +13,13 @@
       num_rays: 50 # How many rays to cast within the angle range.
       sample_side_length: 5 # Side-length of the sample square (must be odd).
       angle: 150 # Total angle range of sonar image to search for boundaries (degrees).
-      edge_detection: true # True if set to detect changes in pixel value false if set to detect value
+      edge_detection: true # True if set to detect pixel value gradient,false if set to detect value
 
     ransac:
       points_checked: 4 # Number of points to check for lines
       inlier_threshold: 2.0 # Maximum distance from line for inliers in pixel length
       min_remaining_points: 6 # Minimum number of points remaining to continue RANSAC iterations
       min_inliers: 6 # Minimum number of inliers to accept a line
+      max_distance: 200.0 # Maximum distance between from an endpoint to the line to count it as an inlier in pixel length
 
     mode: "debug" # {"standard", "visualize", "debug"}

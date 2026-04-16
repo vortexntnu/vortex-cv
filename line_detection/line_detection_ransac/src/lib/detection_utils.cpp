@@ -79,6 +79,7 @@ void detect_lines(const RansacConfig& ransac_config,
     const float inlier_threshold = ransac_config.inlier_threshold;
     const int min_remaining_points = ransac_config.min_remaining_points;
     const int min_inliers = ransac_config.min_inliers;
+    const int max_distance = ransac_config.max_distance;
 
     std::vector<cv::Point> boundary_points_copy = boundary_points;
 
@@ -143,6 +144,42 @@ void detect_lines(const RansacConfig& ransac_config,
                     best_count_idxs = inliers_idxs;
                 }
             }
+        }
+
+        if (best_count_idxs.size() < 2) {
+            break;
+        }
+
+        float dist1 =
+            std::sqrt(std::pow(boundary_points_copy[best_count_idxs[0]].x -
+                                   boundary_points_copy[best_count_idxs[1]].x,
+                               2) +
+                      std::pow(boundary_points_copy[best_count_idxs[0]].y -
+                                   boundary_points_copy[best_count_idxs[1]].y,
+                               2));
+        float dist2 = std::sqrt(
+            std::pow(boundary_points_copy
+                             [best_count_idxs[best_count_idxs.size() - 2]]
+                                 .x -
+                         boundary_points_copy
+                             [best_count_idxs[best_count_idxs.size() - 1]]
+                                 .x,
+                     2) +
+            std::pow(boundary_points_copy
+                             [best_count_idxs[best_count_idxs.size() - 2]]
+                                 .y -
+                         boundary_points_copy
+                             [best_count_idxs[best_count_idxs.size() - 1]]
+                                 .y,
+                     2));
+
+        if (dist1 > max_distance) {
+            best_count_idxs.erase(best_count_idxs.begin());
+            best_count--;
+        }
+        if (dist2 > max_distance) {
+            best_count_idxs.erase(best_count_idxs.end() - 1);
+            best_count--;
         }
 
         if (best_count < min_inliers) {
