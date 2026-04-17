@@ -3,13 +3,14 @@
 <package format="3">
   <name>visual_inspection_fsm</name>
   <version>0.0.0</version>
-  <description>Valve inspection finite state machine for TACC</description>
-  <maintainer email="todo@todo.com">vortex</maintainer>
+  <description>Visual Inspection FSM for valve alignment and manipulation</description>
+  <maintainer email="todo@todo.com">TODO</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
   <depend>std_srvs</depend>
   <depend>yasmin</depend>
   <depend>yasmin_ros</depend>
@@ -17,6 +18,7 @@
   <depend>vortex_msgs</depend>
   <depend>vortex_utils</depend>
   <depend>vortex_utils_ros</depend>
+  <depend>geometry_msgs</depend>
   <depend>vortex_yasmin_utils</depend>
 
   <export>

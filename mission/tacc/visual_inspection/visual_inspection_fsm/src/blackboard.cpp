@@ -1,5 +1,3 @@
-#include <spdlog/spdlog.h>
-#include <vortex/utils/waypoint_utils.hpp>
 #include "valve_inspection_fsm/states.hpp"
 
 StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
@@ -27,7 +25,7 @@ std::shared_ptr<yasmin::Blackboard> initialize_blackboard(
     const StateMachineConfig& config) {
     auto bb = std::make_shared<yasmin::Blackboard>();
 
-    const auto standoff_waypoint_goal =
+    const auto standoff_goal =
         vortex::utils::waypoints::load_waypoint_goal_from_yaml(
             config.landmark_convergence_yaml_path,
             config.standoff_waypoint_goal_id);
@@ -36,8 +34,8 @@ std::shared_ptr<yasmin::Blackboard> initialize_blackboard(
         vortex::utils::waypoints::load_waypoint_goal_from_yaml(
             config.landmark_convergence_yaml_path, config.tcp_offset_goal_id);
 
-    bb->set<vortex::utils::waypoints::WaypointGoal>("standoff_waypoint_goal",
-                                                    standoff_waypoint_goal);
+    bb->set<vortex::utils::waypoints::WaypointGoal>("standoff_goal",
+                                                    standoff_goal);
     bb->set<vortex::utils::waypoints::WaypointGoal>("tcp_offset_goal",
                                                     tcp_offset_goal);
 

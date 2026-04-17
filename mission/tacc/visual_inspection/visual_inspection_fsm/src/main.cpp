@@ -9,15 +9,15 @@ int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     yasmin_ros::set_ros_loggers();
 
-    YASMIN_LOG_INFO("Starting Valve Inspection FSM");
+    YASMIN_LOG_INFO("Starting Visual Inspection FSM");
 
-    auto node = rclcpp::Node::make_shared("valve_inspection_fsm");
+    auto node = rclcpp::Node::make_shared("visual_inspection_fsm");
 
     const auto config = load_config(node);
     auto blackboard = initialize_blackboard(config);
     auto sm = build_state_machine(config, blackboard);
 
-    yasmin_viewer::YasminViewerPub viewer(sm, "VALVE_INSPECTION_FSM");
+    yasmin_viewer::YasminViewerPub viewer(sm, "VISUAL_INSPECTION_FSM");
 
     rclcpp::on_shutdown([sm]() {
         if (sm->is_running())
