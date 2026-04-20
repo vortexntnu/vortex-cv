@@ -138,8 +138,7 @@ make_approach_waypoint_cb(const std::string& landmarks_bb_key,
 
         // TCP kinematic inversion: p_base = p_tcp - R_drone * tcp_offset.
         const Eigen::Vector3d tcp_body = tcp_goal.pose.pos_vector();
-        const Eigen::Vector3d p_target_base =
-            p_target_tcp - q_drone * tcp_body;
+        const Eigen::Vector3d p_target_base = p_target_tcp - q_drone * tcp_body;
 
         WaypointGoal computed_goal;
         computed_goal.pose =
@@ -359,15 +358,14 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         {{SUCCEED, "DONE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     // --- DONE ---
-    sm->add_state(
-        "DONE",
-        yasmin::CbState::make_shared(
-            yasmin::Outcomes{SUCCEED},
-            [](auto) {
-                YASMIN_LOG_INFO("Valve inspection mission completed");
-                return SUCCEED;
-            }),
-        {{SUCCEED, SUCCEED}});
+    sm->add_state("DONE",
+                  yasmin::CbState::make_shared(
+                      yasmin::Outcomes{SUCCEED},
+                      [](auto) {
+                          YASMIN_LOG_INFO("Valve inspection mission completed");
+                          return SUCCEED;
+                      }),
+                  {{SUCCEED, SUCCEED}});
 
     return sm;
 }

@@ -30,8 +30,8 @@ void ValvePoseNode::declare_params() {
     debug_visualize_ = declare_parameter<bool>("debug_visualize");
     iou_duplicate_threshold_ = static_cast<float>(
         declare_parameter<double>("iou_duplicate_threshold"));
-    score_threshold_ = static_cast<float>(
-        declare_parameter<double>("score_threshold", 0.6));
+    score_threshold_ =
+        static_cast<float>(declare_parameter<double>("score_threshold", 0.6));
 
     const std::string frame_base =
         declare_parameter<std::string>("output_frame_id");
@@ -82,9 +82,9 @@ void ValvePoseNode::declare_params() {
 
         // Periodically attempt to look up the static transform until it
         // arrives.
-        extrinsic_timer_ =
-            create_wall_timer(std::chrono::milliseconds(500),
-                              std::bind(&ValvePoseNode::lookup_extrinsic, this));
+        extrinsic_timer_ = create_wall_timer(
+            std::chrono::milliseconds(500),
+            std::bind(&ValvePoseNode::lookup_extrinsic, this));
     }
 
     if (debug_visualize_) {
@@ -535,8 +535,12 @@ void ValvePoseNode::sync_cb(
             m.color.a = 1.0f;
 
             geometry_msgs::msg::Point pt1, pt2;
-            pt1.x = p1.x(); pt1.y = p1.y(); pt1.z = p1.z();
-            pt2.x = p2.x(); pt2.y = p2.y(); pt2.z = p2.z();
+            pt1.x = p1.x();
+            pt1.y = p1.y();
+            pt1.z = p1.z();
+            pt2.x = p2.x();
+            pt2.y = p2.y();
+            pt2.z = p2.z();
             m.points.push_back(pt1);
             m.points.push_back(pt2);
 
@@ -550,13 +554,17 @@ void ValvePoseNode::sync_cb(
             s1.pose.position = pt1;
             s1.pose.orientation.w = 1.0;
             s1.scale.x = s1.scale.y = s1.scale.z = 0.01;
-            s1.color.r = 1.0f; s1.color.g = 0.0f; s1.color.b = 0.0f;
+            s1.color.r = 1.0f;
+            s1.color.g = 0.0f;
+            s1.color.b = 0.0f;
             s1.color.a = 1.0f;
 
             visualization_msgs::msg::Marker s2 = s1;
             s2.id = static_cast<int>(i * 2 + 1);
             s2.pose.position = pt2;
-            s2.color.r = 0.0f; s2.color.g = 0.0f; s2.color.b = 1.0f;
+            s2.color.r = 0.0f;
+            s2.color.g = 0.0f;
+            s2.color.b = 1.0f;
 
             marker_array.markers.push_back(m);
             marker_array.markers.push_back(s1);

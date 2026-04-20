@@ -29,8 +29,7 @@ int main(int argc, char** argv) {
     if (!ns.empty() && ns[0] == '/') {
         ns = ns.substr(1);
     }
-    const std::string odom_frame =
-        ns.empty() ? "odom" : ns + "/odom";
+    const std::string odom_frame = ns.empty() ? "odom" : ns + "/odom";
     const std::string base_link_frame =
         ns.empty() ? "base_link" : ns + "/base_link";
 

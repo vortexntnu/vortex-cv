@@ -75,8 +75,7 @@ void ValveSubtypeResolverNode::landmarks_cb(
 // Because the fold is computed in the world frame, the output yaw is
 // invariant to drone roll/pitch — rolling the camera around the valve
 // does not change which side of the fold the value lands on.
-void ValveSubtypeResolverNode::fold_yaw_world(
-    vortex_msgs::msg::Landmark& lm) {
+void ValveSubtypeResolverNode::fold_yaw_world(vortex_msgs::msg::Landmark& lm) {
     geometry_msgs::msg::TransformStamped tf_to_world, tf_from_world;
     try {
         tf_to_world = tf_buffer_->lookupTransform(
