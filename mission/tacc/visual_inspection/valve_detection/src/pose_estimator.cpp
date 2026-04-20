@@ -238,6 +238,7 @@ Eigen::Matrix3f PoseEstimator::create_rotation_matrix_depth(
 DetectionResult PoseEstimator::compute_pose_from_depth(
     const cv::Mat& depth_image,
     const BoundingBox& bbox_org,
+    float handle_angle_rad,
     DetectorMode mode) const {
     // Reject bounding boxes whose center projects entirely outside the depth
     // image.  The scale factor maps from color pixel space to depth pixel
@@ -320,7 +321,7 @@ DetectionResult PoseEstimator::compute_pose_from_depth(
     float handle_angle = bbox_org.theta;
 
     const Eigen::Matrix3f rot = create_rotation_matrix_depth(
-        coeff, normal, handle_angle, color_origin_in_depth_frame,
+        coeff, normal, handle_angle_rad, color_origin_in_depth_frame,
         R_depth_from_color);
     result.pose =
         Pose::from_eigen(pos_shifted.cast<double>(),

@@ -59,7 +59,11 @@ class ValvePoseNode : public rclcpp::Node {
                  const vision_msgs::msg::Detection2DArray::ConstSharedPtr& det);
 
     // sync_cb helpers
-    std::vector<std::pair<float, BoundingBox>> collect_scored_boxes(
+    struct SplitDetections {
+        std::vector<std::pair<float, BoundingBox>> valves;   // class_id "1"
+        std::vector<std::pair<float, BoundingBox>> handles;  // class_id "0"
+    };
+    SplitDetections split_scored_boxes(
         const vision_msgs::msg::Detection2DArray& det) const;
     void publish_empty_results(const std_msgs::msg::Header& header) const;
     cv::Mat build_depth_colormap(
@@ -77,8 +81,8 @@ class ValvePoseNode : public rclcpp::Node {
     // params
     bool debug_visualize_;
     float iou_duplicate_threshold_;
+    float score_threshold_{0.6f};
     std::string output_frame_id_;
-    bool clamp_rotation_{false};
     bool use_hardcoded_extrinsic_{false};
 
     // estimator config params (stored for deferred detector init)
@@ -86,6 +90,7 @@ class ValvePoseNode : public rclcpp::Node {
     float annulus_ratio_, ransac_thresh_, handle_offset_;
     int ransac_iters_;
     bool undistort_detections_{false};
+    bool detections_letterboxed_{false};
 
     // camera data (owned by node, passed to estimator and depth functions)
     ImageProperties color_props_{};

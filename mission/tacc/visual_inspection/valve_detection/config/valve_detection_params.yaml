@@ -1,41 +1,8 @@
 /**:
   ros__parameters:
-    # Inputs
-    depth_image_sub_topic: "/camera/camera/depth/image_rect_raw"
-    detections_sub_topic: "/obb_detections_output"
-    depth_image_info_topic: "/camera/camera/depth/camera_info"
-    color_image_info_topic: "/yolo_obb_encoder/internal/resize/camera_info"
-
-    # Depth-to-color extrinsic
-    # TF frame names (without drone prefix) used to look up the depth-to-color
-    # transform from /tf_static.  The node will wait until this transform is
-    # available before initialising the detector.
-    # NOTE: When launched via valve_intervention.launch.py these are overridden
-    # from cameras.yaml.  Values here are standalone-launch defaults.
-    depth_frame_id: "front_camera_depth_optical"
-    color_frame_id: "front_camera_color_optical"
-
-    # Outputs
-    landmarks_pub_topic: "/valve_landmarks"
-
-    # TF frame used as the frame_id for all published poses and landmarks.
-    # Must match the depth optical frame in the robot's TF tree.
-    # NOTE: When launched via valve_intervention.launch.py this is set from
-    # cameras.yaml depth_frame_id.
-    output_frame_id: "front_camera_depth_optical"
-
-    # Prepended to all TF frame names (e.g. "nautilus" -> "nautilus/front_camera_depth_optical").
-    drone: "nautilus"
-
     # YOLO letterbox reference size
     yolo_img_width: 640
     yolo_img_height: 640
-
-    # Undistort bounding-box detections using the color camera distortion
-    # coefficients from camera_info.  Samples edge midpoints and center,
-    # undistorts them, and refits the OBB — gives a tighter fit than
-    # corner-based undistortion for round objects like valves.
-    undistort_detections: false
 
     # Annulus and plane fit
     # Fraction of the bounding-box half-size used as the annulus ring radius
@@ -60,13 +27,15 @@
     # Maximum 2 landmarks are published per frame.
     iou_duplicate_threshold: 0.5
 
+    # Minimum YOLO confidence required to keep a detection.  Applied per
+    # class (valve plate class_id "1", handle class_id "0") before NMS.
+    score_threshold: 0.6
+
     # Pose offset
     # Shift the estimated position along the plane normal by this amount (metres).
     # Value taken from the official valve CAD file: distance between the valve
     # face frame and the inside length of the handle is 0.02 m.
     valve_handle_offset: 0.02
-
-    debug_visualize: true # enable all debug visualization topics
 
     # Debug visualization only active when debug_visualize: true
     debug:

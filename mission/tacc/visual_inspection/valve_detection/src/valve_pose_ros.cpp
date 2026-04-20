@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 #include <vortex/utils/ros/qos_profiles.hpp>
 
@@ -29,6 +30,8 @@ void ValvePoseNode::declare_params() {
     debug_visualize_ = declare_parameter<bool>("debug_visualize");
     iou_duplicate_threshold_ = static_cast<float>(
         declare_parameter<double>("iou_duplicate_threshold"));
+    score_threshold_ = static_cast<float>(
+        declare_parameter<double>("score_threshold", 0.6));
 
     const std::string frame_base =
         declare_parameter<std::string>("output_frame_id");
@@ -254,18 +257,37 @@ void ValvePoseNode::depth_camera_info_cb(
     }
 }
 
-std::vector<std::pair<float, BoundingBox>> ValvePoseNode::collect_scored_boxes(
+ValvePoseNode::SplitDetections ValvePoseNode::split_scored_boxes(
     const vision_msgs::msg::Detection2DArray& det) const {
-    std::vector<std::pair<float, BoundingBox>> boxes;
-    boxes.reserve(det.detections.size());
+    SplitDetections out;
+    out.valves.reserve(det.detections.size());
+    out.handles.reserve(det.detections.size());
     for (const auto& d : det.detections) {
-        const float score =
-            d.results.empty()
-                ? static_cast<float>(d.bbox.size_x * d.bbox.size_y)
-                : static_cast<float>(d.results[0].hypothesis.score);
-        boxes.emplace_back(score, to_bbox(d.bbox));
+        if (d.results.empty())
+            continue;
+        const float score = static_cast<float>(d.results[0].hypothesis.score);
+        if (score < score_threshold_)
+            continue;
+        const std::string& cls = d.results[0].hypothesis.class_id;
+        if (cls == "1")
+            out.valves.emplace_back(score, to_bbox(d.bbox));
+        else if (cls == "0")
+            out.handles.emplace_back(score, to_bbox(d.bbox));
     }
-    return boxes;
+    return out;
+}
+
+// Axis-aligned check against the valve bbox's OBB (rotated by theta around
+// its center).  `point` and `box` must share the same coordinate space.
+static bool point_in_obb(float px, float py, const BoundingBox& box) {
+    const float dx = px - box.center_x;
+    const float dy = py - box.center_y;
+    const float c = std::cos(-box.theta);
+    const float s = std::sin(-box.theta);
+    const float lx = c * dx - s * dy;
+    const float ly = s * dx + c * dy;
+    return std::abs(lx) <= box.size_x * 0.5f &&
+           std::abs(ly) <= box.size_y * 0.5f;
 }
 
 void ValvePoseNode::publish_empty_results(
@@ -359,14 +381,78 @@ void ValvePoseNode::sync_cb(
     if (!depth || !det || !detector_)
         return;
 
-    const auto scored_boxes = collect_scored_boxes(*det);
-    const std::vector<size_t> kept =
-        filter_duplicate_detections(scored_boxes, iou_duplicate_threshold_);
+    const SplitDetections split = split_scored_boxes(*det);
 
     std_msgs::msg::Header pose_header = depth->header;
     pose_header.frame_id = output_frame_id_;
 
-    if (det->detections.empty()) {
+    if (split.valves.empty()) {
+        publish_empty_results(pose_header);
+        if (debug_visualize_ && depth_colormap_pub_)
+            depth_colormap_pub_->publish(
+                *cv_bridge::CvImage(depth->header, "bgr8",
+                                    build_depth_colormap(depth))
+                     .toImageMsg());
+        return;
+    }
+
+    // Per-class NMS: valves against valves, handles against handles.
+    const std::vector<size_t> kept_valves =
+        filter_duplicate_detections(split.valves, iou_duplicate_threshold_);
+    const std::vector<size_t> kept_handles =
+        filter_duplicate_detections(split.handles, iou_duplicate_threshold_);
+
+    // Transform kept boxes into color image space once so pairing happens
+    // in the same coordinate frame as compute_pose_from_depth consumes.
+    auto to_color_space = [&](const BoundingBox& raw_box) {
+        BoundingBox b = detections_letterboxed_
+                            ? detector_->letterbox_to_image_coords(raw_box)
+                            : raw_box;
+        if (undistort_detections_)
+            b = undistort_bbox(b, color_props_.intr);
+        return b;
+    };
+
+    std::vector<BoundingBox> valve_boxes;
+    valve_boxes.reserve(kept_valves.size());
+    for (size_t idx : kept_valves)
+        valve_boxes.push_back(to_color_space(split.valves[idx].second));
+
+    std::vector<BoundingBox> handle_boxes;
+    handle_boxes.reserve(kept_handles.size());
+    for (size_t idx : kept_handles)
+        handle_boxes.push_back(to_color_space(split.handles[idx].second));
+
+    // Pair each valve with at most one handle (handle center inside the
+    // valve OBB; ties broken by smaller center-to-center distance).
+    // Unpaired valves are dropped.
+    std::vector<std::pair<const BoundingBox*, const BoundingBox*>> pairs;
+    std::vector<bool> handle_used(handle_boxes.size(), false);
+    pairs.reserve(valve_boxes.size());
+    for (const auto& v : valve_boxes) {
+        int best = -1;
+        float best_d2 = std::numeric_limits<float>::max();
+        for (size_t j = 0; j < handle_boxes.size(); ++j) {
+            if (handle_used[j])
+                continue;
+            const auto& h = handle_boxes[j];
+            if (!point_in_obb(h.center_x, h.center_y, v))
+                continue;
+            const float dx = h.center_x - v.center_x;
+            const float dy = h.center_y - v.center_y;
+            const float d2 = dx * dx + dy * dy;
+            if (d2 < best_d2) {
+                best_d2 = d2;
+                best = static_cast<int>(j);
+            }
+        }
+        if (best < 0)
+            continue;
+        handle_used[best] = true;
+        pairs.emplace_back(&v, &handle_boxes[best]);
+    }
+
+    if (pairs.empty()) {
         publish_empty_results(pose_header);
         if (debug_visualize_ && depth_colormap_pub_)
             depth_colormap_pub_->publish(
@@ -384,16 +470,20 @@ void ValvePoseNode::sync_cb(
     std::vector<Pose> poses;
     pcl::PointCloud<pcl::PointXYZ> ann_dbg, pln_dbg;
 
-    for (size_t idx : kept) {
-        const BoundingBox& yolo_box = scored_boxes[idx].second;
-        // YOLO outputs in 640×640 letterbox space — convert to color image
-        // space, then optionally correct for lens distortion.
-        BoundingBox color_box = detector_->letterbox_to_image_coords(yolo_box);
-        if (undistort_detections_)
-            color_box = undistort_bbox(color_box, color_props_.intr);
+    for (const auto& [valve_ptr, handle_ptr] : pairs) {
+        const BoundingBox& valve_box = *valve_ptr;
+        // Normalize the OBB angle so it always describes the short-axis
+        // direction (perpendicular to the handle shaft). YOLO OBB can
+        // silently swap which side it labels size_x vs size_y between
+        // frames, causing `theta` to jump by ±π/2 for a physically
+        // continuous handle; force the convention by adding π/2 when the
+        // short axis is stored in size_y.
+        float handle_angle = handle_ptr->theta;
+        if (handle_ptr->size_x > handle_ptr->size_y)
+            handle_angle += static_cast<float>(M_PI / 2.0);
 
-        const auto result =
-            detector_->compute_pose_from_depth(depth_img, color_box, mode);
+        const auto result = detector_->compute_pose_from_depth(
+            depth_img, valve_box, handle_angle, mode);
         if (!result.valid)
             continue;
 

@@ -20,22 +20,22 @@ def generate_launch_description():
             # Input topics
             DeclareLaunchArgument(
                 'depth_image_sub_topic',
-                default_value='/camera/camera/depth/image_rect_raw',
+                default_value='/nautilus/depth_camera/image_depth',
                 description='Depth image topic',
             ),
             DeclareLaunchArgument(
                 'detections_sub_topic',
-                default_value='/obb_detections_output',
+                default_value='/yolo_obb_object_detection/detections',
                 description='YOLO detections topic',
             ),
             DeclareLaunchArgument(
                 'depth_image_info_topic',
-                default_value='/camera/camera/depth/camera_info',
+                default_value='/nautilus/depth_camera/camera_info',
                 description='Depth camera info topic',
             ),
             DeclareLaunchArgument(
                 'color_image_info_topic',
-                default_value='/yolo_obb_encoder/internal/resize/camera_info',
+                default_value='/nautilus/front_camera/camera_info',
                 description='Color camera info topic (from DNN encoder)',
             ),
             # Frame IDs
@@ -71,6 +71,16 @@ def generate_launch_description():
                 'undistort_detections',
                 default_value='false',
                 description='Undistort bounding-box detections using color camera distortion',
+            ),
+            DeclareLaunchArgument(
+                'detections_letterboxed',
+                default_value='false',
+                description=(
+                    'Whether incoming detections are in YOLO letterbox space '
+                    '(true) or already in original color-image space (false). '
+                    'The yolo_obb_object_detection node publishes in original '
+                    'image space, so leave false for that pipeline.'
+                ),
             ),
             # Debug visualization
             DeclareLaunchArgument(
@@ -115,6 +125,9 @@ def generate_launch_description():
                                 'drone': LaunchConfiguration('drone'),
                                 'undistort_detections': LaunchConfiguration(
                                     'undistort_detections'
+                                ),
+                                'detections_letterboxed': LaunchConfiguration(
+                                    'detections_letterboxed'
                                 ),
                                 'debug_visualize': LaunchConfiguration(
                                     'debug_visualize'

@@ -55,7 +55,8 @@ class PoseEstimator {
 
     DetectionResult compute_pose_from_depth(
         const cv::Mat& depth_image,
-        const BoundingBox& bbox_org,
+        const BoundingBox& valve_bbox,
+        float handle_angle_rad,
         DetectorMode mode = DetectorMode::standard) const;
 
    private:
