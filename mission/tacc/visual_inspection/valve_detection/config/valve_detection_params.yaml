@@ -37,6 +37,16 @@
     # face frame and the inside length of the handle is 0.02 m.
     valve_handle_offset: 0.02
 
+    # Hardcoded depth→color extrinsic, used only when
+    # use_hardcoded_extrinsic: true (set via launch arg). Translation in
+    # metres, rotation currently unused (identity R assumed in code).
+    extrinsic_tx: 0.0
+    extrinsic_ty: 0.0
+    extrinsic_tz: 0.0
+    extrinsic_rx: 0.0
+    extrinsic_ry: 0.0
+    extrinsic_rz: 0.0
+
     # Debug visualization only active when debug_visualize: true
     debug:
       # All detected valve poses in one PoseArray – useful for visualising

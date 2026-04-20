@@ -88,6 +88,15 @@ def generate_launch_description():
                 default_value='true',
                 description='Enable all debug visualization topics',
             ),
+            # Extrinsic handling
+            DeclareLaunchArgument(
+                'use_hardcoded_extrinsic',
+                default_value='false',
+                description=(
+                    'Skip TF lookup and use extrinsic_t[xyz] / extrinsic_r[xyz] '
+                    'launch args as the depth→color transform.'
+                ),
+            ),
             # Node container with parameters from launch arguments
             ComposableNodeContainer(
                 name='valve_detection_container',
@@ -131,6 +140,9 @@ def generate_launch_description():
                                 ),
                                 'debug_visualize': LaunchConfiguration(
                                     'debug_visualize'
+                                ),
+                                'use_hardcoded_extrinsic': LaunchConfiguration(
+                                    'use_hardcoded_extrinsic'
                                 ),
                             },
                         ],

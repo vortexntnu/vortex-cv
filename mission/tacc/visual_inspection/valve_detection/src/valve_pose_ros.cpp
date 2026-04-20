@@ -50,7 +50,6 @@ void ValvePoseNode::declare_params() {
     ransac_iters_ = declare_parameter<int>("plane_ransac_max_iterations");
     handle_offset_ = declare_parameter<float>("valve_handle_offset");
     undistort_detections_ = declare_parameter<bool>("undistort_detections");
-    clamp_rotation_ = declare_parameter<bool>("clamp_rotation");
 
     // TF frame IDs for the depth-to-color extrinsic lookup.
     const std::string depth_frame_base =
@@ -177,7 +176,6 @@ void ValvePoseNode::try_activate_detector() {
     detector_->set_color_image_properties(color_props_);
     detector_->set_depth_image_properties(depth_props_);
     detector_->set_depth_color_extrinsic(depth_color_extrinsic_);
-    detector_->set_clamp_rotation(clamp_rotation_);
     detector_->compute_letterbox_transform();
     RCLCPP_INFO(get_logger(), "Detector initialised");
 }
@@ -488,7 +486,7 @@ void ValvePoseNode::sync_cb(
             continue;
 
         // Keep raw_boxes and poses aligned: only push when pose succeeded.
-        raw_boxes.push_back(color_box);
+        raw_boxes.push_back(valve_box);
         poses.push_back(result.pose);
         if (mode == DetectorMode::debug) {
             if (result.annulus_cloud)
