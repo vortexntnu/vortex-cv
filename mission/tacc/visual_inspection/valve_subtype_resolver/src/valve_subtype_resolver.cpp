@@ -25,6 +25,7 @@ ValveSubtypeResolverNode::ValveSubtypeResolverNode(
         declare_parameter<std::string>("odom_frame", "odom");
     world_frame_ = drone + "/" + odom_frame_base;
     vertical_threshold_ = declare_parameter<double>("vertical_threshold", 0.5);
+    clamp_yaw_ = declare_parameter<bool>("clamp_yaw", false);
 
     const auto landmarks_in = declare_parameter<std::string>(
         "landmarks_sub_topic", "/valve_landmarks");
@@ -50,8 +51,63 @@ void ValveSubtypeResolverNode::landmarks_cb(
     vortex_msgs::msg::LandmarkArray out = *msg;
     for (auto& lm : out.landmarks) {
         lm.subtype.value = static_cast<uint16_t>(resolve_subtype(lm));
+        if (clamp_yaw_)
+            fold_yaw_world(lm);
     }
     landmark_pub_->publish(out);
+}
+
+// Folds the landmark's yaw into [0, π/2] in the world frame.  The valve
+// handle is line-symmetric (180°) and additionally reflected at 90°.
+//
+// Yaw is extracted as the angle of the landmark's local X-axis (handle
+// direction) projected onto the world XY plane.  Using RPY decomposition
+// here would be unstable whenever the plate normal tilts away from world Z,
+// because roll/pitch/yaw mix; the local-X projection is always the
+// physically meaningful handle heading.  A delta rotation about world Z is
+// then applied to bring yaw to the folded value, preserving the plate tilt.
+void ValveSubtypeResolverNode::fold_yaw_world(vortex_msgs::msg::Landmark& lm) {
+    geometry_msgs::msg::TransformStamped tf_to_world, tf_from_world;
+    try {
+        tf_to_world = tf_buffer_->lookupTransform(
+            world_frame_, lm.header.frame_id, tf2::TimePointZero);
+        tf_from_world = tf_buffer_->lookupTransform(
+            lm.header.frame_id, world_frame_, tf2::TimePointZero);
+    } catch (const tf2::TransformException& ex) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                             "TF lookup failed during yaw fold: %s", ex.what());
+        return;
+    }
+
+    geometry_msgs::msg::PoseStamped ps_in, ps_world;
+    ps_in.header = lm.header;
+    ps_in.pose = lm.pose.pose;
+    tf2::doTransform(ps_in, ps_world, tf_to_world);
+
+    const auto& qo = ps_world.pose.orientation;
+    tf2::Quaternion q_world(qo.x, qo.y, qo.z, qo.w);
+
+    tf2::Matrix3x3 R(q_world);
+    const tf2::Vector3 x_world = R.getColumn(0);
+    const double yaw = std::atan2(x_world.y(), x_world.x());
+
+    double folded = std::fmod(std::abs(yaw), M_PI);
+    if (folded > M_PI / 2.0)
+        folded = M_PI - folded;
+
+    tf2::Quaternion q_delta;
+    q_delta.setRPY(0.0, 0.0, folded - yaw);
+    tf2::Quaternion q_world_new = q_delta * q_world;
+    q_world_new.normalize();
+
+    ps_world.pose.orientation.x = q_world_new.x();
+    ps_world.pose.orientation.y = q_world_new.y();
+    ps_world.pose.orientation.z = q_world_new.z();
+    ps_world.pose.orientation.w = q_world_new.w();
+
+    geometry_msgs::msg::PoseStamped ps_back;
+    tf2::doTransform(ps_world, ps_back, tf_from_world);
+    lm.pose.pose.orientation = ps_back.pose.orientation;
 }
 
 // Resolves the valve subtype by rotating the valve plane normal into the world

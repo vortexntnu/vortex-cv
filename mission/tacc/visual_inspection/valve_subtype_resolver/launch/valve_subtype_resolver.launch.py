@@ -19,10 +19,19 @@ def generate_launch_description():
         default_value="nautilus",
         description="Robot name, prepended to TF frame IDs (e.g. moby, orca)",
     )
+    clamp_yaw_arg = DeclareLaunchArgument(
+        "clamp_yaw",
+        default_value="true",
+        description=(
+            "Fold the landmark yaw into [0, 90°] in the world frame "
+            "(drone-roll invariant). Valve handle is 180°/90° symmetric."
+        ),
+    )
 
     return LaunchDescription(
         [
             drone_arg,
+            clamp_yaw_arg,
             Node(
                 package="valve_subtype_resolver",
                 executable="valve_subtype_resolver_node",
@@ -31,6 +40,7 @@ def generate_launch_description():
                     config,
                     {
                         "drone": LaunchConfiguration("drone"),
+                        "clamp_yaw": LaunchConfiguration("clamp_yaw"),
                     },
                 ],
                 output="screen",
