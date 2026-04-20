@@ -156,39 +156,25 @@ Eigen::Matrix3f PoseEstimator::create_rotation_matrix_depth(
     if (!coefficients || coefficients->values.size() < 4)
         return Eigen::Matrix3f::Identity();
 
+    (void)coefficients;
+    (void)ray_origin;
+
     const Eigen::Vector3f z_axis = plane_normal;
-    const float D = coefficients->values[3];
     const float fx = static_cast<float>(color_image_properties_.intr.fx);
     const float fy = static_cast<float>(color_image_properties_.intr.fy);
-    const float cx = static_cast<float>(color_image_properties_.intr.cx);
-    const float cy = static_cast<float>(color_image_properties_.intr.cy);
 
-    Eigen::Matrix3f K;
-    K << fx, 0, cx, 0, fy, cy, 0, 0, 1;
-    const Eigen::Matrix3f Kinv = K.inverse();
-
-    // Two image points along the bbox angle through the principal point.
-    const float len = 50.0f;
-    const Eigen::Vector3f p1(cx, cy, 1.f);
-    const Eigen::Vector3f p2(cx + len * std::cos(angle),
-                             cy + len * std::sin(angle), 1.f);
-
-    // Back-project color pixels to rays, then rotate into depth frame.
-    const Eigen::Vector3f r1 = (R_depth_from_color * (Kinv * p1)).normalized();
-    const Eigen::Vector3f r2 = (R_depth_from_color * (Kinv * p2)).normalized();
-
-    // Intersect each ray (from color origin in depth frame) with the plane.
-    const float denom1 = z_axis.dot(r1);
-    const float denom2 = z_axis.dot(r2);
-    if (std::abs(denom1) < 1e-6f || std::abs(denom2) < 1e-6f)
-        return Eigen::Matrix3f::Identity();
-
-    const float n_dot_O = z_axis.dot(ray_origin);
-    const Eigen::Vector3f X1 = ray_origin + (-(n_dot_O + D) / denom1) * r1;
-    const Eigen::Vector3f X2 = ray_origin + (-(n_dot_O + D) / denom2) * r2;
-
-    // Compute in-plane direction corresponding to the image line angle.
-    Eigen::Vector3f x_axis = (X2 - X1).normalized();
+    // Build the handle direction directly from the image-plane angle, with no
+    // dependence on per-pixel depth.  The image plane is perpendicular to the
+    // color camera's Z axis, so a 2D displacement of (cos θ, sin θ) pixels
+    // corresponds to a 3D direction (cos θ / fx, sin θ / fy, 0) in color
+    // camera coordinates (the 1/f terms undo focal-length anisotropy).
+    // Rotate that into depth frame and project onto the fitted plane so the
+    // result lies in the valve face.  This avoids ray-plane intersections at
+    // the handle endpoints, which otherwise amplify plane-normal noise into
+    // large yaw jitter.
+    const Eigen::Vector3f dir_color(std::cos(angle) / fx,
+                                    std::sin(angle) / fy, 0.f);
+    Eigen::Vector3f x_axis = R_depth_from_color * dir_color;
     x_axis = (x_axis - x_axis.dot(z_axis) * z_axis).normalized();
 
     // Ensure consistent direction (avoid flipping between frames).

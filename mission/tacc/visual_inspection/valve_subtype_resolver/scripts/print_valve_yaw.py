@@ -16,10 +16,12 @@ from geometry_msgs.msg import PoseStamped
 from vortex_msgs.msg import LandmarkArray
 
 
-def quat_to_yaw(q):
-    siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
-    cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
-    return math.atan2(siny_cosp, cosy_cosp)
+def handle_yaw(q):
+    """Angle of the landmark's local X-axis (handle) projected onto world XY."""
+    # Rotate unit vector (1,0,0) by quaternion q.
+    xx = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
+    xy = 2.0 * (q.x * q.y + q.w * q.z)
+    return math.atan2(xy, xx)
 
 
 class PrintValveYaw(Node):
@@ -61,7 +63,7 @@ class PrintValveYaw(Node):
             except Exception as ex:
                 self.get_logger().warn(f'TF lookup failed: {ex}', throttle_duration_sec=1.0)
                 return
-            yaw = quat_to_yaw(ps_w.pose.orientation)
+            yaw = handle_yaw(ps_w.pose.orientation)
             parts.append(f'id={lm.id} yaw_world={math.degrees(yaw):+7.2f}°')
         self.get_logger().info(' | '.join(parts))
 
