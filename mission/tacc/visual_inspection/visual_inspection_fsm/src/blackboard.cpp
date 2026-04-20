@@ -1,4 +1,6 @@
-#include "valve_inspection_fsm/states.hpp"
+#include <spdlog/spdlog.h>
+#include <vortex/utils/waypoint_utils.hpp>
+#include "visual_inspection_fsm/states.hpp"
 
 StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
     StateMachineConfig config;
