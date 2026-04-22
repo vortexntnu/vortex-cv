@@ -12,7 +12,7 @@
 #include <vortex/utils/ros/waypoint_ros_conversions.hpp>
 #include <vortex_msgs/msg/waypoint.hpp>
 
-ConvergeState::ConvergeState(
+AlignHeightState::AlignHeightState(
     const std::string& action_server_name,
     vortex::utils::waypoints::WaypointGoal standoff_goal,
     vortex::utils::waypoints::WaypointGoal tcp_offset_goal,
@@ -21,14 +21,15 @@ ConvergeState::ConvergeState(
     double valve_z_offset)
     : ActionState(
           action_server_name,
-          std::bind(&ConvergeState::create_goal, this, std::placeholders::_1)),
+          std::bind(&AlignHeightState::create_goal, this,
+                    std::placeholders::_1)),
       standoff_goal_(std::move(standoff_goal)),
       tcp_offset_goal_(std::move(tcp_offset_goal)),
       tcp_base_frame_(std::move(tcp_base_frame)),
       tcp_tip_frame_(std::move(tcp_tip_frame)),
       valve_z_offset_(valve_z_offset) {}
 
-valve_inspection_fsm::WaypointManagerAction::Goal ConvergeState::create_goal(
+valve_inspection_fsm::WaypointManagerAction::Goal AlignHeightState::create_goal(
     yasmin::Blackboard::SharedPtr blackboard) {
     const auto& landmarks =
         blackboard->get<std::vector<vortex_msgs::msg::Landmark>>(
@@ -40,9 +41,6 @@ valve_inspection_fsm::WaypointManagerAction::Goal ConvergeState::create_goal(
     const Eigen::Quaterniond q_valve = valve_pose.ori_quaternion();
 
     // Drone orientation: +X aligned with -Z_valve (facing the valve).
-    // Build a fully constrained NED frame to avoid undetermined roll.
-    // When the valve faces up (floor-mounted), approach_dir ≈ -UnitZ and the
-    // primary reference becomes degenerate, so fall back to UnitX.
     const Eigen::Vector3d z_valve = q_valve * Eigen::Vector3d::UnitZ();
     const Eigen::Vector3d x_axis = (-z_valve).normalized();
     const Eigen::Vector3d ref =
@@ -55,10 +53,15 @@ valve_inspection_fsm::WaypointManagerAction::Goal ConvergeState::create_goal(
     R.col(0) = x_axis;
     R.col(1) = y_axis;
     R.col(2) = z_axis;
-
     const Eigen::Quaterniond q_drone(R);
 
-    // Look up the TCP offset (base_link → shoulder/arm tip) from TF.
+    // Standoff position: valve_pos + valve-frame offset rotated into odom.
+    const Eigen::Vector3d standoff_offset_valve{
+        standoff_goal_.pose.x, standoff_goal_.pose.y, standoff_goal_.pose.z};
+    const Eigen::Vector3d standoff_pos =
+        valve_pose.pos_vector() + q_valve * standoff_offset_valve;
+
+    // TCP offset from TF.
     const auto& tf_buffer =
         blackboard->get<std::shared_ptr<tf2_ros::Buffer>>("tf_buffer");
     geometry_msgs::msg::TransformStamped tf_stamped;
@@ -71,20 +74,21 @@ valve_inspection_fsm::WaypointManagerAction::Goal ConvergeState::create_goal(
             tcp_tip_frame_ + "): " + ex.what());
     }
     const auto& t = tf_stamped.transform.translation;
-
-    // Rotate the gripper-tip offset (in base_link frame) into odom frame.
-    const Eigen::Vector3d tcp_local{t.x, t.y, t.z};
-    const Eigen::Vector3d tcp_odom = q_drone * tcp_local;
+    const Eigen::Vector3d tcp_odom = q_drone * Eigen::Vector3d{t.x, t.y, t.z};
 
     // Apply offset along valve outward Z so TCP stops in front of valve face.
     const Eigen::Vector3d valve_target =
         valve_pose.pos_vector() + z_valve * valve_z_offset_;
 
-    // base_link target: when reached, gripper tip coincides with valve target.
-    const Eigen::Vector3d base_link_target = valve_target - tcp_odom;
+    // Final converge target (where base_link needs to be for TCP to reach target).
+    const Eigen::Vector3d converge_pos = valve_target - tcp_odom;
+
+    // Intermediate: keep standoff X/Y, use converge Z so we only correct height.
+    const Eigen::Vector3d align_pos{standoff_pos.x(), standoff_pos.y(),
+                                    converge_pos.z()};
 
     const auto target_pose =
-        vortex::utils::types::Pose::from_eigen(base_link_target, q_drone);
+        vortex::utils::types::Pose::from_eigen(align_pos, q_drone);
 
     vortex_msgs::msg::Waypoint wp;
     wp.pose = vortex::utils::ros_conversions::to_pose_msg(target_pose);

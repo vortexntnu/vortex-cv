@@ -21,11 +21,15 @@ find_package(vortex_utils REQUIRED)
 find_package(vortex_utils_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(vortex_yasmin_utils REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 include_directories(include)
 
 add_executable(visual_inspection_fsm
   src/standoff_state.cpp
+  src/align_height_state.cpp
   src/converge_state.cpp
   src/retreat_state.cpp
   src/blackboard.cpp
@@ -43,10 +47,13 @@ ament_target_dependencies(visual_inspection_fsm
   vortex_utils_ros
   geometry_msgs
   vortex_yasmin_utils
+  tf2_ros
+  tf2
 )
 
 target_link_libraries(visual_inspection_fsm
   yasmin_viewer::yasmin_viewer
+  yaml-cpp
 )
 
 install(TARGETS

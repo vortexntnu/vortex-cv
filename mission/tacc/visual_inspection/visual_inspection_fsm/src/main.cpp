@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
     auto node = rclcpp::Node::make_shared("visual_inspection_fsm");
 
     const auto config = load_config(node);
-    auto blackboard = initialize_blackboard(config);
+    auto blackboard = initialize_blackboard(node, config);
     auto sm = build_state_machine(config, blackboard);
 
     yasmin_viewer::YasminViewerPub viewer(sm, "VISUAL_INSPECTION_FSM");

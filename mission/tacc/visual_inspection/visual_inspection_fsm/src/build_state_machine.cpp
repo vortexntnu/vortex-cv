@@ -32,10 +32,7 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
     valve_type.value = vortex_msgs::msg::LandmarkType::VALVE;
 
     vortex_msgs::msg::LandmarkSubtype valve_subtype;
-    valve_subtype.value =
-        config.vertical_mounted_valve
-            ? vortex_msgs::msg::LandmarkSubtype::VALVE_VERTICAL
-            : vortex_msgs::msg::LandmarkSubtype::VALVE_HORIZONTAL;
+    valve_subtype.value =0;
 
     auto sm = std::make_shared<yasmin::StateMachine>(
         std::set<std::string>{SUCCEED, ABORT});
@@ -72,12 +69,24 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                   std::make_shared<vortex_yasmin_utils::LandmarkPollingState>(
                       config.landmark_polling_action_server, valve_type,
                       valve_subtype, "valve_landmarks"),
-                  {{"landmarks_found", "CONVERGE"}, {ABORT, ABORT}});
+                  {{"landmarks_found", "ALIGN_HEIGHT"}, {ABORT, ABORT}});
+
+    sm->add_state(
+        "ALIGN_HEIGHT",
+        std::make_shared<AlignHeightState>(config.waypoint_manager_action_server,
+                                           standoff_goal, tcp_offset_goal,
+                                           config.tcp_base_frame,
+                                           config.tcp_tip_frame,
+                                           config.valve_z_offset),
+        {{SUCCEED, "CONVERGE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     sm->add_state(
         "CONVERGE",
         std::make_shared<ConvergeState>(config.waypoint_manager_action_server,
-                                        standoff_goal, tcp_offset_goal),
+                                        standoff_goal, tcp_offset_goal,
+                                        config.tcp_base_frame,
+                                        config.tcp_tip_frame,
+                                        config.valve_z_offset),
         {{SUCCEED, "RETREAT"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     sm->add_state("RETREAT",

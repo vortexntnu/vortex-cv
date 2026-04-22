@@ -159,8 +159,8 @@ int ValveSubtypeResolverNode::resolve_subtype(
 
     using ST = vortex_msgs::msg::LandmarkSubtype;
     if (std::abs(normal_world.vector.z) >= vertical_threshold_)
-        return ST::VALVE_VERTICAL;
-    return ST::VALVE_HORIZONTAL;
+        return ST::VALVE_HORIZONTAL;
+    return ST::VALVE_VERTICAL;
 }
 
 }  // namespace valve_subtype_resolver

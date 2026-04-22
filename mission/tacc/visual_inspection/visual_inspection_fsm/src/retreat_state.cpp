@@ -47,6 +47,7 @@ valve_inspection_fsm::WaypointManagerAction::Goal RetreatState::create_goal(
     R.col(0) = x_axis;
     R.col(1) = y_axis;
     R.col(2) = z_axis;
+
     const Eigen::Quaterniond q_drone(R);
 
     const auto target_pose =

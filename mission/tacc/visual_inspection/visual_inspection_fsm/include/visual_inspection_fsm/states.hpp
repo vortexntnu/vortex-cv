@@ -6,6 +6,12 @@
 
 #include <rclcpp/rclcpp.hpp>
 
+#if __has_include(<tf2_ros/buffer.hpp>)
+#include <tf2_ros/buffer.hpp>
+#else
+#include <tf2_ros/buffer.h>
+#endif
+
 #include <vortex/utils/waypoint_utils.hpp>
 #include <vortex_msgs/action/waypoint_manager.hpp>
 #include <vortex_msgs/msg/landmark.hpp>
@@ -30,6 +36,9 @@ struct StateMachineConfig {
     std::string standoff_waypoint_goal_id;
     std::string tcp_offset_goal_id;
     bool vertical_mounted_valve;
+    std::string tcp_base_frame;
+    std::string tcp_tip_frame;
+    double valve_z_offset{0.0};
 };
 
 /**
@@ -53,6 +62,35 @@ class StandoffState : public yasmin_ros::ActionState<
 };
 
 /**
+ * @brief Moves the drone to the correct height for convergence while staying at
+ * standoff distance.
+ *
+ * Computes both the standoff position and the final converge target, then
+ * commands the drone to (standoff_x, standoff_y, converge_z) so that height is
+ * corrected before the depth approach begins.
+ */
+class AlignHeightState : public yasmin_ros::ActionState<
+                             valve_inspection_fsm::WaypointManagerAction> {
+   public:
+    AlignHeightState(const std::string& action_server_name,
+                     vortex::utils::waypoints::WaypointGoal standoff_goal,
+                     vortex::utils::waypoints::WaypointGoal tcp_offset_goal,
+                     std::string tcp_base_frame,
+                     std::string tcp_tip_frame,
+                     double valve_z_offset);
+
+    valve_inspection_fsm::WaypointManagerAction::Goal create_goal(
+        yasmin::Blackboard::SharedPtr blackboard);
+
+   private:
+    vortex::utils::waypoints::WaypointGoal standoff_goal_;
+    vortex::utils::waypoints::WaypointGoal tcp_offset_goal_;
+    std::string tcp_base_frame_;
+    std::string tcp_tip_frame_;
+    double valve_z_offset_;
+};
+
+/**
  * @brief Aligns the gripper tip with the valve handle center.
  *
  * Reads refined valve landmarks from the blackboard. Rotates the configured
@@ -64,7 +102,10 @@ class ConvergeState : public yasmin_ros::ActionState<
    public:
     ConvergeState(const std::string& action_server_name,
                   vortex::utils::waypoints::WaypointGoal standoff_goal,
-                  vortex::utils::waypoints::WaypointGoal tcp_offset_goal);
+                  vortex::utils::waypoints::WaypointGoal tcp_offset_goal,
+                  std::string tcp_base_frame,
+                  std::string tcp_tip_frame,
+                  double valve_z_offset);
 
     valve_inspection_fsm::WaypointManagerAction::Goal create_goal(
         yasmin::Blackboard::SharedPtr blackboard);
@@ -72,6 +113,9 @@ class ConvergeState : public yasmin_ros::ActionState<
    private:
     vortex::utils::waypoints::WaypointGoal standoff_goal_;
     vortex::utils::waypoints::WaypointGoal tcp_offset_goal_;
+    std::string tcp_base_frame_;
+    std::string tcp_tip_frame_;
+    double valve_z_offset_;
 };
 
 /**
@@ -97,6 +141,7 @@ class RetreatState : public yasmin_ros::ActionState<
 StateMachineConfig load_config(rclcpp::Node::SharedPtr node);
 
 std::shared_ptr<yasmin::Blackboard> initialize_blackboard(
+    rclcpp::Node::SharedPtr node,
     const StateMachineConfig& config);
 
 std::shared_ptr<yasmin::StateMachine> build_state_machine(

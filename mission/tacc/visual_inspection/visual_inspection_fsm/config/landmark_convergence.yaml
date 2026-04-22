@@ -1,23 +1,33 @@
 tcp_offset:
   position:
-    x: 0.5331
-    y: 0.0285
-    z: -0.1155  # Negative z = gripper is above base_link center in NED
+    x: 0.0
+    y: 0.0
+    z: 0.0
   orientation:
     roll: 0.0
     pitch: 0.0
     yaw: 0.0
   mode: 0
   convergence_threshold: 0.1
+  # How far to stop in front of the valve along its outward Z axis [m].
+  # Positive = stay in front of valve face, negative = push into valve.
+  valve_z_offset: 0.26
 
-standoff_waypoint:  # Offset along valve normal for approach and retreat.
+standoff_waypoint:
   position:
     x: 0.0
     y: 0.0
-    z: 1
+    z: 1.0  # Standoff distance [m] along the valve's Z normal (outward from valve face).
   orientation:
     roll: 0.0
     pitch: 0.0
+    # Yaw correction [deg] applied on top of the valve-normal-aligned heading.
+    # The FSM aligns drone +X with the valve Z normal (plane normal pointing
+    # toward the drone), then rotates by this many degrees around world/odom Z.
+    # NOTE: values are in DEGREES (the YAML loader multiplies by pi/180).
+    # Tune this if the drone arrives facing the wrong direction:
+    #   +90.0  rotates clockwise   (right) when viewed from above in NED
+    #   -90.0  rotates anticlockwise (left)
     yaw: 0.0
   mode: 0
   convergence_threshold: 0.3

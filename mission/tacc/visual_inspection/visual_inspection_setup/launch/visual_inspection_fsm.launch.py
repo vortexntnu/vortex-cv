@@ -37,6 +37,8 @@ def launch_setup(context, *args, **kwargs):
                 "standoff_waypoint_goal_id": "standoff_waypoint",
                 "tcp_offset_goal_id": "tcp_offset",
                 "vertical_mounted_valve": True,
+                "tcp_base_frame": f"{namespace}/base_link",
+                "tcp_tip_frame": f"{namespace}/finger1",
             },
         ],
         output="screen",

@@ -35,7 +35,7 @@
     # Shift the estimated position along the plane normal by this amount (metres).
     # Value taken from the official valve CAD file: distance between the valve
     # face frame and the inside length of the handle is 0.02 m.
-    valve_handle_offset: 0.02
+    valve_handle_offset: -0.02
 
     # Hardcoded depth→color extrinsic, used only when
     # use_hardcoded_extrinsic: true (set via launch arg). Translation in
