@@ -20,7 +20,7 @@ PipelineEndDetectorNode::PipelineEndDetectorNode(
 
 void PipelineEndDetectorNode::declare_parameters() {
     declare_parameter<std::string>("topics.detection",
-                                  "end_of_pipeline/detection");
+                                  "classification_output");
     declare_parameter<std::string>("topics.end_of_pipeline_service",
                                   "pipeline_inspection_fsm/pipeline_finished");
     declare_parameter<int>("detection_threshold", 10);
@@ -82,7 +82,6 @@ void PipelineEndDetectorNode::call_end_of_pipeline_service() {
                 RCLCPP_ERROR(get_logger(),
                              "End-of-pipeline service call failed: %s",
                              response->message.c_str());
-                // Allow retrying on next detection streak
                 service_called_ = false;
                 consecutive_detections_ = 0;
             }

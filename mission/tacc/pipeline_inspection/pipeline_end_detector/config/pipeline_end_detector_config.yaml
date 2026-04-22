@@ -4,7 +4,7 @@
     detection_threshold: 10
     topics:
       # Topic published by the end-of-pipeline detector model (std_msgs/UInt8)
-      # Non-zero value means "end of pipeline detected"
-      detection: "end_of_pipeline/detection"
+      # data == 1 → Class 1: end of pipeline  |  data == 0 → Class 0: continue following
+      detection: "classification_output"
       # Service name of the pipeline inspection FSM trigger
       end_of_pipeline_service: "pipeline_inspection_fsm/pipeline_finished"
