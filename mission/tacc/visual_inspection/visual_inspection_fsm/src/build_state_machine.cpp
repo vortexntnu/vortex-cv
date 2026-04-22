@@ -3,6 +3,8 @@
 #include <chrono>
 #include <thread>
 
+#include <vortex/utils/ros/ros_conversions.hpp>
+
 #include <yasmin/cb_state.hpp>
 #include <yasmin/state_machine.hpp>
 #include <yasmin_ros/basic_outcomes.hpp>
@@ -271,9 +273,10 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         blackboard->get<vortex::utils::waypoints::WaypointGoal>(
             "tcp_offset_goal");
 
-    vortex_msgs::msg::LandmarkType valve_type;
-    valve_type.value = vortex_msgs::msg::LandmarkType::VALVE;
+    vortex_msgs::msg::LandmarkType landmark_type;
+    landmark_type.value = vortex_msgs::msg::LandmarkType::VALVE;
 
+    vortex_msgs::msg::LandmarkSubtype landmark_subtype;
     if (config.vertical_mounted_valve) {
         landmark_subtype.value = 0;
     } else {

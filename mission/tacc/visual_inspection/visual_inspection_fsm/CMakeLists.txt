@@ -47,10 +47,12 @@ ament_target_dependencies(visual_inspection_fsm
   geometry_msgs
   vortex_yasmin_utils
   tf2_ros
+  spdlog
 )
 
 target_link_libraries(visual_inspection_fsm
   yasmin_viewer::yasmin_viewer
+  fmt::fmt
 )
 
 install(TARGETS
