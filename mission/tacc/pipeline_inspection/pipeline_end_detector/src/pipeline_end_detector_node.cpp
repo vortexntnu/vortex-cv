@@ -12,24 +12,23 @@ PipelineEndDetectorNode::PipelineEndDetectorNode(
 
     setup_pubsub();
 
-    RCLCPP_INFO(get_logger(),
-                "PipelineEndDetectorNode started. threshold=%d, service='%s'",
-                detection_threshold_,
-                get_parameter("topics.end_of_pipeline_service").as_string().c_str());
+    RCLCPP_INFO(
+        get_logger(),
+        "PipelineEndDetectorNode started. threshold=%d, service='%s'",
+        detection_threshold_,
+        get_parameter("topics.end_of_pipeline_service").as_string().c_str());
 }
 
 void PipelineEndDetectorNode::declare_parameters() {
-    declare_parameter<std::string>("topics.detection",
-                                  "classification_output");
+    declare_parameter<std::string>("topics.detection", "classification_output");
     declare_parameter<std::string>("topics.end_of_pipeline_service",
-                                  "pipeline_inspection_fsm/pipeline_finished");
+                                   "pipeline_inspection_fsm/pipeline_finished");
     declare_parameter<int>("detection_threshold", 10);
 }
 
 void PipelineEndDetectorNode::setup_pubsub() {
     detection_sub_ = create_subscription<std_msgs::msg::UInt8>(
-        get_parameter("topics.detection").as_string(),
-        rclcpp::QoS(10),
+        get_parameter("topics.detection").as_string(), rclcpp::QoS(10),
         std::bind(&PipelineEndDetectorNode::detection_callback, this,
                   std::placeholders::_1));
 

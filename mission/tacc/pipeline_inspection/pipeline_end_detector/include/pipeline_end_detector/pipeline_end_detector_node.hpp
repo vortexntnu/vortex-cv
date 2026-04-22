@@ -7,10 +7,10 @@
 namespace pipeline_end_detector {
 
 class PipelineEndDetectorNode : public rclcpp::Node {
-public:
+   public:
     explicit PipelineEndDetectorNode(const rclcpp::NodeOptions& options);
 
-private:
+   private:
     void declare_parameters();
     void setup_pubsub();
     void detection_callback(const std_msgs::msg::UInt8::SharedPtr msg);
