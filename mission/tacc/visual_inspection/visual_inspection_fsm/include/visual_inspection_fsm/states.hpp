@@ -1,5 +1,5 @@
-#ifndef VALVE_INSPECTION_FSM__STATES_HPP_
-#define VALVE_INSPECTION_FSM__STATES_HPP_
+#ifndef VISUAL_INSPECTION_FSM__STATES_HPP_
+#define VISUAL_INSPECTION_FSM__STATES_HPP_
 
 #include <memory>
 #include <string>
@@ -103,4 +103,4 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
     const StateMachineConfig& config,
     yasmin::Blackboard::SharedPtr blackboard);
 
-#endif  // VALVE_INSPECTION_FSM__STATES_HPP_
+#endif  // VISUAL_INSPECTION_FSM__STATES_HPP_

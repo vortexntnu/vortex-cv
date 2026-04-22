@@ -1,4 +1,4 @@
-#include "valve_inspection_fsm/states.hpp"
+#include "visual_inspection_fsm/states.hpp"
 
 #include <yasmin_ros/ros_logs.hpp>
 #include <yasmin_viewer/yasmin_viewer_pub.hpp>

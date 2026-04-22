@@ -1,4 +1,4 @@
-#include "valve_inspection_fsm/states.hpp"
+#include "visual_inspection_fsm/states.hpp"
 
 StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
     StateMachineConfig config;
