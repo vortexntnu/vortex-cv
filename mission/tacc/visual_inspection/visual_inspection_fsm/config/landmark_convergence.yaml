@@ -14,7 +14,7 @@ standoff_waypoint:  # Offset along valve normal for approach and retreat.
   position:
     x: 0.0
     y: 0.0
-    z: 1  # 0.5m along valve outward normal
+    z: 1
   orientation:
     roll: 0.0
     pitch: 0.0

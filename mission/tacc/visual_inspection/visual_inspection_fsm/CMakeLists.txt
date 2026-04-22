@@ -21,9 +21,6 @@ find_package(vortex_utils REQUIRED)
 find_package(vortex_utils_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(vortex_yasmin_utils REQUIRED)
-find_package(tf2_ros REQUIRED)
-find_package(spdlog REQUIRED)
-find_package(fmt REQUIRED)
 
 include_directories(include)
 
@@ -46,13 +43,10 @@ ament_target_dependencies(visual_inspection_fsm
   vortex_utils_ros
   geometry_msgs
   vortex_yasmin_utils
-  tf2_ros
-  spdlog
 )
 
 target_link_libraries(visual_inspection_fsm
   yasmin_viewer::yasmin_viewer
-  fmt::fmt
 )
 
 install(TARGETS
