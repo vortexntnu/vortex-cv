@@ -14,6 +14,7 @@
       sample_side_length: 5 # Side-length of the sample square (must be odd).
       angle: 150 # Total angle range of sonar image to search for boundaries (degrees).
       edge_detection: true # True if set to detect pixel value gradient,false if set to detect value
+      min_dist_from_origin: 0.0 # Minimum pixel distance from sonar origin for a boundary point to be valid
 
     ransac:
       points_checked: 4 # Number of points to check for lines

@@ -1,6 +1,3 @@
-import os
-
-from ament_index_python.packages import get_package_share_directory
 from auv_setup.launch_arg_common import (
     declare_drone_and_namespace_args,
     resolve_drone_and_namespace,
@@ -13,30 +10,34 @@ from launch_ros.actions import Node
 def launch_setup(context, *args, **kwargs):
     drone, namespace = resolve_drone_and_namespace(context)
 
-    aruco_base_params = os.path.join(
-        get_package_share_directory("aruco_detector"),
-        "config",
-        "aruco_detector_params.yaml",
-    )
-
     node = Node(
         package="aruco_detector",
         executable="aruco_detector_node",
         name="front_aruco_detector",
         namespace=namespace,
+        output="screen",
         parameters=[
-            aruco_base_params,
             {
+                "subs.image_topic": f"/{namespace}/front_camera/image_color",
+                "subs.camera_info_topic": f"/{namespace}/front_camera/camera_info",
+                "pubs.aruco_image": "/aruco_detector/image",
+                "pubs.aruco_poses": "/aruco_detector/markers",
+                "pubs.board_pose": "/aruco_detector/board",
+                "pubs.landmarks": f"/{namespace}/landmarks",
+                "logger_service_name": "/toggle_marker_logger",
+                "detect_board": True,
+                "visualize": True,
+                "log_markers": False,
+                "publish_detections": True,
+                "publish_landmarks": True,
                 "aruco.marker_size": 0.150,
+                "aruco.dictionary": "DICT_ARUCO_ORIGINAL",
                 "board.xDist": 0.430,
                 "board.yDist": 0.830,
                 "board.ids": [28, 7, 96, 19],
-                "subs.image_topic": f"/{namespace}/front_camera",
-                "subs.camera_info_topic": f"/{namespace}/front_camera/camera_info",
                 "out_tf_frame": f"{namespace}/front_camera_optical",
-            },
+            }
         ],
-        output="screen",
     )
 
     return [node]

@@ -16,7 +16,10 @@
 #include <vortex_yasmin_utils/landmark_polling_state.hpp>
 #include <vortex_yasmin_utils/landmark_waypoint_state.hpp>
 #include <vortex_yasmin_utils/service_request_wait_state.hpp>
+#include <spdlog/spdlog.h>
+#include <std_srvs/srv/trigger.hpp>
 #include <vortex_yasmin_utils/service_trigger_wait_state.hpp>
+#include <yasmin_ros/yasmin_node.hpp>
 #include <vortex_yasmin_utils/waypoint_goal_state.hpp>
 
 using vortex_yasmin_utils::FirstWinsConcurrence;
@@ -29,6 +32,33 @@ using vortex_yasmin_utils::WaypointGoalState;
 using yasmin_ros::basic_outcomes::ABORT;
 using yasmin_ros::basic_outcomes::CANCEL;
 using yasmin_ros::basic_outcomes::SUCCEED;
+
+class StartMissionWaitState
+    : public vortex_yasmin_utils::ServiceTriggerWaitState {
+   public:
+    StartMissionWaitState(const std::string& service_name,
+                          const std::string& docking_estimator_service)
+        : ServiceTriggerWaitState(service_name) {
+        auto node = yasmin_ros::YasminNode::get_instance();
+        docking_start_client_ =
+            node->create_client<std_srvs::srv::Trigger>(docking_estimator_service);
+    }
+
+   protected:
+    void on_triggered(yasmin::Blackboard::SharedPtr) override {
+        if (!docking_start_client_->service_is_ready()) {
+            spdlog::warn(
+                "[StartMission] Docking estimator start service not available");
+            return;
+        }
+        docking_start_client_->async_send_request(
+            std::make_shared<std_srvs::srv::Trigger::Request>());
+        spdlog::info("[StartMission] Sent start signal to docking estimator");
+    }
+
+   private:
+    rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr docking_start_client_;
+};
 
 std::shared_ptr<yasmin::StateMachine> build_state_machine(
     const StateMachineConfig& config,
@@ -57,7 +87,8 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
 
     sm->add_state(
         "START_MISSION_WAIT",
-        std::make_shared<ServiceTriggerWaitState>(config.start_mission_service),
+        std::make_shared<StartMissionWaitState>(config.start_mission_service,
+                                                config.docking_estimator_start_service),
         {{SUCCEED, config.skip_search ? "FALLBACK_SEARCH" : "SEARCH"},
          {CANCEL, ABORT}});
 

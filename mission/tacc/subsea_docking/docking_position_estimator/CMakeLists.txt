@@ -26,6 +26,7 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(message_filters REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -55,6 +56,7 @@ ament_target_dependencies(${LIB_NAME} PUBLIC
   message_filters
   #for testing:
   visualization_msgs
+  std_srvs
 )
 
 rclcpp_components_register_node(

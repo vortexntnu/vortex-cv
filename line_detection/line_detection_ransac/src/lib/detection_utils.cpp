@@ -62,7 +62,12 @@ void detect_boundaries(const BoundaryConfig& boundary_config,
                 (static_cast<float>(sample_side_length * sample_side_length));
 
             if (abs(avg_value - last_avg) > threshold) {
-                boundary_points.emplace_back(x, y);
+                const float dx = static_cast<float>(x - origin.x);
+                const float dy = static_cast<float>(y - origin.y);
+                if (std::sqrt(dx * dx + dy * dy) >=
+                    boundary_config.min_dist_from_origin) {
+                    boundary_points.emplace_back(x, y);
+                }
                 break;
             }
             if (edge_detection) {

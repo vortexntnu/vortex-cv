@@ -17,6 +17,8 @@
 
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 
+#include <std_srvs/srv/trigger.hpp>
+
 #include <vortex_msgs/msg/line_segment2_d_array.hpp>
 #include <vortex_msgs/msg/sonar_info.hpp>
 #include <vortex_msgs/srv/send_pose.hpp>
@@ -171,6 +173,12 @@ class DockingPositionEstimatorNode : public rclcpp::Node {
     /** @brief Topic name for detected sonar line segments. */
     std::string line_sub_topic_;
 
+    /** @brief Service name for the start-mission trigger. */
+    std::string start_mission_service_name_;
+
+    /** @brief Service name for sending the docking pose estimate. */
+    std::string send_pose_service_name_;
+
     /** @brief Topic name for vehicle pose estimates. */
     std::string pose_sub_topic_;
 
@@ -185,6 +193,9 @@ class DockingPositionEstimatorNode : public rclcpp::Node {
 
     /** @brief True once a docking pose has been sent. */
     bool waypoint_sent_{false};
+
+    /** @brief True once the start-mission service has been called. */
+    bool mission_active_{false};
 
     /** @brief Latest known vehicle pose and heading used by the estimator. */
     vortex::utils::types::PoseEuler drone_state_;
@@ -221,6 +232,9 @@ class DockingPositionEstimatorNode : public rclcpp::Node {
 
     /** @brief Client for sending the docking pose estimate. */
     rclcpp::Client<vortex_msgs::srv::SendPose>::SharedPtr send_pose_client_;
+
+    /** @brief Service server for the start-mission trigger. */
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr start_mission_srv_;
 
     /** @brief Docking position estimator used for corner detection and docking
      * estimation. */

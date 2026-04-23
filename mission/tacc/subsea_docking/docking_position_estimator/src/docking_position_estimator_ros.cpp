@@ -37,6 +37,10 @@ void DockingPositionEstimatorNode::setup_parameters() {
         this->declare_parameter<std::string>("sonar_info_sub_topic");
     debug_topic_ =
         this->declare_parameter<std::string>("debug_topic");  // For testing
+    start_mission_service_name_ =
+        this->declare_parameter<std::string>("start_mission_service");
+    send_pose_service_name_ =
+        this->declare_parameter<std::string>("send_pose_service");
 }
 
 void DockingPositionEstimatorNode::setup_publishers_and_subscribers() {
@@ -76,7 +80,16 @@ void DockingPositionEstimatorNode::setup_publishers_and_subscribers() {
                   std::placeholders::_1));
 
     send_pose_client_ = this->create_client<vortex_msgs::srv::SendPose>(
-        "/docking_position_estimator/docking_pose");
+        send_pose_service_name_);
+
+    start_mission_srv_ = this->create_service<std_srvs::srv::Trigger>(
+        start_mission_service_name_,
+        [this](const std_srvs::srv::Trigger::Request::SharedPtr,
+               std_srvs::srv::Trigger::Response::SharedPtr res) {
+            mission_active_ = true;
+            res->success = true;
+            spdlog::info("[DockingPositionEstimator] Mission started.");
+        });
 
     docking_marker_pub_ =
         this->create_publisher<visualization_msgs::msg::Marker>(
@@ -134,6 +147,9 @@ void DockingPositionEstimatorNode::sonar_info_callback(
 
 void DockingPositionEstimatorNode::line_callback(
     const vortex_msgs::msg::LineSegment2DArray::ConstSharedPtr& msg) {
+    if (!mission_active_) {
+        return;
+    }
     estimate_and_send_docking_waypoint(*msg);
 }
 

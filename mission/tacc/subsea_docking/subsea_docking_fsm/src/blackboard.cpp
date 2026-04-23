@@ -22,12 +22,8 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         node->declare_parameter<double>("service_request_timeout_sec");
     config.use_service_waypoint =
         node->declare_parameter<bool>("use_service_waypoint");
-    config.fallback_waypoint_id =
-        node->declare_parameter<std::string>("fallback_waypoint_id");
-    config.landmark_convergence_goal_id =
-        node->declare_parameter<std::string>("landmark_convergence_goal_id");
-    config.pre_dock_convergence_goal_id =
-        node->declare_parameter<std::string>("pre_dock_convergence_goal_id");
+    config.docking_estimator_start_service =
+        node->declare_parameter<std::string>("docking_estimator_start_service");
 
     if (config.skip_search) {
         spdlog::info("skip_search enabled: search phase will be skipped.");
@@ -51,17 +47,15 @@ std::shared_ptr<yasmin::Blackboard> initialize_blackboard(
 
     const auto fallback_waypoint_goal =
         vortex::utils::waypoints::load_waypoint_goal_from_yaml(
-            config.waypoint_yaml_path, config.fallback_waypoint_id);
+            config.waypoint_yaml_path, "fallback_docking_waypoint");
 
     const auto power_puck_waypoint_goal =
         vortex::utils::waypoints::load_waypoint_goal_from_yaml(
-            config.landmark_convergence_yaml_path,
-            config.landmark_convergence_goal_id);
+            config.landmark_convergence_yaml_path, "power_puck_waypoint");
 
     const auto pre_dock_waypoint_goal =
         vortex::utils::waypoints::load_waypoint_goal_from_yaml(
-            config.landmark_convergence_yaml_path,
-            config.pre_dock_convergence_goal_id);
+            config.landmark_convergence_yaml_path, "pre_dock_waypoint");
 
     bb->set<vortex::utils::waypoints::WaypointGoal>("fallback_waypoint_goal",
                                                     fallback_waypoint_goal);

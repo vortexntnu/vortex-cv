@@ -1,5 +1,9 @@
 /**:
   ros__parameters:
+    # Services
+    start_mission_service: "docking_position_estimator/start_mission"
+    send_pose_service: "/docking_position_estimator/docking_pose"
+
     # Topics
     line_sub_topic: "/line_detection/line_segments"
     pose_sub_topic: "/pose"

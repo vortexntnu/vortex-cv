@@ -20,10 +20,8 @@ struct StateMachineConfig {
     std::string waypoint_yaml_path;
     std::string landmark_convergence_yaml_path;
     double service_request_timeout_sec;
-    std::string fallback_waypoint_id;
-    std::string landmark_convergence_goal_id;
-    std::string pre_dock_convergence_goal_id;
     std::string docking_position_service;
+    std::string docking_estimator_start_service;
 };
 
 StateMachineConfig load_config(rclcpp::Node::SharedPtr node);
