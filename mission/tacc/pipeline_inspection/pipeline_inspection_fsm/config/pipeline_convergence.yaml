@@ -1,0 +1,12 @@
+pipeline_start_convergence:
+  position:
+    x: 0.0
+    y: 0.0
+    z: -1.0
+  orientation:
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+  mode: 0
+  convergence_threshold: 0.1
+  dead_reckoning_threshold: 0.5
