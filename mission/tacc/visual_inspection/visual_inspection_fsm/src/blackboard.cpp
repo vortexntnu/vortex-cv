@@ -27,8 +27,8 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         node->declare_parameter<bool>("vertical_mounted_valve");
     config.tcp_base_frame = node->declare_parameter<std::string>(
         "tcp_base_frame", "nautilus/base_link");
-    config.tcp_tip_frame = node->declare_parameter<std::string>(
-        "tcp_tip_frame", "nautilus/arm");
+    config.tcp_tip_frame =
+        node->declare_parameter<std::string>("tcp_tip_frame", "nautilus/arm");
 
     // Read valve_z_offset from the convergence YAML (under tcp_offset section).
     try {
@@ -67,8 +67,7 @@ std::shared_ptr<yasmin::Blackboard> initialize_blackboard(
                                                     tcp_offset_goal);
 
     // Create TF buffer and listener so states can look up transforms.
-    auto tf_buffer =
-        std::make_shared<tf2_ros::Buffer>(node->get_clock());
+    auto tf_buffer = std::make_shared<tf2_ros::Buffer>(node->get_clock());
     auto tf_listener =
         std::make_shared<tf2_ros::TransformListener>(*tf_buffer, node, true);
 

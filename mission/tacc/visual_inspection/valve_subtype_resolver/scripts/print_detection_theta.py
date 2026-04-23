@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Prints class_id + OBB theta (radians) per detection from the YOLO topic."""
+
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy

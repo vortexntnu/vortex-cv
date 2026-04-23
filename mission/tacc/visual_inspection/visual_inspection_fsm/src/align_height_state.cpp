@@ -19,10 +19,10 @@ AlignHeightState::AlignHeightState(
     std::string tcp_base_frame,
     std::string tcp_tip_frame,
     double valve_z_offset)
-    : ActionState(
-          action_server_name,
-          std::bind(&AlignHeightState::create_goal, this,
-                    std::placeholders::_1)),
+    : ActionState(action_server_name,
+                  std::bind(&AlignHeightState::create_goal,
+                            this,
+                            std::placeholders::_1)),
       standoff_goal_(std::move(standoff_goal)),
       tcp_offset_goal_(std::move(tcp_offset_goal)),
       tcp_base_frame_(std::move(tcp_base_frame)),
@@ -66,12 +66,12 @@ valve_inspection_fsm::WaypointManagerAction::Goal AlignHeightState::create_goal(
         blackboard->get<std::shared_ptr<tf2_ros::Buffer>>("tf_buffer");
     geometry_msgs::msg::TransformStamped tf_stamped;
     try {
-        tf_stamped = tf_buffer->lookupTransform(
-            tcp_base_frame_, tcp_tip_frame_, tf2::TimePointZero);
+        tf_stamped = tf_buffer->lookupTransform(tcp_base_frame_, tcp_tip_frame_,
+                                                tf2::TimePointZero);
     } catch (const tf2::TransformException& ex) {
-        throw std::runtime_error(
-            std::string("TCP TF lookup failed (") + tcp_base_frame_ + " → " +
-            tcp_tip_frame_ + "): " + ex.what());
+        throw std::runtime_error(std::string("TCP TF lookup failed (") +
+                                 tcp_base_frame_ + " → " + tcp_tip_frame_ +
+                                 "): " + ex.what());
     }
     const auto& t = tf_stamped.transform.translation;
     const Eigen::Vector3d tcp_odom = q_drone * Eigen::Vector3d{t.x, t.y, t.z};
@@ -80,10 +80,12 @@ valve_inspection_fsm::WaypointManagerAction::Goal AlignHeightState::create_goal(
     const Eigen::Vector3d valve_target =
         valve_pose.pos_vector() + z_valve * valve_z_offset_;
 
-    // Final converge target (where base_link needs to be for TCP to reach target).
+    // Final converge target (where base_link needs to be for TCP to reach
+    // target).
     const Eigen::Vector3d converge_pos = valve_target - tcp_odom;
 
-    // Intermediate: keep standoff X/Y, use converge Z so we only correct height.
+    // Intermediate: keep standoff X/Y, use converge Z so we only correct
+    // height.
     const Eigen::Vector3d align_pos{standoff_pos.x(), standoff_pos.y(),
                                     converge_pos.z()};
 

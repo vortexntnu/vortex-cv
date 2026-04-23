@@ -30,6 +30,8 @@ struct RansacConfig {
     int min_remaining_points{10};  // Minimum number of points remaining to
                                    // continue RANSAC iterations
     int min_inliers{5};            // Minimum number of inliers to accept a line
+    float max_distance{100.0f};  // Maximum distance between from an endpoint to
+                                 // the line to count it as an inlier
 };
 
 /**

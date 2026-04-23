@@ -172,8 +172,8 @@ Eigen::Matrix3f PoseEstimator::create_rotation_matrix_depth(
     // result lies in the valve face.  This avoids ray-plane intersections at
     // the handle endpoints, which otherwise amplify plane-normal noise into
     // large yaw jitter.
-    const Eigen::Vector3f dir_color(std::cos(angle) / fx,
-                                    std::sin(angle) / fy, 0.f);
+    const Eigen::Vector3f dir_color(std::cos(angle) / fx, std::sin(angle) / fy,
+                                    0.f);
     Eigen::Vector3f x_axis = R_depth_from_color * dir_color;
     x_axis = (x_axis - x_axis.dot(z_axis) * z_axis).normalized();
 

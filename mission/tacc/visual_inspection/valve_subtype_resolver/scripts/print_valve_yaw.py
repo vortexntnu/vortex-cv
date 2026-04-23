@@ -4,15 +4,15 @@
 Subscribes to /valve_landmarks_typed, transforms each landmark pose into the
 world frame via TF2, and prints yaw in degrees.
 """
+
 import math
 
 import rclpy
+import tf2_ros
+from geometry_msgs.msg import PoseStamped
 from rclpy.node import Node
 from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
-
-import tf2_ros
 from tf2_geometry_msgs import do_transform_pose_stamped
-from geometry_msgs.msg import PoseStamped
 from vortex_msgs.msg import LandmarkArray
 
 
@@ -41,9 +41,7 @@ class PrintValveYaw(Node):
             history=HistoryPolicy.KEEP_LAST,
             depth=10,
         )
-        self.create_subscription(
-            LandmarkArray, '/valve_landmarks_typed', self.cb, qos
-        )
+        self.create_subscription(LandmarkArray, '/valve_landmarks_typed', self.cb, qos)
 
     def cb(self, msg: LandmarkArray):
         if not msg.landmarks:
@@ -61,7 +59,9 @@ class PrintValveYaw(Node):
                 )
                 ps_w = do_transform_pose_stamped(ps, tf)
             except Exception as ex:
-                self.get_logger().warn(f'TF lookup failed: {ex}', throttle_duration_sec=1.0)
+                self.get_logger().warn(
+                    f'TF lookup failed: {ex}', throttle_duration_sec=1.0
+                )
                 return
             yaw = handle_yaw(ps_w.pose.orientation)
             parts.append(f'id={lm.id} yaw_world={math.degrees(yaw):+7.2f}°')

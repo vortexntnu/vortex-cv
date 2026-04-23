@@ -63,12 +63,12 @@ valve_inspection_fsm::WaypointManagerAction::Goal ConvergeState::create_goal(
         blackboard->get<std::shared_ptr<tf2_ros::Buffer>>("tf_buffer");
     geometry_msgs::msg::TransformStamped tf_stamped;
     try {
-        tf_stamped = tf_buffer->lookupTransform(
-            tcp_base_frame_, tcp_tip_frame_, tf2::TimePointZero);
+        tf_stamped = tf_buffer->lookupTransform(tcp_base_frame_, tcp_tip_frame_,
+                                                tf2::TimePointZero);
     } catch (const tf2::TransformException& ex) {
-        throw std::runtime_error(
-            std::string("TCP TF lookup failed (") + tcp_base_frame_ + " → " +
-            tcp_tip_frame_ + "): " + ex.what());
+        throw std::runtime_error(std::string("TCP TF lookup failed (") +
+                                 tcp_base_frame_ + " → " + tcp_tip_frame_ +
+                                 "): " + ex.what());
     }
     const auto& t = tf_stamped.transform.translation;
 
