@@ -40,7 +40,7 @@
     # Hardcoded depth→color extrinsic, used only when
     # use_hardcoded_extrinsic: true (set via launch arg). Translation in
     # metres, rotation currently unused (identity R assumed in code).
-    extrinsic_tx: 0.0
+    extrinsic_tx: -0.059
     extrinsic_ty: 0.0
     extrinsic_tz: 0.0
     extrinsic_rx: 0.0

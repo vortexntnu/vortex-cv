@@ -10,6 +10,8 @@
 
 #include <vortex_msgs/msg/landmark_subtype.hpp>
 #include <vortex_msgs/msg/landmark_type.hpp>
+#include <vortex_msgs/msg/waypoint.hpp>
+#include <vortex_msgs/msg/waypoint_mode.hpp>
 #include <vortex_msgs/srv/send_pose.hpp>
 
 #include <vortex_yasmin_utils/first_wins_concurrence.hpp>
@@ -58,6 +60,36 @@ class StartMissionWaitState
 
    private:
     rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr docking_start_client_;
+};
+
+class SearchPoseWaypointState : public vortex_yasmin_utils::WaypointGoalState {
+   public:
+    using WaypointManagerAction = vortex_msgs::action::WaypointManager;
+
+    SearchPoseWaypointState(const std::string& action_server_name,
+                            double convergence_threshold)
+        : WaypointGoalState(action_server_name, {}),
+          convergence_threshold_(convergence_threshold) {}
+
+    WaypointManagerAction::Goal create_goal(
+        yasmin::Blackboard::SharedPtr blackboard) override {
+        auto request =
+            blackboard->get<vortex_msgs::srv::SendPose::Request::SharedPtr>(
+                "search_pose");
+
+        vortex_msgs::msg::Waypoint wp;
+        wp.pose = request->pose.pose;
+        wp.waypoint_mode.mode = 0;  // FULL_POSE
+
+        WaypointManagerAction::Goal goal;
+        goal.waypoints = {wp};
+        goal.persistent = false;
+        goal.convergence_threshold = convergence_threshold_;
+        return goal;
+    }
+
+   private:
+    double convergence_threshold_;
 };
 
 std::shared_ptr<yasmin::StateMachine> build_state_machine(
@@ -135,15 +167,24 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
             FirstWinsOutcomeMap{
                 {"SERVICE_REQUEST",
                  {{"timeout", "service_timeout"},
-                  {SUCCEED, ABORT},
+                  {SUCCEED, "pose_received"},
                   {CANCEL, ABORT}}},
                 {"LANDMARK_POLLING",
-                 {{"landmarks_found", "landmark_found"}, {ABORT, ABORT}}}});
+                 {{"landmarks_found", "landmark_found"},
+                  {ABORT, "service_timeout"}}}});
 
         sm->add_state("SEARCH", search,
                       {{"landmark_found", "PRE_DOCK_WAYPOINT"},
+                       {"pose_received", "SEARCH_POSE_NAV"},
                        {"service_timeout", "FALLBACK_SEARCH"},
                        {ABORT, ABORT},
+                       {CANCEL, ABORT}});
+
+        sm->add_state("SEARCH_POSE_NAV",
+                      std::make_shared<SearchPoseWaypointState>(
+                          config.waypoint_manager_action_server, 0.5),
+                      {{SUCCEED, "FALLBACK_SEARCH"},
+                       {ABORT, "FALLBACK_SEARCH"},
                        {CANCEL, ABORT}});
     }
 

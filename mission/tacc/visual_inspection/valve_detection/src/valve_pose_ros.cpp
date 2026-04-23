@@ -478,7 +478,7 @@ void ValvePoseNode::sync_cb(
         // short axis is stored in size_y.
         float handle_angle = handle_ptr->theta;
         if (handle_ptr->size_x > handle_ptr->size_y)
-            handle_angle += static_cast<float>(M_PI / 2.0);
+            handle_angle -= static_cast<float>(M_PI / 2.0);
 
         const auto result = detector_->compute_pose_from_depth(
             depth_img, valve_box, handle_angle, mode);

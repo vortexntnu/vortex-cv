@@ -32,6 +32,8 @@ add_executable(visual_inspection_fsm
   src/align_height_state.cpp
   src/converge_state.cpp
   src/retreat_state.cpp
+  src/open_and_align_gripper_state.cpp
+  src/twist_handle_state.cpp
   src/blackboard.cpp
   src/build_state_machine.cpp
   src/main.cpp

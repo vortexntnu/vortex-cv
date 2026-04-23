@@ -13,6 +13,7 @@
 #endif
 
 #include <vortex/utils/waypoint_utils.hpp>
+#include <vortex_msgs/action/gripper_reference_filter_waypoint.hpp>
 #include <vortex_msgs/action/waypoint_manager.hpp>
 #include <vortex_msgs/msg/landmark.hpp>
 
@@ -25,12 +26,14 @@
 namespace valve_inspection_fsm {
 
 using WaypointManagerAction = vortex_msgs::action::WaypointManager;
+using GripperAction = vortex_msgs::action::GripperReferenceFilterWaypoint;
 
 }  // namespace valve_inspection_fsm
 
 struct StateMachineConfig {
     std::string waypoint_manager_action_server;
     std::string landmark_polling_action_server;
+    std::string gripper_action_server;
     std::string start_mission_service;
     std::string landmark_convergence_yaml_path;
     std::string standoff_waypoint_goal_id;
@@ -39,6 +42,7 @@ struct StateMachineConfig {
     std::string tcp_base_frame;
     std::string tcp_tip_frame;
     double valve_z_offset{0.0};
+    double gripper_convergence_threshold{0.05};
 };
 
 /**
@@ -136,6 +140,72 @@ class RetreatState : public yasmin_ros::ActionState<
 
    private:
     vortex::utils::waypoints::WaypointGoal standoff_goal_;
+};
+
+/**
+ * @brief Opens the gripper and aligns its roll to the valve handle orientation.
+ *
+ * Reads valve landmarks from the blackboard. Extracts the valve yaw (Z rotation)
+ * and clamps it to [0, π/2] — the physical handle range. Sends a ROLL_AND_PINCH
+ * goal: pinch fully open (-0.3333) and roll matching the handle angle.
+ * Stores the computed roll on the blackboard under "gripper_roll" so that
+ * TwistHandleState can compute the opposing target later.
+ *
+ * Outcomes: SUCCEED, ABORT.
+ */
+class OpenAndAlignGripperState
+    : public yasmin_ros::ActionState<valve_inspection_fsm::GripperAction> {
+   public:
+    OpenAndAlignGripperState(const std::string& action_server_name,
+                             double convergence_threshold);
+
+    valve_inspection_fsm::GripperAction::Goal create_goal(
+        yasmin::Blackboard::SharedPtr blackboard);
+
+    std::string result_handler(
+        yasmin::Blackboard::SharedPtr blackboard,
+        valve_inspection_fsm::GripperAction::Result::SharedPtr result);
+
+    void on_feedback(
+        yasmin::Blackboard::SharedPtr blackboard,
+        std::shared_ptr<const valve_inspection_fsm::GripperAction::Feedback>
+            feedback);
+
+   private:
+    double convergence_threshold_;
+    double computed_roll_{0.0};
+    double actual_roll_{0.0};  // last roll reported by feedback — used for twist
+};
+
+/**
+ * @brief Twists the valve handle 90° from its initial orientation.
+ *
+ * Reads "gripper_roll" from the blackboard (set by OpenAndAlignGripperState).
+ * Computes target_roll = π/2 − stored_roll, which maps the two handle extremes
+ * onto each other (0° ↔ 90°). Sends an ONLY_ROLL goal so pinch stays closed.
+ *
+ * Outcomes: SUCCEED, ABORT.
+ */
+class TwistHandleState
+    : public yasmin_ros::ActionState<valve_inspection_fsm::GripperAction> {
+   public:
+    TwistHandleState(const std::string& action_server_name,
+                     double convergence_threshold);
+
+    valve_inspection_fsm::GripperAction::Goal create_goal(
+        yasmin::Blackboard::SharedPtr blackboard);
+
+    std::string result_handler(
+        yasmin::Blackboard::SharedPtr blackboard,
+        valve_inspection_fsm::GripperAction::Result::SharedPtr result);
+
+    void on_feedback(
+        yasmin::Blackboard::SharedPtr blackboard,
+        std::shared_ptr<const valve_inspection_fsm::GripperAction::Feedback>
+            feedback);
+
+   private:
+    double convergence_threshold_;
 };
 
 StateMachineConfig load_config(rclcpp::Node::SharedPtr node);

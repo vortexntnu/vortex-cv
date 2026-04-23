@@ -11,7 +11,7 @@ tcp_offset:
   convergence_threshold: 0.1
   # How far to stop in front of the valve along its outward Z axis [m].
   # Positive = stay in front of valve face, negative = push into valve.
-  valve_z_offset: 0.26
+  valve_z_offset: 0.31 # good number for sim
 
 standoff_waypoint:
   position:

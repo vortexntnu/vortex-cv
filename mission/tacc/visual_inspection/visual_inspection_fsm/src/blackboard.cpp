@@ -15,6 +15,8 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         node->declare_parameter<std::string>("action_servers.waypoint_manager");
     config.landmark_polling_action_server =
         node->declare_parameter<std::string>("action_servers.landmark_polling");
+    config.gripper_action_server = node->declare_parameter<std::string>(
+        "action_servers.gripper", "/vortex/gripper/reference_filter");
     config.start_mission_service =
         node->declare_parameter<std::string>("services.start_mission");
     config.landmark_convergence_yaml_path =
@@ -29,6 +31,8 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         "tcp_base_frame", "nautilus/base_link");
     config.tcp_tip_frame =
         node->declare_parameter<std::string>("tcp_tip_frame", "nautilus/arm");
+    config.gripper_convergence_threshold =
+        node->declare_parameter<double>("gripper_convergence_threshold", 0.05);
 
     // Read valve_z_offset from the convergence YAML (under tcp_offset section).
     try {
