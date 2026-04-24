@@ -16,15 +16,18 @@ PipelineEndDetectorNode::PipelineEndDetectorNode(
 
     RCLCPP_INFO(
         get_logger(),
-        "PipelineEndDetectorNode started. threshold=%d, service='%s'",
+        "PipelineEndDetectorNode started. threshold=%d, awaiting activation on "
+        "'%s'",
         detection_threshold_,
-        get_parameter("topics.end_of_pipeline_service").as_string().c_str());
+        get_parameter("topics.start_detection_service").as_string().c_str());
 }
 
 void PipelineEndDetectorNode::declare_parameters() {
     declare_parameter<std::string>("topics.detection", "classification_output");
     declare_parameter<std::string>("topics.end_of_pipeline_service",
                                    "pipeline_inspection_fsm/pipeline_finished");
+    declare_parameter<std::string>("topics.start_detection_service",
+                                   "pipeline_end_detector/start_detection");
     declare_parameter<int>("detection_threshold", 10);
 }
 
@@ -37,11 +40,25 @@ void PipelineEndDetectorNode::setup_pubsub() {
 
     end_of_pipeline_client_ = create_client<std_srvs::srv::Trigger>(
         get_parameter("topics.end_of_pipeline_service").as_string());
+
+    start_detection_server_ = create_service<std_srvs::srv::Trigger>(
+        get_parameter("topics.start_detection_service").as_string(),
+        std::bind(&PipelineEndDetectorNode::start_detection_callback, this,
+                  std::placeholders::_1, std::placeholders::_2));
+}
+
+void PipelineEndDetectorNode::start_detection_callback(
+    const std_srvs::srv::Trigger::Request::SharedPtr /*request*/,
+    std_srvs::srv::Trigger::Response::SharedPtr response) {
+    detection_active_ = true;
+    response->success = true;
+    response->message = "Pipeline end detection activated.";
+    RCLCPP_INFO(get_logger(), "Pipeline following started — detection active.");
 }
 
 void PipelineEndDetectorNode::detection_callback(
     const std_msgs::msg::UInt8::SharedPtr msg) {
-    if (service_called_) {
+    if (!detection_active_ || service_called_) {
         return;
     }
 
