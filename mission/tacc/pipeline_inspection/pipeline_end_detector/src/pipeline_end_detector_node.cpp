@@ -80,6 +80,7 @@ void PipelineEndDetectorNode::call_end_of_pipeline_service() {
                 RCLCPP_INFO(get_logger(),
                             "End-of-pipeline service call succeeded: %s",
                             response->message.c_str());
+                rclcpp::shutdown();
             } else {
                 RCLCPP_ERROR(get_logger(),
                              "End-of-pipeline service call failed: %s",
