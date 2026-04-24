@@ -44,11 +44,14 @@ ament_target_dependencies(pipeline_inspection_fsm
   std_srvs
   yasmin
   yasmin_ros
-  yasmin_viewer
   vortex_msgs
   vortex_utils
   vortex_utils_ros
   geometry_msgs
+)
+
+target_link_libraries(pipeline_inspection_fsm
+  yasmin_viewer::yasmin_viewer
 )
 
 install(TARGETS
