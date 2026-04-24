@@ -13,6 +13,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
+find_package(vortex_utils_ros REQUIRED)
 
 include_directories(include)
 
@@ -30,6 +31,7 @@ ament_target_dependencies(pipeline_end_detector_node
   rclcpp
   std_msgs
   std_srvs
+  vortex_utils_ros
 )
 
 install(

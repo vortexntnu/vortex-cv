@@ -1,5 +1,7 @@
 #include "pipeline_end_detector/pipeline_end_detector_node.hpp"
 
+#include "vortex/utils/ros/qos_profiles.hpp"
+
 namespace pipeline_end_detector {
 
 PipelineEndDetectorNode::PipelineEndDetectorNode(
@@ -27,8 +29,9 @@ void PipelineEndDetectorNode::declare_parameters() {
 }
 
 void PipelineEndDetectorNode::setup_pubsub() {
+    const auto sensor_qos = vortex::utils::qos_profiles::reliable_profile(10);
     detection_sub_ = create_subscription<std_msgs::msg::UInt8>(
-        get_parameter("topics.detection").as_string(), rclcpp::QoS(10),
+        get_parameter("topics.detection").as_string(), sensor_qos,
         std::bind(&PipelineEndDetectorNode::detection_callback, this,
                   std::placeholders::_1));
 

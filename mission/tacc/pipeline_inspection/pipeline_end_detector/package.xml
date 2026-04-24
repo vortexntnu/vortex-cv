@@ -8,7 +8,7 @@
     number of consecutive detections, triggers a service call to the pipeline
     inspection FSM to signal that the pipeline has ended.
   </description>
-  <maintainer email="todo@todo.com">vortex</maintainer>
+  <maintainer email="ashishbhardwaj2005@gmail.com">vortex</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
@@ -16,6 +16,7 @@
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
   <depend>std_srvs</depend>
+  <depend>vortex_utils_ros</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
