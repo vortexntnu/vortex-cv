@@ -179,10 +179,26 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                        {ABORT, ABORT},
                        {CANCEL, ABORT}});
 
-        sm->add_state("NAV_TO_WALL_DETECT_WAYPOINT",
-                      std::make_shared<SearchPoseWaypointState>(
-                          config.waypoint_manager_action_server, 0.5),
-                      {{SUCCEED, "DOCK_CONFIG_WAYPOINT"},
+        auto nav_to_search_pose = std::make_shared<SearchPoseWaypointState>(
+            config.waypoint_manager_action_server, 0.5);
+
+        auto nav_landmark_poll = std::make_shared<LandmarkPollingState>(
+            config.landmark_polling_action_server, dock_landmark_type,
+            dock_landmark_subtype, "landmarks");
+
+        auto nav_concurrent = std::make_shared<FirstWinsConcurrence>(
+            yasmin::StateMap{
+                {"SEARCH_POSE_NAV", nav_to_search_pose},
+                {"NAV_LANDMARK_POLL", nav_landmark_poll}},
+            ABORT,
+            FirstWinsOutcomeMap{
+                {"SEARCH_POSE_NAV", {{SUCCEED, "nav_done"}, {ABORT, ABORT}}},
+                {"NAV_LANDMARK_POLL",
+                 {{"landmarks_found", "landmark_found"}, {ABORT, ABORT}}}});
+
+        sm->add_state("NAV_TO_WALL_DETECT_WAYPOINT", nav_concurrent,
+                      {{"landmark_found", "ABOVE_DOCK_WAYPOINT"},
+                       {"nav_done", "DOCK_CONFIG_WAYPOINT"},
                        {ABORT, "DOCK_CONFIG_WAYPOINT"},
                        {CANCEL, ABORT}});
     }

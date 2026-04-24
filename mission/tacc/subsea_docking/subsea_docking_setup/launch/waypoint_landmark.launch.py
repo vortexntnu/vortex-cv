@@ -31,7 +31,9 @@ def launch_setup(context, *args, **kwargs):
         executable="waypoint_manager_node",
         name="waypoint_manager_node",
         namespace=namespace,
-        parameters=[drone_params],
+        parameters=[drone_params,
+                    {"debug.waypoint_publish_mode": "timer",
+                     "debug.waypoint_topic_name": f"/{namespace}/current_waypoint"}],
         output="screen",
     )
 
