@@ -1,3 +1,7 @@
+[![Industrial CI](https://github.com/vortexntnu/vortex-cv/actions/workflows/industrial-ci.yml/badge.svg)](https://github.com/vortexntnu/vortex-cv/actions/workflows/industrial-ci.yml)
+[![pre-commit](https://github.com/vortexntnu/vortex-cv/actions/workflows/pre-commit.yml/badge.svg)](https://github.com/vortexntnu/vortex-cv/actions/workflows/pre-commit.yml)
+[![codecov](https://codecov.io/gh/vortexntnu/vortex-cv/graph/badge.svg?token=GoXxR2nR0y)](https://codecov.io/gh/vortexntnu/vortex-cv)
+
 # Introduction
 
 ```
