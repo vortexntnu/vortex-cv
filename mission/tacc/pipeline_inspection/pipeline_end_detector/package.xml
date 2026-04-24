@@ -16,6 +16,8 @@
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
   <depend>std_srvs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>vortex_msgs</depend>
   <depend>vortex_utils_ros</depend>
 
   <export>
