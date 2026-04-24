@@ -145,11 +145,11 @@ class RetreatState : public yasmin_ros::ActionState<
 /**
  * @brief Opens the gripper and aligns its roll to the valve handle orientation.
  *
- * Reads valve landmarks from the blackboard. Extracts the valve yaw (Z rotation)
- * and clamps it to [0, π/2] — the physical handle range. Sends a ROLL_AND_PINCH
- * goal: pinch fully open (-0.3333) and roll matching the handle angle.
- * Stores the computed roll on the blackboard under "gripper_roll" so that
- * TwistHandleState can compute the opposing target later.
+ * Reads valve landmarks from the blackboard. Extracts the valve yaw (Z
+ * rotation) and clamps it to [0, π/2] — the physical handle range. Sends a
+ * ROLL_AND_PINCH goal: pinch fully open (-0.3333) and roll matching the handle
+ * angle. Stores the computed roll on the blackboard under "gripper_roll" so
+ * that TwistHandleState can compute the opposing target later.
  *
  * Outcomes: SUCCEED, ABORT.
  */
@@ -174,7 +174,8 @@ class OpenAndAlignGripperState
    private:
     double convergence_threshold_;
     double computed_roll_{0.0};
-    double actual_roll_{0.0};  // last roll reported by feedback — used for twist
+    double actual_roll_{
+        0.0};  // last roll reported by feedback — used for twist
 };
 
 /**

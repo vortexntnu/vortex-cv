@@ -73,21 +73,21 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                       valve_subtype, "valve_landmarks"),
                   {{"landmarks_found", "ALIGN_HEIGHT"}, {ABORT, ABORT}});
 
-    sm->add_state("ALIGN_HEIGHT",
-                  std::make_shared<AlignHeightState>(
-                      config.waypoint_manager_action_server, standoff_goal,
-                      tcp_offset_goal, config.tcp_base_frame,
-                      config.tcp_tip_frame, config.valve_z_offset),
-                  {{SUCCEED, "LANDMARK_POLLING_3"},
-                   {ABORT, ABORT},
-                   {CANCEL, ABORT}});
+    sm->add_state(
+        "ALIGN_HEIGHT",
+        std::make_shared<AlignHeightState>(
+            config.waypoint_manager_action_server, standoff_goal,
+            tcp_offset_goal, config.tcp_base_frame, config.tcp_tip_frame,
+            config.valve_z_offset),
+        {{SUCCEED, "LANDMARK_POLLING_3"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     // Re-poll for the freshest landmark estimate before gripper alignment.
-    sm->add_state("LANDMARK_POLLING_3",
-                  std::make_shared<vortex_yasmin_utils::LandmarkPollingState>(
-                      config.landmark_polling_action_server, valve_type,
-                      valve_subtype, "valve_landmarks"),
-                  {{"landmarks_found", "OPEN_AND_ALIGN_GRIPPER"}, {ABORT, ABORT}});
+    sm->add_state(
+        "LANDMARK_POLLING_3",
+        std::make_shared<vortex_yasmin_utils::LandmarkPollingState>(
+            config.landmark_polling_action_server, valve_type, valve_subtype,
+            "valve_landmarks"),
+        {{"landmarks_found", "OPEN_AND_ALIGN_GRIPPER"}, {ABORT, ABORT}});
 
     sm->add_state(
         "OPEN_AND_ALIGN_GRIPPER",
@@ -95,22 +95,23 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
             config.gripper_action_server, config.gripper_convergence_threshold),
         {{SUCCEED, "CONVERGE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
-    sm->add_state("CONVERGE",
-                  std::make_shared<ConvergeState>(
-                      config.waypoint_manager_action_server, standoff_goal,
-                      tcp_offset_goal, config.tcp_base_frame,
-                      config.tcp_tip_frame, config.valve_z_offset),
-                  {{SUCCEED, "CLOSE_GRIPPER"}, {ABORT, ABORT}, {CANCEL, ABORT}});
-
     sm->add_state(
-        "CLOSE_GRIPPER",
-        std::make_shared<vortex_yasmin_utils::GripperState>(
-            config.gripper_action_server,
-            0.0,   // roll — ignored in ONLY_PINCH mode
-            0.0,   // pinch = fully closed
-            vortex_msgs::msg::GripperWaypoint::ONLY_PINCH,
-            0.00005), // tighter threshold so gripper is fully closed before twist
-        {{SUCCEED, "TWIST_HANDLE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+        "CONVERGE",
+        std::make_shared<ConvergeState>(
+            config.waypoint_manager_action_server, standoff_goal,
+            tcp_offset_goal, config.tcp_base_frame, config.tcp_tip_frame,
+            config.valve_z_offset),
+        {{SUCCEED, "CLOSE_GRIPPER"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+
+    sm->add_state("CLOSE_GRIPPER",
+                  std::make_shared<vortex_yasmin_utils::GripperState>(
+                      config.gripper_action_server,
+                      0.0,  // roll — ignored in ONLY_PINCH mode
+                      0.0,  // pinch = fully closed
+                      vortex_msgs::msg::GripperWaypoint::ONLY_PINCH,
+                      0.0005),  // tighter threshold so gripper is fully closed
+                                // before twist
+                  {{SUCCEED, "TWIST_HANDLE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     sm->add_state(
         "TWIST_HANDLE",
@@ -118,16 +119,16 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
             config.gripper_action_server, config.gripper_convergence_threshold),
         {{SUCCEED, "OPEN_GRIPPER"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
-    // Release the handle before retreating so the gripper doesn't drag the valve.
-    sm->add_state(
-        "OPEN_GRIPPER",
-        std::make_shared<vortex_yasmin_utils::GripperState>(
-            config.gripper_action_server,
-            0.0,     // roll — ignored in ONLY_PINCH mode
-            -0.3333, // pinch = fully open
-            vortex_msgs::msg::GripperWaypoint::ONLY_PINCH,
-            config.gripper_convergence_threshold),
-        {{SUCCEED, "RETREAT"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+    // Release the handle before retreating so the gripper doesn't drag the
+    // valve.
+    sm->add_state("OPEN_GRIPPER",
+                  std::make_shared<vortex_yasmin_utils::GripperState>(
+                      config.gripper_action_server,
+                      0.0,      // roll — ignored in ONLY_PINCH mode
+                      -0.3333,  // pinch = fully open
+                      vortex_msgs::msg::GripperWaypoint::ONLY_PINCH,
+                      config.gripper_convergence_threshold),
+                  {{SUCCEED, "RETREAT"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     sm->add_state("RETREAT",
                   std::make_shared<RetreatState>(

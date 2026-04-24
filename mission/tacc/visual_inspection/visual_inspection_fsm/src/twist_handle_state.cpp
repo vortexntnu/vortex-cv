@@ -9,36 +9,41 @@
 
 TwistHandleState::TwistHandleState(const std::string& action_server_name,
                                    double convergence_threshold)
-    : ActionState(
-          action_server_name,
-          std::bind(&TwistHandleState::create_goal,
-                    this,
-                    std::placeholders::_1),
-          yasmin::Outcomes{yasmin_ros::basic_outcomes::SUCCEED,
-                           yasmin_ros::basic_outcomes::ABORT},
-          std::bind(&TwistHandleState::result_handler,
-                    this,
-                    std::placeholders::_1,
-                    std::placeholders::_2),
-          std::bind(&TwistHandleState::on_feedback,
-                    this,
-                    std::placeholders::_1,
-                    std::placeholders::_2)),
+    : ActionState(action_server_name,
+                  std::bind(&TwistHandleState::create_goal,
+                            this,
+                            std::placeholders::_1),
+                  yasmin::Outcomes{yasmin_ros::basic_outcomes::SUCCEED,
+                                   yasmin_ros::basic_outcomes::ABORT},
+                  std::bind(&TwistHandleState::result_handler,
+                            this,
+                            std::placeholders::_1,
+                            std::placeholders::_2),
+                  std::bind(&TwistHandleState::on_feedback,
+                            this,
+                            std::placeholders::_1,
+                            std::placeholders::_2)),
       convergence_threshold_(convergence_threshold) {}
 
 valve_inspection_fsm::GripperAction::Goal TwistHandleState::create_goal(
     yasmin::Blackboard::SharedPtr blackboard) {
     const double stored_roll = blackboard->get<double>("gripper_roll");
 
-    // Gripper was aligned perpendicular to the handle (roll = π/2 - handle_angle).
-    // Twisting by π/2 drives it to the opposite extreme:
-    //   handle at 90° → gripper at 0°, twist to π/2  (positive)
-    //   handle at  0° → gripper at π/2, twist to 0   (negative)
-    // Both cases are unambiguous shortest-path for the action server.
-    const double target_roll = M_PI / 2.0 - stored_roll;
+    // Gripper was aligned perpendicular to the handle (roll = π/2 -
+    // handle_angle). Twist to the opposite extreme, then overshoot slightly so
+    // the gripper presses against the valve's mechanical stop rather than
+    // stopping just short.
+    //   handle at 90° → stored≈0, target > π/2  (positive overshoot)
+    //   handle at  0° → stored≈π/2, target < 0  (negative overshoot)
+    constexpr double kOvershoot = 0.15;  // ~8.6° past the endpoint
+    const double base_target = M_PI / 2.0 - stored_roll;
+    const double overshoot =
+        (stored_roll < M_PI / 4.0) ? kOvershoot : -kOvershoot;
+    const double target_roll = base_target + overshoot;
 
-    YASMIN_LOG_INFO("TwistHandle: stored_roll=%.4f rad → target_roll=%.4f rad",
-                    stored_roll, target_roll);
+    YASMIN_LOG_INFO(
+        "TwistHandle: stored_roll=%.4f rad → base=%.4f rad, target=%.4f rad",
+        stored_roll, base_target, target_roll);
 
     vortex_msgs::msg::GripperReferenceFilter roll_ref;
     roll_ref.roll = target_roll;

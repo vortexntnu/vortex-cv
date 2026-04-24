@@ -20,7 +20,8 @@ using GripperAction = vortex_msgs::action::GripperReferenceFilterWaypoint;
  *
  * Outcomes: SUCCEED, ABORT.
  *
- * @param action_server_name     Name of the GripperReferenceFilter action server.
+ * @param action_server_name     Name of the GripperReferenceFilter action
+ * server.
  * @param roll                   Target roll value (radians).
  * @param pinch                  Target pinch value (normalised 0–1).
  * @param mode                   GripperWaypoint mode (ROLL_AND_PINCH=0,

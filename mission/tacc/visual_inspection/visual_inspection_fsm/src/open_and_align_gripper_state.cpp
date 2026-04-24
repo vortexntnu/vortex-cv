@@ -13,25 +13,23 @@
 OpenAndAlignGripperState::OpenAndAlignGripperState(
     const std::string& action_server_name,
     double convergence_threshold)
-    : ActionState(
-          action_server_name,
-          std::bind(&OpenAndAlignGripperState::create_goal,
-                    this,
-                    std::placeholders::_1),
-          yasmin::Outcomes{yasmin_ros::basic_outcomes::SUCCEED,
-                           yasmin_ros::basic_outcomes::ABORT},
-          std::bind(&OpenAndAlignGripperState::result_handler,
-                    this,
-                    std::placeholders::_1,
-                    std::placeholders::_2),
-          std::bind(&OpenAndAlignGripperState::on_feedback,
-                    this,
-                    std::placeholders::_1,
-                    std::placeholders::_2)),
+    : ActionState(action_server_name,
+                  std::bind(&OpenAndAlignGripperState::create_goal,
+                            this,
+                            std::placeholders::_1),
+                  yasmin::Outcomes{yasmin_ros::basic_outcomes::SUCCEED,
+                                   yasmin_ros::basic_outcomes::ABORT},
+                  std::bind(&OpenAndAlignGripperState::result_handler,
+                            this,
+                            std::placeholders::_1,
+                            std::placeholders::_2),
+                  std::bind(&OpenAndAlignGripperState::on_feedback,
+                            this,
+                            std::placeholders::_1,
+                            std::placeholders::_2)),
       convergence_threshold_(convergence_threshold) {}
 
-valve_inspection_fsm::GripperAction::Goal
-OpenAndAlignGripperState::create_goal(
+valve_inspection_fsm::GripperAction::Goal OpenAndAlignGripperState::create_goal(
     yasmin::Blackboard::SharedPtr blackboard) {
     const auto& landmarks =
         blackboard->get<std::vector<vortex_msgs::msg::Landmark>>(
@@ -43,17 +41,18 @@ OpenAndAlignGripperState::create_goal(
     const Eigen::Quaterniond q = valve_pose.ori_quaternion();
 
     // Extract yaw (rotation about world Z) from the valve quaternion.
-    const double yaw = std::atan2(
-        2.0 * (q.w() * q.z() + q.x() * q.y()),
-        1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z()));
+    const double yaw = std::atan2(2.0 * (q.w() * q.z() + q.x() * q.y()),
+                                  1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z()));
 
     // The gripper jaws must be perpendicular to the handle to clamp it, so the
     // roll is offset by 90° from the handle angle. Take absolute value first
-    // because perception sometimes returns the mirror angle (e.g. -π/2 vs +π/2).
+    // because perception sometimes returns the mirror angle (e.g. -π/2 vs
+    // +π/2).
     computed_roll_ = std::clamp(M_PI / 2.0 - std::abs(yaw), 0.0, M_PI / 2.0);
 
-    YASMIN_LOG_INFO("OpenAndAlignGripper: valve yaw=%.4f rad, gripper roll → %.4f rad",
-                    yaw, computed_roll_);
+    YASMIN_LOG_INFO(
+        "OpenAndAlignGripper: valve yaw=%.4f rad, gripper roll → %.4f rad", yaw,
+        computed_roll_);
 
     vortex_msgs::msg::GripperReferenceFilter roll_ref;
     roll_ref.roll = computed_roll_;
