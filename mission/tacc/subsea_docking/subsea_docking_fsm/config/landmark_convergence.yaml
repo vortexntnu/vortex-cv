@@ -1,4 +1,4 @@
-pre_dock_waypoint:  # Offset applied to polled landmark to navigate above the docking station.
+above_dock_waypoint:  # Offset applied to polled landmark to navigate above the docking station.
   position:
     x: 0.0
     y: 0.0

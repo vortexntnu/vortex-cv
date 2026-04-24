@@ -79,7 +79,7 @@ class SearchPoseWaypointState : public vortex_yasmin_utils::WaypointGoalState {
 
         vortex_msgs::msg::Waypoint wp;
         wp.pose = request->pose.pose;
-        wp.waypoint_mode.mode = 0;  // FULL_POSE
+        wp.waypoint_mode.mode = vortex_msgs::msg::WaypointMode::ONLY_POSITION;
 
         WaypointManagerAction::Goal goal;
         goal.waypoints = {wp};
@@ -98,56 +98,56 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
     auto sm = std::make_shared<yasmin::StateMachine>(
         std::set<std::string>{SUCCEED, ABORT});
 
-    const auto fallback_goal =
+    const auto dock_config_waypoint_goal =
         blackboard->get<vortex::utils::waypoints::WaypointGoal>(
-            "fallback_waypoint_goal");
+            "dock_config_waypoint_goal");
 
-    const auto pre_dock_waypoint_goal =
+    const auto above_dock_waypoint_goal =
         blackboard->get<vortex::utils::waypoints::WaypointGoal>(
-            "pre_dock_waypoint_goal");
+            "above_dock_waypoint_goal");
 
     const auto power_puck_waypoint_goal =
         blackboard->get<vortex::utils::waypoints::WaypointGoal>(
             "power_puck_waypoint_goal");
 
-    vortex_msgs::msg::LandmarkType landmark_type;
-    landmark_type.value = vortex_msgs::msg::LandmarkType::ARUCO_BOARD;
+    vortex_msgs::msg::LandmarkType dock_landmark_type;
+    dock_landmark_type.value = vortex_msgs::msg::LandmarkType::ARUCO_BOARD;
 
-    vortex_msgs::msg::LandmarkSubtype landmark_subtype;
-    landmark_subtype.value =
+    vortex_msgs::msg::LandmarkSubtype dock_landmark_subtype;
+    dock_landmark_subtype.value =
         0;  // Accept all subtypes under the specified type.
 
-    sm->add_state("START_MISSION_WAIT",
+    sm->add_state("AWAIT_START_TRIGGER",
                   std::make_shared<StartMissionWaitState>(
                       config.start_mission_service,
                       config.docking_estimator_start_service),
-                  {{SUCCEED, config.skip_search ? "FALLBACK_SEARCH" : "SEARCH"},
+                  {{SUCCEED, config.use_wall_detection ? "WALL_DETECTION_ESTIMATE" : "DOCK_CONFIG_WAYPOINT"},
                    {CANCEL, ABORT}});
 
-    auto fallback_waypoint = std::make_shared<WaypointGoalState>(
-        config.waypoint_manager_action_server, fallback_goal);
+    auto dock_config_nav = std::make_shared<WaypointGoalState>(
+        config.waypoint_manager_action_server, dock_config_waypoint_goal);
 
-    auto fallback_landmark_polling = std::make_shared<LandmarkPollingState>(
-        config.landmark_polling_action_server, landmark_type, landmark_subtype,
+    auto dock_config_landmark_poll = std::make_shared<LandmarkPollingState>(
+        config.landmark_polling_action_server, dock_landmark_type, dock_landmark_subtype,
         "landmarks");
 
-    auto fallback_search = std::make_shared<FirstWinsConcurrence>(
+    auto dock_config_concurrent = std::make_shared<FirstWinsConcurrence>(
         yasmin::StateMap{
-            {"FALLBACK_WAYPOINT", fallback_waypoint},
-            {"FALLBACK_LANDMARK_POLLING", fallback_landmark_polling}},
+            {"DOCK_CONFIG_NAV", dock_config_nav},
+            {"DOCK_CONFIG_LANDMARK_POLL", dock_config_landmark_poll}},
         ABORT,
         FirstWinsOutcomeMap{
-            {"FALLBACK_WAYPOINT", {{SUCCEED, ABORT}, {ABORT, ABORT}}},
-            {"FALLBACK_LANDMARK_POLLING",
+            {"DOCK_CONFIG_NAV", {{SUCCEED, ABORT}, {ABORT, ABORT}}},
+            {"DOCK_CONFIG_LANDMARK_POLL",
              {{"landmarks_found", "landmark_found"}, {ABORT, ABORT}}}},
-        std::unordered_set<std::string>{"FALLBACK_LANDMARK_POLLING"});
+        std::unordered_set<std::string>{"DOCK_CONFIG_LANDMARK_POLL"});
 
-    sm->add_state("FALLBACK_SEARCH", fallback_search,
-                  {{"landmark_found", "PRE_DOCK_WAYPOINT"},
+    sm->add_state("DOCK_CONFIG_WAYPOINT", dock_config_concurrent,
+                  {{"landmark_found", "ABOVE_DOCK_WAYPOINT"},
                    {ABORT, ABORT},
                    {CANCEL, ABORT}});
 
-    if (!config.skip_search) {
+    if (config.use_wall_detection) {
         using SendPoseSrv = vortex_msgs::srv::SendPose;
 
         auto service_request =
@@ -157,8 +157,8 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                     config.service_request_timeout_sec));
 
         auto landmark_polling = std::make_shared<LandmarkPollingState>(
-            config.landmark_polling_action_server, landmark_type,
-            landmark_subtype, "landmarks");
+            config.landmark_polling_action_server, dock_landmark_type,
+            dock_landmark_subtype, "landmarks");
 
         auto search = std::make_shared<FirstWinsConcurrence>(
             yasmin::StateMap{{"SERVICE_REQUEST", service_request},
@@ -172,30 +172,30 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                                  {{"landmarks_found", "landmark_found"},
                                   {ABORT, "service_timeout"}}}});
 
-        sm->add_state("SEARCH", search,
-                      {{"landmark_found", "PRE_DOCK_WAYPOINT"},
-                       {"pose_received", "SEARCH_POSE_NAV"},
-                       {"service_timeout", "FALLBACK_SEARCH"},
+        sm->add_state("WALL_DETECTION_ESTIMATE", search,
+                      {{"landmark_found", "ABOVE_DOCK_WAYPOINT"},
+                       {"pose_received", "NAV_TO_WALL_DETECT_WAYPOINT"},
+                       {"service_timeout", "DOCK_CONFIG_WAYPOINT"},
                        {ABORT, ABORT},
                        {CANCEL, ABORT}});
 
-        sm->add_state("SEARCH_POSE_NAV",
+        sm->add_state("NAV_TO_WALL_DETECT_WAYPOINT",
                       std::make_shared<SearchPoseWaypointState>(
                           config.waypoint_manager_action_server, 0.5),
-                      {{SUCCEED, "FALLBACK_SEARCH"},
-                       {ABORT, "FALLBACK_SEARCH"},
+                      {{SUCCEED, "DOCK_CONFIG_WAYPOINT"},
+                       {ABORT, "DOCK_CONFIG_WAYPOINT"},
                        {CANCEL, ABORT}});
     }
 
     // Navigate above the docking station using the polled landmark position.
-    sm->add_state("PRE_DOCK_WAYPOINT",
+    sm->add_state("ABOVE_DOCK_WAYPOINT",
                   std::make_shared<LandmarkWaypointState>(
                       config.waypoint_manager_action_server,
-                      pre_dock_waypoint_goal, "landmarks"),
-                  {{SUCCEED, "STABILIZE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+                      above_dock_waypoint_goal, "landmarks"),
+                  {{SUCCEED, "STABILIZE_ABOVE_DOCK"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     // Hold position for 5 seconds before re-polling to get a stable estimate.
-    sm->add_state("STABILIZE",
+    sm->add_state("STABILIZE_ABOVE_DOCK",
                   yasmin::CbState::make_shared(
                       yasmin::Outcomes{SUCCEED},
                       [](auto) {
@@ -203,19 +203,19 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                           std::this_thread::sleep_for(std::chrono::seconds(5));
                           return SUCCEED;
                       }),
-                  {{SUCCEED, "LANDMARK_POLLING_2"}});
+                  {{SUCCEED, "LANDMARK_POLLING_ABOVE_DOCK"}});
 
     // Re-poll to get a fresh landmark estimate after stabilization.
     sm->add_state(
-        "LANDMARK_POLLING_2",
+        "LANDMARK_POLLING_ABOVE_DOCK",
         std::make_shared<LandmarkPollingState>(
-            config.landmark_polling_action_server, landmark_type,
-            landmark_subtype, "landmarks"),
-        {{"landmarks_found", "LANDMARK_CONVERGENCE"}, {ABORT, ABORT}});
+            config.landmark_polling_action_server, dock_landmark_type,
+            dock_landmark_subtype, "landmarks"),
+        {{"landmarks_found", "DOCKING_CONVERGENCE"}, {ABORT, ABORT}});
 
     // Converge on the docking station using the fresh landmark + power puck
     // offset.
-    sm->add_state("LANDMARK_CONVERGENCE",
+    sm->add_state("DOCKING_CONVERGENCE",
                   std::make_shared<LandmarkWaypointState>(
                       config.waypoint_manager_action_server,
                       power_puck_waypoint_goal, "landmarks"),

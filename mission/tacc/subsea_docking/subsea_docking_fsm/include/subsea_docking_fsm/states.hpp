@@ -12,7 +12,7 @@
 #include <string>
 
 struct StateMachineConfig {
-    bool skip_search;
+    bool use_wall_detection;
     bool use_service_waypoint;
     std::string start_mission_service;
     std::string waypoint_manager_action_server;

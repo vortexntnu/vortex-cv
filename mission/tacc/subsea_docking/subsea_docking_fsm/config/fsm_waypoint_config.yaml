@@ -1,4 +1,4 @@
-fallback_docking_waypoint:  # Navigated to when service_request_state times out during search.
+dock_config_waypoint:  # Navigated to when wall detection times out or is disabled.
   mode: 0
   position:
     x: 0.0
