@@ -20,9 +20,9 @@ def launch_setup(context, *args, **kwargs):
             {
                 "subs.image_topic": f"/{namespace}/down_camera/image_color",
                 "subs.camera_info_topic": f"/{namespace}/down_camera/camera_info",
-                "pubs.aruco_image": "/aruco_detector/image",
-                "pubs.aruco_poses": "/aruco_detector/markers",
-                "pubs.board_pose": "/aruco_detector/board",
+                "pubs.aruco_image": "/aruco_detector/image_down",
+                "pubs.aruco_poses": "/aruco_detector/markers_down",
+                "pubs.board_pose": "/aruco_detector/board_down",
                 "pubs.landmarks": f"/{namespace}/landmarks",
                 "logger_service_name": "/toggle_marker_logger",
                 "detect_board": True,
@@ -35,6 +35,7 @@ def launch_setup(context, *args, **kwargs):
                 "board.xDist": 0.430,
                 "board.yDist": 0.830,
                 "board.ids": [28, 7, 96, 19],
+                "enu_ned_rotation": True,
                 "out_tf_frame": f"{namespace}/downwards_camera_optical",
             }
         ],

@@ -41,7 +41,7 @@ def launch_setup(context, *args, **kwargs):
             {
                 "fsm_waypoint_config": fsm_waypoint_config,
                 "landmark_convergence_config": landmark_convergence_config,
-                "skip_search": False,
+                "use_wall_detection": True,
                 "use_service_waypoint": True,
                 "service_request_timeout_sec": 20.0,
                 "docking_position_service": "/docking_position_estimator/docking_pose",
