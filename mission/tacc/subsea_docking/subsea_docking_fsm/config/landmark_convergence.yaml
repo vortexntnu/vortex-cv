@@ -7,7 +7,7 @@ above_dock_waypoint:  # Offset applied to polled landmark to navigate above the 
     roll: 0.0
     pitch: 0.0
     yaw: 0.0
-  mode: 0
+  mode: position_and_yaw
   convergence_threshold: 0.1
 
 power_puck_waypoint:  # Offset applied to re-polled landmark to converge on the power puck connector.
@@ -19,5 +19,5 @@ power_puck_waypoint:  # Offset applied to re-polled landmark to converge on the 
     roll: 0.0
     pitch: 0.0
     yaw: 0.0
-  mode: 0
+  mode: position_and_yaw
   convergence_threshold: 0.1

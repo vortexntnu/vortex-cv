@@ -117,19 +117,21 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
     dock_landmark_subtype.value =
         0;  // Accept all subtypes under the specified type.
 
-    sm->add_state("AWAIT_START_TRIGGER",
-                  std::make_shared<StartMissionWaitState>(
-                      config.start_mission_service,
-                      config.docking_estimator_start_service),
-                  {{SUCCEED, config.use_wall_detection ? "WALL_DETECTION_ESTIMATE" : "DOCK_CONFIG_WAYPOINT"},
-                   {CANCEL, ABORT}});
+    sm->add_state(
+        "AWAIT_START_TRIGGER",
+        std::make_shared<StartMissionWaitState>(
+            config.start_mission_service,
+            config.docking_estimator_start_service),
+        {{SUCCEED, config.use_wall_detection ? "WALL_DETECTION_ESTIMATE"
+                                             : "DOCK_CONFIG_WAYPOINT"},
+         {CANCEL, ABORT}});
 
     auto dock_config_nav = std::make_shared<WaypointGoalState>(
         config.waypoint_manager_action_server, dock_config_waypoint_goal);
 
     auto dock_config_landmark_poll = std::make_shared<LandmarkPollingState>(
-        config.landmark_polling_action_server, dock_landmark_type, dock_landmark_subtype,
-        "landmarks");
+        config.landmark_polling_action_server, dock_landmark_type,
+        dock_landmark_subtype, "landmarks");
 
     auto dock_config_concurrent = std::make_shared<FirstWinsConcurrence>(
         yasmin::StateMap{
@@ -187,9 +189,8 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
             dock_landmark_subtype, "landmarks");
 
         auto nav_concurrent = std::make_shared<FirstWinsConcurrence>(
-            yasmin::StateMap{
-                {"SEARCH_POSE_NAV", nav_to_search_pose},
-                {"NAV_LANDMARK_POLL", nav_landmark_poll}},
+            yasmin::StateMap{{"SEARCH_POSE_NAV", nav_to_search_pose},
+                             {"NAV_LANDMARK_POLL", nav_landmark_poll}},
             ABORT,
             FirstWinsOutcomeMap{
                 {"SEARCH_POSE_NAV", {{SUCCEED, "nav_done"}, {ABORT, ABORT}}},
@@ -204,13 +205,14 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
     }
 
     // Navigate above the docking station using the polled landmark position.
-    sm->add_state("ABOVE_DOCK_WAYPOINT",
-                  std::make_shared<LandmarkWaypointState>(
-                      config.waypoint_manager_action_server,
-                      above_dock_waypoint_goal, "landmarks"),
-                  {{SUCCEED, "STABILIZE_ABOVE_DOCK"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+    sm->add_state(
+        "ABOVE_DOCK_WAYPOINT",
+        std::make_shared<LandmarkWaypointState>(
+            config.waypoint_manager_action_server, above_dock_waypoint_goal,
+            "landmarks"),
+        {{SUCCEED, "STABILIZE_ABOVE_DOCK"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
-    // Hold position for 5 seconds before re-polling to get a stable estimate.
+    // Hold position for 5 seconds before fine-tuning horizontal alignment.
     sm->add_state("STABILIZE_ABOVE_DOCK",
                   yasmin::CbState::make_shared(
                       yasmin::Outcomes{SUCCEED},
@@ -219,15 +221,38 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                           std::this_thread::sleep_for(std::chrono::seconds(5));
                           return SUCCEED;
                       }),
-                  {{SUCCEED, "LANDMARK_POLLING_ABOVE_DOCK"}});
+                  {{SUCCEED, "ALIGN_ABOVE_DOCK"}});
+
+    // Fine-tune x/y and yaw above the dock while holding depth.
+    vortex::utils::waypoints::WaypointGoal above_dock_xy_goal =
+        above_dock_waypoint_goal;
+    above_dock_xy_goal.mode = vortex::utils::types::WaypointMode::XY_AND_YAW;
+
+    sm->add_state(
+        "ALIGN_ABOVE_DOCK",
+        std::make_shared<LandmarkWaypointState>(
+            config.waypoint_manager_action_server, above_dock_xy_goal,
+            "landmarks"),
+        {{SUCCEED, "STABILIZE_ALIGNED"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+
+    // Hold position for 5 seconds after alignment before re-polling.
+    sm->add_state(
+        "STABILIZE_ALIGNED",
+        yasmin::CbState::make_shared(
+            yasmin::Outcomes{SUCCEED},
+            [](auto) {
+                YASMIN_LOG_INFO("Stabilizing after alignment for 5 seconds...");
+                std::this_thread::sleep_for(std::chrono::seconds(5));
+                return SUCCEED;
+            }),
+        {{SUCCEED, "LANDMARK_POLLING_ABOVE_DOCK"}});
 
     // Re-poll to get a fresh landmark estimate after stabilization.
-    sm->add_state(
-        "LANDMARK_POLLING_ABOVE_DOCK",
-        std::make_shared<LandmarkPollingState>(
-            config.landmark_polling_action_server, dock_landmark_type,
-            dock_landmark_subtype, "landmarks"),
-        {{"landmarks_found", "DOCKING_CONVERGENCE"}, {ABORT, ABORT}});
+    sm->add_state("LANDMARK_POLLING_ABOVE_DOCK",
+                  std::make_shared<LandmarkPollingState>(
+                      config.landmark_polling_action_server, dock_landmark_type,
+                      dock_landmark_subtype, "landmarks"),
+                  {{"landmarks_found", "DOCKING_CONVERGENCE"}, {ABORT, ABORT}});
 
     // Converge on the docking station using the fresh landmark + power puck
     // offset.

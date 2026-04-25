@@ -16,7 +16,8 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
     config.landmark_polling_action_server =
         node->declare_parameter<std::string>("action_servers.landmark_polling");
 
-    config.use_wall_detection = node->declare_parameter<bool>("use_wall_detection");
+    config.use_wall_detection =
+        node->declare_parameter<bool>("use_wall_detection");
 
     config.service_request_timeout_sec =
         node->declare_parameter<double>("service_request_timeout_sec");
@@ -26,7 +27,9 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         node->declare_parameter<std::string>("docking_estimator_start_service");
 
     if (!config.use_wall_detection) {
-        spdlog::info("use_wall_detection disabled: going directly to dock config waypoint.");
+        spdlog::info(
+            "use_wall_detection disabled: going directly to dock config "
+            "waypoint.");
     } else if (config.use_service_waypoint) {
         config.docking_position_service =
             node->declare_parameter<std::string>("docking_position_service");

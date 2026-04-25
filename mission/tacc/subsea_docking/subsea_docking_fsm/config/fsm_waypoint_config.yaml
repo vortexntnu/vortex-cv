@@ -1,5 +1,5 @@
 dock_config_waypoint:  # Navigated to when wall detection times out or is disabled.
-  mode: only_position
+  mode: forward_heading
   position:
     x: 0.0
     y: 7.5
