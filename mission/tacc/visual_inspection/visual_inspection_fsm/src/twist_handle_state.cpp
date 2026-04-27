@@ -8,7 +8,8 @@
 #include <yasmin_ros/ros_logs.hpp>
 
 TwistHandleState::TwistHandleState(const std::string& action_server_name,
-                                   double convergence_threshold)
+                                   double convergence_threshold,
+                                   int turn_direction)
     : ActionState(action_server_name,
                   std::bind(&TwistHandleState::create_goal,
                             this,
@@ -23,27 +24,24 @@ TwistHandleState::TwistHandleState(const std::string& action_server_name,
                             this,
                             std::placeholders::_1,
                             std::placeholders::_2)),
-      convergence_threshold_(convergence_threshold) {}
+      convergence_threshold_(convergence_threshold),
+      turn_direction_(turn_direction) {}
 
 valve_inspection_fsm::GripperAction::Goal TwistHandleState::create_goal(
     yasmin::Blackboard::SharedPtr blackboard) {
     const double stored_roll = blackboard->get<double>("gripper_roll");
 
-    // Gripper was aligned perpendicular to the handle (roll = π/2 -
-    // handle_angle). Twist to the opposite extreme, then overshoot slightly so
-    // the gripper presses against the valve's mechanical stop rather than
-    // stopping just short.
-    //   handle at 90° → stored≈0, target > π/2  (positive overshoot)
-    //   handle at  0° → stored≈π/2, target < 0  (negative overshoot)
+    // Twist π/2 in the configured direction from the current gripper roll,
+    // then overshoot slightly to press against the valve's mechanical stop.
+    // turn_direction_: +1 = CCW (positive roll), -1 = CW (negative roll)
+    //   from the drone's perspective when facing the valve.
     constexpr double kOvershoot = 0.15;  // ~8.6° past the endpoint
-    const double base_target = M_PI / 2.0 - stored_roll;
-    const double overshoot =
-        (stored_roll < M_PI / 4.0) ? kOvershoot : -kOvershoot;
-    const double target_roll = base_target + overshoot;
+    const double target_roll =
+        stored_roll + turn_direction_ * (M_PI / 2.0 + kOvershoot);
 
     YASMIN_LOG_INFO(
-        "TwistHandle: stored_roll=%.4f rad → base=%.4f rad, target=%.4f rad",
-        stored_roll, base_target, target_roll);
+        "TwistHandle: stored_roll=%.4f rad, direction=%+d → target=%.4f rad",
+        stored_roll, turn_direction_, target_roll);
 
     vortex_msgs::msg::GripperReferenceFilter roll_ref;
     roll_ref.roll = target_roll;

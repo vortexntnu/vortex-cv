@@ -1,10 +1,6 @@
 #include "visual_inspection_fsm/states.hpp"
 
-#if __has_include(<tf2_ros/transform_listener.hpp>)
 #include <tf2_ros/transform_listener.hpp>
-#else
-#include <tf2_ros/transform_listener.h>
-#endif
 
 #include <yaml-cpp/yaml.h>
 
@@ -31,8 +27,23 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         "tcp_base_frame", "nautilus/base_link");
     config.tcp_tip_frame =
         node->declare_parameter<std::string>("tcp_tip_frame", "nautilus/arm");
+    config.depth_camera_frame = node->declare_parameter<std::string>(
+        "depth_camera_frame", "nautilus/depth_camera");
     config.gripper_convergence_threshold =
         node->declare_parameter<double>("gripper_convergence_threshold", 0.05);
+
+    const std::string turn_dir_str =
+        node->declare_parameter<std::string>("valve_turn_direction", "ccw");
+    if (turn_dir_str == "cw") {
+        config.valve_turn_direction = -1;
+    } else if (turn_dir_str == "ccw") {
+        config.valve_turn_direction = 1;
+    } else {
+        RCLCPP_WARN(node->get_logger(),
+                    "Unknown valve_turn_direction '%s', defaulting to 'ccw'",
+                    turn_dir_str.c_str());
+        config.valve_turn_direction = 1;
+    }
 
     // Read valve_z_offset from the convergence YAML (under tcp_offset section).
     try {

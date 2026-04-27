@@ -1,8 +1,5 @@
 #include "visual_inspection_fsm/states.hpp"
 
-#include <chrono>
-#include <thread>
-
 #include <yasmin/cb_state.hpp>
 #include <yasmin/state_machine.hpp>
 #include <yasmin_ros/basic_outcomes.hpp>
@@ -49,45 +46,34 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                   std::make_shared<vortex_yasmin_utils::LandmarkPollingState>(
                       config.landmark_polling_action_server, valve_type,
                       valve_subtype, "valve_landmarks"),
-                  {{"landmarks_found", "STANDOFF"}, {ABORT, ABORT}});
+                  {{"landmarks_found", "ALIGN_HEIGHT_CAMERA"}, {ABORT, ABORT}});
 
-    sm->add_state("STANDOFF",
-                  std::make_shared<StandoffState>(
-                      config.waypoint_manager_action_server, standoff_goal),
-                  {{SUCCEED, "STABILIZE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+    // Move to standoff XY and align camera height with the valve so the depth
+    // camera looks directly at the valve before re-polling.
+    sm->add_state(
+        "ALIGN_HEIGHT_CAMERA",
+        std::make_shared<AlignHeightCameraState>(
+            config.waypoint_manager_action_server, standoff_goal,
+            config.tcp_base_frame, config.depth_camera_frame),
+        {{SUCCEED, "LANDMARK_POLLING_2"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
-    // Brief stabilization pause before re-polling for a refined estimate.
-    sm->add_state("STABILIZE",
-                  yasmin::CbState::make_shared(
-                      yasmin::Outcomes{SUCCEED},
-                      [](auto) {
-                          YASMIN_LOG_INFO("Stabilizing before refined poll...");
-                          std::this_thread::sleep_for(std::chrono::seconds(5));
-                          return SUCCEED;
-                      }),
-                  {{SUCCEED, "LANDMARK_POLLING_2"}});
-
+    // Re-poll with depth camera now level with the valve for the best reading.
     sm->add_state("LANDMARK_POLLING_2",
                   std::make_shared<vortex_yasmin_utils::LandmarkPollingState>(
                       config.landmark_polling_action_server, valve_type,
                       valve_subtype, "valve_landmarks"),
                   {{"landmarks_found", "ALIGN_HEIGHT"}, {ABORT, ABORT}});
 
+    // Correct drone Z so the gripper tip will be at the valve handle height.
+    // No further polling — the depth reading from LANDMARK_POLLING_2 is the
+    // best estimate available.
     sm->add_state(
         "ALIGN_HEIGHT",
         std::make_shared<AlignHeightState>(
             config.waypoint_manager_action_server, standoff_goal,
             tcp_offset_goal, config.tcp_base_frame, config.tcp_tip_frame,
             config.valve_z_offset),
-        {{SUCCEED, "LANDMARK_POLLING_3"}, {ABORT, ABORT}, {CANCEL, ABORT}});
-
-    // Re-poll for the freshest landmark estimate before gripper alignment.
-    sm->add_state(
-        "LANDMARK_POLLING_3",
-        std::make_shared<vortex_yasmin_utils::LandmarkPollingState>(
-            config.landmark_polling_action_server, valve_type, valve_subtype,
-            "valve_landmarks"),
-        {{"landmarks_found", "OPEN_AND_ALIGN_GRIPPER"}, {ABORT, ABORT}});
+        {{SUCCEED, "OPEN_AND_ALIGN_GRIPPER"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     sm->add_state(
         "OPEN_AND_ALIGN_GRIPPER",
@@ -115,8 +101,9 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
 
     sm->add_state(
         "TWIST_HANDLE",
-        std::make_shared<TwistHandleState>(
-            config.gripper_action_server, config.gripper_convergence_threshold),
+        std::make_shared<TwistHandleState>(config.gripper_action_server,
+                                           config.gripper_convergence_threshold,
+                                           config.valve_turn_direction),
         {{SUCCEED, "OPEN_GRIPPER"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     // Release the handle before retreating so the gripper doesn't drag the

@@ -6,11 +6,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 
-#if __has_include(<tf2_ros/buffer.hpp>)
 #include <tf2_ros/buffer.hpp>
-#else
-#include <tf2_ros/buffer.h>
-#endif
 
 #include <vortex/utils/waypoint_utils.hpp>
 #include <vortex_msgs/action/gripper_reference_filter_waypoint.hpp>
@@ -41,28 +37,37 @@ struct StateMachineConfig {
     bool vertical_mounted_valve;
     std::string tcp_base_frame;
     std::string tcp_tip_frame;
+    std::string depth_camera_frame;
     double valve_z_offset{0.0};
     double gripper_convergence_threshold{0.05};
+    int valve_turn_direction{
+        1};  // +1 = CCW, -1 = CW; parsed from "ccw"/"cw" launch param
 };
 
 /**
- * @brief Moves drone to a standoff position aligned with the valve normal.
+ * @brief Moves drone to standoff XY with camera height aligned to the valve.
  *
- * Reads valve landmarks from the blackboard. Computes standoff position by
- * rotating the configured offset into the odom frame using the valve
- * orientation. Sets drone orientation so that +X faces −Z_valve (toward valve).
+ * Computes standoff XY from the valve normal (same formula as old
+ * StandoffState). Adjusts Z so the depth camera is at the same height as the
+ * valve center, ensuring the depth camera's optical axis is level with the
+ * valve for the most accurate depth reading before re-polling.
  */
-class StandoffState : public yasmin_ros::ActionState<
-                          valve_inspection_fsm::WaypointManagerAction> {
+class AlignHeightCameraState
+    : public yasmin_ros::ActionState<
+          valve_inspection_fsm::WaypointManagerAction> {
    public:
-    StandoffState(const std::string& action_server_name,
-                  vortex::utils::waypoints::WaypointGoal standoff_goal);
+    AlignHeightCameraState(const std::string& action_server_name,
+                           vortex::utils::waypoints::WaypointGoal standoff_goal,
+                           std::string tcp_base_frame,
+                           std::string depth_camera_frame);
 
     valve_inspection_fsm::WaypointManagerAction::Goal create_goal(
         yasmin::Blackboard::SharedPtr blackboard);
 
    private:
     vortex::utils::waypoints::WaypointGoal standoff_goal_;
+    std::string tcp_base_frame_;
+    std::string depth_camera_frame_;
 };
 
 /**
@@ -182,8 +187,9 @@ class OpenAndAlignGripperState
  * @brief Twists the valve handle 90° from its initial orientation.
  *
  * Reads "gripper_roll" from the blackboard (set by OpenAndAlignGripperState).
- * Computes target_roll = π/2 − stored_roll, which maps the two handle extremes
- * onto each other (0° ↔ 90°). Sends an ONLY_ROLL goal so pinch stays closed.
+ * Twists by turn_direction * (π/2 + overshoot) so the gripper presses against
+ * the valve's mechanical stop. turn_direction is +1 (CCW) or -1 (CW) from the
+ * drone's perspective facing the valve.
  *
  * Outcomes: SUCCEED, ABORT.
  */
@@ -191,7 +197,8 @@ class TwistHandleState
     : public yasmin_ros::ActionState<valve_inspection_fsm::GripperAction> {
    public:
     TwistHandleState(const std::string& action_server_name,
-                     double convergence_threshold);
+                     double convergence_threshold,
+                     int turn_direction);
 
     valve_inspection_fsm::GripperAction::Goal create_goal(
         yasmin::Blackboard::SharedPtr blackboard);
@@ -207,6 +214,7 @@ class TwistHandleState
 
    private:
     double convergence_threshold_;
+    int turn_direction_;
 };
 
 StateMachineConfig load_config(rclcpp::Node::SharedPtr node);

@@ -28,7 +28,7 @@ find_package(yaml-cpp REQUIRED)
 include_directories(include)
 
 add_executable(visual_inspection_fsm
-  src/standoff_state.cpp
+  src/align_height_camera_state.cpp
   src/align_height_state.cpp
   src/converge_state.cpp
   src/retreat_state.cpp

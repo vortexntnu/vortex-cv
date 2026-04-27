@@ -39,8 +39,15 @@ def launch_setup(context, *args, **kwargs):
                 "vertical_mounted_valve": True,
                 "tcp_base_frame": f"{namespace}/base_link",
                 "tcp_tip_frame": f"{namespace}/grip_point",
+                # Frame of the depth camera used for height-alignment.
+                # Must match the TF frame published by the camera driver.
+                "depth_camera_frame": f"{namespace}/depth_camera",
                 "action_servers.gripper": f"/{namespace}/gripper/reference_filter",
                 "gripper_convergence_threshold": 0.0005,
+                # Direction to twist the valve handle.
+                # "ccw" = counter-clockwise from the drone's perspective when
+                # facing the valve. "cw" = clockwise.
+                "valve_turn_direction": "ccw",
             },
         ],
         output="screen",
