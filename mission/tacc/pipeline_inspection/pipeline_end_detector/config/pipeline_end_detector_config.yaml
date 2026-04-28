@@ -8,3 +8,5 @@
       detection: "classification_output"
       # Service name of the pipeline inspection FSM trigger
       end_of_pipeline_service: "pipeline_inspection_fsm/pipeline_finished"
+      # Service name to activate detection on this node
+      start_detection_service: "pipeline_end_detector/start_detection"

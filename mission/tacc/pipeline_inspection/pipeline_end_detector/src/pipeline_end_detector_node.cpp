@@ -23,12 +23,10 @@ PipelineEndDetectorNode::PipelineEndDetectorNode(
 }
 
 void PipelineEndDetectorNode::declare_parameters() {
-    declare_parameter<std::string>("topics.detection", "classification_output");
-    declare_parameter<std::string>("topics.end_of_pipeline_service",
-                                   "pipeline_inspection_fsm/pipeline_finished");
-    declare_parameter<std::string>("topics.start_detection_service",
-                                   "pipeline_end_detector/start_detection");
-    declare_parameter<int>("detection_threshold", 10);
+    declare_parameter<std::string>("topics.detection");
+    declare_parameter<std::string>("topics.end_of_pipeline_service");
+    declare_parameter<std::string>("topics.start_detection_service");
+    declare_parameter<int>("detection_threshold");
 }
 
 void PipelineEndDetectorNode::setup_pubsub() {
