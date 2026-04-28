@@ -23,8 +23,8 @@ class PipelineEndDetectorNode : public rclcpp::Node {
     rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr end_of_pipeline_client_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr start_detection_server_;
 
-    int consecutive_detections_{
-        0};  // number of consecutive Class 1 (end of pipeline) detections so far
+    int consecutive_detections_{0};  // number of consecutive Class 1 (end of
+                                     // pipeline) detections so far
     int detection_threshold_;  // number of consecutive detections required to
                                // trigger the service call
     bool detection_active_{
