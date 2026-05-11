@@ -1,0 +1,14 @@
+image_undistort:
+  ros__parameters:
+    # Input
+    image_topic: /camera/camera/color/image_raw
+    camera_info_file: ""       # absolute path to calib YAML; overridden by the launch arg
+    camera_info_topic: ""      # used instead of camera_info_file when the file is empty
+    raw_camera_info_topic: /camera/camera/color/camera_info  # relayed as-is in passthrough mode
+
+    # Output
+    output_image_topic: /realsense_d555/color/image_rect
+    output_camera_info_topic: /realsense_d555/color/camera_info
+
+    enable_undistort: true
+    image_qos: sensor_data     # "sensor_data" (best-effort) or "reliable"
