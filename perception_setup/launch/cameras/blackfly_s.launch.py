@@ -82,6 +82,7 @@ def _launch_setup(context, *args, **kwargs):
                     'format': 'RGB',
                     'hw_encoder': use_nvidia,
                 }],
+                extra_arguments=[{'use_intra_process_comms': True}],
             )
         )
 

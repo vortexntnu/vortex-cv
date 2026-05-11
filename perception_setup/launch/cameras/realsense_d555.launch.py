@@ -67,6 +67,7 @@ def _launch_setup(context, *args, **kwargs):
                 ('/camera/camera/depth/image_rect_raw', depth_image_topic),
                 ('/camera/camera/depth/camera_info', depth_info_topic),
             ],
+            extra_arguments=[{'use_intra_process_comms': True}],
         ),
         ComposableNode(
             package='vortex_cv_util_nodes',
@@ -81,6 +82,7 @@ def _launch_setup(context, *args, **kwargs):
                 'enable_undistort': enable_undistort,
                 'image_qos': 'reliable',
             }],
+            extra_arguments=[{'use_intra_process_comms': True}],
         ),
     ]
 
@@ -104,6 +106,7 @@ def _launch_setup(context, *args, **kwargs):
                     'format': 'RGB',
                     'hw_encoder': use_nvidia,
                 }],
+                extra_arguments=[{'use_intra_process_comms': True}],
             )
         )
 

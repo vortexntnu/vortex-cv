@@ -21,7 +21,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import ComposableNodeContainer, Node
+from launch_ros.actions import ComposableNodeContainer, LoadComposableNodes, Node
 from launch_ros.descriptions import ComposableNode
 
 _TENSOR_PUB = '/yolo_obb/tensor_pub'
@@ -48,6 +48,10 @@ def _launch_setup(context, *args, **kwargs):
     annotated_image_topic = LaunchConfiguration('annotated_image_topic').perform(context)
     confidence_threshold = float(LaunchConfiguration('confidence_threshold').perform(context))
     visualize = LaunchConfiguration('visualize').perform(context).lower() == 'true'
+    standalone = LaunchConfiguration('standalone').perform(context).lower() == 'true'
+    container_name = LaunchConfiguration('container_name').perform(context)
+
+    _IPC = [{'use_intra_process_comms': True}]
 
     image_format_converter = ComposableNode(
         package='isaac_ros_image_proc',
@@ -63,6 +67,7 @@ def _launch_setup(context, *args, **kwargs):
             ('image_raw', image_topic),
             ('image', _CONVERTED),
         ],
+        extra_arguments=_IPC,
     )
 
     resize_node = ComposableNode(
@@ -80,6 +85,7 @@ def _launch_setup(context, *args, **kwargs):
             ('/resize/image', _RESIZE_IMAGE),
             ('/camera_info', camera_info_topic),
         ],
+        extra_arguments=_IPC,
     )
 
     image_to_tensor = ComposableNode(
@@ -91,6 +97,7 @@ def _launch_setup(context, *args, **kwargs):
             ('image', _RESIZE_IMAGE),
             ('tensor', _IMAGE_TENSOR),
         ],
+        extra_arguments=_IPC,
     )
 
     normalize_node = ComposableNode(
@@ -107,6 +114,7 @@ def _launch_setup(context, *args, **kwargs):
             ('tensor', _IMAGE_TENSOR),
             ('normalized_tensor', _NORMALIZED),
         ],
+        extra_arguments=_IPC,
     )
 
     interleaved_to_planar = ComposableNode(
@@ -121,6 +129,7 @@ def _launch_setup(context, *args, **kwargs):
             ('interleaved_tensor', _NORMALIZED),
             ('planar_tensor', _PLANAR),
         ],
+        extra_arguments=_IPC,
     )
 
     reshape_node = ComposableNode(
@@ -137,6 +146,7 @@ def _launch_setup(context, *args, **kwargs):
             ('tensor', _PLANAR),
             ('reshaped_tensor', _TENSOR_PUB),
         ],
+        extra_arguments=_IPC,
     )
 
     tensor_rt_node = ComposableNode(
@@ -157,6 +167,7 @@ def _launch_setup(context, *args, **kwargs):
             ('tensor_pub', _TENSOR_PUB),
             ('tensor_sub', _TENSOR_SUB),
         ],
+        extra_arguments=_IPC,
     )
 
     decoder_node = ComposableNode(
@@ -169,26 +180,19 @@ def _launch_setup(context, *args, **kwargs):
             'num_detections': int(cfg['num_detections']),
             'detections_topic': detections_topic,
         }],
+        extra_arguments=_IPC,
     )
 
-    container = ComposableNodeContainer(
-        name='yolo_obb_container',
-        namespace='',
-        package='rclcpp_components',
-        executable='component_container_mt',
-        composable_node_descriptions=[
-            image_format_converter,
-            resize_node,
-            image_to_tensor,
-            normalize_node,
-            interleaved_to_planar,
-            reshape_node,
-            tensor_rt_node,
-            decoder_node,
-        ],
-        output='screen',
-        arguments=['--ros-args', '--log-level', 'INFO'],
-    )
+    nodes = [
+        image_format_converter,
+        resize_node,
+        image_to_tensor,
+        normalize_node,
+        interleaved_to_planar,
+        reshape_node,
+        tensor_rt_node,
+        decoder_node,
+    ]
 
     visualizer = Node(
         package='isaac_ros_yolov26_obb',
@@ -202,7 +206,26 @@ def _launch_setup(context, *args, **kwargs):
         }],
     )
 
-    actions = [container]
+    if standalone:
+        actions = [
+            ComposableNodeContainer(
+                name=container_name,
+                namespace='',
+                package='rclcpp_components',
+                executable='component_container_mt',
+                composable_node_descriptions=nodes,
+                output='screen',
+                arguments=['--ros-args', '--log-level', 'INFO'],
+            )
+        ]
+    else:
+        actions = [
+            LoadComposableNodes(
+                target_container=container_name,
+                composable_node_descriptions=nodes,
+            )
+        ]
+
     if visualize:
         actions.append(visualizer)
     return actions
@@ -244,6 +267,19 @@ def generate_launch_description():
             'visualize',
             default_value='true',
             description='Launch the OBB visualizer node to publish annotated images',
+        ),
+        DeclareLaunchArgument(
+            'standalone',
+            default_value='true',
+            description=(
+                'true = create a new ComposableNodeContainer named by container_name; '
+                'false = attach nodes to an existing container named by container_name'
+            ),
+        ),
+        DeclareLaunchArgument(
+            'container_name',
+            default_value='yolo_obb_container',
+            description='Container name to create (standalone=true) or attach to (standalone=false)',
         ),
         OpaqueFunction(function=_launch_setup),
     ])

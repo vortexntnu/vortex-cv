@@ -42,6 +42,7 @@ def _launch_setup(context, *args, **kwargs):
             name='norbit_fls_ros_interface_node',
             namespace=namespace,
             parameters=[config],
+            extra_arguments=[{'use_intra_process_comms': True}],
         ),
         ComposableNode(
             package='norbit_fls_ros_interface',
@@ -49,6 +50,7 @@ def _launch_setup(context, *args, **kwargs):
             name='sonar_overlay_node',
             namespace=namespace,
             parameters=[config],
+            extra_arguments=[{'use_intra_process_comms': True}],
         ),
     ]
 
@@ -72,6 +74,7 @@ def _launch_setup(context, *args, **kwargs):
                     'format': 'GRAY8',
                     'hw_encoder': gst_nvidia,
                 }],
+                extra_arguments=[{'use_intra_process_comms': True}],
             )
         )
 

@@ -5,7 +5,7 @@ Backends (via `backend` arg):
   ultralytics — Python OBB inference via ultralytics/ultralytics_yolo_obb.launch.py
 
 Data sources (via `sim` arg):
-  sim:=false  — launches RealSense D555 + image_undistort; color and depth
+  sim:=false  — launches RealSense D555 attached to the mission container; color and depth
                 images are remapped to /{drone}/front_camera/ and
                 /{drone}/depth_camera/ before downstream nodes see them.
   sim:=true   — skips the camera; the simulator is expected to publish on
@@ -51,33 +51,9 @@ def _launch_setup(context, *args, **kwargs):
 
     installed_launch_dir = os.path.join(pkg_dir, 'launch')
 
-    actions = []
-
     # -------------------------------------------------------------------------
-    # Camera — real hardware only
+    # OBB inference backend — resolved first so ValvePoseNode params are known
     # -------------------------------------------------------------------------
-    if not sim:
-        actions.append(
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    os.path.join(installed_launch_dir, 'cameras', 'realsense_d555.launch.py')
-                ),
-                launch_arguments={
-                    'drone': drone,
-                    'enable_undistort': 'true' if enable_undistort else 'false',
-                    'enable_gstreamer': 'false',
-                    'standalone': 'true',
-                }.items(),
-            )
-        )
-
-    # -------------------------------------------------------------------------
-    # OBB inference backend
-    # -------------------------------------------------------------------------
-    # detections_letterboxed: Isaac ROS encoder uses letterbox resize;
-    #   ultralytics runs on the full image.
-    # undistort_detections: only needed when the image fed to the OBB node
-    #   has NOT been undistorted yet. Sim images have no lens distortion.
     if backend == 'isaac_ros':
         detections_letterboxed = True
         undistort_detections = False if sim else (not enable_undistort)
@@ -90,6 +66,8 @@ def _launch_setup(context, *args, **kwargs):
             'detections_topic': _DETECTIONS_TOPIC,
             'annotated_image_topic': _ANNOTATED_TOPIC,
             'visualize': visualize,
+            'standalone': 'false',
+            'container_name': 'valve_intervention_container',
         }
     elif backend == 'ultralytics':
         detections_letterboxed = False
@@ -112,97 +90,112 @@ def _launch_setup(context, *args, **kwargs):
             f"Unknown backend '{backend}'. Must be 'isaac_ros' or 'ultralytics'."
         )
 
+    actions = []
+    container_name = 'valve_intervention_container'
+
+    container_nodes = [
+        ComposableNode(
+            package='valve_detection',
+            plugin='valve_detection::ValvePoseNode',
+            name='valve_pose_node',
+            parameters=[
+                os.path.join(
+                    get_package_share_directory('valve_detection'),
+                    'config',
+                    'valve_detection_params.yaml',
+                ),
+                {
+                    'detections_sub_topic': _DETECTIONS_TOPIC,
+                    'depth_image_sub_topic': depth_image_topic,
+                    'depth_image_info_topic': depth_info_topic,
+                    'color_image_info_topic': color_info_topic,
+                    'depth_frame_id': 'front_camera_depth_optical',
+                    'color_frame_id': 'front_camera_color_optical',
+                    'landmarks_pub_topic': '/valve_landmarks',
+                    'output_frame_id': 'front_camera_depth_optical',
+                    'drone': drone,
+                    'undistort_detections': undistort_detections,
+                    'detections_letterboxed': detections_letterboxed,
+                    'debug_visualize': LaunchConfiguration('debug_visualize'),
+                    'clamp_rotation': LaunchConfiguration('clamp_rotation'),
+                    'use_hardcoded_extrinsic': LaunchConfiguration(
+                        'use_hardcoded_extrinsic'
+                    ),
+                    'extrinsic_tx': LaunchConfiguration('extrinsic_tx'),
+                    'extrinsic_ty': LaunchConfiguration('extrinsic_ty'),
+                    'extrinsic_tz': LaunchConfiguration('extrinsic_tz'),
+                },
+            ],
+        ),
+    ]
+
+    if enable_gstreamer:
+        container_nodes.append(
+            ComposableNode(
+                package='image_to_gstreamer',
+                plugin='image_to_gstreamer::ImageToGStreamer',
+                name='image_to_gstreamer_node',
+                extra_arguments=[{'use_intra_process_comms': True}],
+                parameters=[{
+                    'input_topic': _ANNOTATED_TOPIC,
+                    'host': '10.0.0.169',
+                    'port': 5000,
+                    'bitrate': 500000,
+                    'framerate': 15,
+                    'preset_level': 1,
+                    'iframe_interval': 15,
+                    'control_rate': 1,
+                    'pt': 96,
+                    'config_interval': 1,
+                    'format': 'RGB',
+                    'hw_encoder': use_nvidia,
+                }],
+            )
+        )
+
+    # -------------------------------------------------------------------------
+    # Main container — owns ValvePoseNode and GStreamer; camera nodes attach here
+    # -------------------------------------------------------------------------
+    actions.append(
+        ComposableNodeContainer(
+            name=container_name,
+            namespace='',
+            package='rclcpp_components',
+            executable='component_container_mt',
+            composable_node_descriptions=container_nodes,
+            output='screen',
+            additional_env={'EGL_PLATFORM': 'surfaceless'},
+        )
+    )
+
+    # -------------------------------------------------------------------------
+    # Camera — real hardware only, attached to the mission container
+    # -------------------------------------------------------------------------
+    if not sim:
+        actions.append(
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    os.path.join(installed_launch_dir, 'cameras', 'realsense_d555.launch.py')
+                ),
+                launch_arguments={
+                    'drone': drone,
+                    'enable_undistort': 'true' if enable_undistort else 'false',
+                    'enable_gstreamer': 'false',
+                    'standalone': 'false',
+                    'container_name': container_name,
+                }.items(),
+            )
+        )
+
+    # -------------------------------------------------------------------------
+    # OBB inference backend (owns its own container)
+    # -------------------------------------------------------------------------
     actions.append(
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(obb_launch_file),
             launch_arguments=obb_args.items(),
         )
     )
-
-    # -------------------------------------------------------------------------
-    # Valve detection
-    # -------------------------------------------------------------------------
-    actions.append(
-        ComposableNodeContainer(
-            name='valve_detection_container',
-            namespace='',
-            package='rclcpp_components',
-            executable='component_container_mt',
-            composable_node_descriptions=[
-                ComposableNode(
-                    package='valve_detection',
-                    plugin='valve_detection::ValvePoseNode',
-                    name='valve_pose_node',
-                    parameters=[
-                        os.path.join(
-                            get_package_share_directory('valve_detection'),
-                            'config',
-                            'valve_detection_params.yaml',
-                        ),
-                        {
-                            'detections_sub_topic': _DETECTIONS_TOPIC,
-                            'depth_image_sub_topic': depth_image_topic,
-                            'depth_image_info_topic': depth_info_topic,
-                            'color_image_info_topic': color_info_topic,
-                            'depth_frame_id': 'front_camera_depth_optical',
-                            'color_frame_id': 'front_camera_color_optical',
-                            'landmarks_pub_topic': '/valve_landmarks',
-                            'output_frame_id': 'front_camera_depth_optical',
-                            'drone': drone,
-                            'undistort_detections': undistort_detections,
-                            'detections_letterboxed': detections_letterboxed,
-                            'debug_visualize': LaunchConfiguration('debug_visualize'),
-                            'clamp_rotation': LaunchConfiguration('clamp_rotation'),
-                            'use_hardcoded_extrinsic': LaunchConfiguration(
-                                'use_hardcoded_extrinsic'
-                            ),
-                            'extrinsic_tx': LaunchConfiguration('extrinsic_tx'),
-                            'extrinsic_ty': LaunchConfiguration('extrinsic_ty'),
-                            'extrinsic_tz': LaunchConfiguration('extrinsic_tz'),
-                        },
-                    ],
-                ),
-            ],
-            output='screen',
-        )
-    )
-
-    # -------------------------------------------------------------------------
-    # GStreamer stream (optional)
-    # -------------------------------------------------------------------------
-    if enable_gstreamer:
-        actions.append(
-            ComposableNodeContainer(
-                name='image_to_gstreamer_container',
-                namespace='',
-                package='rclcpp_components',
-                executable='component_container_mt',
-                composable_node_descriptions=[
-                    ComposableNode(
-                        package='image_to_gstreamer',
-                        plugin='image_to_gstreamer::ImageToGStreamer',
-                        name='image_to_gstreamer_node',
-                        extra_arguments=[{'use_intra_process_comms': True}],
-                        parameters=[{
-                            'input_topic': _ANNOTATED_TOPIC,
-                            'host': '10.0.0.169',
-                            'port': 5000,
-                            'bitrate': 500000,
-                            'framerate': 15,
-                            'preset_level': 1,
-                            'iframe_interval': 15,
-                            'control_rate': 1,
-                            'pt': 96,
-                            'config_interval': 1,
-                            'format': 'RGB',
-                            'hw_encoder': use_nvidia,
-                        }],
-                    ),
-                ],
-                output='screen',
-                additional_env={'EGL_PLATFORM': 'surfaceless'},
-            )
-        )
 
     return actions
 
@@ -219,7 +212,7 @@ def generate_launch_description():
             'sim',
             default_value='false',
             description=(
-                'false = launch RealSense D555 + image_undistort; '
+                'false = launch RealSense D555 attached to the mission container; '
                 'true = skip camera (simulator publishes on /{drone}/front_camera/ topics)'
             ),
         ),
