@@ -38,6 +38,7 @@ def _launch_setup(context, *args, **kwargs):
     detections_topic = LaunchConfiguration('detections_topic').perform(context)
     annotated_image_topic = LaunchConfiguration('annotated_image_topic').perform(context)
     confidence_threshold = float(LaunchConfiguration('confidence_threshold').perform(context))
+    visualize = LaunchConfiguration('visualize').perform(context).lower() == 'true'
 
     yolo_node = Node(
         package='yolo_obb_object_detection',
@@ -50,7 +51,7 @@ def _launch_setup(context, *args, **kwargs):
             'model_conf': confidence_threshold,
             'color_image_sub_topic': image_topic,
             'yolo_detections_pub_topic': detections_topic,
-            'yolo_annotated_pub_topic': annotated_image_topic,
+            'yolo_annotated_pub_topic': annotated_image_topic if visualize else '',
         }],
     )
 
@@ -91,6 +92,11 @@ def generate_launch_description():
             'device',
             default_value='0',
             description="Inference device: 'cpu', GPU index, 'cuda', 'cuda:N', or 'mps'",
+        ),
+        DeclareLaunchArgument(
+            'visualize',
+            default_value='true',
+            description='Publish annotated images on annotated_image_topic',
         ),
         OpaqueFunction(function=_launch_setup),
     ])

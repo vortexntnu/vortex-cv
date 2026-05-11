@@ -47,6 +47,7 @@ def _launch_setup(context, *args, **kwargs):
     detections_topic = LaunchConfiguration('detections_topic').perform(context)
     annotated_image_topic = LaunchConfiguration('annotated_image_topic').perform(context)
     confidence_threshold = float(LaunchConfiguration('confidence_threshold').perform(context))
+    visualize = LaunchConfiguration('visualize').perform(context).lower() == 'true'
 
     image_format_converter = ComposableNode(
         package='isaac_ros_image_proc',
@@ -201,7 +202,10 @@ def _launch_setup(context, *args, **kwargs):
         }],
     )
 
-    return [container, visualizer]
+    actions = [container]
+    if visualize:
+        actions.append(visualizer)
+    return actions
 
 
 def generate_launch_description():
@@ -236,5 +240,10 @@ def generate_launch_description():
             default_value='/yolo_obb/annotated_image',
         ),
         DeclareLaunchArgument('confidence_threshold', default_value='0.25'),
+        DeclareLaunchArgument(
+            'visualize',
+            default_value='true',
+            description='Launch the OBB visualizer node to publish annotated images',
+        ),
         OpaqueFunction(function=_launch_setup),
     ])

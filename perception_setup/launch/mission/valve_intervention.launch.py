@@ -39,6 +39,7 @@ def _launch_setup(context, *args, **kwargs):
     device = LaunchConfiguration('device').perform(context)
     enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
     use_nvidia = LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
+    visualize = LaunchConfiguration('visualize').perform(context)
 
     # All downstream nodes subscribe to these drone-prefixed topics.
     # Real hardware: camera + undistort publish here.
@@ -88,6 +89,7 @@ def _launch_setup(context, *args, **kwargs):
             'image_height': str(image_height),
             'detections_topic': _DETECTIONS_TOPIC,
             'annotated_image_topic': _ANNOTATED_TOPIC,
+            'visualize': visualize,
         }
     elif backend == 'ultralytics':
         detections_letterboxed = False
@@ -103,6 +105,7 @@ def _launch_setup(context, *args, **kwargs):
             'detections_topic': _DETECTIONS_TOPIC,
             'annotated_image_topic': _ANNOTATED_TOPIC,
             'device': device,
+            'visualize': visualize,
         }
     else:
         raise RuntimeError(
@@ -266,6 +269,11 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument('extrinsic_ty', default_value='0.0'),
         DeclareLaunchArgument('extrinsic_tz', default_value='0.0'),
+        DeclareLaunchArgument(
+            'visualize',
+            default_value='true',
+            description='Launch the OBB visualizer and publish annotated images',
+        ),
         DeclareLaunchArgument(
             'enable_gstreamer',
             default_value='true',
