@@ -24,6 +24,9 @@ if [[ "$SCENARIO" == "sim" ]]; then
     tmux send-keys -t "$SESSION" "$SRC && ros2 launch subsea_docking_setup front_camera_aruco.launch.py" C-m
     tmux split-window -h -t "$SESSION"
     tmux send-keys -t "$SESSION" "$SRC && ros2 launch subsea_docking_setup down_camera_aruco.launch.py" C-m
+
+    tmux new-window -t "$SESSION" -n sonar
+    tmux send-keys -t "$SESSION" "$SRC && ros2 launch subsea_docking_setup sonar_docking.launch.py sim:=true" C-m
 fi
 
 # --- Real world only ---
@@ -32,7 +35,7 @@ if [[ "$SCENARIO" == "real_world" ]]; then
     tmux send-keys -t "$SESSION" "$SRC && ros2 launch perception_setup perception.launch.py enable_front_camera:=true enable_aruco:=true" C-m
 
     tmux new-window -t "$SESSION" -n sonar
-    tmux send-keys -t "$SESSION" "$SRC && ros2 launch subsea_docking_setup sonar.launch.py" C-m
+    tmux send-keys -t "$SESSION" "$SRC && ros2 launch subsea_docking_setup sonar_docking.launch.py sim:=false" C-m
 fi
 
 tmux attach-session -t "$SESSION"

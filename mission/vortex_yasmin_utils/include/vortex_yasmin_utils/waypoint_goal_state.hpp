@@ -34,7 +34,7 @@ class WaypointGoalState
     WaypointGoalState(const std::string& action_server_name,
                       vortex::utils::waypoints::WaypointGoal waypoint_goal);
 
-    WaypointManagerAction::Goal create_goal(
+    virtual WaypointManagerAction::Goal create_goal(
         yasmin::Blackboard::SharedPtr blackboard);
 
    private:

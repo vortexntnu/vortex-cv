@@ -8,11 +8,6 @@
     # Republished landmarks with subtype resolved.
     landmarks_pub_topic: "/valve_landmarks_typed"
 
-    # ── Robot identity ────────────────────────────────────────────────────────
-    # Prepended to all TF frame names (e.g. "moby" → "moby/odom").
-    # Override at launch time to switch between robots.
-    drone: "moby"
-
     # ── TF ────────────────────────────────────────────────────────────────────
     # Base name of the world/odometry frame (without drone prefix).
     # The full frame used for TF lookup is: <drone>/<odom_frame>.

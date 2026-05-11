@@ -156,39 +156,25 @@ Eigen::Matrix3f PoseEstimator::create_rotation_matrix_depth(
     if (!coefficients || coefficients->values.size() < 4)
         return Eigen::Matrix3f::Identity();
 
+    (void)coefficients;
+    (void)ray_origin;
+
     const Eigen::Vector3f z_axis = plane_normal;
-    const float D = coefficients->values[3];
     const float fx = static_cast<float>(color_image_properties_.intr.fx);
     const float fy = static_cast<float>(color_image_properties_.intr.fy);
-    const float cx = static_cast<float>(color_image_properties_.intr.cx);
-    const float cy = static_cast<float>(color_image_properties_.intr.cy);
 
-    Eigen::Matrix3f K;
-    K << fx, 0, cx, 0, fy, cy, 0, 0, 1;
-    const Eigen::Matrix3f Kinv = K.inverse();
-
-    // Two image points along the bbox angle through the principal point.
-    const float len = 50.0f;
-    const Eigen::Vector3f p1(cx, cy, 1.f);
-    const Eigen::Vector3f p2(cx + len * std::cos(angle),
-                             cy + len * std::sin(angle), 1.f);
-
-    // Back-project color pixels to rays, then rotate into depth frame.
-    const Eigen::Vector3f r1 = (R_depth_from_color * (Kinv * p1)).normalized();
-    const Eigen::Vector3f r2 = (R_depth_from_color * (Kinv * p2)).normalized();
-
-    // Intersect each ray (from color origin in depth frame) with the plane.
-    const float denom1 = z_axis.dot(r1);
-    const float denom2 = z_axis.dot(r2);
-    if (std::abs(denom1) < 1e-6f || std::abs(denom2) < 1e-6f)
-        return Eigen::Matrix3f::Identity();
-
-    const float n_dot_O = z_axis.dot(ray_origin);
-    const Eigen::Vector3f X1 = ray_origin + (-(n_dot_O + D) / denom1) * r1;
-    const Eigen::Vector3f X2 = ray_origin + (-(n_dot_O + D) / denom2) * r2;
-
-    // Compute in-plane direction corresponding to the image line angle.
-    Eigen::Vector3f x_axis = (X2 - X1).normalized();
+    // Build the handle direction directly from the image-plane angle, with no
+    // dependence on per-pixel depth.  The image plane is perpendicular to the
+    // color camera's Z axis, so a 2D displacement of (cos θ, sin θ) pixels
+    // corresponds to a 3D direction (cos θ / fx, sin θ / fy, 0) in color
+    // camera coordinates (the 1/f terms undo focal-length anisotropy).
+    // Rotate that into depth frame and project onto the fitted plane so the
+    // result lies in the valve face.  This avoids ray-plane intersections at
+    // the handle endpoints, which otherwise amplify plane-normal noise into
+    // large yaw jitter.
+    const Eigen::Vector3f dir_color(std::cos(angle) / fx, std::sin(angle) / fy,
+                                    0.f);
+    Eigen::Vector3f x_axis = R_depth_from_color * dir_color;
     x_axis = (x_axis - x_axis.dot(z_axis) * z_axis).normalized();
 
     // Ensure consistent direction (avoid flipping between frames).
@@ -199,29 +185,6 @@ Eigen::Matrix3f PoseEstimator::create_rotation_matrix_depth(
             x_axis = -x_axis;
     }
     filter_direction_ = x_axis;
-
-    // Clamp handle angle to [0, 90°] where 90° = vertical, 0° = horizontal.
-    // Measure angle of x_axis (handle dir) relative to the image Y-axis
-    // projected onto the plane.
-    if (clamp_rotation_) {
-        // Project image-Y (downward in optical frame) onto the plane.
-        Eigen::Vector3f img_y(0.f, 1.f, 0.f);
-        Eigen::Vector3f vert = (img_y - img_y.dot(z_axis) * z_axis);
-        if (vert.norm() > 1e-6f) {
-            vert.normalize();
-            Eigen::Vector3f horiz = z_axis.cross(vert).normalized();
-            // Angle from vertical: 0 when handle is vertical, pi/2 when
-            // horizontal.
-            float ang = std::atan2(std::abs(x_axis.dot(horiz)),
-                                   std::abs(x_axis.dot(vert)));
-            ang = std::clamp(ang, 0.f, static_cast<float>(M_PI / 2.0));
-            // Rebuild x_axis at clamped angle: 90° = vertical (vert),
-            // 0° = horizontal (horiz).
-            float clamped = static_cast<float>(M_PI / 2.0) - ang;
-            x_axis = std::cos(clamped) * vert + std::sin(clamped) * horiz;
-            //x_axis = (x_axis - x_axis.dot(z_axis) * z_axis).normalized();
-        }
-    }
 
     const Eigen::Vector3f y_axis = z_axis.cross(x_axis).normalized();
     x_axis = y_axis.cross(z_axis).normalized();
@@ -238,6 +201,7 @@ Eigen::Matrix3f PoseEstimator::create_rotation_matrix_depth(
 DetectionResult PoseEstimator::compute_pose_from_depth(
     const cv::Mat& depth_image,
     const BoundingBox& bbox_org,
+    float handle_angle_rad,
     DetectorMode mode) const {
     // Reject bounding boxes whose center projects entirely outside the depth
     // image.  The scale factor maps from color pixel space to depth pixel
@@ -317,10 +281,8 @@ DetectionResult PoseEstimator::compute_pose_from_depth(
 
     const Eigen::Vector3f pos_shifted = shift_point_along_normal(pos, normal);
 
-    float handle_angle = bbox_org.theta;
-
     const Eigen::Matrix3f rot = create_rotation_matrix_depth(
-        coeff, normal, handle_angle, color_origin_in_depth_frame,
+        coeff, normal, handle_angle_rad, color_origin_in_depth_frame,
         R_depth_from_color);
     result.pose =
         Pose::from_eigen(pos_shifted.cast<double>(),

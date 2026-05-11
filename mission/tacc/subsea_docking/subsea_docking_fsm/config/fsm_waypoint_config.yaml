@@ -1,5 +1,5 @@
-fallback_docking_waypoint:  # Navigated to when service_request_state times out during search.
-  mode: 0
+dock_config_waypoint:  # Navigated to when wall detection times out or is disabled.
+  mode: forward_heading
   position:
     x: 0.0
     y: 7.5
@@ -7,5 +7,5 @@ fallback_docking_waypoint:  # Navigated to when service_request_state times out 
   orientation:
     roll: 0.0
     pitch: 0.0
-    yaw: 90.0
+    yaw: 0.0
   convergence_threshold: 0.3

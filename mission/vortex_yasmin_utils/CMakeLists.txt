@@ -17,6 +17,7 @@ find_package(std_srvs REQUIRED)
 
 add_library(vortex_yasmin_utils
   src/first_wins_concurrence.cpp
+  src/gripper_state.cpp
   src/landmark_converge_state.cpp
   src/landmark_polling_state.cpp
   src/landmark_waypoint_state.cpp

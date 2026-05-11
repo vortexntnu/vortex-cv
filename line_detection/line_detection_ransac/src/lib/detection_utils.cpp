@@ -30,16 +30,7 @@ void detect_boundaries(const BoundaryConfig& boundary_config,
     for (int h = 0; h < num_rays; h++) {
         float angle = min_angle + h * (max_angle - min_angle) / (num_rays - 1);
         float last_avg = 0.0f;
-        if (edge_detection) {
-            for (int j = -half_side_length; j <= half_side_length; j++) {
-                for (int k = -half_side_length; k <= half_side_length; k++) {
-                    last_avg +=
-                        input_image.at<uint8_t>(origin.y + j, origin.x + k);
-                }
-            }
-            last_avg /=
-                (static_cast<float>(sample_side_length * sample_side_length));
-        }
+        bool last_avg_initialized = false;
 
         for (float i = 0.0f; i < rows; i += step) {
             float xf = origin.x + i * std::sin(angle);
@@ -61,8 +52,19 @@ void detect_boundaries(const BoundaryConfig& boundary_config,
             avg_value /=
                 (static_cast<float>(sample_side_length * sample_side_length));
 
+            if (edge_detection && !last_avg_initialized) {
+                last_avg = avg_value;
+                last_avg_initialized = true;
+                continue;
+            }
+
             if (abs(avg_value - last_avg) > threshold) {
-                boundary_points.emplace_back(x, y);
+                const float dx = static_cast<float>(x - origin.x);
+                const float dy = static_cast<float>(y - origin.y);
+                if (std::sqrt(dx * dx + dy * dy) >=
+                    boundary_config.min_dist_from_origin) {
+                    boundary_points.emplace_back(x, y);
+                }
                 break;
             }
             if (edge_detection) {
@@ -79,6 +81,7 @@ void detect_lines(const RansacConfig& ransac_config,
     const float inlier_threshold = ransac_config.inlier_threshold;
     const int min_remaining_points = ransac_config.min_remaining_points;
     const int min_inliers = ransac_config.min_inliers;
+    const int max_distance = ransac_config.max_distance;
 
     std::vector<cv::Point> boundary_points_copy = boundary_points;
 
@@ -143,6 +146,42 @@ void detect_lines(const RansacConfig& ransac_config,
                     best_count_idxs = inliers_idxs;
                 }
             }
+        }
+
+        if (best_count_idxs.size() < 2) {
+            break;
+        }
+
+        float dist1 =
+            std::sqrt(std::pow(boundary_points_copy[best_count_idxs[0]].x -
+                                   boundary_points_copy[best_count_idxs[1]].x,
+                               2) +
+                      std::pow(boundary_points_copy[best_count_idxs[0]].y -
+                                   boundary_points_copy[best_count_idxs[1]].y,
+                               2));
+        float dist2 = std::sqrt(
+            std::pow(boundary_points_copy
+                             [best_count_idxs[best_count_idxs.size() - 2]]
+                                 .x -
+                         boundary_points_copy
+                             [best_count_idxs[best_count_idxs.size() - 1]]
+                                 .x,
+                     2) +
+            std::pow(boundary_points_copy
+                             [best_count_idxs[best_count_idxs.size() - 2]]
+                                 .y -
+                         boundary_points_copy
+                             [best_count_idxs[best_count_idxs.size() - 1]]
+                                 .y,
+                     2));
+
+        if (dist1 > max_distance) {
+            best_count_idxs.erase(best_count_idxs.begin());
+            best_count--;
+        }
+        if (dist2 > max_distance) {
+            best_count_idxs.erase(best_count_idxs.end() - 1);
+            best_count--;
         }
 
         if (best_count < min_inliers) {

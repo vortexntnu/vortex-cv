@@ -78,11 +78,9 @@ What makes it custom is that instead of random point sampling it iterates throug
 | `inlier_threshold` | `double` | the distance from a line a point has to be to be considered an inlier |
 | `min_remaining_points` | `int` | Minimum number of points remaining to continue RANSAC iterations |
 | `min_inliers` | `double` | minimum inliers in the best detected line to continue iterations |
-
-
+| `max_distance` | `double` | The farthest away an endpoint can be from the rest of the points of a line to be counted as an inlier. |
 
 > **Note:** Adjust parameters in the config YAML or via `ros2 param set` at runtime.
-
 ## Build
 
 ```bash

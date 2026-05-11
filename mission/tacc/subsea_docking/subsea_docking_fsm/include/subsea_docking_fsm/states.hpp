@@ -12,7 +12,7 @@
 #include <string>
 
 struct StateMachineConfig {
-    bool skip_search;
+    bool use_wall_detection;
     bool use_service_waypoint;
     std::string start_mission_service;
     std::string waypoint_manager_action_server;
@@ -20,10 +20,8 @@ struct StateMachineConfig {
     std::string waypoint_yaml_path;
     std::string landmark_convergence_yaml_path;
     double service_request_timeout_sec;
-    std::string fallback_waypoint_id;
-    std::string landmark_convergence_goal_id;
-    std::string pre_dock_convergence_goal_id;
     std::string docking_position_service;
+    std::string docking_estimator_start_service;
 };
 
 StateMachineConfig load_config(rclcpp::Node::SharedPtr node);
