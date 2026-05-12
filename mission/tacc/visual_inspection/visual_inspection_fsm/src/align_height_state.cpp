@@ -18,7 +18,9 @@ AlignHeightState::AlignHeightState(
     vortex::utils::waypoints::WaypointGoal tcp_offset_goal,
     std::string tcp_base_frame,
     std::string tcp_tip_frame,
-    double valve_z_offset)
+    std::string depth_camera_frame,
+    double valve_z_offset,
+    double arm_z_correction)
     : ActionState(action_server_name,
                   std::bind(&AlignHeightState::create_goal,
                             this,
@@ -27,7 +29,9 @@ AlignHeightState::AlignHeightState(
       tcp_offset_goal_(std::move(tcp_offset_goal)),
       tcp_base_frame_(std::move(tcp_base_frame)),
       tcp_tip_frame_(std::move(tcp_tip_frame)),
-      valve_z_offset_(valve_z_offset) {}
+      depth_camera_frame_(std::move(depth_camera_frame)),
+      valve_z_offset_(valve_z_offset),
+      arm_z_correction_(arm_z_correction) {}
 
 valve_inspection_fsm::WaypointManagerAction::Goal AlignHeightState::create_goal(
     yasmin::Blackboard::SharedPtr blackboard) {
@@ -55,42 +59,65 @@ valve_inspection_fsm::WaypointManagerAction::Goal AlignHeightState::create_goal(
     R.col(2) = z_axis;
     const Eigen::Quaterniond q_drone(R);
 
-    // Standoff position: valve_pos + valve-frame offset rotated into odom.
-    const Eigen::Vector3d standoff_offset_valve{
-        standoff_goal_.pose.x, standoff_goal_.pose.y, standoff_goal_.pose.z};
-    const Eigen::Vector3d standoff_pos =
-        valve_pose.pos_vector() + q_valve * standoff_offset_valve;
-
-    // TCP offset from TF.
     const auto& tf_buffer =
         blackboard->get<std::shared_ptr<tf2_ros::Buffer>>("tf_buffer");
-    geometry_msgs::msg::TransformStamped tf_stamped;
+    const tf2::TimePoint obs_time =
+        tf2_ros::fromMsg(landmarks.front().header.stamp);
+
+    // Camera TF for XY: same logic as AlignHeightCameraState.
+    geometry_msgs::msg::TransformStamped cam_tf;
     try {
-        tf_stamped = tf_buffer->lookupTransform(tcp_base_frame_, tcp_tip_frame_,
-                                                tf2::TimePointZero);
+        cam_tf = tf_buffer->lookupTransform(tcp_base_frame_, depth_camera_frame_,
+                                            obs_time);
+    } catch (const tf2::TransformException& ex) {
+        throw std::runtime_error(std::string("Camera TF lookup failed (") +
+                                 tcp_base_frame_ + " -> " +
+                                 depth_camera_frame_ + "): " + ex.what());
+    }
+
+    const Eigen::Vector3d cam_pos_in_base{cam_tf.transform.translation.x,
+                                          cam_tf.transform.translation.y,
+                                          cam_tf.transform.translation.z};
+    const Eigen::Vector3d cam_pos_odom = q_drone * cam_pos_in_base;
+
+    const Eigen::Quaterniond q_cam_in_base{
+        cam_tf.transform.rotation.w, cam_tf.transform.rotation.x,
+        cam_tf.transform.rotation.y, cam_tf.transform.rotation.z};
+    const Eigen::Vector3d cam_z_odom =
+        (q_drone * q_cam_in_base) * Eigen::Vector3d::UnitZ();
+
+    const double standoff_dist = standoff_goal_.pose.z;
+    const Eigen::Vector3d cam_target =
+        valve_pose.pos_vector() - cam_z_odom * standoff_dist;
+    const Eigen::Vector3d align_pos = cam_target - cam_pos_odom;
+
+    // TCP TF for Z: compute the full converge target (identical to ConvergeState)
+    // and take its z, so the AlignHeight→Converge transition is purely horizontal.
+    geometry_msgs::msg::TransformStamped tcp_tf;
+    try {
+        tcp_tf = tf_buffer->lookupTransform(tcp_base_frame_, tcp_tip_frame_,
+                                            obs_time);
     } catch (const tf2::TransformException& ex) {
         throw std::runtime_error(std::string("TCP TF lookup failed (") +
-                                 tcp_base_frame_ + " → " + tcp_tip_frame_ +
+                                 tcp_base_frame_ + " -> " + tcp_tip_frame_ +
                                  "): " + ex.what());
     }
-    const auto& t = tf_stamped.transform.translation;
+
+    const auto& t = tcp_tf.transform.translation;
     const Eigen::Vector3d tcp_odom = q_drone * Eigen::Vector3d{t.x, t.y, t.z};
 
-    // Apply offset along valve outward Z so TCP stops in front of valve face.
-    const Eigen::Vector3d valve_target =
-        valve_pose.pos_vector() + z_valve * valve_z_offset_;
+    // Project valve_z_offset along the valve normal (same as ConvergeState) so
+    // the z target is correct for any valve orientation, not just upward-facing.
+    const Eigen::Vector3d converge_pos =
+        valve_pose.pos_vector() + z_valve * valve_z_offset_ - tcp_odom;
 
-    // Final converge target (where base_link needs to be for TCP to reach
-    // target).
-    const Eigen::Vector3d converge_pos = valve_target - tcp_odom;
-
-    // Intermediate: keep standoff X/Y, use converge Z so we only correct
-    // height.
-    const Eigen::Vector3d align_pos{standoff_pos.x(), standoff_pos.y(),
-                                    converge_pos.z()};
+    // XY from camera standoff; Z from the full converge target plus tunable
+    // correction for any TCP TF height error.
+    Eigen::Vector3d target_pos = align_pos;
+    target_pos.z() = converge_pos.z() + arm_z_correction_;
 
     const auto target_pose =
-        vortex::utils::types::Pose::from_eigen(align_pos, q_drone);
+        vortex::utils::types::Pose::from_eigen(target_pos, q_drone);
 
     vortex_msgs::msg::Waypoint wp;
     wp.pose = vortex::utils::ros_conversions::to_pose_msg(target_pose);

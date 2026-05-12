@@ -51,10 +51,12 @@ AlignHeightCameraState::create_goal(yasmin::Blackboard::SharedPtr blackboard) {
     // base_link.
     const auto& tf_buffer =
         blackboard->get<std::shared_ptr<tf2_ros::Buffer>>("tf_buffer");
+    const tf2::TimePoint obs_time =
+        tf2_ros::fromMsg(landmarks.front().header.stamp);
     geometry_msgs::msg::TransformStamped cam_tf;
     try {
         cam_tf = tf_buffer->lookupTransform(
-            tcp_base_frame_, depth_camera_frame_, tf2::TimePointZero);
+            tcp_base_frame_, depth_camera_frame_, obs_time);
     } catch (const tf2::TransformException& ex) {
         throw std::runtime_error(std::string("Camera TF lookup failed (") +
                                  tcp_base_frame_ + " -> " +

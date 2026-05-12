@@ -41,7 +41,7 @@ def launch_setup(context, *args, **kwargs):
                 "tcp_tip_frame": f"{namespace}/grip_point",
                 # Frame of the depth camera used for height-alignment.
                 # Must match the TF frame published by the camera driver.
-                "depth_camera_frame": f"{namespace}/depth_camera",
+                "depth_camera_frame": f"{namespace}/front_camera_depth_optical",
                 "action_servers.gripper": f"/{namespace}/gripper/reference_filter",
                 "gripper_convergence_threshold": 0.0005,
                 # Direction to twist the valve handle.
