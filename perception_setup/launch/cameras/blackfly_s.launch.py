@@ -20,6 +20,12 @@ from launch_ros.actions import ComposableNodeContainer, LoadComposableNodes
 from launch_ros.descriptions import ComposableNode
 
 
+RESOLUTION_PRESETS = {
+    '720x540':   {'image_width': 720,  'image_height': 540,  'binning_x': 2, 'binning_y': 2, 'calib': 'blackfly_s_calib_downscale.yaml'},
+    '1440x1080': {'image_width': 1440, 'image_height': 1080, 'binning_x': 1, 'binning_y': 1, 'calib': 'blackfly_s_calib.yaml'},
+}
+
+
 def _launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('perception_setup')
 
@@ -28,10 +34,29 @@ def _launch_setup(context, *args, **kwargs):
     use_nvidia = LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
     standalone = LaunchConfiguration('standalone').perform(context).lower() == 'true'
     container_name = LaunchConfiguration('container_name').perform(context)
+    resolution = LaunchConfiguration('resolution').perform(context)
+    fps = LaunchConfiguration('fps').perform(context)
+    pixel_format = LaunchConfiguration('pixel_format').perform(context)
 
     blackfly_ros_params = os.path.join(pkg_dir, 'config', 'cameras', 'blackfly_s_ros_params.yaml')
     spinnaker_map = os.path.join(pkg_dir, 'config', 'cameras', 'blackfly_s_params.yaml')
-    calib_path = os.path.join(pkg_dir, 'config', 'cameras', 'blackfly_s_calib.yaml')
+
+    calib_file = RESOLUTION_PRESETS[resolution]['calib'] if resolution in RESOLUTION_PRESETS else 'blackfly_s_calib.yaml'
+    calib_path = os.path.join(pkg_dir, 'config', 'cameras', calib_file)
+
+    camera_overrides = {}
+    if resolution in RESOLUTION_PRESETS:
+        preset = RESOLUTION_PRESETS[resolution]
+        camera_overrides.update({
+            'image_width':  preset['image_width'],
+            'image_height': preset['image_height'],
+            'binning_x':    preset['binning_x'],
+            'binning_y':    preset['binning_y'],
+        })
+    if fps:
+        camera_overrides['frame_rate'] = float(fps)
+    if pixel_format:
+        camera_overrides['pixel_format'] = pixel_format
 
     down_image_topic = f'/{drone}/down_camera/image_color'
     down_info_topic = f'/{drone}/down_camera/camera_info'
@@ -49,6 +74,7 @@ def _launch_setup(context, *args, **kwargs):
                     'parameter_file': spinnaker_map,
                     'serial_number': '23494258',
                     'camerainfo_url': f'file://{calib_path}',
+                    **camera_overrides,
                 },
             ],
             remappings=[
@@ -111,6 +137,23 @@ def generate_launch_description():
             'drone',
             default_value='nautilus',
             description='Robot name, used as topic/TF namespace prefix',
+        ),
+        DeclareLaunchArgument(
+            'resolution',
+            default_value='',
+            description='Resolution preset: "720x540" (binning 2x2, downscale calib) or "1440x1080" (binning 1x1, full calib). Empty = use YAML defaults.',
+            choices=['', '720x540', '1440x1080']
+        ),
+        DeclareLaunchArgument(
+            'fps',
+            default_value='',
+            description='Override camera frame rate (e.g. "30.0"). Empty = use YAML default.',
+        ),
+        DeclareLaunchArgument(
+            'pixel_format',
+            default_value='',
+            description='Override pixel format. Empty = use YAML default.',
+            choices=['', 'BayerRG8', 'BGR8']
         ),
         DeclareLaunchArgument(
             'enable_gstreamer',
