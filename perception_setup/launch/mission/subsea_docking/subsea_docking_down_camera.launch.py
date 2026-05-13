@@ -48,6 +48,8 @@ def _launch_setup(context, *args, **kwargs):
     target = LaunchConfiguration('target').perform(context)
     enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
     use_nvidia = LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
+    destination_ip = LaunchConfiguration('destination_ip').perform(context)
+    destination_port = int(LaunchConfiguration('destination_port').perform(context))
 
     aruco_params = _TAC_ARUCO if target == 'tac' else _VORTEX_ARUCO
 
@@ -87,8 +89,8 @@ def _launch_setup(context, *args, **kwargs):
                 name='image_to_gstreamer_node',
                 parameters=[{
                     'input_topic': _ARUCO_IMAGE_TOPIC,
-                    'destination_ip': '10.0.0.68',
-                    'destination_port': 5001,
+                    'destination_ip': destination_ip,
+                    'destination_port': destination_port,
                     'bitrate': 500000,
                     'expected_input_fps': 15,
                     'preset_level': 1,
@@ -141,12 +143,22 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 'enable_gstreamer',
                 default_value='true',
-                description='Stream the ArUco annotated down image via GStreamer/RTP to 10.0.0.68:5001',
+                description='Stream the ArUco annotated down image via GStreamer/RTP',
             ),
             DeclareLaunchArgument(
                 'gst_nvidia_encoder',
                 default_value='true',
                 description='Use NVIDIA hardware H.265 encoder. Set false for software x265enc.',
+            ),
+            DeclareLaunchArgument(
+                'destination_ip',
+                default_value='10.0.0.169',
+                description='Destination IP for GStreamer RTP stream.',
+            ),
+            DeclareLaunchArgument(
+                'destination_port',
+                default_value='5001',
+                description='Destination UDP port for GStreamer RTP stream.',
             ),
             OpaqueFunction(function=_launch_setup),
             IncludeLaunchDescription(

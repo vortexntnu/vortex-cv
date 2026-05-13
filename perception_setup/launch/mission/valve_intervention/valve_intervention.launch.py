@@ -39,6 +39,8 @@ def _launch_setup(context, *args, **kwargs):
     device = LaunchConfiguration('device').perform(context)
     enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
     use_nvidia = LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
+    destination_ip = LaunchConfiguration('destination_ip').perform(context)
+    destination_port = int(LaunchConfiguration('destination_port').perform(context))
     visualize = LaunchConfiguration('visualize').perform(context)
 
     # All downstream nodes subscribe to these drone-prefixed topics.
@@ -138,8 +140,8 @@ def _launch_setup(context, *args, **kwargs):
                 extra_arguments=[{'use_intra_process_comms': True}],
                 parameters=[{
                     'input_topic': _ANNOTATED_TOPIC,
-                    'destination_ip': '10.0.0.169',
-                    'destination_port': 5000,
+                    'destination_ip': destination_ip,
+                    'destination_port': destination_port,
                     'bitrate': 500000,
                     'expected_input_fps': 15,
                     'preset_level': 1,
@@ -277,6 +279,16 @@ def generate_launch_description():
             default_value='true',
             description='Use NVIDIA hardware H.265 encoder (nvv4l2h265enc). '
                         'Set false to use software x265enc.',
+        ),
+        DeclareLaunchArgument(
+            'destination_ip',
+            default_value='10.0.0.169',
+            description='Destination IP for GStreamer RTP stream.',
+        ),
+        DeclareLaunchArgument(
+            'destination_port',
+            default_value='5000',
+            description='Destination UDP port for GStreamer RTP stream.',
         ),
         OpaqueFunction(function=_launch_setup),
     ])

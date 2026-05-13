@@ -27,6 +27,8 @@ def _launch_setup(context, *args, **kwargs):
     namespace = LaunchConfiguration('namespace').perform(context)
     enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
     gst_nvidia = LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
+    destination_ip = LaunchConfiguration('destination_ip').perform(context)
+    destination_port = int(LaunchConfiguration('destination_port').perform(context))
     standalone = LaunchConfiguration('standalone').perform(context).lower() == 'true'
     container_name = LaunchConfiguration('container_name').perform(context)
 
@@ -62,8 +64,8 @@ def _launch_setup(context, *args, **kwargs):
                 name='image_to_gstreamer_node',
                 parameters=[{
                     'input_topic': display_topic,
-                    'destination_ip': '10.0.0.68',
-                    'destination_port': 5002,
+                    'destination_ip': destination_ip,
+                    'destination_port': destination_port,
                     'bitrate': 500000,
                     'expected_input_fps': 15,
                     'preset_level': 1,
@@ -115,6 +117,16 @@ def generate_launch_description():
             'gst_nvidia_encoder',
             default_value='true',
             description='Use NVIDIA hardware H.265 encoder. Set false for software x265enc.',
+        ),
+        DeclareLaunchArgument(
+            'destination_ip',
+            default_value='10.0.0.169',
+            description='Destination IP for GStreamer RTP stream.',
+        ),
+        DeclareLaunchArgument(
+            'destination_port',
+            default_value='5002',
+            description='Destination UDP port for GStreamer RTP stream.',
         ),
         DeclareLaunchArgument(
             'standalone',
