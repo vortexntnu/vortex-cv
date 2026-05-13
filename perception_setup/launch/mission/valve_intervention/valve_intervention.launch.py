@@ -42,6 +42,7 @@ def _launch_setup(context, *args, **kwargs):
     destination_ip = LaunchConfiguration('destination_ip').perform(context)
     destination_port = int(LaunchConfiguration('destination_port').perform(context))
     visualize = LaunchConfiguration('visualize').perform(context)
+    enable_subtype_resolver = LaunchConfiguration('enable_subtype_resolver').perform(context).lower() == 'true'
 
     # All downstream nodes subscribe to these drone-prefixed topics.
     # Real hardware: camera + undistort publish here.
@@ -111,6 +112,7 @@ def _launch_setup(context, *args, **kwargs):
                     'depth_image_sub_topic': depth_image_topic,
                     'depth_image_info_topic': depth_info_topic,
                     'color_image_info_topic': color_info_topic,
+                    'color_image_sub_topic': color_image_topic,
                     'depth_frame_id': 'front_camera_depth_optical',
                     'color_frame_id': 'front_camera_color_optical',
                     'landmarks_pub_topic': '/valve_landmarks',
@@ -119,24 +121,45 @@ def _launch_setup(context, *args, **kwargs):
                     'undistort_detections': undistort_detections,
                     'detections_letterboxed': detections_letterboxed,
                     'debug_visualize': LaunchConfiguration('debug_visualize'),
-                    'clamp_rotation': LaunchConfiguration('clamp_rotation'),
                     'use_hardcoded_extrinsic': LaunchConfiguration(
                         'use_hardcoded_extrinsic'
                     ),
-                    'extrinsic_tx': -0.059,
-                    'extrinsic_ty': 0.0,
-                    'extrinsic_tz': 0.0,
+                    'extrinsic_tx': -0.0588846690952778,
+                    'extrinsic_ty': 7.41585317882709e-05,
+                    'extrinsic_tz': 0.000453426211606711,
+                    'extrinsic_R': [
+                        0.999998, 0.00057367, 0.00211211,
+                        -0.00057441, 1.0, 0.00034676,
+                        -0.00211191, -0.00034797, 0.999998,
+                    ],
                 },
             ],
         ),
     ]
 
+    if enable_subtype_resolver:
+        container_nodes.append(
+            ComposableNode(
+                package='valve_subtype_resolver',
+                plugin='valve_subtype_resolver::ValveSubtypeResolverNode',
+                name='valve_subtype_resolver_node',
+                parameters=[
+                    os.path.join(
+                        get_package_share_directory('valve_subtype_resolver'),
+                        'config',
+                        'valve_subtype_resolver_params.yaml',
+                    ),
+                    {'drone': drone},
+                ],
+            )
+        )
+
     if enable_gstreamer:
         container_nodes.append(
             ComposableNode(
-                package='image_to_gstreamer',
-                plugin='image_to_gstreamer::ImageToGStreamer',
-                name='image_to_gstreamer_node',
+                package='gstreamer_from_ros',
+                plugin='gstreamer_from_ros::GStreamerFromRos',
+                name='gstreamer_from_ros_node',
                 extra_arguments=[{'use_intra_process_comms': True}],
                 parameters=[{
                     'input_topic': _ANNOTATED_TOPIC,
@@ -149,7 +172,7 @@ def _launch_setup(context, *args, **kwargs):
                     'control_rate': 1,
                     'pt': 96,
                     'config_interval': 1,
-                    'input_format': 'RGB',
+                    'input_format': 'BGR',
                     'hw_encoder': use_nvidia,
                 }],
             )
@@ -171,7 +194,10 @@ def _launch_setup(context, *args, **kwargs):
     )
 
     # -------------------------------------------------------------------------
-    # Camera — real hardware only, attached to the mission container
+    # Camera + image processing — attached to the mission container.
+    # In sim mode the simulator publishes the final topics directly, so skip.
+    # For bag replay (real topic names, no live camera) set enable_camera:=false
+    # so only the undistort + crop nodes run against the bagged raw topics.
     # -------------------------------------------------------------------------
     if not sim:
         actions.append(
@@ -181,7 +207,8 @@ def _launch_setup(context, *args, **kwargs):
                 ),
                 launch_arguments={
                     'drone': drone,
-                    'enable_undistort': 'true' if enable_undistort else 'false',
+                    'enable_camera': LaunchConfiguration('enable_camera'),
+                    'enable_undistort': LaunchConfiguration('enable_undistort'),
                     'enable_gstreamer': 'false',
                     'standalone': 'false',
                     'container_name': container_name,
@@ -219,6 +246,15 @@ def generate_launch_description():
             ),
         ),
         DeclareLaunchArgument(
+            'enable_camera',
+            default_value='true',
+            description=(
+                'When sim:=false, controls whether the live RealSense camera '
+                'node is launched. Set false for bag replay against raw '
+                '/camera/camera/color/image_raw — undistort + crop still run.'
+            ),
+        ),
+        DeclareLaunchArgument(
             'drone',
             default_value='nautilus',
             description='Robot name, used as topic/TF namespace prefix',
@@ -249,11 +285,6 @@ def generate_launch_description():
             description='Enable valve_detection debug visualisation topics',
         ),
         DeclareLaunchArgument(
-            'clamp_rotation',
-            default_value='true',
-            description='Clamp valve handle angle to 0–90° (180°/90° symmetric)',
-        ),
-        DeclareLaunchArgument(
             'use_hardcoded_extrinsic',
             default_value='true',
             description='Use hardcoded depth-to-color extrinsic instead of TF lookup',
@@ -262,6 +293,11 @@ def generate_launch_description():
             'visualize',
             default_value='true',
             description='Launch the OBB visualizer and publish annotated images',
+        ),
+        DeclareLaunchArgument(
+            'enable_subtype_resolver',
+            default_value='true',
+            description='Launch the valve_subtype_resolver node alongside the pipeline',
         ),
         DeclareLaunchArgument(
             'enable_gstreamer',

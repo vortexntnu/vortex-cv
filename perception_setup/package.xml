@@ -24,9 +24,10 @@
   <exec_depend>realsense2_camera</exec_depend>
   <exec_depend>spinnaker_camera_driver</exec_depend> -->
   <exec_depend>valve_detection</exec_depend>
+  <exec_depend>valve_subtype_resolver</exec_depend>
   <exec_depend>image_filtering</exec_depend>
   <exec_depend>aruco_detector</exec_depend>
-  <exec_depend>image_to_gstreamer</exec_depend>
+  <exec_depend>gstreamer_from_ros</exec_depend>
   <exec_depend>vortex_cv_util_nodes</exec_depend>
   <export>
     <build_type>ament_cmake</build_type>

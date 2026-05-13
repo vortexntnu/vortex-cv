@@ -29,6 +29,7 @@
 #include "valve_detection/types.hpp"
 
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 #include "vortex_msgs/msg/landmark_array.hpp"
@@ -68,11 +69,31 @@ class ValvePoseNode : public rclcpp::Node {
     void publish_empty_results(const std_msgs::msg::Header& header) const;
     cv::Mat build_depth_colormap(
         const sensor_msgs::msg::Image::ConstSharedPtr& depth) const;
+    // Always publishes the depth colormap with all NMS-filtered detections
+    // drawn: valves in green, handles in orange. Z is sampled from the depth
+    // image at each box's center (color->depth scale via fx ratio), with a
+    // 1 m fallback when depth is invalid. No pose-fit dependency.
+    void publish_box_colormap(
+        const sensor_msgs::msg::Image::ConstSharedPtr& depth,
+        const cv::Mat& depth_img,
+        const std::vector<BoundingBox>& valve_boxes,
+        const std::vector<BoundingBox>& handle_boxes) const;
     void publish_debug(const sensor_msgs::msg::Image::ConstSharedPtr& depth,
-                       const std::vector<BoundingBox>& boxes,
-                       const std::vector<Pose>& poses,
                        const pcl::PointCloud<pcl::PointXYZ>& ann_cloud,
                        const pcl::PointCloud<pcl::PointXYZ>& pln_cloud) const;
+    // Caches the most recent color image so annotated_image can be drawn on
+    // top of it when detections arrive (not time-synchronized).
+    void color_image_cb(const sensor_msgs::msg::Image::ConstSharedPtr msg);
+    // Draws raw OBBs on the cached color image and, for each detection whose
+    // class is in `annotated_image_theta_classes_`, overlays the folded
+    // [0, 90°] theta (same normalization used for the pose handle angle).
+    void publish_annotated_image(
+        const std_msgs::msg::Header& header,
+        const std::vector<std::pair<float, BoundingBox>>& scored_valves,
+        const std::vector<std::pair<float, BoundingBox>>& scored_handles);
+    // Folds a raw OBB (size_x, size_y, theta) into the canonical [0, π/2]
+    // openness angle used by the pose pipeline and the annotated overlay.
+    float fold_obb_theta(float size_x, float size_y, float theta) const;
 
     using SyncPolicy = message_filters::sync_policies::ApproximateTime<
         sensor_msgs::msg::Image,
@@ -91,6 +112,16 @@ class ValvePoseNode : public rclcpp::Node {
     int ransac_iters_;
     bool undistort_detections_{false};
     bool detections_letterboxed_{false};
+
+    // Yaw normalization: raw OBB angle is folded into [0, π/2], with
+    // `yaw_closed_reference_rad_` mapping to 0. `yaw_invert_` swaps which
+    // rotation direction is treated as positive before folding.
+    float yaw_closed_reference_rad_{0.0f};
+    bool yaw_invert_{false};
+
+    // Annotated-image (color image + raw OBBs + folded theta text). Optional.
+    bool enable_annotated_image_{false};
+    std::set<std::string> annotated_image_theta_classes_;
 
     // camera data (owned by node, passed to estimator and depth functions)
     ImageProperties color_props_{};
@@ -115,11 +146,14 @@ class ValvePoseNode : public rclcpp::Node {
         color_cam_info_sub_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr
         depth_cam_info_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr color_image_sub_;
     message_filters::Subscriber<sensor_msgs::msg::Image> depth_sub_;
     message_filters::Subscriber<vision_msgs::msg::Detection2DArray> det_sub_;
     std::shared_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
+    sensor_msgs::msg::Image::ConstSharedPtr latest_color_image_;
 
     // pubs
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr annotated_image_pub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pose_pub_;
     rclcpp::Publisher<vortex_msgs::msg::LandmarkArray>::SharedPtr landmark_pub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr depth_colormap_pub_;

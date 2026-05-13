@@ -19,6 +19,7 @@ ImageRoiCrop::ImageRoiCrop(const rclcpp::NodeOptions& options)
     w_ = declare_parameter<int>("crop.width");
     h_ = declare_parameter<int>("crop.height");
     enable_crop_ = declare_parameter<bool>("enable_crop");
+    output_frame_ = declare_parameter<std::string>("output_frame", "");
 
     const auto sensor_data_qos = rclcpp::QoS(10).best_effort();
 
@@ -51,8 +52,17 @@ ImageRoiCrop::ImageRoiCrop(const rclcpp::NodeOptions& options)
 void ImageRoiCrop::callback(const ImageMsg::ConstSharedPtr& image_msg,
                             const CameraInfoMsg::ConstSharedPtr& info_msg) {
     if (!enable_crop_) {
-        image_pub_->publish(*image_msg);
-        info_pub_->publish(*info_msg);
+        if (!output_frame_.empty()) {
+            ImageMsg img_out = *image_msg;
+            CameraInfoMsg info_out = *info_msg;
+            img_out.header.frame_id = output_frame_;
+            info_out.header.frame_id = output_frame_;
+            image_pub_->publish(img_out);
+            info_pub_->publish(info_out);
+        } else {
+            image_pub_->publish(*image_msg);
+            info_pub_->publish(*info_msg);
+        }
         return;
     }
 
@@ -74,9 +84,13 @@ void ImageRoiCrop::callback(const ImageMsg::ConstSharedPtr& image_msg,
     auto out_image =
         cv_bridge::CvImage(image_msg->header, image_msg->encoding, cropped)
             .toImageMsg();
+    if (!output_frame_.empty())
+        out_image->header.frame_id = output_frame_;
     image_pub_->publish(*out_image);
 
     CameraInfoMsg out_info = *info_msg;
+    if (!output_frame_.empty())
+        out_info.header.frame_id = output_frame_;
     out_info.width = static_cast<uint32_t>(w);
     out_info.height = static_cast<uint32_t>(h);
     out_info.k[2] -= x_;  // cx

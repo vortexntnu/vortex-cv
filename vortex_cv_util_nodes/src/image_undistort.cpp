@@ -56,21 +56,58 @@ ImageUndistort::ImageUndistort(const rclcpp::NodeOptions& options)
         RCLCPP_INFO(get_logger(), "image_undistort: %s -> %s",
                     image_topic.c_str(), out_topic.c_str());
     } else {
+        if (!camera_info_file.empty()) {
+            load_raw_info_from_file(camera_info_file);
+        }
+
         image_sub_ = create_subscription<sensor_msgs::msg::Image>(
             image_topic, sensor_data_qos,
             [this](const sensor_msgs::msg::Image::SharedPtr msg) {
                 relay_image(msg);
             });
 
-        info_sub_ = create_subscription<sensor_msgs::msg::CameraInfo>(
-            raw_info_topic, rclcpp::QoS(1).reliable(),
-            [this](const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
-                relay_camera_info(msg);
-            });
+        if (!raw_info_from_file_ready_) {
+            info_sub_ = create_subscription<sensor_msgs::msg::CameraInfo>(
+                raw_info_topic, rclcpp::QoS(1).reliable(),
+                [this](const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
+                    relay_camera_info(msg);
+                });
+        }
 
-        RCLCPP_INFO(get_logger(), "image_undistort: passthrough %s -> %s",
-                    image_topic.c_str(), out_topic.c_str());
+        RCLCPP_INFO(get_logger(),
+                    "image_undistort: passthrough %s -> %s (camera_info from %s)",
+                    image_topic.c_str(), out_topic.c_str(),
+                    raw_info_from_file_ready_ ? "file" : "upstream");
     }
+}
+
+void ImageUndistort::load_raw_info_from_file(const std::string& path) {
+    const YAML::Node data = YAML::LoadFile(path);
+    const auto k_vec = data["camera_matrix"]["data"].as<std::vector<double>>();
+    const auto d_vec =
+        data["distortion_coefficients"]["data"].as<std::vector<double>>();
+    const int w = data["image_width"].as<int>();
+    const int h = data["image_height"].as<int>();
+    const std::string model = data["distortion_model"]
+                                  ? data["distortion_model"].as<std::string>()
+                                  : std::string("plumb_bob");
+
+    raw_info_from_file_ = sensor_msgs::msg::CameraInfo{};
+    raw_info_from_file_.width = static_cast<uint32_t>(w);
+    raw_info_from_file_.height = static_cast<uint32_t>(h);
+    raw_info_from_file_.distortion_model = model;
+    raw_info_from_file_.d.assign(d_vec.begin(), d_vec.end());
+    for (size_t i = 0; i < 9 && i < k_vec.size(); ++i)
+        raw_info_from_file_.k[i] = k_vec[i];
+    raw_info_from_file_.r = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+    // P = [K | 0] for a non-rectified mono camera.
+    raw_info_from_file_.p = {k_vec[0], k_vec[1], k_vec[2], 0.0,
+                             k_vec[3], k_vec[4], k_vec[5], 0.0,
+                             k_vec[6], k_vec[7], k_vec[8], 0.0};
+    raw_info_from_file_ready_ = true;
+    RCLCPP_INFO(get_logger(),
+                "Loaded raw camera_info from file (%dx%d, %zu dist coeffs)",
+                w, h, d_vec.size());
 }
 
 void ImageUndistort::init_maps_from_file(const std::string& path) {
@@ -185,6 +222,11 @@ void ImageUndistort::relay_image(const sensor_msgs::msg::Image::SharedPtr msg) {
         msg->header.frame_id = output_frame_;
     }
     image_pub_->publish(*msg);
+
+    if (raw_info_from_file_ready_) {
+        raw_info_from_file_.header = msg->header;
+        info_pub_->publish(raw_info_from_file_);
+    }
 }
 
 void ImageUndistort::relay_camera_info(

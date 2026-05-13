@@ -256,3 +256,7 @@ qtcreator-*
 # Catkin custom files
 CATKIN_IGNORE
 .vscode/
+
+# Model files
+*.pt
+*.onnx

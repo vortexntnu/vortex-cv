@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <limits>
 
 #include <vortex/utils/ros/qos_profiles.hpp>
@@ -51,6 +52,11 @@ void ValvePoseNode::declare_params() {
     handle_offset_ = declare_parameter<float>("valve_handle_offset");
     undistort_detections_ = declare_parameter<bool>("undistort_detections");
 
+    yaw_closed_reference_rad_ = static_cast<float>(
+        declare_parameter<double>("yaw_closed_reference_deg", 0.0) * M_PI /
+        180.0);
+    yaw_invert_ = declare_parameter<bool>("yaw_invert", false);
+
     // TF frame IDs for the depth-to-color extrinsic lookup.
     const std::string depth_frame_base =
         declare_parameter<std::string>("depth_frame_id");
@@ -66,7 +72,20 @@ void ValvePoseNode::declare_params() {
         const double tx = declare_parameter<double>("extrinsic_tx");
         const double ty = declare_parameter<double>("extrinsic_ty");
         const double tz = declare_parameter<double>("extrinsic_tz");
-        depth_color_extrinsic_.R = Eigen::Matrix3f::Identity();
+        const auto R_vec = declare_parameter<std::vector<double>>(
+            "extrinsic_R",
+            std::vector<double>{1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0});
+        if (R_vec.size() != 9) {
+            throw std::runtime_error(
+                "extrinsic_R must have exactly 9 elements (row-major 3x3)");
+        }
+        Eigen::Matrix3f R;
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                R(i, j) = static_cast<float>(R_vec[i * 3 + j]);
+            }
+        }
+        depth_color_extrinsic_.R = R;
         depth_color_extrinsic_.t =
             Eigen::Vector3f(static_cast<float>(tx), static_cast<float>(ty),
                             static_cast<float>(tz));
@@ -124,7 +143,108 @@ void ValvePoseNode::declare_params() {
     landmark_pub_ = create_publisher<vortex_msgs::msg::LandmarkArray>(
         lm_topic, vortex::utils::qos_profiles::reliable_profile(10));
 
+    enable_annotated_image_ =
+        declare_parameter<bool>("enable_annotated_image", false);
+    if (enable_annotated_image_) {
+        const auto annotated_topic = declare_parameter<std::string>(
+            "annotated_image_pub_topic",
+            "/valve_detection/annotated_image_with_theta");
+        const auto color_image_topic =
+            declare_parameter<std::string>("color_image_sub_topic");
+        const auto theta_classes = declare_parameter<std::vector<std::string>>(
+            "annotated_image_theta_classes", std::vector<std::string>{"0"});
+        annotated_image_theta_classes_.insert(theta_classes.begin(),
+                                              theta_classes.end());
+
+        const auto sensor_qos =
+            vortex::utils::qos_profiles::reliable_profile(10);
+        annotated_image_pub_ = create_publisher<sensor_msgs::msg::Image>(
+            annotated_topic, sensor_qos);
+        color_image_sub_ = create_subscription<sensor_msgs::msg::Image>(
+            color_image_topic, rclcpp::QoS(1).best_effort(),
+            std::bind(&ValvePoseNode::color_image_cb, this, _1));
+    }
+
     try_activate_detector();
+}
+
+void ValvePoseNode::color_image_cb(
+    const sensor_msgs::msg::Image::ConstSharedPtr msg) {
+    latest_color_image_ = msg;
+}
+
+float ValvePoseNode::fold_obb_theta(float size_x,
+                                    float size_y,
+                                    float theta) const {
+    float w = size_x;
+    float h = size_y;
+    float t = theta;
+    if (h > w) {
+        std::swap(w, h);
+        t += static_cast<float>(M_PI / 2.0);
+    }
+    const float pi = static_cast<float>(M_PI);
+    float raw = std::fmod(t, pi);
+    if (raw < 0.0f)
+        raw += pi;
+    const float sign = yaw_invert_ ? -1.0f : 1.0f;
+    float diff = std::fmod(sign * (raw - yaw_closed_reference_rad_), pi);
+    if (diff < 0.0f)
+        diff += pi;
+    return (diff <= pi / 2.0f) ? diff : (pi - diff);
+}
+
+void ValvePoseNode::publish_annotated_image(
+    const std_msgs::msg::Header& header,
+    const std::vector<std::pair<float, BoundingBox>>& scored_valves,
+    const std::vector<std::pair<float, BoundingBox>>& scored_handles) {
+    if (!annotated_image_pub_ || !latest_color_image_)
+        return;
+
+    cv::Mat image;
+    try {
+        cv_bridge::CvImageConstPtr cv_img =
+            cv_bridge::toCvCopy(latest_color_image_, "bgr8");
+        image = cv_img->image;
+    } catch (const cv_bridge::Exception& e) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+                             "annotated_image cv_bridge failed: %s", e.what());
+        return;
+    }
+
+    auto draw = [&](const BoundingBox& raw_box, const std::string& cls,
+                    const cv::Scalar& color) {
+        BoundingBox b = detections_letterboxed_
+                            ? detector_->letterbox_to_image_coords(raw_box)
+                            : raw_box;
+        const float angle_deg = b.theta * 180.0f / static_cast<float>(M_PI);
+        cv::RotatedRect rrect(cv::Point2f(b.center_x, b.center_y),
+                              cv::Size2f(b.size_x, b.size_y), angle_deg);
+        cv::Point2f corners[4];
+        rrect.points(corners);
+        for (int j = 0; j < 4; ++j)
+            cv::line(image, corners[j], corners[(j + 1) % 4], color, 2);
+
+        if (annotated_image_theta_classes_.count(cls)) {
+            const float folded_deg =
+                fold_obb_theta(b.size_x, b.size_y, b.theta) * 180.0f /
+                static_cast<float>(M_PI);
+            char buf[32];
+            std::snprintf(buf, sizeof(buf), "%.1f deg", folded_deg);
+            cv::putText(image, buf,
+                        cv::Point(static_cast<int>(b.center_x),
+                                  static_cast<int>(b.center_y) - 8),
+                        cv::FONT_HERSHEY_SIMPLEX, 0.7, color, 2, cv::LINE_AA);
+        }
+    };
+
+    for (const auto& [score, box] : scored_valves)
+        draw(box, "1", cv::Scalar(0, 255, 0));
+    for (const auto& [score, box] : scored_handles)
+        draw(box, "0", cv::Scalar(0, 165, 255));
+
+    auto out_msg = cv_bridge::CvImage(header, "bgr8", image).toImageMsg();
+    annotated_image_pub_->publish(*out_msg);
 }
 
 void ValvePoseNode::lookup_extrinsic() {
@@ -203,11 +323,11 @@ void ValvePoseNode::init_subscriptions() {
     depth_sub_.subscribe(this, depth_topic, data_qos.get_rmw_qos_profile());
     det_sub_.subscribe(this, det_topic, data_qos.get_rmw_qos_profile());
 
-    // Slop set to 100 ms to accommodate the detection pipeline latency
-    // (~66 ms observed between depth and detection timestamps).
+    // Slop accommodates detection pipeline latency and bag-replay timestamp
+    // jitter between depth and detection streams.
     sync_ = std::make_shared<message_filters::Synchronizer<SyncPolicy>>(
-        SyncPolicy(20), depth_sub_, det_sub_);
-    sync_->setMaxIntervalDuration(rclcpp::Duration::from_seconds(0.15));
+        SyncPolicy(50), depth_sub_, det_sub_);
+    sync_->setMaxIntervalDuration(rclcpp::Duration::from_seconds(0.3));
     sync_->registerCallback(std::bind(&ValvePoseNode::sync_cb, this, _1, _2));
 }
 
@@ -310,8 +430,6 @@ cv::Mat ValvePoseNode::build_depth_colormap(
 
 void ValvePoseNode::publish_debug(
     const sensor_msgs::msg::Image::ConstSharedPtr& depth,
-    const std::vector<BoundingBox>& boxes,
-    const std::vector<Pose>& poses,
     const pcl::PointCloud<pcl::PointXYZ>& ann_cloud,
     const pcl::PointCloud<pcl::PointXYZ>& pln_cloud) const {
     std_msgs::msg::Header pcl_header = depth->header;
@@ -324,42 +442,6 @@ void ValvePoseNode::publish_debug(
         depth_cloud_pub_->publish(msg);
     }
 
-    if (depth_colormap_pub_) {
-        cv::Mat colormap = build_depth_colormap(depth);
-        for (size_t i = 0; i < boxes.size(); ++i) {
-            const auto& box = boxes[i];
-
-            // poses[i] is in the depth camera frame.
-            // project_color_pixel_to_depth needs Z in the color camera frame,
-            // so transform the 3-D point first.
-            const Eigen::Vector3f P_depth(static_cast<float>(poses[i].x),
-                                          static_cast<float>(poses[i].y),
-                                          static_cast<float>(poses[i].z));
-            const Eigen::Vector3f P_color =
-                depth_color_extrinsic_.R * P_depth + depth_color_extrinsic_.t;
-            const float Z_color = P_color.z();
-            if (Z_color <= 0.0f)
-                continue;
-
-            const float angle_deg =
-                box.theta * 180.0f / static_cast<float>(M_PI);
-            cv::RotatedRect rrect(cv::Point2f(box.center_x, box.center_y),
-                                  cv::Size2f(box.size_x, box.size_y),
-                                  angle_deg);
-            cv::Point2f corners[4];
-            rrect.points(corners);
-            for (auto& c : corners)
-                c = project_color_pixel_to_depth(c.x, c.y, Z_color,
-                                                 color_props_, depth_props_,
-                                                 depth_color_extrinsic_);
-            for (int j = 0; j < 4; ++j)
-                cv::line(colormap, corners[j], corners[(j + 1) % 4],
-                         cv::Scalar(0, 255, 0), 2);
-        }
-        depth_colormap_pub_->publish(
-            *cv_bridge::CvImage(depth->header, "bgr8", colormap).toImageMsg());
-    }
-
     if (annulus_pub_ && plane_pub_) {
         sensor_msgs::msg::PointCloud2 ann_msg, pln_msg;
         pcl::toROSMsg(ann_cloud, ann_msg);
@@ -369,6 +451,56 @@ void ValvePoseNode::publish_debug(
         annulus_pub_->publish(ann_msg);
         plane_pub_->publish(pln_msg);
     }
+}
+
+// Publishes the depth colormap with every NMS-filtered detection drawn:
+// valves green, handles orange. Z is sampled from the depth image at each
+// box center (color->depth via fx ratio), with a 1 m fallback on invalid
+// depth. Runs every sync_cb tick — does not depend on pose-fit success.
+void ValvePoseNode::publish_box_colormap(
+    const sensor_msgs::msg::Image::ConstSharedPtr& depth,
+    const cv::Mat& depth_img,
+    const std::vector<BoundingBox>& valve_boxes,
+    const std::vector<BoundingBox>& handle_boxes) const {
+    if (!depth_colormap_pub_)
+        return;
+
+    cv::Mat colormap = build_depth_colormap(depth);
+
+    const float scale = (color_props_.intr.fx > 0.0)
+                            ? static_cast<float>(depth_props_.intr.fx /
+                                                 color_props_.intr.fx)
+                            : 1.0f;
+
+    auto draw_box = [&](const BoundingBox& box, const cv::Scalar& color) {
+        const int u_d = std::clamp(static_cast<int>(box.center_x * scale), 0,
+                                   depth_img.cols - 1);
+        const int v_d = std::clamp(static_cast<int>(box.center_y * scale), 0,
+                                   depth_img.rows - 1);
+        const float Z = depth_img.at<float>(v_d, u_d);
+        const float Z_color =
+            (std::isfinite(Z) && Z > 0.0f) ? Z : 1.0f;
+
+        const float angle_deg = box.theta * 180.0f / static_cast<float>(M_PI);
+        cv::RotatedRect rrect(cv::Point2f(box.center_x, box.center_y),
+                              cv::Size2f(box.size_x, box.size_y), angle_deg);
+        cv::Point2f corners[4];
+        rrect.points(corners);
+        for (auto& c : corners)
+            c = project_color_pixel_to_depth(c.x, c.y, Z_color, color_props_,
+                                             depth_props_,
+                                             depth_color_extrinsic_);
+        for (int j = 0; j < 4; ++j)
+            cv::line(colormap, corners[j], corners[(j + 1) % 4], color, 2);
+    };
+
+    for (const auto& v : valve_boxes)
+        draw_box(v, cv::Scalar(0, 255, 0));     // green
+    for (const auto& h : handle_boxes)
+        draw_box(h, cv::Scalar(0, 165, 255));   // orange
+
+    depth_colormap_pub_->publish(
+        *cv_bridge::CvImage(depth->header, "bgr8", colormap).toImageMsg());
 }
 
 // Main synchronized callback: runs NMS, estimates poses, and publishes all
@@ -383,16 +515,6 @@ void ValvePoseNode::sync_cb(
 
     std_msgs::msg::Header pose_header = depth->header;
     pose_header.frame_id = output_frame_id_;
-
-    if (split.valves.empty()) {
-        publish_empty_results(pose_header);
-        if (debug_visualize_ && depth_colormap_pub_)
-            depth_colormap_pub_->publish(
-                *cv_bridge::CvImage(depth->header, "bgr8",
-                                    build_depth_colormap(depth))
-                     .toImageMsg());
-        return;
-    }
 
     // Per-class NMS: valves against valves, handles against handles.
     const std::vector<size_t> kept_valves =
@@ -420,6 +542,37 @@ void ValvePoseNode::sync_cb(
     handle_boxes.reserve(kept_handles.size());
     for (size_t idx : kept_handles)
         handle_boxes.push_back(to_color_space(split.handles[idx].second));
+
+    // Decode depth once. Used for both the always-on colormap overlay and
+    // the pose-fit pipeline below.
+    const cv::Mat depth_img = decode_depth_to_float(depth);
+
+    // Always publish the colormap with every NMS-filtered detection drawn,
+    // independent of pairing or pose-fit success.
+    if (debug_visualize_)
+        publish_box_colormap(depth, depth_img, valve_boxes, handle_boxes);
+
+    // Always publish the annotated color image (raw OBBs + folded theta text
+    // for configured classes), independent of pairing/pose-fit success.
+    if (enable_annotated_image_) {
+        std::vector<std::pair<float, BoundingBox>> scored_valves;
+        std::vector<std::pair<float, BoundingBox>> scored_handles;
+        scored_valves.reserve(kept_valves.size());
+        for (size_t idx : kept_valves)
+            scored_valves.push_back(split.valves[idx]);
+        scored_handles.reserve(kept_handles.size());
+        for (size_t idx : kept_handles)
+            scored_handles.push_back(split.handles[idx]);
+        std_msgs::msg::Header img_header = depth->header;
+        if (latest_color_image_)
+            img_header = latest_color_image_->header;
+        publish_annotated_image(img_header, scored_valves, scored_handles);
+    }
+
+    if (valve_boxes.empty()) {
+        publish_empty_results(pose_header);
+        return;
+    }
 
     // Pair each valve with at most one handle (handle center inside the
     // valve OBB; ties broken by smaller center-to-center distance).
@@ -452,41 +605,25 @@ void ValvePoseNode::sync_cb(
 
     if (pairs.empty()) {
         publish_empty_results(pose_header);
-        if (debug_visualize_ && depth_colormap_pub_)
-            depth_colormap_pub_->publish(
-                *cv_bridge::CvImage(depth->header, "bgr8",
-                                    build_depth_colormap(depth))
-                     .toImageMsg());
         return;
     }
 
-    const cv::Mat depth_img = decode_depth_to_float(depth);
     const DetectorMode mode =
         debug_visualize_ ? DetectorMode::debug : DetectorMode::standard;
 
-    std::vector<BoundingBox> raw_boxes;
     std::vector<Pose> poses;
     pcl::PointCloud<pcl::PointXYZ> ann_dbg, pln_dbg;
 
     for (const auto& [valve_ptr, handle_ptr] : pairs) {
         const BoundingBox& valve_box = *valve_ptr;
-        // Normalize the OBB angle so it always describes the short-axis
-        // direction (perpendicular to the handle shaft). YOLO OBB can
-        // silently swap which side it labels size_x vs size_y between
-        // frames, causing `theta` to jump by ±π/2 for a physically
-        // continuous handle; force the convention by adding π/2 when the
-        // short axis is stored in size_y.
-        float handle_angle = handle_ptr->theta;
-        if (handle_ptr->size_x > handle_ptr->size_y)
-            handle_angle -= static_cast<float>(M_PI / 2.0);
+        const float handle_angle = fold_obb_theta(
+            handle_ptr->size_x, handle_ptr->size_y, handle_ptr->theta);
 
         const auto result = detector_->compute_pose_from_depth(
             depth_img, valve_box, handle_angle, mode);
         if (!result.valid)
             continue;
 
-        // Keep raw_boxes and poses aligned: only push when pose succeeded.
-        raw_boxes.push_back(valve_box);
         poses.push_back(result.pose);
         if (mode == DetectorMode::debug) {
             if (result.annulus_cloud)
@@ -497,7 +634,7 @@ void ValvePoseNode::sync_cb(
     }
 
     if (debug_visualize_)
-        publish_debug(depth, raw_boxes, poses, ann_dbg, pln_dbg);
+        publish_debug(depth, ann_dbg, pln_dbg);
 
     if (debug_visualize_ && pose_pub_)
         pose_pub_->publish(make_pose_array(poses, pose_header));

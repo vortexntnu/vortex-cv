@@ -33,6 +33,9 @@ class ImageRoiCrop : public rclcpp::Node {
 
     int x_{0}, y_{0}, w_{0}, h_{0};
     bool enable_crop_{true};
+    // If non-empty, overrides `header.frame_id` on the published image and
+    // camera_info. Empty = preserve the incoming frame.
+    std::string output_frame_;
 };
 
 }  // namespace vortex_cv_util_nodes

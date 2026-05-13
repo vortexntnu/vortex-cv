@@ -24,7 +24,7 @@ from launch_ros.descriptions import ComposableNode
 def _launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('perception_setup')
     calib_file = os.path.join(
-        pkg_dir, 'config', 'cameras', 'color_realsense_d555_calib.yaml'
+        pkg_dir, 'config', 'cameras', 'color_realsense_d555_calib_downscale.yaml'
     )
 
     drone = LaunchConfiguration('drone').perform(context)
@@ -35,6 +35,7 @@ def _launch_setup(context, *args, **kwargs):
     destination_port = int(LaunchConfiguration('destination_port').perform(context))
     standalone = LaunchConfiguration('standalone').perform(context).lower() == 'true'
     container_name = LaunchConfiguration('container_name').perform(context)
+    enable_camera = LaunchConfiguration('enable_camera').perform(context).lower() == 'true'
     enable_depth_crop = LaunchConfiguration('enable_depth_crop').perform(context).lower() == 'true'
     crop_x_offset = 260
     crop_y_offset = 190
@@ -45,40 +46,60 @@ def _launch_setup(context, *args, **kwargs):
     depth_info_topic = f'/{drone}/depth_camera/camera_info'
     depth_image_cropped_topic = f'/{drone}/depth_camera/image_depth_cropped'
     depth_info_cropped_topic = f'/{drone}/depth_camera/camera_info_cropped'
+
+    # When the live camera is off (bag replay), the depth_image_crop node
+    # consumes the bag's raw RealSense topics directly and republishes on the
+    # namespaced topics that downstream nodes subscribe to — effectively
+    # replacing what the camera node would have produced, with cropping applied.
+    if enable_camera:
+        crop_input_image = depth_image_topic
+        crop_input_info = depth_info_topic
+        crop_output_image = depth_image_cropped_topic
+        crop_output_info = depth_info_cropped_topic
+    else:
+        crop_input_image = '/camera/camera/depth/image_rect_raw'
+        crop_input_info = '/camera/camera/depth/camera_info'
+        crop_output_image = depth_image_topic
+        crop_output_info = depth_info_topic
     color_image_topic = f'/{drone}/front_camera/image_color'
     color_info_topic = f'/{drone}/front_camera/camera_info'
     color_frame = f'{drone}/front_camera_color_optical'
+    depth_frame = f'{drone}/front_camera_depth_optical'
 
-    nodes = [
-        ComposableNode(
-            package='realsense2_camera',
-            plugin='realsense2_camera::RealSenseNodeFactory',
-            name='camera',
-            namespace='camera',
-            parameters=[{
-                'enable_color': True,
-                'rgb_camera.color_profile': '1200,800,15',
-                'rgb_camera.color_format': 'RGB8',
-                'rgb_camera.enable_auto_exposure': True,
-                'enable_depth': True,
-                'depth_module.depth_profile': '896,504,15',
-                'depth_module.depth_format': 'Z16',
-                'depth_module.enable_auto_exposure': True,
-                'depth_module.emitter_enabled': False,
-                'enable_infra1': False,
-                'enable_infra2': False,
-                'enable_gyro': False,
-                'enable_accel': False,
-                'enable_motion': False,
-                'publish_tf': False,
-                'enable_sync': False,
-            }],
-            remappings=[
-                ('/camera/camera/depth/image_rect_raw', depth_image_topic),
-                ('/camera/camera/depth/camera_info', depth_info_topic),
-            ],
-            extra_arguments=[{'use_intra_process_comms': True}],
-        ),
+    nodes = []
+    if enable_camera:
+        nodes.append(
+            ComposableNode(
+                package='realsense2_camera',
+                plugin='realsense2_camera::RealSenseNodeFactory',
+                name='camera',
+                namespace='camera',
+                parameters=[{
+                    'enable_color': True,
+                    'rgb_camera.color_profile': '896,504,15',
+                    'rgb_camera.color_format': 'RGB8',
+                    'rgb_camera.enable_auto_exposure': True,
+                    'enable_depth': True,
+                    'depth_module.depth_profile': '896,504,15',
+                    'depth_module.depth_format': 'Z16',
+                    'depth_module.enable_auto_exposure': True,
+                    'depth_module.emitter_enabled': False,
+                    'enable_infra1': False,
+                    'enable_infra2': False,
+                    'enable_gyro': False,
+                    'enable_accel': False,
+                    'enable_motion': False,
+                    'publish_tf': False,
+                    'enable_sync': False,
+                }],
+                remappings=[
+                    ('/camera/camera/depth/image_rect_raw', depth_image_topic),
+                    ('/camera/camera/depth/camera_info', depth_info_topic),
+                ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            )
+        )
+    nodes.extend([
         ComposableNode(
             package='vortex_cv_util_nodes',
             plugin='vortex_cv_util_nodes::ImageUndistort',
@@ -100,26 +121,27 @@ def _launch_setup(context, *args, **kwargs):
             plugin='vortex_cv_util_nodes::ImageRoiCrop',
             name='depth_image_crop',
             parameters=[{
-                'image_topic': depth_image_topic,
-                'camera_info_topic': depth_info_topic,
-                'output_image_topic': depth_image_cropped_topic,
-                'output_camera_info_topic': depth_info_cropped_topic,
+                'image_topic': crop_input_image,
+                'camera_info_topic': crop_input_info,
+                'output_image_topic': crop_output_image,
+                'output_camera_info_topic': crop_output_info,
                 'crop.x_offset': crop_x_offset,
                 'crop.y_offset': crop_y_offset,
                 'crop.width': crop_width,
                 'crop.height': crop_height,
                 'enable_crop': enable_depth_crop,
+                'output_frame': depth_frame,
             }],
             extra_arguments=[{'use_intra_process_comms': True}],
         ),
-    ]
+    ])
 
     if enable_gstreamer:
         nodes.append(
             ComposableNode(
-                package='image_to_gstreamer',
-                plugin='image_to_gstreamer::ImageToGStreamer',
-                name='image_to_gstreamer_node',
+                package='gstreamer_from_ros',
+                plugin='gstreamer_from_ros::GStreamerFromRos',
+                name='gstreamer_from_ros_node',
                 parameters=[{
                     'input_topic': color_image_topic,
                     'destination_ip': destination_ip,
@@ -166,6 +188,15 @@ def generate_launch_description():
             'drone',
             default_value='nautilus',
             description='Robot name, used as topic/TF namespace prefix',
+        ),
+        DeclareLaunchArgument(
+            'enable_camera',
+            default_value='true',
+            description=(
+                'Launch the RealSense camera node. Set false when replaying a '
+                'bag that already publishes /camera/camera/color/image_raw so '
+                'only the undistort + crop nodes run against the bag.'
+            ),
         ),
         DeclareLaunchArgument(
             'enable_undistort',

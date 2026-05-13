@@ -96,8 +96,6 @@ class PoseEstimator {
     double letterbox_scale_factor_{1.0};
     double letterbox_pad_x_{0};
     double letterbox_pad_y_{0};
-
-    mutable Eigen::Vector3f filter_direction_{Eigen::Vector3f::Zero()};
 };
 
 }  // namespace valve_detection

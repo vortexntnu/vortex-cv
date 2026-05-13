@@ -177,15 +177,6 @@ Eigen::Matrix3f PoseEstimator::create_rotation_matrix_depth(
     Eigen::Vector3f x_axis = R_depth_from_color * dir_color;
     x_axis = (x_axis - x_axis.dot(z_axis) * z_axis).normalized();
 
-    // Ensure consistent direction (avoid flipping between frames).
-    // On the first valid computation filter_direction_ is zero; just accept
-    // whatever direction the geometry gives us.
-    if (!filter_direction_.isZero()) {
-        if (filter_direction_.dot(x_axis) < 0)
-            x_axis = -x_axis;
-    }
-    filter_direction_ = x_axis;
-
     const Eigen::Vector3f y_axis = z_axis.cross(x_axis).normalized();
     x_axis = y_axis.cross(z_axis).normalized();
 

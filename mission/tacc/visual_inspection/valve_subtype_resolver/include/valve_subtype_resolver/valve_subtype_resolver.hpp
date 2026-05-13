@@ -23,11 +23,6 @@ class ValveSubtypeResolverNode : public rclcpp::Node {
     // then returns VALVE_VERTICAL (1), VALVE_HORIZONTAL (2), or 0 (unknown).
     int resolve_subtype(const vortex_msgs::msg::Landmark& landmark);
 
-    // Folds the landmark's yaw (measured in the world frame) into [0, π/2].
-    // Leaves pitch/roll intact. Mutates `lm.pose.pose.orientation` in place.
-    // No-op if the required TF transform is unavailable.
-    void fold_yaw_world(vortex_msgs::msg::Landmark& lm);
-
     // TF2
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
@@ -41,10 +36,6 @@ class ValveSubtypeResolverNode : public rclcpp::Node {
     // Threshold on |world_normal.z|: above this the valve is VALVE_VERTICAL
     // (normal points up/down), below it VALVE_HORIZONTAL (normal in XY plane).
     double vertical_threshold_;
-
-    // Fold the landmark yaw into [0, π/2] in the world frame so the result
-    // is drone-roll invariant (valve handle is 180°/90° symmetric).
-    bool clamp_yaw_{false};
 };
 
 }  // namespace valve_subtype_resolver
