@@ -24,7 +24,7 @@ from launch_ros.descriptions import ComposableNode
 def _launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('perception_setup')
     calib_file = os.path.join(
-        pkg_dir, 'config', 'cameras', 'color_realsense_d555_calib_downscale.yaml'
+        pkg_dir, 'config', 'cameras', 'color_realsense_d555_calib.yaml'
     )
 
     drone = LaunchConfiguration('drone').perform(context)
@@ -35,9 +35,16 @@ def _launch_setup(context, *args, **kwargs):
     destination_port = int(LaunchConfiguration('destination_port').perform(context))
     standalone = LaunchConfiguration('standalone').perform(context).lower() == 'true'
     container_name = LaunchConfiguration('container_name').perform(context)
+    enable_depth_crop = LaunchConfiguration('enable_depth_crop').perform(context).lower() == 'true'
+    crop_x_offset = 260
+    crop_y_offset = 190
+    crop_width = 485
+    crop_height = 245
 
     depth_image_topic = f'/{drone}/depth_camera/image_depth'
     depth_info_topic = f'/{drone}/depth_camera/camera_info'
+    depth_image_cropped_topic = f'/{drone}/depth_camera/image_depth_cropped'
+    depth_info_cropped_topic = f'/{drone}/depth_camera/camera_info_cropped'
     color_image_topic = f'/{drone}/front_camera/image_color'
     color_info_topic = f'/{drone}/front_camera/camera_info'
     color_frame = f'{drone}/front_camera_color_optical'
@@ -50,7 +57,7 @@ def _launch_setup(context, *args, **kwargs):
             namespace='camera',
             parameters=[{
                 'enable_color': True,
-                'rgb_camera.color_profile': '896,504,15',
+                'rgb_camera.color_profile': '1200,800,15',
                 'rgb_camera.color_format': 'RGB8',
                 'rgb_camera.enable_auto_exposure': True,
                 'enable_depth': True,
@@ -85,6 +92,23 @@ def _launch_setup(context, *args, **kwargs):
                 'enable_undistort': enable_undistort,
                 'image_qos': 'reliable',
                 'output_frame': color_frame,
+            }],
+            extra_arguments=[{'use_intra_process_comms': True}],
+        ),
+        ComposableNode(
+            package='vortex_cv_util_nodes',
+            plugin='vortex_cv_util_nodes::ImageRoiCrop',
+            name='depth_image_crop',
+            parameters=[{
+                'image_topic': depth_image_topic,
+                'camera_info_topic': depth_info_topic,
+                'output_image_topic': depth_image_cropped_topic,
+                'output_camera_info_topic': depth_info_cropped_topic,
+                'crop.x_offset': crop_x_offset,
+                'crop.y_offset': crop_y_offset,
+                'crop.width': crop_width,
+                'crop.height': crop_height,
+                'enable_crop': enable_depth_crop,
             }],
             extra_arguments=[{'use_intra_process_comms': True}],
         ),
@@ -180,6 +204,11 @@ def generate_launch_description():
             'container_name',
             default_value='realsense_d555_container',
             description='Container name to create (standalone=true) or attach to (standalone=false)',
+        ),
+        DeclareLaunchArgument(
+            'enable_depth_crop',
+            default_value='true',
+            description='Crop the depth image to a centered ROI',
         ),
         OpaqueFunction(function=_launch_setup),
     ])
