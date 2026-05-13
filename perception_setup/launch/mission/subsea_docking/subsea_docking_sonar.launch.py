@@ -8,12 +8,17 @@ Data sources (via `sim` arg):
   sim:=true   — skips sonar hardware; simulator publishes sonar images
 """
 
+import os
+
+from ament_index_python.packages import get_package_share_directory
 from auv_setup.launch_arg_common import (
     declare_drone_and_namespace_args,
     resolve_drone_and_namespace,
 )
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.conditions import UnlessCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
@@ -24,35 +29,6 @@ def _launch_setup(context, *args, **kwargs):
     sim = LaunchConfiguration('sim').perform(context).lower() == 'true'
 
     nodes = []
-
-    if not sim:
-        nodes.append(
-            ComposableNode(
-                package='norbit_fls_ros_interface',
-                plugin='NorbitFLSRosInterface',
-                name='norbit_fls_ros_interface_node',
-                namespace=namespace,
-                parameters=[{
-                    'raw_sonar_image_pub_topic': 'fls_image/image',
-                    'cartesian_sonar_image_pub_topic': 'fls_image/display_mono',
-                    'norbit_sonar_info_pub_topic': 'fls/norbit_sonar_info',
-                    'sonar_info_pub_topic': 'fls/sonar_info',
-                    'frame_id': 'fls_frame',
-                    'connection_params.ip': '10.0.0.7',
-                    'connection_params.bathy_port': 2210,
-                    'connection_params.water_column_port': 2211,
-                    'connection_params.snippet_sidescan_port': 2212,
-                    'connection_params.cmd_port': 2209,
-                    'connection_params.cmd_timeout_sec': 2.0,
-                    'sonar_settings.mode': 'Bathy',
-                    'sonar_settings.vres': 512,
-                    'sonar_settings.hres': 256,
-                    'sonar_settings.range_start': 0.0,
-                    'sonar_settings.range_stop': 2.0,
-                }],
-                extra_arguments=[{'use_intra_process_comms': True}],
-            )
-        )
 
     if sim:
         line_detection_params = {
@@ -164,6 +140,50 @@ def generate_launch_description():
                 choices=['true', 'false'],
                 description='Run in simulation mode (true) or with real hardware (false)',
             ),
+            DeclareLaunchArgument(
+                'vres',
+                default_value='512',
+                description='Sonar vertical resolution in pixels.',
+            ),
+            DeclareLaunchArgument(
+                'hres',
+                default_value='256',
+                description='Sonar horizontal resolution in pixels.',
+            ),
+            DeclareLaunchArgument(
+                'horizontal_fov_deg',
+                default_value='140.0',
+                description='Sonar horizontal field of view in degrees.',
+            ),
+            DeclareLaunchArgument(
+                'range_start',
+                default_value='0.0',
+                description='Sonar range start in metres.',
+            ),
+            DeclareLaunchArgument(
+                'range_stop',
+                default_value='20.0',
+                description='Sonar range stop in metres.',
+            ),
+            DeclareLaunchArgument(
+                'datatype_uint8',
+                default_value='true',
+                description='Use uint8 instead of uint16 for the cartesian sonar image.',
+                choices=['true', 'false'],
+            ),
             OpaqueFunction(function=_launch_setup),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    os.path.join(
+                        get_package_share_directory('perception_setup'),
+                        'launch', 'cameras', 'sonar.launch.py',
+                    )
+                ),
+                launch_arguments={
+                    'standalone': 'false',
+                    'container_name': 'sonar_docking_container',
+                }.items(),
+                condition=UnlessCondition(LaunchConfiguration('sim')),
+            ),
         ]
     )
