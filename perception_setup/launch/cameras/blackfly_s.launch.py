@@ -30,7 +30,7 @@ def _launch_setup(context, *args, **kwargs):
     standalone = LaunchConfiguration('standalone').perform(context).lower() == 'true'
     container_name = LaunchConfiguration('container_name').perform(context)
 
-    driver_params = os.path.join(pkg_dir, 'config', 'cameras', 'blackfly_s_driver_params.yaml')
+    blackfly_ros_params = os.path.join(pkg_dir, 'config', 'cameras', 'blackfly_s_ros_params.yaml')
     spinnaker_map = os.path.join(pkg_dir, 'config', 'cameras', 'blackfly_s_params.yaml')
     calib_path = os.path.join(pkg_dir, 'config', 'cameras', 'blackfly_s_calib.yaml')
 
@@ -46,7 +46,7 @@ def _launch_setup(context, *args, **kwargs):
                 plugin='spinnaker_camera_driver::CameraDriver',
                 name='blackfly_s',
                 parameters=[
-                    driver_params,
+                    blackfly_ros_params,
                     {
                         'parameter_file': spinnaker_map,
                         'serial_number': '23494258',
