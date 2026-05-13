@@ -123,9 +123,9 @@ def _launch_setup(context, *args, **kwargs):
                     'use_hardcoded_extrinsic': LaunchConfiguration(
                         'use_hardcoded_extrinsic'
                     ),
-                    'extrinsic_tx': LaunchConfiguration('extrinsic_tx'),
-                    'extrinsic_ty': LaunchConfiguration('extrinsic_ty'),
-                    'extrinsic_tz': LaunchConfiguration('extrinsic_tz'),
+                    'extrinsic_tx': -0.059,
+                    'extrinsic_ty': 0.0,
+                    'extrinsic_tz': 0.0,
                 },
             ],
         ),
@@ -258,12 +258,6 @@ def generate_launch_description():
             default_value='true',
             description='Use hardcoded depth-to-color extrinsic instead of TF lookup',
         ),
-        DeclareLaunchArgument(
-            'extrinsic_tx', default_value='-0.059',
-            description='Hardcoded extrinsic translation X (metres)',
-        ),
-        DeclareLaunchArgument('extrinsic_ty', default_value='0.0'),
-        DeclareLaunchArgument('extrinsic_tz', default_value='0.0'),
         DeclareLaunchArgument(
             'visualize',
             default_value='true',
