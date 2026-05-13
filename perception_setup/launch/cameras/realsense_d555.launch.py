@@ -24,7 +24,7 @@ from launch_ros.descriptions import ComposableNode
 def _launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('perception_setup')
     calib_file = os.path.join(
-        pkg_dir, 'config', 'cameras', 'color_realsense_d555_calib.yaml'
+        pkg_dir, 'config', 'cameras', 'color_realsense_d555_calib_downscale.yaml'
     )
 
     drone = LaunchConfiguration('drone').perform(context)
@@ -40,6 +40,7 @@ def _launch_setup(context, *args, **kwargs):
     depth_info_topic = f'/{drone}/depth_camera/camera_info'
     color_image_topic = f'/{drone}/front_camera/image_color'
     color_info_topic = f'/{drone}/front_camera/camera_info'
+    color_frame = f'{drone}/front_camera_color_optical'
 
     nodes = [
         ComposableNode(
@@ -83,6 +84,7 @@ def _launch_setup(context, *args, **kwargs):
                 'output_camera_info_topic': color_info_topic,
                 'enable_undistort': enable_undistort,
                 'image_qos': 'reliable',
+                'output_frame': color_frame,
             }],
             extra_arguments=[{'use_intra_process_comms': True}],
         ),

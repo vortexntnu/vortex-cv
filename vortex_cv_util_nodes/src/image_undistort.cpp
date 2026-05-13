@@ -23,6 +23,7 @@ ImageUndistort::ImageUndistort(const rclcpp::NodeOptions& options)
     const auto enable_undistort = declare_parameter<bool>("enable_undistort");
     const auto image_qos_str =
         declare_parameter<std::string>("image_qos", "sensor_data");
+    output_frame_ = declare_parameter<std::string>("output_frame", "");
 
     const auto image_qos = (image_qos_str == "reliable")
                                ? rclcpp::QoS(10).reliable()
@@ -167,18 +168,30 @@ void ImageUndistort::image_callback(
 
     auto out_msg = cv_bridge::CvImage(msg->header, msg->encoding, undistorted)
                        .toImageMsg();
+    if (!output_frame_.empty()) {
+        out_msg->header.frame_id = output_frame_;
+    }
     image_pub_->publish(*out_msg);
 
     rectified_info_.header = msg->header;
+    if (!output_frame_.empty()) {
+        rectified_info_.header.frame_id = output_frame_;
+    }
     info_pub_->publish(rectified_info_);
 }
 
 void ImageUndistort::relay_image(const sensor_msgs::msg::Image::SharedPtr msg) {
+    if (!output_frame_.empty()) {
+        msg->header.frame_id = output_frame_;
+    }
     image_pub_->publish(*msg);
 }
 
 void ImageUndistort::relay_camera_info(
     const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
+    if (!output_frame_.empty()) {
+        msg->header.frame_id = output_frame_;
+    }
     info_pub_->publish(*msg);
 }
 

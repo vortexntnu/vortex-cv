@@ -29,6 +29,7 @@ class ImageUndistort : public rclcpp::Node {
     cv::Mat map1_, map2_;
     sensor_msgs::msg::CameraInfo rectified_info_;
     bool maps_ready_{false};
+    std::string output_frame_;
 };
 
 }  // namespace vortex_cv_util_nodes
