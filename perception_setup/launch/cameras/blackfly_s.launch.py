@@ -24,7 +24,6 @@ def _launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('perception_setup')
 
     drone = LaunchConfiguration('drone').perform(context)
-    enable_camera = LaunchConfiguration('enable_camera').perform(context).lower() == 'true'
     enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
     use_nvidia = LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
     standalone = LaunchConfiguration('standalone').perform(context).lower() == 'true'
@@ -39,28 +38,27 @@ def _launch_setup(context, *args, **kwargs):
 
     nodes = []
 
-    if enable_camera:
-        nodes.append(
-            ComposableNode(
-                package='spinnaker_camera_driver',
-                plugin='spinnaker_camera_driver::CameraDriver',
-                name='blackfly_s',
-                parameters=[
-                    blackfly_ros_params,
-                    {
-                        'parameter_file': spinnaker_map,
-                        'serial_number': '23494258',
-                        'camerainfo_url': f'file://{calib_path}',
-                    },
-                ],
-                remappings=[
-                    ('~/control', '/exposure_control/control'),
-                    ('/blackfly_s/image_raw', down_image_topic),
-                    ('/blackfly_s/camera_info', down_info_topic),
-                ],
-                extra_arguments=[{'use_intra_process_comms': True}],
-            )
+    nodes.append(
+        ComposableNode(
+            package='spinnaker_camera_driver',
+            plugin='spinnaker_camera_driver::CameraDriver',
+            name='blackfly_s',
+            parameters=[
+                blackfly_ros_params,
+                {
+                    'parameter_file': spinnaker_map,
+                    'serial_number': '23494258',
+                    'camerainfo_url': f'file://{calib_path}',
+                },
+            ],
+            remappings=[
+                ('~/control', '/exposure_control/control'),
+                ('/blackfly_s/image_raw', down_image_topic),
+                ('/blackfly_s/camera_info', down_info_topic),
+            ],
+            extra_arguments=[{'use_intra_process_comms': True}],
         )
+    )
 
     if enable_gstreamer:
         nodes.append(
@@ -113,11 +111,6 @@ def generate_launch_description():
             'drone',
             default_value='nautilus',
             description='Robot name, used as topic/TF namespace prefix',
-        ),
-        DeclareLaunchArgument(
-            'enable_camera',
-            default_value='true',
-            description='Enable FLIR Blackfly S camera component',
         ),
         DeclareLaunchArgument(
             'enable_gstreamer',

@@ -125,7 +125,6 @@ def _launch_setup(context, *args, **kwargs):
                 ),
                 launch_arguments={
                     'drone': drone,
-                    'enable_camera': 'true',
                     'enable_gstreamer': 'false',
                     'standalone': 'false',
                     'container_name': container_name,
