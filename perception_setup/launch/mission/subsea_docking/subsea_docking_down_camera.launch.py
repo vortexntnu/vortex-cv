@@ -19,6 +19,7 @@ from auv_setup.launch_arg_common import (
 )
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer
@@ -44,12 +45,10 @@ _ARUCO_IMAGE_TOPIC = '/aruco_detector/image_down'
 def _launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('perception_setup')
     drone, namespace = resolve_drone_and_namespace(context)
-    sim = LaunchConfiguration('sim').perform(context).lower() == 'true'
     target = LaunchConfiguration('target').perform(context)
     enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
     use_nvidia = LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
 
-    installed_launch_dir = os.path.join(pkg_dir, 'launch')
     aruco_params = _TAC_ARUCO if target == 'tac' else _VORTEX_ARUCO
 
     container_nodes = [
@@ -104,10 +103,9 @@ def _launch_setup(context, *args, **kwargs):
             )
         )
 
-    container_name = 'down_camera_container'
-    actions = [
+    return [
         ComposableNodeContainer(
-            name=container_name,
+            name='down_camera_container',
             namespace='',
             package='rclcpp_components',
             executable='component_container_mt',
@@ -116,23 +114,6 @@ def _launch_setup(context, *args, **kwargs):
             additional_env={'EGL_PLATFORM': 'surfaceless'},
         )
     ]
-
-    if not sim:
-        actions.append(
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    os.path.join(installed_launch_dir, 'cameras', 'blackfly_s.launch.py')
-                ),
-                launch_arguments={
-                    'drone': drone,
-                    'enable_gstreamer': 'false',
-                    'standalone': 'false',
-                    'container_name': container_name,
-                }.items(),
-            )
-        )
-
-    return actions
 
 
 def generate_launch_description():
@@ -159,7 +140,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'enable_gstreamer',
-                default_value='false',
+                default_value='true',
                 description='Stream the ArUco annotated down image via GStreamer/RTP to 10.0.0.68:5001',
             ),
             DeclareLaunchArgument(
@@ -168,5 +149,20 @@ def generate_launch_description():
                 description='Use NVIDIA hardware H.265 encoder. Set false for software x265enc.',
             ),
             OpaqueFunction(function=_launch_setup),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    os.path.join(
+                        get_package_share_directory('perception_setup'),
+                        'launch', 'cameras', 'blackfly_s.launch.py',
+                    )
+                ),
+                launch_arguments={
+                    'drone': LaunchConfiguration('drone'),
+                    'standalone': 'false',
+                    'container_name': 'down_camera_container',
+                    'enable_gstreamer': 'false',
+                }.items(),
+                condition=UnlessCondition(LaunchConfiguration('sim')),
+            ),
         ]
     )
