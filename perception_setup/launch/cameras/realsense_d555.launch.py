@@ -26,7 +26,7 @@ def _launch_setup(context, *args, **kwargs):
     calib_file = os.path.join(
         pkg_dir, 'config', 'cameras', 'color_realsense_d555_calib_downscale.yaml'
     )
-
+    ## andreeas fiks legg inn resoultion til meg
     drone = LaunchConfiguration('drone').perform(context)
     enable_undistort = LaunchConfiguration('enable_undistort').perform(context).lower() == 'true'
     enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'

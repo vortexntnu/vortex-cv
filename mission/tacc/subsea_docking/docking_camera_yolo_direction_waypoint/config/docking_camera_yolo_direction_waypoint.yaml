@@ -1,0 +1,15 @@
+/**:
+  ros__parameters:
+    # Topics
+    detection_sub_topic: "/yolo/detections"
+    camera_info_sub_topic: "/nautilus/front_camera/camera_info"
+    yaw_pub_topic: "/docking_camera/target_yaw"
+
+    # Frames
+    odom_frame: "odom"
+
+    # Service
+    send_pose_service: "docking_camera/send_pose"
+
+    # How far ahead of the camera to place the waypoint [m]
+    waypoint_distance: 2.0
