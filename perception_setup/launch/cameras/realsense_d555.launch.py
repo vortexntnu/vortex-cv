@@ -40,6 +40,7 @@ def _launch_setup(context, *args, **kwargs):
     standalone = LaunchConfiguration('standalone').perform(context).lower() == 'true'
     container_name = LaunchConfiguration('container_name').perform(context)
     enable_camera = LaunchConfiguration('enable_camera').perform(context).lower() == 'true'
+    enable_depth = LaunchConfiguration('enable_depth').perform(context).lower() == 'true'
     enable_depth_crop = LaunchConfiguration('enable_depth_crop').perform(context).lower() == 'true'
     resolution = LaunchConfiguration('resolution').perform(context)
     fps = LaunchConfiguration('fps').perform(context)
@@ -90,7 +91,7 @@ def _launch_setup(context, *args, **kwargs):
                     'rgb_camera.color_profile': color_profile,
                     'rgb_camera.color_format': pixel_format,
                     'rgb_camera.enable_auto_exposure': True,
-                    'enable_depth': True,
+                    'enable_depth': enable_depth,
                     'depth_module.depth_profile': '896,504,15',
                     'depth_module.depth_format': 'Z16',
                     'depth_module.enable_auto_exposure': True,
@@ -110,7 +111,7 @@ def _launch_setup(context, *args, **kwargs):
                 extra_arguments=[{'use_intra_process_comms': True}],
             )
         )
-    nodes.extend([
+    nodes.append(
         ComposableNode(
             package='vortex_cv_util_nodes',
             plugin='vortex_cv_util_nodes::ImageUndistort',
@@ -126,26 +127,30 @@ def _launch_setup(context, *args, **kwargs):
                 'output_frame': color_frame,
             }],
             extra_arguments=[{'use_intra_process_comms': True}],
-        ),
-        ComposableNode(
-            package='vortex_cv_util_nodes',
-            plugin='vortex_cv_util_nodes::ImageRoiCrop',
-            name='depth_image_crop',
-            parameters=[{
-                'image_topic': crop_input_image,
-                'camera_info_topic': crop_input_info,
-                'output_image_topic': crop_output_image,
-                'output_camera_info_topic': crop_output_info,
-                'crop.x_offset': crop_x_offset,
-                'crop.y_offset': crop_y_offset,
-                'crop.width': crop_width,
-                'crop.height': crop_height,
-                'enable_crop': enable_depth_crop,
-                'output_frame': depth_frame,
-            }],
-            extra_arguments=[{'use_intra_process_comms': True}],
-        ),
-    ])
+        )
+    )
+
+    if enable_depth:
+        nodes.append(
+            ComposableNode(
+                package='vortex_cv_util_nodes',
+                plugin='vortex_cv_util_nodes::ImageRoiCrop',
+                name='depth_image_crop',
+                parameters=[{
+                    'image_topic': crop_input_image,
+                    'camera_info_topic': crop_input_info,
+                    'output_image_topic': crop_output_image,
+                    'output_camera_info_topic': crop_output_info,
+                    'crop.x_offset': crop_x_offset,
+                    'crop.y_offset': crop_y_offset,
+                    'crop.width': crop_width,
+                    'crop.height': crop_height,
+                    'enable_crop': enable_depth_crop,
+                    'output_frame': depth_frame,
+                }],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            )
+        )
 
     if enable_gstreamer:
         nodes.append(
@@ -265,9 +270,14 @@ def generate_launch_description():
             description='Container name to create (standalone=true) or attach to (standalone=false)',
         ),
         DeclareLaunchArgument(
+            'enable_depth',
+            default_value='true',
+            description='Enable depth stream and depth crop node.',
+        ),
+        DeclareLaunchArgument(
             'enable_depth_crop',
             default_value='true',
-            description='Crop the depth image to a centered ROI',
+            description='Crop the depth image to a centered ROI. Has no effect when enable_depth=false.',
         ),
         OpaqueFunction(function=_launch_setup),
     ])

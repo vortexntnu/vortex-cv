@@ -236,6 +236,11 @@ def generate_launch_description():
                 description='Distance [m] ahead of the camera to place the waypoint along the target yaw.',
             ),
             DeclareLaunchArgument(
+                'enable_depth',
+                default_value='false',
+                description='Enable RealSense depth stream and depth crop node.',
+            ),
+            DeclareLaunchArgument(
                 'resolution',
                 default_value='1280x800',
                 choices=['896x504', '1280x800'],
@@ -258,6 +263,7 @@ def generate_launch_description():
                     'drone': LaunchConfiguration('drone'),
                     'resolution': LaunchConfiguration('resolution'),
                     'fps': LaunchConfiguration('fps'),
+                    'enable_depth': LaunchConfiguration('enable_depth'),
                     'enable_undistort': 'true',
                     'enable_gstreamer': 'false',
                     'standalone': 'false',
