@@ -22,9 +22,8 @@ DockingCameraYoloDirectionWaypointNode::DockingCameraYoloDirectionWaypointNode(
 void DockingCameraYoloDirectionWaypointNode::setup_parameters() {
     detection_sub_topic_  = this->declare_parameter<std::string>("detection_sub_topic");
     camera_info_sub_topic_ = this->declare_parameter<std::string>("camera_info_sub_topic");
-    yaw_pub_topic_        = this->declare_parameter<std::string>("yaw_pub_topic");
+    landmarks_pub_topic_  = this->declare_parameter<std::string>("landmarks_pub_topic");
     odom_frame_           = this->declare_parameter<std::string>("odom_frame");
-    send_pose_service_    = this->declare_parameter<std::string>("send_pose_service");
     waypoint_distance_    = this->declare_parameter<double>("waypoint_distance");
 }
 
@@ -48,11 +47,9 @@ void DockingCameraYoloDirectionWaypointNode::setup_publishers_and_subscribers() 
                 camera_info_callback(msg);
             });
 
-    yaw_pub_ =
-        this->create_publisher<std_msgs::msg::Float64>(yaw_pub_topic_, 10);
-
-    send_pose_client_ =
-        this->create_client<vortex_msgs::srv::SendPose>(send_pose_service_);
+    landmarks_pub_ =
+        this->create_publisher<vortex_msgs::msg::LandmarkArray>(
+            landmarks_pub_topic_, rclcpp::QoS(10).best_effort());
 }
 
 void DockingCameraYoloDirectionWaypointNode::camera_info_callback(
@@ -126,7 +123,7 @@ void DockingCameraYoloDirectionWaypointNode::detection_callback(
     tf2::Matrix3x3(q).getRPY(roll, pitch, yaw_camera_in_odom);
 
     // Camera-relative yaw from bbox pixel offset.
-    const double bbox_center_x     = best.bbox.center.position.x;
+    const double bbox_center_x      = best.bbox.center.position.x;
     const double yaw_camera_relative = extractor_.compute_yaw(bbox_center_x, *intrinsics_);
 
     // Compose and wrap to (-π, π].
@@ -146,37 +143,36 @@ void DockingCameraYoloDirectionWaypointNode::detection_callback(
                  "waypoint=(%.2f, %.2f)",
                  yaw_camera_in_odom, yaw_camera_relative, yaw_target_odom, wx, wy);
 
-    // Publish yaw for debugging.
-    std_msgs::msg::Float64 yaw_msg;
-    yaw_msg.data = yaw_target_odom;
-    yaw_pub_->publish(yaw_msg);
-
-    send_waypoint_pose(wx, wy, yaw_target_odom);
+    publish_landmark(wx, wy, yaw_target_odom);
 }
 
-void DockingCameraYoloDirectionWaypointNode::send_waypoint_pose(
+void DockingCameraYoloDirectionWaypointNode::publish_landmark(
     double x, double y, double yaw) {
-    if (!send_pose_client_->service_is_ready()) {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
-                             "SendPose service not available.");
-        return;
-    }
-
     tf2::Quaternion q;
     q.setRPY(0.0, 0.0, yaw);
 
-    auto request = std::make_shared<vortex_msgs::srv::SendPose::Request>();
-    request->pose.header.stamp    = this->now();
-    request->pose.header.frame_id = odom_frame_;
-    request->pose.pose.position.x = x;
-    request->pose.pose.position.y = y;
-    request->pose.pose.position.z = 0.0;
-    request->pose.pose.orientation = tf2::toMsg(q);
+    const auto stamp = this->now();
 
-    send_pose_client_->async_send_request(request);
+    vortex_msgs::msg::Landmark landmark;
+    landmark.header.stamp    = stamp;
+    landmark.header.frame_id = odom_frame_;
+    landmark.id              = 0;
+    landmark.type.value      = vortex_msgs::msg::LandmarkType::ARUCO_BOARD;
+    landmark.subtype.value   = 0;
+    landmark.pose.pose.position.x  = x;
+    landmark.pose.pose.position.y  = y;
+    landmark.pose.pose.position.z  = 0.0;
+    landmark.pose.pose.orientation = tf2::toMsg(q);
+
+    vortex_msgs::msg::LandmarkArray landmark_array;
+    landmark_array.header.stamp    = stamp;
+    landmark_array.header.frame_id = odom_frame_;
+    landmark_array.landmarks.push_back(landmark);
+
+    landmarks_pub_->publish(landmark_array);
 
     RCLCPP_INFO(this->get_logger(),
-                "Waypoint sent: x=%.2f y=%.2f yaw=%.3f rad", x, y, yaw);
+                "Landmark published: x=%.2f y=%.2f yaw=%.3f rad", x, y, yaw);
 }
 
 RCLCPP_COMPONENTS_REGISTER_NODE(

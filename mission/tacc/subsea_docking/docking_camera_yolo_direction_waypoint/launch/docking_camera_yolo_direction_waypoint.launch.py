@@ -28,6 +28,8 @@ def _launch_setup(context):
                     "use_sim_time": True,
                     "waypoint_distance": LaunchConfiguration("waypoint_distance"),
                     "camera_info_sub_topic": f"/{drone}/front_camera/camera_info",
+                    "landmarks_pub_topic": f"/{drone}/landmarks",
+                    "odom_frame": f"{drone}/odom",
                 },
             ],
         ),
