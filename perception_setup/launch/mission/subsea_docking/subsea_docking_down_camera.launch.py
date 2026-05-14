@@ -84,9 +84,9 @@ def _launch_setup(context, *args, **kwargs):
     if enable_gstreamer:
         container_nodes.append(
             ComposableNode(
-                package='image_to_gstreamer',
-                plugin='image_to_gstreamer::ImageToGStreamer',
-                name='image_to_gstreamer_node',
+                package='gstreamer_from_ros',
+                plugin='gstreamer_from_ros::GStreamerFromRos',
+                name='gstreamer_from_ros_node',
                 parameters=[{
                     'input_topic': _ARUCO_IMAGE_TOPIC,
                     'destination_ip': destination_ip,
