@@ -58,6 +58,7 @@ def _launch_setup(context, *args, **kwargs):
     device = LaunchConfiguration('device').perform(context)
     visualize = LaunchConfiguration('visualize').perform(context)
     model_file_path = LaunchConfiguration('model_file_path').perform(context)
+    waypoint_distance = LaunchConfiguration('waypoint_distance').perform(context)
 
     installed_launch_dir = os.path.join(pkg_dir, 'launch')
     aruco_params = _TAC_ARUCO if target == 'tac' else _VORTEX_ARUCO
@@ -165,6 +166,22 @@ def _launch_setup(context, *args, **kwargs):
                 }.items(),
             )
         )
+        # Only add if backend != none
+        actions.append(
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    os.path.join(
+                        get_package_share_directory('docking_camera_yolo_direction_waypoint'),
+                        'launch',
+                        'docking_camera_yolo_direction_waypoint.launch.py',
+                    )
+                ),
+                launch_arguments={
+                    'drone': drone,
+                    'waypoint_distance': waypoint_distance,
+                }.items(),
+            )
+        )
 
     return actions
 
@@ -213,14 +230,14 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'backend',
-                default_value='none',
+                default_value='ultralytics',
                 choices=['none', 'ultralytics'],
                 description='YOLO BB inference backend. none = disabled.',
             ),
             DeclareLaunchArgument(
                 'model_file_path',
                 default_value=os.path.join(
-                    get_package_share_directory('perception_setup'), 'models', 'best.pt'
+                    get_package_share_directory('perception_setup'), 'models', 'dock_cam_sim.pt'
                 ),
                 description='Path to the YOLO BB model file.',
             ),
@@ -233,6 +250,11 @@ def generate_launch_description():
                 'visualize',
                 default_value='true',
                 description='Publish annotated images from YOLO BB.',
+            ),
+            DeclareLaunchArgument(
+                'waypoint_distance',
+                default_value='7.5',
+                description='Distance [m] ahead of the camera to place the waypoint along the target yaw.',
             ),
             OpaqueFunction(function=_launch_setup),
         ]
