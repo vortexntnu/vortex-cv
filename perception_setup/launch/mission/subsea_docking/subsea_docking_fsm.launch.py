@@ -74,7 +74,7 @@ def generate_launch_description():
         + [
             DeclareLaunchArgument(
                 'start_in_range',
-                default_value='true',
+                default_value='false',
 
                 description=(
                     'Skip all estimation and poll immediately for ArUco. '
@@ -83,7 +83,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'use_camera_direction',
-                default_value='false',
+                default_value='True',
 
                 description=(
                     'Enable YOLO camera-direction estimation. Polls for a '
