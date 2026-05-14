@@ -79,10 +79,7 @@ def _launch_setup(context, *args, **kwargs):
             installed_launch_dir, 'ultralytics', 'ultralytics_yolo_obb.launch.py'
         )
         obb_args = {
-            'image_topic': color_image_topic,
-            'camera_info_topic': color_info_topic,
-            'image_width': str(image_width),
-            'image_height': str(image_height),
+            'model_input_image_topic': color_image_topic,
             'detections_topic': _DETECTIONS_TOPIC,
             'annotated_image_topic': _ANNOTATED_TOPIC,
             'device': device,

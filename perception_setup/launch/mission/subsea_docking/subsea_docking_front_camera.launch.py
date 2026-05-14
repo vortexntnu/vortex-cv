@@ -40,6 +40,9 @@ _VORTEX_ARUCO = {
 
 _ARUCO_IMAGE_TOPIC = '/aruco_detector/image_front'
 
+_BB_DETECTIONS_TOPIC = '/yolo/detections'
+_BB_ANNOTATED_TOPIC = '/yolo/annotated_image'
+
 
 def _launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('perception_setup')
@@ -51,8 +54,15 @@ def _launch_setup(context, *args, **kwargs):
     destination_ip = LaunchConfiguration('destination_ip').perform(context)
     destination_port = int(LaunchConfiguration('destination_port').perform(context))
 
+    backend = LaunchConfiguration('backend').perform(context)
+    device = LaunchConfiguration('device').perform(context)
+    visualize = LaunchConfiguration('visualize').perform(context)
+    model_file_path = LaunchConfiguration('model_file_path').perform(context)
+
     installed_launch_dir = os.path.join(pkg_dir, 'launch')
     aruco_params = _TAC_ARUCO if target == 'tac' else _VORTEX_ARUCO
+
+    color_image_topic = f'/{namespace}/front_camera/image_color'
 
     container_nodes = [
         ComposableNode(
@@ -135,6 +145,27 @@ def _launch_setup(context, *args, **kwargs):
             )
         )
 
+    # -------------------------------------------------------------------------
+    # BB inference backend
+    # -------------------------------------------------------------------------
+    if backend == 'ultralytics':
+        bb_launch_file = os.path.join(
+            installed_launch_dir, 'ultralytics', 'ultralytics_yolo_bb.launch.py'
+        )
+        actions.append(
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(bb_launch_file),
+                launch_arguments={
+                    'model_input_image_topic': color_image_topic,
+                    'model_file_path': model_file_path,
+                    'detections_topic': _BB_DETECTIONS_TOPIC,
+                    'annotated_image_topic': _BB_ANNOTATED_TOPIC,
+                    'device': device,
+                    'visualize': visualize,
+                }.items(),
+            )
+        )
+
     return actions
 
 
@@ -179,6 +210,29 @@ def generate_launch_description():
                 'destination_port',
                 default_value='5000',
                 description='Destination UDP port for GStreamer RTP stream.',
+            ),
+            DeclareLaunchArgument(
+                'backend',
+                default_value='none',
+                choices=['none', 'ultralytics'],
+                description='YOLO BB inference backend. none = disabled.',
+            ),
+            DeclareLaunchArgument(
+                'model_file_path',
+                default_value=os.path.join(
+                    get_package_share_directory('perception_setup'), 'models', 'best.pt'
+                ),
+                description='Path to the YOLO BB model file.',
+            ),
+            DeclareLaunchArgument(
+                'device',
+                default_value='0',
+                description="Inference device: 'cpu', GPU index, 'cuda', 'cuda:N', or 'mps'.",
+            ),
+            DeclareLaunchArgument(
+                'visualize',
+                default_value='true',
+                description='Publish annotated images from YOLO BB.',
             ),
             OpaqueFunction(function=_launch_setup),
         ]

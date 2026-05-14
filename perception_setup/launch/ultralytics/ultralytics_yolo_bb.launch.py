@@ -1,6 +1,6 @@
-"""Ultralytics YOLO-OBB inference pipeline.
+"""Ultralytics YOLO-BB inference pipeline.
 
-Shared launch-arg interface with isaac_ros/isaac_ros_yolo_obb.launch.py:
+Shared launch-arg interface with isaac_ros/isaac_ros_yolo_bb.launch.py:
   image_topic, camera_info_topic (declared but unused), image_width/height (unused),
   model_file_path, detections_topic, annotated_image_topic, confidence_threshold
 
@@ -41,9 +41,9 @@ def _launch_setup(context, *args, **kwargs):
     visualize = LaunchConfiguration('visualize').perform(context).lower() == 'true'
 
     yolo_node = Node(
-        package='yolo_obb_object_detection',
-        executable='yolo_obb_object_detection_node',
-        name='yolo_obb_object_detection',
+        package='yolo_object_detection',
+        executable='yolo_object_detection_node',
+        name='yolo_object_detection',
         output='screen',
         parameters=[{
             'device': device,
@@ -69,16 +69,16 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'model_file_path',
             default_value=os.path.join(
-                pkg_dir, 'models', 'best_valve_handle_real_and_sim.pt'
+                pkg_dir, 'models', 'best.pt'
             ),
         ),
         DeclareLaunchArgument(
             'detections_topic',
-            default_value='/yolo_obb/detections',
+            default_value='/yolo/detections',
         ),
         DeclareLaunchArgument(
             'annotated_image_topic',
-            default_value='/yolo_obb/annotated_image',
+            default_value='/yolo/annotated_image',
         ),
         DeclareLaunchArgument('confidence_threshold', default_value='0.25'),
         DeclareLaunchArgument(
