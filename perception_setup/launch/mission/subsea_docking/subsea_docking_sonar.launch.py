@@ -177,6 +177,11 @@ def generate_launch_description():
                 description='Use uint8 instead of uint16 for the cartesian sonar image.',
                 choices=['true', 'false'],
             ),
+            DeclareLaunchArgument(
+                'enable_gstreamer',
+                default_value='true',
+                description='Stream the sonar line detection visualization via GStreamer/RTP.',
+            ),
             OpaqueFunction(function=_launch_setup),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
@@ -188,6 +193,7 @@ def generate_launch_description():
                 launch_arguments={
                     'standalone': 'false',
                     'container_name': 'sonar_docking_container',
+                    'enable_gstreamer': LaunchConfiguration('enable_gstreamer'),
                 }.items(),
                 condition=IfCondition(
                     PythonExpression([
