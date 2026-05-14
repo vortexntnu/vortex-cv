@@ -152,7 +152,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'enable_gstreamer',
-            default_value='false',
+            default_value='true',
             description='Stream the sonar display image via GStreamer/RTP H.265',
         ),
         DeclareLaunchArgument(
