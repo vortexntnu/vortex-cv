@@ -28,6 +28,7 @@
   <exec_depend>image_filtering</exec_depend>
   <exec_depend>aruco_detector</exec_depend>
   <exec_depend>gstreamer_from_ros</exec_depend>
+  <exec_depend>gstreamer_to_ros</exec_depend>
   <exec_depend>vortex_cv_util_nodes</exec_depend>
   <export>
     <build_type>ament_cmake</build_type>
