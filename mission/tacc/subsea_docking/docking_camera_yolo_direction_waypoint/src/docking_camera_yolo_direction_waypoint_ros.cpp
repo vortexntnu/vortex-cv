@@ -126,8 +126,8 @@ void DockingCameraYoloDirectionWaypointNode::detection_callback(
 
     // Rotate direction into odom frame (rotation only — direction vectors
     // are unaffected by translation).
-    tf2::Quaternion q;
-    tf2::fromMsg(tf_opt->transform.rotation, q);
+    const auto& rot = tf_opt->transform.rotation;
+    tf2::Quaternion q(rot.x, rot.y, rot.z, rot.w);
     const tf2::Vector3 d_odom = tf2::quatRotate(q, d_cam).normalized();
 
     // Camera position in odom is the ray origin for waypoint projection.
