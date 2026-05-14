@@ -8,10 +8,16 @@ tcp_offset:
     pitch: 0.0
     yaw: 0.0
   mode: 0
-  convergence_threshold: 0.1
+  convergence_threshold: 0.03
   # How far to stop in front of the valve along its outward Z axis [m].
   # Positive = stay in front of valve face, negative = push into valve.
-  valve_z_offset: 0.31 # good number for sim
+  valve_z_offset: 0.0 # good number for sim
+  # Extra vertical correction added to the drone's z target in both AlignHeight
+  # and Converge states. Use this to compensate for a TCP TF that doesn't fully
+  # capture the arm's physical height offset.
+  # Positive = move drone UP (gripper physically lower than TF reports).
+  # Negative = move drone DOWN.
+  arm_z_correction: -0.023
 
 standoff_waypoint:
   position:
@@ -30,4 +36,4 @@ standoff_waypoint:
     #   -90.0  rotates anticlockwise (left)
     yaw: 0.0
   mode: 0
-  convergence_threshold: 0.3
+  convergence_threshold: 0.03

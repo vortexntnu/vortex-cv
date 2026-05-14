@@ -2,16 +2,24 @@
 
 #include <eigen3/Eigen/Geometry>
 
+#if __has_include(<tf2/exceptions.hpp>)
+#include <tf2/exceptions.hpp>
+#else
+#include <tf2/exceptions.h>
+#endif
+
 #include <vortex/utils/ros/ros_conversions.hpp>
 #include <vortex/utils/ros/waypoint_ros_conversions.hpp>
 #include <vortex_msgs/msg/waypoint.hpp>
 
 RetreatState::RetreatState(const std::string& action_server_name,
-                           vortex::utils::waypoints::WaypointGoal standoff_goal)
+                           vortex::utils::waypoints::WaypointGoal standoff_goal,
+                           std::string tcp_base_frame)
     : ActionState(
           action_server_name,
           std::bind(&RetreatState::create_goal, this, std::placeholders::_1)),
-      standoff_goal_(std::move(standoff_goal)) {}
+      standoff_goal_(std::move(standoff_goal)),
+      tcp_base_frame_(std::move(tcp_base_frame)) {}
 
 valve_inspection_fsm::WaypointManagerAction::Goal RetreatState::create_goal(
     yasmin::Blackboard::SharedPtr blackboard) {
@@ -23,19 +31,32 @@ valve_inspection_fsm::WaypointManagerAction::Goal RetreatState::create_goal(
         landmarks.front().pose.pose);
 
     const Eigen::Quaterniond q_valve = valve_pose.ori_quaternion();
+    const Eigen::Vector3d z_valve = q_valve * Eigen::Vector3d::UnitZ();
 
-    // Retreat along +Z_valve (outward normal) using the same offset as
-    // standoff.
-    const Eigen::Vector3d retreat_offset_valve{
-        standoff_goal_.pose.x, standoff_goal_.pose.y, standoff_goal_.pose.z};
-    const Eigen::Vector3d retreat_pos =
-        valve_pose.pos_vector() + q_valve * retreat_offset_valve;
+    // Move standoff distance along the valve's outward normal (horizontal
+    // component only), then lock z to the drone's current height so the
+    // retreat is purely horizontal — no sinking.
+    const Eigen::Vector3d retreat_xy =
+        valve_pose.pos_vector() + z_valve * standoff_goal_.pose.z;
+
+    // Look up current drone height from TF.
+    const auto& tf_buffer =
+        blackboard->get<std::shared_ptr<tf2_ros::Buffer>>("tf_buffer");
+    const std::string odom_frame = landmarks.front().header.frame_id;
+    geometry_msgs::msg::TransformStamped base_tf;
+    try {
+        base_tf = tf_buffer->lookupTransform(odom_frame, tcp_base_frame_,
+                                             tf2::TimePointZero);
+    } catch (const tf2::TransformException& ex) {
+        throw std::runtime_error(
+            std::string("Retreat TF lookup failed (") + odom_frame + " -> " +
+            tcp_base_frame_ + "): " + ex.what());
+    }
+
+    Eigen::Vector3d retreat_pos = retreat_xy;
+    retreat_pos.z() = base_tf.transform.translation.z;
 
     // Maintain approach orientation: +X facing valve (-Z_valve).
-    // Build a fully constrained NED frame to avoid undetermined roll.
-    // When the valve faces up (floor-mounted), approach_dir ≈ -UnitZ and the
-    // primary reference becomes degenerate, so fall back to UnitX.
-    const Eigen::Vector3d z_valve = q_valve * Eigen::Vector3d::UnitZ();
     const Eigen::Vector3d x_axis = (-z_valve).normalized();
     const Eigen::Vector3d ref =
         (std::abs(x_axis.dot(Eigen::Vector3d::UnitZ())) > 0.9)
@@ -47,7 +68,6 @@ valve_inspection_fsm::WaypointManagerAction::Goal RetreatState::create_goal(
     R.col(0) = x_axis;
     R.col(1) = y_axis;
     R.col(2) = z_axis;
-
     const Eigen::Quaterniond q_drone(R);
 
     const auto target_pose =

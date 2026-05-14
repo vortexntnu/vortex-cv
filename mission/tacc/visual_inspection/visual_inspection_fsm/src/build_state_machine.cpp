@@ -72,7 +72,8 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         std::make_shared<AlignHeightState>(
             config.waypoint_manager_action_server, standoff_goal,
             tcp_offset_goal, config.tcp_base_frame, config.tcp_tip_frame,
-            config.valve_z_offset),
+            config.depth_camera_frame, config.valve_z_offset,
+            config.arm_z_correction),
         {{SUCCEED, "OPEN_AND_ALIGN_GRIPPER"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     sm->add_state(
@@ -86,7 +87,7 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         std::make_shared<ConvergeState>(
             config.waypoint_manager_action_server, standoff_goal,
             tcp_offset_goal, config.tcp_base_frame, config.tcp_tip_frame,
-            config.valve_z_offset),
+            config.valve_z_offset, config.arm_z_correction),
         {{SUCCEED, "CLOSE_GRIPPER"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     sm->add_state("CLOSE_GRIPPER",
@@ -119,7 +120,8 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
 
     sm->add_state("RETREAT",
                   std::make_shared<RetreatState>(
-                      config.waypoint_manager_action_server, standoff_goal),
+                      config.waypoint_manager_action_server, standoff_goal,
+                      config.tcp_base_frame),
                   {{SUCCEED, "DONE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     sm->add_state("DONE",

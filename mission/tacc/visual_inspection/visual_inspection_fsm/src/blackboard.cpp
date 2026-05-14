@@ -54,6 +54,11 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
             config.valve_z_offset =
                 yaml[config.tcp_offset_goal_id]["valve_z_offset"].as<double>();
         }
+        if (yaml[config.tcp_offset_goal_id] &&
+            yaml[config.tcp_offset_goal_id]["arm_z_correction"]) {
+            config.arm_z_correction =
+                yaml[config.tcp_offset_goal_id]["arm_z_correction"].as<double>();
+        }
     } catch (const std::exception& e) {
         RCLCPP_WARN(node->get_logger(),
                     "Could not read valve_z_offset from config: %s", e.what());

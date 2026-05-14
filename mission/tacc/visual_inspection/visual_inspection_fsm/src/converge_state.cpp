@@ -18,7 +18,8 @@ ConvergeState::ConvergeState(
     vortex::utils::waypoints::WaypointGoal tcp_offset_goal,
     std::string tcp_base_frame,
     std::string tcp_tip_frame,
-    double valve_z_offset)
+    double valve_z_offset,
+    double arm_z_correction)
     : ActionState(
           action_server_name,
           std::bind(&ConvergeState::create_goal, this, std::placeholders::_1)),
@@ -26,7 +27,8 @@ ConvergeState::ConvergeState(
       tcp_offset_goal_(std::move(tcp_offset_goal)),
       tcp_base_frame_(std::move(tcp_base_frame)),
       tcp_tip_frame_(std::move(tcp_tip_frame)),
-      valve_z_offset_(valve_z_offset) {}
+      valve_z_offset_(valve_z_offset),
+      arm_z_correction_(arm_z_correction) {}
 
 valve_inspection_fsm::WaypointManagerAction::Goal ConvergeState::create_goal(
     yasmin::Blackboard::SharedPtr blackboard) {
@@ -61,10 +63,12 @@ valve_inspection_fsm::WaypointManagerAction::Goal ConvergeState::create_goal(
     // Look up the TCP offset (base_link → shoulder/arm tip) from TF.
     const auto& tf_buffer =
         blackboard->get<std::shared_ptr<tf2_ros::Buffer>>("tf_buffer");
+    const tf2::TimePoint obs_time =
+        tf2_ros::fromMsg(landmarks.front().header.stamp);
     geometry_msgs::msg::TransformStamped tf_stamped;
     try {
         tf_stamped = tf_buffer->lookupTransform(tcp_base_frame_, tcp_tip_frame_,
-                                                tf2::TimePointZero);
+                                                obs_time);
     } catch (const tf2::TransformException& ex) {
         throw std::runtime_error(std::string("TCP TF lookup failed (") +
                                  tcp_base_frame_ + " → " + tcp_tip_frame_ +
@@ -81,7 +85,8 @@ valve_inspection_fsm::WaypointManagerAction::Goal ConvergeState::create_goal(
         valve_pose.pos_vector() + z_valve * valve_z_offset_;
 
     // base_link target: when reached, gripper tip coincides with valve target.
-    const Eigen::Vector3d base_link_target = valve_target - tcp_odom;
+    Eigen::Vector3d base_link_target = valve_target - tcp_odom;
+    base_link_target.z() += arm_z_correction_;
 
     const auto target_pose =
         vortex::utils::types::Pose::from_eigen(base_link_target, q_drone);
