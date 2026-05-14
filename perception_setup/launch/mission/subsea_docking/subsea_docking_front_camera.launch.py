@@ -216,7 +216,7 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 'model_file_path',
                 default_value=os.path.join(
-                    get_package_share_directory('perception_setup'), 'models', 'dock_cam_sim.pt'
+                    get_package_share_directory('perception_setup'), 'models', 'dicking-pall-real-and-sim-1-l.pt'
                 ),
                 description='Path to the YOLO BB model file.',
             ),

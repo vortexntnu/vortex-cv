@@ -80,7 +80,7 @@ def generate_launch_description():
             'annotated_image_topic',
             default_value='/yolo/annotated_image',
         ),
-        DeclareLaunchArgument('confidence_threshold', default_value='0.25'),
+        DeclareLaunchArgument('confidence_threshold', default_value='0.50'),
         DeclareLaunchArgument(
             'device',
             default_value='0',
