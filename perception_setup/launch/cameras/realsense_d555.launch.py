@@ -21,12 +21,16 @@ from launch_ros.actions import ComposableNodeContainer, LoadComposableNodes
 from launch_ros.descriptions import ComposableNode
 
 
+RESOLUTION_PRESETS = {
+    '896x504':  {'width': 896,  'height': 504},
+    '1280x800': {'width': 1280, 'height': 800},
+}
+
 def _launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('perception_setup')
     calib_file = os.path.join(
         pkg_dir, 'config', 'cameras', 'color_realsense_d555_calib_downscale.yaml'
     )
-    ## andreeas fiks legg inn resoultion til meg
     drone = LaunchConfiguration('drone').perform(context)
     enable_undistort = LaunchConfiguration('enable_undistort').perform(context).lower() == 'true'
     enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
@@ -37,7 +41,14 @@ def _launch_setup(context, *args, **kwargs):
     container_name = LaunchConfiguration('container_name').perform(context)
     enable_camera = LaunchConfiguration('enable_camera').perform(context).lower() == 'true'
     enable_depth_crop = LaunchConfiguration('enable_depth_crop').perform(context).lower() == 'true'
-    crop_x_offset = 260
+    resolution = LaunchConfiguration('resolution').perform(context)
+    fps = LaunchConfiguration('fps').perform(context)
+    pixel_format = LaunchConfiguration('pixel_format').perform(context)
+
+    preset = RESOLUTION_PRESETS[resolution]
+    color_profile = f'{preset["width"]},{preset["height"]},{fps}'
+    # Manually determined to crop to a centered region (tested on the reoslution 896x504)
+    crop_x_offset = 260 
     crop_y_offset = 190
     crop_width = 485
     crop_height = 245
@@ -76,8 +87,8 @@ def _launch_setup(context, *args, **kwargs):
                 namespace='camera',
                 parameters=[{
                     'enable_color': True,
-                    'rgb_camera.color_profile': '896,504,15',
-                    'rgb_camera.color_format': 'RGB8',
+                    'rgb_camera.color_profile': color_profile,
+                    'rgb_camera.color_format': pixel_format,
                     'rgb_camera.enable_auto_exposure': True,
                     'enable_depth': True,
                     'depth_module.depth_profile': '896,504,15',
@@ -188,6 +199,23 @@ def generate_launch_description():
             'drone',
             default_value='nautilus',
             description='Robot name, used as topic/TF namespace prefix',
+        ),
+        DeclareLaunchArgument(
+            'resolution',
+            default_value='896x504',
+            description='Resolution preset: "896x504" or "1280x800".',
+            choices=['896x504', '1280x800'],
+        ),
+        DeclareLaunchArgument(
+            'fps',
+            default_value='15',
+            description='Camera frame rate (e.g. "15" or "30").',
+        ),
+        DeclareLaunchArgument(
+            'pixel_format',
+            default_value='RGB8',
+            description='Color pixel format.',
+            choices=['RGB8', 'BGR8', 'BGRA8'],
         ),
         DeclareLaunchArgument(
             'enable_camera',
