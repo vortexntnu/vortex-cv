@@ -17,9 +17,9 @@ from auv_setup.launch_arg_common import (
 )
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
-from launch.conditions import UnlessCondition
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 
@@ -141,6 +141,12 @@ def generate_launch_description():
                 description='Run in simulation mode (true) or with real hardware (false)',
             ),
             DeclareLaunchArgument(
+                'enable_sonar',
+                default_value='true',
+                choices=['true', 'false'],
+                description='Include the sonar hardware pipeline. Has no effect when sim=true.',
+            ),
+            DeclareLaunchArgument(
                 'vres',
                 default_value='512',
                 description='Sonar vertical resolution in pixels.',
@@ -183,7 +189,13 @@ def generate_launch_description():
                     'standalone': 'false',
                     'container_name': 'sonar_docking_container',
                 }.items(),
-                condition=UnlessCondition(LaunchConfiguration('sim')),
+                condition=IfCondition(
+                    PythonExpression([
+                        '"', LaunchConfiguration('sim'), '" == "false"',
+                        ' and ',
+                        '"', LaunchConfiguration('enable_sonar'), '" == "true"',
+                    ])
+                ),
             ),
         ]
     )
