@@ -19,6 +19,7 @@ from auv_setup.launch_arg_common import (
 )
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer
@@ -37,11 +38,6 @@ _VORTEX_ARUCO = {
     'board.yDist': 0.853,
     'board.ids': [28, 7, 96, 19],
 }
-
-_ARUCO_IMAGE_TOPIC = '/aruco_detector/image_front'
-
-_BB_DETECTIONS_TOPIC = '/yolo/detections'
-_BB_ANNOTATED_TOPIC = '/yolo/annotated_image'
 
 
 def _launch_setup(context, *args, **kwargs):
@@ -74,7 +70,7 @@ def _launch_setup(context, *args, **kwargs):
             parameters=[{
                 'subs.image_topic': f'/{namespace}/front_camera/image_color',
                 'subs.camera_info_topic': f'/{namespace}/front_camera/camera_info',
-                'pubs.aruco_image': _ARUCO_IMAGE_TOPIC,
+                'pubs.aruco_image': '/aruco_detector/image_front',
                 'pubs.aruco_poses': '/aruco_detector/markers_front',
                 'pubs.board_pose': '/aruco_detector/board_front',
                 'pubs.landmarks': f'/{namespace}/landmarks',
@@ -100,7 +96,7 @@ def _launch_setup(context, *args, **kwargs):
                 plugin='gstreamer_from_ros::GStreamerFromRos',
                 name='gstreamer_from_ros_node',
                 parameters=[{
-                    'input_topic': _ARUCO_IMAGE_TOPIC,
+                    'input_topic': '/aruco_detector/image_front',
                     'destination_ip': destination_ip,
                     'destination_port': destination_port,
                     'bitrate': 500000,
@@ -130,22 +126,6 @@ def _launch_setup(context, *args, **kwargs):
         )
     ]
 
-    if not sim:
-        actions.append(
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    os.path.join(installed_launch_dir, 'cameras', 'realsense_d555.launch.py')
-                ),
-                launch_arguments={
-                    'drone': drone,
-                    'enable_undistort': 'true',
-                    'enable_gstreamer': 'false',
-                    'standalone': 'false',
-                    'container_name': container_name,
-                }.items(),
-            )
-        )
-
     # -------------------------------------------------------------------------
     # BB inference backend
     # -------------------------------------------------------------------------
@@ -159,27 +139,26 @@ def _launch_setup(context, *args, **kwargs):
                 launch_arguments={
                     'model_input_image_topic': color_image_topic,
                     'model_file_path': model_file_path,
-                    'detections_topic': _BB_DETECTIONS_TOPIC,
-                    'annotated_image_topic': _BB_ANNOTATED_TOPIC,
+                    'detections_topic': '/yolo/docking_detections',
+                    'annotated_image_topic': '/yolo/annotated_image',
                     'device': device,
                     'visualize': visualize,
                 }.items(),
             )
         )
-        # Only add if backend != none
-        actions.append(
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    os.path.join(
-                        get_package_share_directory('docking_camera_yolo_direction_waypoint'),
-                        'launch',
-                        'docking_camera_yolo_direction_waypoint.launch.py',
-                    )
-                ),
-                launch_arguments={
-                    'drone': drone,
-                    'waypoint_distance': waypoint_distance,
-                }.items(),
+        container_nodes.append(
+            ComposableNode(
+                package='docking_camera_yolo_direction_waypoint',
+                plugin='vortex::docking_camera_yolo_direction_waypoint::DockingCameraYoloDirectionWaypointNode',
+                name='docking_camera_yolo_direction_waypoint',
+                parameters=[{
+                    'detection_sub_topic': '/yolo/docking_detections',
+                    'camera_info_sub_topic': f'/{namespace}/front_camera/camera_info',
+                    'landmarks_pub_topic': f'/{namespace}/landmarks',
+                    'odom_frame': f'{namespace}/odom',
+                    'waypoint_distance': float(waypoint_distance),
+                }],
+                extra_arguments=[{'use_intra_process_comms': True}],
             )
         )
 
@@ -210,7 +189,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'enable_gstreamer',
-                default_value='false',
+                default_value='true',
                 description='Stream the ArUco annotated front image via GStreamer/RTP to 10.0.0.169:5000',
             ),
             DeclareLaunchArgument(
@@ -256,6 +235,35 @@ def generate_launch_description():
                 default_value='7.5',
                 description='Distance [m] ahead of the camera to place the waypoint along the target yaw.',
             ),
+            DeclareLaunchArgument(
+                'resolution',
+                default_value='1280x800',
+                choices=['896x504', '1280x800'],
+                description='RealSense resolution preset.',
+            ),
+            DeclareLaunchArgument(
+                'fps',
+                default_value='15',
+                description='RealSense camera frame rate.',
+            ),
             OpaqueFunction(function=_launch_setup),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    os.path.join(
+                        get_package_share_directory('perception_setup'),
+                        'launch', 'cameras', 'realsense_d555.launch.py',
+                    )
+                ),
+                launch_arguments={
+                    'drone': LaunchConfiguration('drone'),
+                    'resolution': LaunchConfiguration('resolution'),
+                    'fps': LaunchConfiguration('fps'),
+                    'enable_undistort': 'true',
+                    'enable_gstreamer': 'false',
+                    'standalone': 'false',
+                    'container_name': 'front_camera_container',
+                }.items(),
+                condition=UnlessCondition(LaunchConfiguration('sim')),
+            ),
         ]
     )
