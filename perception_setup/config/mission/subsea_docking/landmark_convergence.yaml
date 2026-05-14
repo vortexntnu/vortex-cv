@@ -1,3 +1,15 @@
+camera_direction_waypoint:  # Zero offset — YOLO direction landmark is already an absolute projected position.
+  position:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  orientation:
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+  mode: only_position
+  convergence_threshold: 0.5
+
 above_dock_waypoint:  # Offset applied to polled landmark to navigate above the docking station.
   position:
     x: 0.0
