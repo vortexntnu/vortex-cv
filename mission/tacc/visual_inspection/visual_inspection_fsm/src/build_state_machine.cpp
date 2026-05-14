@@ -31,7 +31,10 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
     valve_type.value = vortex_msgs::msg::LandmarkType::VALVE;
 
     vortex_msgs::msg::LandmarkSubtype valve_subtype;
-    valve_subtype.value = 0;
+    valve_subtype.value =
+        config.vertical_mounted_valve
+            ? vortex_msgs::msg::LandmarkSubtype::VALVE_VERTICAL
+            : vortex_msgs::msg::LandmarkSubtype::VALVE_HORIZONTAL;
 
     auto sm = std::make_shared<yasmin::StateMachine>(
         std::set<std::string>{SUCCEED, ABORT});
@@ -118,11 +121,11 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                       config.gripper_convergence_threshold),
                   {{SUCCEED, "RETREAT"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
-    sm->add_state("RETREAT",
-                  std::make_shared<RetreatState>(
-                      config.waypoint_manager_action_server, standoff_goal,
-                      config.tcp_base_frame),
-                  {{SUCCEED, "DONE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+    sm->add_state(
+        "RETREAT",
+        std::make_shared<RetreatState>(config.waypoint_manager_action_server,
+                                       standoff_goal, config.tcp_base_frame),
+        {{SUCCEED, "DONE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     sm->add_state("DONE",
                   yasmin::CbState::make_shared(
