@@ -15,6 +15,7 @@
 #include <vision_msgs/msg/detection2_d_array.hpp>
 
 #include <vortex_msgs/msg/landmark_array.hpp>
+#include <vortex_msgs/msg/landmark_subtype.hpp>
 #include <vortex_msgs/msg/landmark_type.hpp>
 
 #include <docking_camera_yolo_direction_waypoint/docking_camera_yolo_direction_waypoint.hpp>
@@ -74,7 +75,7 @@ class DockingCameraYoloDirectionWaypointNode : public rclcpp::Node {
      * @param y    Waypoint y in odom [m].
      * @param yaw  Target heading in odom [rad].
      */
-    void publish_landmark(double x, double y, double yaw);
+    void publish_landmark(double x, double y, double z, const rclcpp::Time& stamp);
 
     std::string detection_sub_topic_;
     std::string camera_info_sub_topic_;
@@ -84,8 +85,6 @@ class DockingCameraYoloDirectionWaypointNode : public rclcpp::Node {
     double waypoint_distance_;
 
     std::optional<CameraIntrinsics> intrinsics_;
-
-    YawExtractor extractor_;
 
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;

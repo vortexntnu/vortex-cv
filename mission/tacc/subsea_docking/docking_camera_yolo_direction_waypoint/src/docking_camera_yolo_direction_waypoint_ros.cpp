@@ -3,10 +3,9 @@
 #include <algorithm>
 #include <cmath>
 
-#include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Vector3.h>
 #include <tf2/exceptions.hpp>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 #include <rclcpp_components/register_node_macro.hpp>
 
@@ -61,14 +60,15 @@ void DockingCameraYoloDirectionWaypointNode::camera_info_callback(
     // K = [fx, 0, cx, 0, fy, cy, 0, 0, 1]
     intrinsics_ = CameraIntrinsics{
         .fx = msg->k[0],
+        .fy = msg->k[4],
         .cx = msg->k[2],
         .cy = msg->k[5],
     };
     camera_frame_ = msg->header.frame_id;
 
     RCLCPP_INFO(this->get_logger(),
-                "Camera intrinsics received: fx=%.2f cx=%.2f cy=%.2f frame='%s'",
-                intrinsics_->fx, intrinsics_->cx, intrinsics_->cy,
+                "Camera intrinsics received: fx=%.2f fy=%.2f cx=%.2f cy=%.2f frame='%s'",
+                intrinsics_->fx, intrinsics_->fy, intrinsics_->cx, intrinsics_->cy,
                 camera_frame_.c_str());
 }
 
@@ -116,53 +116,48 @@ void DockingCameraYoloDirectionWaypointNode::detection_callback(
         return;
     }
 
-    // Extract camera heading in odom from the TF rotation.
+    // Back-project bbox centre to a ray in camera frame.
+    const double px = best.bbox.center.position.x;
+    const double py = best.bbox.center.position.y;
+    tf2::Vector3 d_cam(
+        (px - intrinsics_->cx) / intrinsics_->fx,
+        (py - intrinsics_->cy) / intrinsics_->fy,
+        1.0);
+
+    // Rotate direction into odom frame (rotation only — direction vectors
+    // are unaffected by translation).
     tf2::Quaternion q;
     tf2::fromMsg(tf_opt->transform.rotation, q);
-    double roll, pitch, yaw_camera_in_odom;
-    tf2::Matrix3x3(q).getRPY(roll, pitch, yaw_camera_in_odom);
+    const tf2::Vector3 d_odom = tf2::quatRotate(q, d_cam).normalized();
 
-    // Camera-relative yaw from bbox pixel offset.
-    const double bbox_center_x      = best.bbox.center.position.x;
-    const double yaw_camera_relative = extractor_.compute_yaw(bbox_center_x, *intrinsics_);
-
-    // Compose and wrap to (-π, π].
-    double yaw_target_odom = yaw_camera_in_odom + yaw_camera_relative;
-    yaw_target_odom =
-        std::atan2(std::sin(yaw_target_odom), std::cos(yaw_target_odom));
-
-    // Camera position in odom — project the waypoint from here.
+    // Camera position in odom is the ray origin for waypoint projection.
     const double cam_x = tf_opt->transform.translation.x;
     const double cam_y = tf_opt->transform.translation.y;
+    const double cam_z = tf_opt->transform.translation.z;
 
-    const double wx = cam_x + waypoint_distance_ * std::cos(yaw_target_odom);
-    const double wy = cam_y + waypoint_distance_ * std::sin(yaw_target_odom);
+    const double wx = cam_x + waypoint_distance_ * d_odom.x();
+    const double wy = cam_y + waypoint_distance_ * d_odom.y();
+    const double wz = cam_z + waypoint_distance_ * d_odom.z();
 
     RCLCPP_DEBUG(this->get_logger(),
-                 "cam_yaw_odom=%.3f  yaw_cam_rel=%.3f  yaw_target=%.3f  "
-                 "waypoint=(%.2f, %.2f)",
-                 yaw_camera_in_odom, yaw_camera_relative, yaw_target_odom, wx, wy);
+                 "d_odom=(%.3f, %.3f, %.3f)  waypoint=(%.2f, %.2f, %.2f)",
+                 d_odom.x(), d_odom.y(), d_odom.z(), wx, wy, wz);
 
-    publish_landmark(wx, wy, yaw_target_odom);
+    publish_landmark(wx, wy, wz, msg->header.stamp);
 }
 
 void DockingCameraYoloDirectionWaypointNode::publish_landmark(
-    double x, double y, double yaw) {
-    tf2::Quaternion q;
-    q.setRPY(0.0, 0.0, yaw);
-
-    const auto stamp = this->now();
-
+    double x, double y, double z, const rclcpp::Time& stamp) {
     vortex_msgs::msg::Landmark landmark;
     landmark.header.stamp    = stamp;
     landmark.header.frame_id = odom_frame_;
     landmark.id              = 0;
     landmark.type.value      = vortex_msgs::msg::LandmarkType::ARUCO_BOARD;
-    landmark.subtype.value   = 0;
-    landmark.pose.pose.position.x  = x;
-    landmark.pose.pose.position.y  = y;
-    landmark.pose.pose.position.z  = 0.0;
-    landmark.pose.pose.orientation = tf2::toMsg(q);
+    landmark.subtype.value   = vortex_msgs::msg::LandmarkSubtype::ARUCO_BOARD_DETECTION;
+    landmark.pose.pose.position.x    = x;
+    landmark.pose.pose.position.y    = y;
+    landmark.pose.pose.position.z    = z;
+    landmark.pose.pose.orientation.w = 1.0;
 
     vortex_msgs::msg::LandmarkArray landmark_array;
     landmark_array.header.stamp    = stamp;
@@ -172,7 +167,7 @@ void DockingCameraYoloDirectionWaypointNode::publish_landmark(
     landmarks_pub_->publish(landmark_array);
 
     RCLCPP_INFO(this->get_logger(),
-                "Landmark published: x=%.2f y=%.2f yaw=%.3f rad", x, y, yaw);
+                "Landmark published: x=%.2f y=%.2f z=%.2f", x, y, z);
 }
 
 RCLCPP_COMPONENTS_REGISTER_NODE(
