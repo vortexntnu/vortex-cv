@@ -1,6 +1,9 @@
 #include "subsea_docking_fsm/states.hpp"
 
+#include <atomic>
 #include <chrono>
+#include <condition_variable>
+#include <mutex>
 #include <thread>
 #include <unordered_set>
 
@@ -34,6 +37,33 @@ using vortex_yasmin_utils::WaypointGoalState;
 using yasmin_ros::basic_outcomes::ABORT;
 using yasmin_ros::basic_outcomes::CANCEL;
 using yasmin_ros::basic_outcomes::SUCCEED;
+
+// Timeout state that wakes up immediately when cancelled, unlike a plain
+// CbState with sleep_for() which blocks the FirstWinsConcurrence join().
+class InterruptibleTimeoutState : public yasmin::State {
+   public:
+    explicit InterruptibleTimeoutState(double timeout_sec)
+        : yasmin::State({"timeout"}), timeout_sec_(timeout_sec) {}
+
+    std::string execute(yasmin::Blackboard::SharedPtr) override {
+        std::unique_lock<std::mutex> lock(mutex_);
+        cv_.wait_for(lock, std::chrono::duration<double>(timeout_sec_),
+                     [this] { return cancelled_.load(); });
+        return std::string("timeout");
+    }
+
+    void cancel_state() override {
+        cancelled_.store(true);
+        cv_.notify_all();
+        yasmin::State::cancel_state();
+    }
+
+   private:
+    double timeout_sec_;
+    std::mutex mutex_;
+    std::condition_variable cv_;
+    std::atomic<bool> cancelled_{false};
+};
 
 class StartMissionWaitState
     : public vortex_yasmin_utils::ServiceTriggerWaitState {
@@ -193,54 +223,47 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
             config.use_wall_detection ? "WALL_DETECTION_ESTIMATE"
                                       : "WAIT_BEFORE_FALLBACK";
 
-        // Timeout state: sleeps for camera_direction_timeout_sec then fires.
-        auto cam_dir_timeout = yasmin::CbState::make_shared(
-            yasmin::Outcomes{"timeout"},
-            [t = config.camera_direction_timeout_sec](
-                yasmin::Blackboard::SharedPtr) {
-                std::this_thread::sleep_for(std::chrono::duration<double>(t));
-                return std::string("timeout");
-            });
+        // Timeout state: wakes immediately on cancellation.
+        auto cam_dir_timeout = std::make_shared<InterruptibleTimeoutState>(
+            config.camera_direction_timeout_sec);
 
         // Poll specifically for YOLO direction landmark (subtype 3).
         auto cam_dir_poll = std::make_shared<LandmarkPollingState>(
             config.landmark_polling_action_server, dock_landmark_type,
             camera_direction_subtype, "camera_direction_landmark");
 
-        // Concurrently poll for any real landmark detection.
-        auto cam_dir_real_poll = std::make_shared<LandmarkPollingState>(
-            config.landmark_polling_action_server, dock_landmark_type,
-            dock_landmark_subtype, "landmarks");
-
         auto cam_dir_estimate = std::make_shared<FirstWinsConcurrence>(
             yasmin::StateMap{
                 {"CAM_DIR_TIMEOUT", cam_dir_timeout},
-                {"CAM_DIR_POLL", cam_dir_poll},
-                {"CAM_DIR_REAL_POLL", cam_dir_real_poll}},
+                {"CAM_DIR_POLL", cam_dir_poll}},
             ABORT,
             FirstWinsOutcomeMap{
                 {"CAM_DIR_TIMEOUT", {{"timeout", "camera_timeout"}}},
                 {"CAM_DIR_POLL",
-                 {{"landmarks_found", "direction_found"}, {ABORT, ABORT}}},
-                {"CAM_DIR_REAL_POLL",
-                 {{"landmarks_found", "aruco_detected"}, {ABORT, ABORT}}}});
+                 {{"landmarks_found", "direction_found"}, {ABORT, "camera_timeout"}}}});
 
         sm->add_state(
             "CAMERA_DIRECTION_ESTIMATE", cam_dir_estimate,
-            {{"aruco_detected", "ABOVE_DOCK_WAYPOINT"},
-             {"direction_found", "NAV_TO_CAMERA_DIRECTION_WAYPOINT"},
+            {{"direction_found", "NAV_TO_CAMERA_DIRECTION_WAYPOINT"},
              {"camera_timeout", cam_dir_fallback},
              {ABORT, ABORT},
              {CANCEL, ABORT}});
 
-        // Navigate to the YOLO direction waypoint, polling for real landmarks.
+        // Navigate to the YOLO direction waypoint, polling for real ArUco
+        // detections only (subtype 1 = ARUCO_BOARD_CAMERA). Subtype 0 would
+        // also match the YOLO direction landmark (subtype 3) still in the
+        // server, causing an immediate false positive.
+        vortex_msgs::msg::LandmarkSubtype aruco_camera_subtype;
+        aruco_camera_subtype.value =
+            vortex_msgs::msg::LandmarkSubtype::ARUCO_BOARD_CAMERA;
+
         auto cam_dir_nav = std::make_shared<LandmarkWaypointState>(
             config.waypoint_manager_action_server,
             camera_direction_waypoint_goal, "camera_direction_landmark");
 
         auto cam_dir_nav_poll = std::make_shared<LandmarkPollingState>(
             config.landmark_polling_action_server, dock_landmark_type,
-            dock_landmark_subtype, "landmarks");
+            aruco_camera_subtype, "landmarks");
 
         auto cam_dir_nav_concurrent = std::make_shared<FirstWinsConcurrence>(
             yasmin::StateMap{{"CAM_DIR_NAV", cam_dir_nav},
