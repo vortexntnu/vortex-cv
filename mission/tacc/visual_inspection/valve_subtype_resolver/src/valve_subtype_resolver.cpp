@@ -18,7 +18,7 @@ using std::placeholders::_1;
 ValveSubtypeResolverNode::ValveSubtypeResolverNode(
     const rclcpp::NodeOptions& options)
     : Node("valve_subtype_resolver_node", options) {
-    const std::string drone = declare_parameter<std::string>("drone", "moby");
+    const std::string drone = declare_parameter<std::string>("drone", "nautilus");
     const std::string odom_frame_base =
         declare_parameter<std::string>("odom_frame", "odom");
     world_frame_ = drone + "/" + odom_frame_base;
@@ -27,7 +27,7 @@ ValveSubtypeResolverNode::ValveSubtypeResolverNode(
     const auto landmarks_in = declare_parameter<std::string>(
         "landmarks_sub_topic", "/valve_landmarks");
     const auto landmarks_out = declare_parameter<std::string>(
-        "landmarks_pub_topic", "/valve_landmarks_typed");
+        "landmarks_pub_topic", drone + "/landmarks");
 
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);

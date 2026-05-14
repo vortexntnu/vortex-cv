@@ -149,7 +149,7 @@ def _launch_setup(context, *args, **kwargs):
                         'config',
                         'valve_subtype_resolver_params.yaml',
                     ),
-                    {'drone': drone},
+                    {'drone': drone, 'landmarks_pub_topic': drone + '/landmarks'},
                 ],
             )
         )
