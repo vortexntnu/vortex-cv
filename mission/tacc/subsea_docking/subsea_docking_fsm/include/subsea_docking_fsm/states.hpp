@@ -14,12 +14,16 @@
 struct StateMachineConfig {
     bool use_wall_detection;
     bool use_service_waypoint;
+    bool use_camera_direction;
+    bool start_in_range;
     std::string start_mission_service;
     std::string waypoint_manager_action_server;
     std::string landmark_polling_action_server;
     std::string waypoint_yaml_path;
     std::string landmark_convergence_yaml_path;
-    double service_request_timeout_sec;
+    double wall_detection_estimate_timeout_sec;
+    double camera_direction_timeout_sec;
+    double wait_before_fallback_sec;
     std::string docking_position_service;
     std::string docking_estimator_start_service;
 };
