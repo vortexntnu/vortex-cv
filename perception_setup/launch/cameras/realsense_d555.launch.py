@@ -28,9 +28,6 @@ RESOLUTION_PRESETS = {
 
 def _launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('perception_setup')
-    calib_file = os.path.join(
-        pkg_dir, 'config', 'cameras', 'color_realsense_d555_calib_downscale.yaml'
-    )
     drone = LaunchConfiguration('drone').perform(context)
     enable_undistort = LaunchConfiguration('enable_undistort').perform(context).lower() == 'true'
     enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
@@ -45,6 +42,14 @@ def _launch_setup(context, *args, **kwargs):
     resolution = LaunchConfiguration('resolution').perform(context)
     fps = LaunchConfiguration('fps').perform(context)
     pixel_format = LaunchConfiguration('pixel_format').perform(context)
+
+    calib_files = {
+        '896x504': 'color_realsense_d555_calib_downscale.yaml',
+        '1280x800': 'color_realsense_d555_calib.yaml',
+    }
+    calib_file = os.path.join(
+        pkg_dir, 'config', 'cameras', calib_files[resolution]
+    )
 
     preset = RESOLUTION_PRESETS[resolution]
     color_profile = f'{preset["width"]},{preset["height"]},{fps}'
