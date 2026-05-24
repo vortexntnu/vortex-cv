@@ -15,7 +15,7 @@ class PipelineEndDetectorNode : public rclcpp::Node {
     void setup_pubsub();
     void detection_callback(const std_msgs::msg::UInt8::SharedPtr msg);
     void call_end_of_pipeline_service();
-    void start_detection_callback(
+    void start_end_pipeline_detection_callback(
         const std_srvs::srv::Trigger::Request::SharedPtr request,
         std_srvs::srv::Trigger::Response::SharedPtr response);
 

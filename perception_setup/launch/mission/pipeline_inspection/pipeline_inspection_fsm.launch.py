@@ -46,6 +46,7 @@ def launch_setup(context, *args, **kwargs):
                 "fsm_waypoint_config": fsm_waypoint_config,
                 "pipeline_convergence_config": pipeline_convergence_config,
                 "services.start_pipeline_following": "pipeline_inspection_fsm/start_pipeline_following",
+                "services.start_end_pipeline_detection": "pipeline_end_detector/start_detection",
                 "services.end_of_pipeline": "pipeline_inspection_fsm/pipeline_finished",
             },
         ],

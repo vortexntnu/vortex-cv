@@ -1,5 +1,9 @@
 #include "pipeline_inspection_fsm/states.hpp"
 
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
 #include <unordered_set>
 
 #include <yasmin/cb_state.hpp>
@@ -21,6 +25,31 @@
 using yasmin_ros::basic_outcomes::ABORT;
 using yasmin_ros::basic_outcomes::CANCEL;
 using yasmin_ros::basic_outcomes::SUCCEED;
+
+class InterruptibleTimeoutState : public yasmin::State {
+   public:
+    explicit InterruptibleTimeoutState(double timeout_sec)
+        : yasmin::State({"timeout"}), timeout_sec_(timeout_sec) {}
+
+    std::string execute(yasmin::Blackboard::SharedPtr) override {
+        std::unique_lock<std::mutex> lock(mutex_);
+        cv_.wait_for(lock, std::chrono::duration<double>(timeout_sec_),
+                     [this] { return cancelled_.load(); });
+        return std::string("timeout");
+    }
+
+    void cancel_state() override {
+        cancelled_.store(true);
+        cv_.notify_all();
+        yasmin::State::cancel_state();
+    }
+
+   private:
+    double timeout_sec_;
+    std::mutex mutex_;
+    std::condition_variable cv_;
+    std::atomic<bool> cancelled_{false};
+};
 
 std::shared_ptr<yasmin::StateMachine> build_state_machine(
     const StateMachineConfig& config,
@@ -68,6 +97,14 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                 pipeline_inspection_fsm::TriggerSrv::Request>();
         });
 
+    auto start_end_detection_trg = std::make_shared<
+        yasmin_ros::ServiceState<pipeline_inspection_fsm::TriggerSrv>>(
+        config.start_end_pipeline_detection_service,
+        [](yasmin::Blackboard::SharedPtr) {
+            return std::make_shared<
+                pipeline_inspection_fsm::TriggerSrv::Request>();
+        });
+
     auto sm = std::make_shared<yasmin::StateMachine>(
         std::set<std::string>{SUCCEED, ABORT});
 
@@ -89,6 +126,12 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         {{SUCCEED, "START_PIPELINE_TRG"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
+                  {{SUCCEED, "WAIT_5S"}, {ABORT, ABORT}});
+
+    sm->add_state("WAIT_5S", std::make_shared<InterruptibleTimeoutState>(5.0),
+                  {{"timeout", "START_END_DETECTION_TRG"}});
+
+    sm->add_state("START_END_DETECTION_TRG", start_end_detection_trg,
                   {{SUCCEED, "PIPELINE_FOLLOWING"}, {ABORT, ABORT}});
 
     auto pipeline_following =

@@ -41,11 +41,12 @@ void PipelineEndDetectorNode::setup_pubsub() {
 
     start_detection_server_ = create_service<std_srvs::srv::Trigger>(
         get_parameter("topics.start_detection_service").as_string(),
-        std::bind(&PipelineEndDetectorNode::start_detection_callback, this,
-                  std::placeholders::_1, std::placeholders::_2));
+        std::bind(
+            &PipelineEndDetectorNode::start_end_pipeline_detection_callback,
+            this, std::placeholders::_1, std::placeholders::_2));
 }
 
-void PipelineEndDetectorNode::start_detection_callback(
+void PipelineEndDetectorNode::start_end_pipeline_detection_callback(
     const std_srvs::srv::Trigger::Request::SharedPtr /*request*/,
     std_srvs::srv::Trigger::Response::SharedPtr response) {
     detection_active_ = true;
