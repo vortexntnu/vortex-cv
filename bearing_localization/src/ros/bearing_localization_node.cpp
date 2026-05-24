@@ -64,6 +64,7 @@ void BearingLocalizationNode::setup_pubsub() {
 
 void BearingLocalizationNode::bearing_callback(
     const vortex_msgs::msg::BearingMeasurementArray::SharedPtr msg) {
+    const double now_sec = now().seconds();
     std::unordered_map<int32_t, bool> updated_targets;
 
     for (const auto& measurement : msg->bearings) {
@@ -76,11 +77,12 @@ void BearingLocalizationNode::bearing_callback(
 
         const int32_t target_id = measurement.target_id;
         get_localizer(target_id).add_measurement(*ray);
+        target_last_seen_sec_[target_id] = now_sec;
         updated_targets[target_id] = true;
     }
 
     for (const auto& [target_id, _] : updated_targets) {
-        auto result = get_localizer(target_id).solve(now().seconds());
+        auto result = get_localizer(target_id).solve(now_sec);
         if (!result) {
             continue;
         }
@@ -90,6 +92,8 @@ void BearingLocalizationNode::bearing_callback(
                 build_debug_markers(*result, node_cfg_.target_frame, now()));
         }
     }
+
+    prune_stale_localizers(now_sec);
 }
 
 std::optional<RayMeasurement> BearingLocalizationNode::transform_bearing(
@@ -134,6 +138,18 @@ std::optional<RayMeasurement> BearingLocalizationNode::transform_bearing(
     ray.direction_world = dir_world;
     ray.weight = weight;
     return ray;
+}
+
+void BearingLocalizationNode::prune_stale_localizers(double now_sec) {
+    const double timeout = cfg_.max_measurement_age_sec;
+    std::erase_if(target_localizers_, [&](const auto& kv) {
+        auto it = target_last_seen_sec_.find(kv.first);
+        return it == target_last_seen_sec_.end() ||
+               (now_sec - it->second) > timeout;
+    });
+    std::erase_if(target_last_seen_sec_, [&](const auto& kv) {
+        return !target_localizers_.contains(kv.first);
+    });
 }
 
 BearingLocalizer& BearingLocalizationNode::get_localizer(int32_t target_id) {
