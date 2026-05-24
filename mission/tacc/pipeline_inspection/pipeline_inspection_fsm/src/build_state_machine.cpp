@@ -16,6 +16,7 @@
 #include <vortex_yasmin_utils/landmark_waypoint_state.hpp>
 #include <vortex_yasmin_utils/persistent_waypoint_manager_state.hpp>
 #include <vortex_yasmin_utils/service_trigger_wait_state.hpp>
+#include <vortex_yasmin_utils/wipe_state.hpp>
 
 using yasmin_ros::basic_outcomes::ABORT;
 using yasmin_ros::basic_outcomes::CANCEL;
@@ -74,7 +75,10 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         "WAIT_FOR_START",
         std::make_shared<vortex_yasmin_utils::ServiceTriggerWaitState>(
             config.start_mission_service),
-        {{SUCCEED, "SEARCH"}, {CANCEL, ABORT}});
+        {{SUCCEED, "WIPE"}, {CANCEL, ABORT}});
+
+    sm->add_state("WIPE", std::make_shared<vortex_yasmin_utils::WipeState>(),
+                  {{SUCCEED, "SEARCH"}});
 
     sm->add_state(
         "SEARCH", search,

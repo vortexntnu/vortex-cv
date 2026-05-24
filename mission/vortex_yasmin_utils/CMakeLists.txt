@@ -13,6 +13,7 @@ find_package(vortex_msgs REQUIRED)
 find_package(vortex_utils REQUIRED)
 find_package(vortex_utils_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 
 add_library(vortex_yasmin_utils
@@ -24,6 +25,7 @@ add_library(vortex_yasmin_utils
   src/service_trigger_wait_state.cpp
   src/waypoint_goal_state.cpp
   src/persistent_waypoint_manager_state.cpp
+  src/wipe_state.cpp
 )
 
 target_include_directories(vortex_yasmin_utils PUBLIC
@@ -40,6 +42,7 @@ ament_target_dependencies(vortex_yasmin_utils PUBLIC
   vortex_utils
   vortex_utils_ros
   geometry_msgs
+  std_msgs
   std_srvs
 )
 
@@ -66,6 +69,7 @@ ament_export_dependencies(
   vortex_utils
   vortex_utils_ros
   geometry_msgs
+  std_msgs
   std_srvs
 )
 ament_export_include_directories(include)

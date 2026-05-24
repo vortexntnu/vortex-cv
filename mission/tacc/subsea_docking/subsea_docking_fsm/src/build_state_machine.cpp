@@ -25,6 +25,7 @@
 #include <vortex_yasmin_utils/service_request_wait_state.hpp>
 #include <vortex_yasmin_utils/service_trigger_wait_state.hpp>
 #include <vortex_yasmin_utils/waypoint_goal_state.hpp>
+#include <vortex_yasmin_utils/wipe_state.hpp>
 #include <yasmin_ros/yasmin_node.hpp>
 
 using vortex_yasmin_utils::FirstWinsConcurrence;
@@ -175,12 +176,14 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         first_estimate_state = "DOCK_CONFIG_WAYPOINT";
     }
 
-    sm->add_state(
-        "AWAIT_START_TRIGGER",
-        std::make_shared<StartMissionWaitState>(
-            config.start_mission_service,
-            config.docking_estimator_start_service),
-        {{SUCCEED, first_estimate_state}, {CANCEL, ABORT}});
+    sm->add_state("AWAIT_START_TRIGGER",
+                  std::make_shared<StartMissionWaitState>(
+                      config.start_mission_service,
+                      config.docking_estimator_start_service),
+                  {{SUCCEED, "WIPE"}, {CANCEL, ABORT}});
+
+    sm->add_state("WIPE", std::make_shared<vortex_yasmin_utils::WipeState>(),
+                  {{SUCCEED, first_estimate_state}});
 
     if (config.start_in_range) {
         sm->add_state(
@@ -219,9 +222,9 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         // Fallback once camera direction is exhausted.
         // If wall detection is also enabled, go there next (no wait needed —
         // still in the estimation cascade). Otherwise wait before dock config.
-        const std::string cam_dir_fallback =
-            config.use_wall_detection ? "WALL_DETECTION_ESTIMATE"
-                                      : "WAIT_BEFORE_FALLBACK";
+        const std::string cam_dir_fallback = config.use_wall_detection
+                                                 ? "WALL_DETECTION_ESTIMATE"
+                                                 : "WAIT_BEFORE_FALLBACK";
 
         // Timeout state: wakes immediately on cancellation.
         auto cam_dir_timeout = std::make_shared<InterruptibleTimeoutState>(
@@ -233,21 +236,20 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
             camera_direction_subtype, "camera_direction_landmark");
 
         auto cam_dir_estimate = std::make_shared<FirstWinsConcurrence>(
-            yasmin::StateMap{
-                {"CAM_DIR_TIMEOUT", cam_dir_timeout},
-                {"CAM_DIR_POLL", cam_dir_poll}},
+            yasmin::StateMap{{"CAM_DIR_TIMEOUT", cam_dir_timeout},
+                             {"CAM_DIR_POLL", cam_dir_poll}},
             ABORT,
             FirstWinsOutcomeMap{
                 {"CAM_DIR_TIMEOUT", {{"timeout", "camera_timeout"}}},
                 {"CAM_DIR_POLL",
-                 {{"landmarks_found", "direction_found"}, {ABORT, "camera_timeout"}}}});
+                 {{"landmarks_found", "direction_found"},
+                  {ABORT, "camera_timeout"}}}});
 
-        sm->add_state(
-            "CAMERA_DIRECTION_ESTIMATE", cam_dir_estimate,
-            {{"direction_found", "NAV_TO_CAMERA_DIRECTION_WAYPOINT"},
-             {"camera_timeout", cam_dir_fallback},
-             {ABORT, ABORT},
-             {CANCEL, ABORT}});
+        sm->add_state("CAMERA_DIRECTION_ESTIMATE", cam_dir_estimate,
+                      {{"direction_found", "NAV_TO_CAMERA_DIRECTION_WAYPOINT"},
+                       {"camera_timeout", cam_dir_fallback},
+                       {ABORT, ABORT},
+                       {CANCEL, ABORT}});
 
         // Navigate to the YOLO direction waypoint, polling for real ArUco
         // detections only (subtype 1 = ARUCO_BOARD_CAMERA). Subtype 0 would
@@ -274,12 +276,12 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                 {"CAM_DIR_NAV_POLL",
                  {{"landmarks_found", "aruco_detected"}, {ABORT, ABORT}}}});
 
-        sm->add_state(
-            "NAV_TO_CAMERA_DIRECTION_WAYPOINT", cam_dir_nav_concurrent,
-            {{"aruco_detected", "ABOVE_DOCK_WAYPOINT"},
-             {"nav_done", cam_dir_fallback},
-             {ABORT, cam_dir_fallback},
-             {CANCEL, ABORT}});
+        sm->add_state("NAV_TO_CAMERA_DIRECTION_WAYPOINT",
+                      cam_dir_nav_concurrent,
+                      {{"aruco_detected", "ABOVE_DOCK_WAYPOINT"},
+                       {"nav_done", cam_dir_fallback},
+                       {ABORT, cam_dir_fallback},
+                       {CANCEL, ABORT}});
     }
 
     if (!config.use_service_waypoint && config.use_wall_detection) {
@@ -309,7 +311,8 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
 
         sm->add_state("WALL_DETECTION_ESTIMATE", search,
                       {{"aruco_detected", "ABOVE_DOCK_WAYPOINT"},
-                       {"wall_detection_estimate_received", "NAV_TO_WALL_DETECT_WAYPOINT"},
+                       {"wall_detection_estimate_received",
+                        "NAV_TO_WALL_DETECT_WAYPOINT"},
                        {"wall_detection_timeout", "DOCK_CONFIG_WAYPOINT"},
                        {ABORT, ABORT},
                        {CANCEL, ABORT}});
@@ -343,7 +346,8 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
             "WAIT_BEFORE_FALLBACK",
             yasmin::CbState::make_shared(
                 yasmin::Outcomes{SUCCEED},
-                [t = config.wait_before_fallback_sec](yasmin::Blackboard::SharedPtr) {
+                [t = config.wait_before_fallback_sec](
+                    yasmin::Blackboard::SharedPtr) {
                     YASMIN_LOG_INFO(
                         "Reached estimate waypoint without landmark — waiting "
                         "%.1fs before falling back to dock config waypoint.",
