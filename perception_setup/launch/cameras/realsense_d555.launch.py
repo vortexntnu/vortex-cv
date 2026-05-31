@@ -174,7 +174,7 @@ def _launch_setup(context, *args, **kwargs):
                     'control_rate': 1,
                     'pt': 96,
                     'config_interval': 1,
-                    'input_format': 'RGB',
+                    'input_format': 'BGR',
                     'hw_encoder': use_nvidia,
                 }],
                 extra_arguments=[{'use_intra_process_comms': True}],

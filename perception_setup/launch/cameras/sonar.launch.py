@@ -26,7 +26,7 @@ def _launch_setup(context, *args, **kwargs):
     range_stop = float(LaunchConfiguration('range_stop').perform(context))
     datatype_uint8 = LaunchConfiguration('datatype_uint8').perform(context).lower() == 'true'
     enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
-    gst_nvidia = LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
+    use_nvidia = LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
     destination_ip = LaunchConfiguration('destination_ip').perform(context)
     destination_port = int(LaunchConfiguration('destination_port').perform(context))
     standalone = LaunchConfiguration('standalone').perform(context).lower() == 'true'
@@ -70,9 +70,9 @@ def _launch_setup(context, *args, **kwargs):
     if enable_gstreamer:
         nodes.append(
             ComposableNode(
-                package='image_to_gstreamer',
-                plugin='image_to_gstreamer::ImageToGStreamer',
-                name='image_to_gstreamer_node',
+                package='gstreamer_from_ros',
+                plugin='gstreamer_from_ros::GStreamerFromRos',
+                name='gstreamer_from_ros_node',
                 parameters=[{
                     'input_topic': display_topic,
                     'destination_ip': destination_ip,
@@ -85,7 +85,7 @@ def _launch_setup(context, *args, **kwargs):
                     'pt': 96,
                     'config_interval': 1,
                     'input_format': 'GRAY8',
-                    'hw_encoder': gst_nvidia,
+                    'hw_encoder': use_nvidia,
                 }],
                 extra_arguments=[{'use_intra_process_comms': True}],
             )

@@ -54,7 +54,7 @@ def _launch_setup(context, *args, **kwargs):
         }
     else:
         line_detection_params = {
-            'topic.image_sub_topic': 'fls_image/display_mono',
+            'topic.image_sub_topic': '/fls_image/display_mono',
             'topic.line_segments_pub_topic': 'line_detection/line_segments',
             'topic.color_overlay_pub_topic': 'line_detection/visualization',
             'topic.boundary_debug_pub_topic': 'line_detection/boundary_image',
