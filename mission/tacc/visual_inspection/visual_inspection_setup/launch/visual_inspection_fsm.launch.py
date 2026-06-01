@@ -21,8 +21,10 @@ def launch_setup(context, *args, **kwargs):
     )
 
     landmark_convergence_config = os.path.join(
-        get_package_share_directory("visual_inspection_fsm"),
+        get_package_share_directory("perception_setup"),
         "config",
+        "mission",
+        "visual_inspection",
         "landmark_convergence.yaml",
     )
 
@@ -42,6 +44,7 @@ def launch_setup(context, *args, **kwargs):
                 # Frame of the depth camera used for height-alignment.
                 # Must match the TF frame published by the camera driver.
                 "depth_camera_frame": f"{namespace}/front_camera_depth_optical",
+                "action_servers.waypoint_manager": f"/{namespace}/waypoint_manager",
                 "action_servers.gripper": f"/{namespace}/gripper/reference_filter",
                 "gripper_convergence_threshold": 0.0005,
                 # Direction to twist the valve handle.
