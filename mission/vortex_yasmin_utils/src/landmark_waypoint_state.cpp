@@ -47,6 +47,9 @@ WaypointManagerAction::Goal LandmarkWaypointState::create_goal(
     wp.pose = vortex::utils::ros_conversions::to_pose_msg(target_pose);
     wp.waypoint_mode =
         vortex::utils::waypoints::waypoint_mode_to_ros(waypoint_goal_.mode);
+    wp.keep_altitude = waypoint_goal_.keep_altitude;
+    wp.desired_altitude = waypoint_goal_.desired_altitude;
+    wp.require_altitude_convergence = waypoint_goal_.require_altitude_convergence;
 
     WaypointManagerAction::Goal goal;
     goal.waypoints = {wp};

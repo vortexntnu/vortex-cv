@@ -20,6 +20,9 @@ WaypointManagerAction::Goal WaypointGoalState::create_goal(
     vortex_msgs::msg::Waypoint wp;
     wp.pose = vortex::utils::ros_conversions::to_pose_msg(waypoint_goal_.pose);
     wp.waypoint_mode.mode = static_cast<uint8_t>(waypoint_goal_.mode);
+    wp.keep_altitude = waypoint_goal_.keep_altitude;
+    wp.desired_altitude = waypoint_goal_.desired_altitude;
+    wp.require_altitude_convergence = waypoint_goal_.require_altitude_convergence;
 
     WaypointManagerAction::Goal goal;
     goal.waypoints = {wp};

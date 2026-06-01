@@ -18,6 +18,7 @@ Options:
   --destination-ip <ip>    Value. Destination IP for GStreamer RTP stream. e.g. --destination-ip 10.0.0.50
   --hw-encoder             Flag. Use NVIDIA hardware H.265 encoder.
   --sw-encoder             Flag. Use software x265 encoder.
+  --dock-distance <m>      Value. Waypoint distance [m] for YOLO direction waypoint. Default: launch file default (7.5).
   -h, --help               Show this help message.
 
 Unspecified options use the defaults defined in the ROS 2 launch files.
@@ -28,6 +29,7 @@ SIM_ARG=""
 GST_ARG=""
 DESTINATION_IP=""
 NVIDIA_ENCODER=""
+DOCK_DISTANCE=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --sim)            SIM_ARG="true"; shift ;;
@@ -37,6 +39,7 @@ while [[ $# -gt 0 ]]; do
         --destination-ip) DESTINATION_IP="$2"; shift 2 ;;
         --hw-encoder)     NVIDIA_ENCODER="true"; shift ;;
         --sw-encoder)     NVIDIA_ENCODER="false"; shift ;;
+        --dock-distance)  DOCK_DISTANCE="$2"; shift 2 ;;
         -h|--help)        usage; exit 0 ;;
         *) echo "Unknown argument: $1"; usage; exit 1 ;;
     esac
@@ -44,10 +47,11 @@ done
 
 # Only forward args that were explicitly set — unset args fall back to launch file defaults.
 FRONT_ARGS=""; DOWN_ARGS=""; SONAR_ARGS=""
-[[ -n "$SIM_ARG" ]]        && FRONT_ARGS+=" sim:=$SIM_ARG"                    && DOWN_ARGS+=" sim:=$SIM_ARG"                    && SONAR_ARGS+=" sim:=$SIM_ARG"
-[[ -n "$GST_ARG" ]]        && FRONT_ARGS+=" enable_gstreamer:=$GST_ARG"        && DOWN_ARGS+=" enable_gstreamer:=$GST_ARG"        && SONAR_ARGS+=" enable_gstreamer:=$GST_ARG"
-[[ -n "$DESTINATION_IP" ]] && FRONT_ARGS+=" destination_ip:=$DESTINATION_IP"   && DOWN_ARGS+=" destination_ip:=$DESTINATION_IP"   && SONAR_ARGS+=" destination_ip:=$DESTINATION_IP"
+[[ -n "$SIM_ARG" ]]        && FRONT_ARGS+=" sim:=$SIM_ARG"                      && DOWN_ARGS+=" sim:=$SIM_ARG"                    && SONAR_ARGS+=" sim:=$SIM_ARG"
+[[ -n "$GST_ARG" ]]        && FRONT_ARGS+=" enable_gstreamer:=$GST_ARG"          && DOWN_ARGS+=" enable_gstreamer:=$GST_ARG"        && SONAR_ARGS+=" enable_gstreamer:=$GST_ARG"
+[[ -n "$DESTINATION_IP" ]] && FRONT_ARGS+=" destination_ip:=$DESTINATION_IP"     && DOWN_ARGS+=" destination_ip:=$DESTINATION_IP"   && SONAR_ARGS+=" destination_ip:=$DESTINATION_IP"
 [[ -n "$NVIDIA_ENCODER" ]] && FRONT_ARGS+=" gst_nvidia_encoder:=$NVIDIA_ENCODER" && DOWN_ARGS+=" gst_nvidia_encoder:=$NVIDIA_ENCODER" && SONAR_ARGS+=" gst_nvidia_encoder:=$NVIDIA_ENCODER"
+[[ -n "$DOCK_DISTANCE" ]]  && FRONT_ARGS+=" waypoint_distance:=$DOCK_DISTANCE"
 
 SESSION="subsea_docking"
 

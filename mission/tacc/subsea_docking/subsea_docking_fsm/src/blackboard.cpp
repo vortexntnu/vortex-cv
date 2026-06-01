@@ -69,6 +69,10 @@ std::shared_ptr<yasmin::Blackboard> initialize_blackboard(
     const StateMachineConfig& config) {
     auto bb = std::make_shared<yasmin::Blackboard>();
 
+    const auto depth_level_waypoint_goal =
+        vortex::utils::waypoints::load_waypoint_goal_from_yaml(
+            config.waypoint_yaml_path, "depth_level_waypoint");
+
     const auto dock_config_waypoint_goal =
         vortex::utils::waypoints::load_waypoint_goal_from_yaml(
             config.waypoint_yaml_path, "dock_config_waypoint");
@@ -85,6 +89,8 @@ std::shared_ptr<yasmin::Blackboard> initialize_blackboard(
         vortex::utils::waypoints::load_waypoint_goal_from_yaml(
             config.landmark_convergence_yaml_path, "camera_direction_waypoint");
 
+    bb->set<vortex::utils::waypoints::WaypointGoal>("depth_level_waypoint_goal",
+                                                    depth_level_waypoint_goal);
     bb->set<vortex::utils::waypoints::WaypointGoal>("dock_config_waypoint_goal",
                                                     dock_config_waypoint_goal);
     bb->set<vortex::utils::waypoints::WaypointGoal>("power_puck_waypoint_goal",
