@@ -16,6 +16,7 @@ Inference backend (via `backend` arg):
 
 import os
 
+import yaml
 from ament_index_python.packages import get_package_share_directory
 from auv_setup.launch_arg_common import (
     declare_drone_and_namespace_args,
@@ -26,7 +27,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, Opaq
 from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import ComposableNodeContainer
+from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
 
 _TAC_ARUCO = {
@@ -49,6 +50,12 @@ _ARUCO_IMAGE_TOPIC = '/aruco_detector/image_down'
 def _launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('perception_setup')
     drone, namespace = resolve_drone_and_namespace(context)
+
+    with open(os.path.join(
+        get_package_share_directory('auv_setup'), 'config', 'robots', f'{drone}.yaml',
+    )) as f:
+        robot_topics = yaml.safe_load(f)['/**']['ros__parameters']['topics']
+
     target = LaunchConfiguration('target').perform(context)
     enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
     use_nvidia = LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
@@ -80,7 +87,7 @@ def _launch_setup(context, *args, **kwargs):
                 'pubs.aruco_image': _ARUCO_IMAGE_TOPIC,
                 'pubs.aruco_poses': '/aruco_detector/markers_down',
                 'pubs.board_pose': '/aruco_detector/board_down',
-                'pubs.landmarks': f'/{namespace}/landmarks',
+                'pubs.landmarks': f'/{namespace}/{robot_topics["landmarks"]}',
                 'logger_service_name': '/toggle_marker_logger',
                 'detect_board': True,
                 'visualize': True,
@@ -133,6 +140,24 @@ def _launch_setup(context, *args, **kwargs):
     ]
 
     if backend == 'ultralytics':
+        actions.append(
+            Node(
+                package='pipeline_end_detector',
+                executable='pipeline_end_detector_node',
+                name='pipeline_end_detector_node',
+                namespace=namespace,
+                parameters=[
+                    os.path.join(
+                        get_package_share_directory('pipeline_end_detector'),
+                        'config',
+                        'pipeline_end_detector_config.yaml',
+                    )
+                ],
+                output='screen',
+            )
+        )
+
+    if backend == 'ultralytics':
         seg_launch_file = os.path.join(
             installed_launch_dir, 'ultralytics', 'ultralytics_yolo_seg.launch.py'
         )
@@ -140,52 +165,100 @@ def _launch_setup(context, *args, **kwargs):
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(seg_launch_file),
                 launch_arguments={
+                    'node_name': 'yolo_seg_down_camera',
                     'model_input_image_topic': color_image_topic,
                     'camera_info_topic': camera_info_topic,
                     'model_file_path': seg_model_file_path,
                     'output_bbox_topic': '/pipeline/down_camera/bboxes',
                     'output_mask_topic': '/pipeline/down_camera/segmentation_mask',
                     'output_debug_topic': '/pipeline/down_camera/segmentation_debug',
+                    'output_mask_overlay_topic': '/pipeline/down_camera/segmentation_overlay',
                     'output_camera_info_topic': '/pipeline/down_camera/camera_info',
                     'device': device,
                     'pub_debug': visualize,
+                    'pub_mask_overlay': 'true',
                 }.items(),
             )
         )
 
-        classify_launch_file = os.path.join(
-            installed_launch_dir, 'ultralytics', 'ultralytics_yolo_classify.launch.py'
-        )
         actions.append(
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(classify_launch_file),
-                launch_arguments={
-                    'model_input_image_topic': '/pipeline/down_camera/segmentation_mask',
-                    'model_file_path': classify_model_file_path,
+            Node(
+                package='yolo_classify',
+                executable='classifier_node',
+                name='classifier_node',
+                namespace='yolo',
+                output='screen',
+                parameters=[{
+                    'input_topic': '/pipeline/down_camera/segmentation_mask',
+                    'model_path': classify_model_file_path,
                     'device': device,
-                }.items(),
+                    'output_class_topic': '/classification_result',
+                    'imgsz': 640,
+                    'verbose': False,
+                }],
             )
         )
 
     actions.append(
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(
-                    get_package_share_directory('irls_line_fitter_2x'),
-                    'launch', 'irls_line.launch.py',
-                )
-            )
+        Node(
+            package='irls_line_fitter_2x',
+            executable='irls_line_node',
+            name='irls_line_node',
+            parameters=[{
+                'input_topic': '/pipeline/down_camera/segmentation_mask',
+                'input_topic_info': '/pipeline/down_camera/camera_info',
+                'output_topic_img': '/irls_line/image',
+                'output_topic_lines': '/irls_line/lines',
+                'binary_threshold': 200,
+                'min_pixels': 250,
+                'max_irls_iters': 13,
+                'eps_change': 1.0e-4,
+                'loss': 'tukey',
+                'huber_delta': 0.3,
+                'tukey_c': 2.835,
+                'scale_with_mad': True,
+                'draw_thickness': 3,
+                'draw_b': 0,
+                'draw_g': 0,
+                'draw_r': 255,
+                'publish_original_if_fail': True,
+                'clip_to_object': True,
+                'clip_max_dist_px': 6.0,
+                'find_second_line': True,
+                'removal_band_px': 120.0,
+                'min_pixels_second': 250,
+                'draw2_b': 0,
+                'draw2_g': 255,
+                'draw2_r': 0,
+                'draw_intersection': True,
+                'intersection_radius': 10,
+            }],
+            output='screen',
         )
     )
 
     actions.append(
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(
-                    get_package_share_directory('pipeline_follower_sim'),
-                    'launch', 'pipeline_follower.launch.py',
-                )
-            )
+        Node(
+            package='pipeline_follower_sim',
+            executable='pipeline_follower_node',
+            name='pipeline_follower_node',
+            parameters=[{
+                'input_topic_lines': '/irls_line/lines',
+                'input_topic_info': '/pipeline/down_camera/camera_info',
+                'input_topic_pose': f'/{namespace}/{robot_topics["odom"]}',
+                'input_topic_altitude': f'/{namespace}/{robot_topics["dvl_altitude"]}',
+                'camera_height': 0.5,
+                'send_rate_hz': 3.0,
+                'camera_placment_x': 0.4,
+                'camera_placment_y': -0.158,
+                'camera_placment_z': 0.161,
+                'debug_waypoint_topic': '/debug/waypoint',
+                'debug_service_off_topic': '/debug/send_waypoints_service_off',
+                'target_height': 0.9,
+                'receive_frame': f'{namespace}/downwards_camera_optical',
+                'target_frame': f'{namespace}/odom',
+            }],
+            output='screen',
         )
     )
 
@@ -249,7 +322,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'classify_model_file_path',
-                default_value=os.path.join(pkg_dir, 'models', 'classify_end_of_pipeline.pt'),
+                default_value=os.path.join(pkg_dir, 'models', 'pipeline_end_classification.pt'),
                 description='Path to the YOLO classification model file.',
             ),
             DeclareLaunchArgument(

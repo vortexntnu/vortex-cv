@@ -12,6 +12,7 @@ Inference backend (via `backend` arg):
 
 import os
 
+import yaml
 from ament_index_python.packages import get_package_share_directory
 from auv_setup.launch_arg_common import (
     declare_drone_and_namespace_args,
@@ -22,7 +23,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, Opaq
 from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import ComposableNodeContainer
+from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
 
 _SEG_DEBUG_IMAGE_TOPIC = '/pipeline/front_camera/segmentation_debug'
@@ -31,6 +32,11 @@ _SEG_DEBUG_IMAGE_TOPIC = '/pipeline/front_camera/segmentation_debug'
 def _launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('perception_setup')
     drone, namespace = resolve_drone_and_namespace(context)
+
+    with open(os.path.join(
+        get_package_share_directory('auv_setup'), 'config', 'robots', f'{drone}.yaml',
+    )) as f:
+        robot_topics = yaml.safe_load(f)['/**']['ros__parameters']['topics']
     enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
     use_nvidia = LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
     destination_ip = LaunchConfiguration('destination_ip').perform(context)
@@ -92,6 +98,7 @@ def _launch_setup(context, *args, **kwargs):
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(seg_launch_file),
                 launch_arguments={
+                    'node_name': 'yolo_seg_front_camera',
                     'model_input_image_topic': color_image_topic,
                     'camera_info_topic': camera_info_topic,
                     'model_file_path': model_file_path,
@@ -99,31 +106,48 @@ def _launch_setup(context, *args, **kwargs):
                     'output_mask_topic': '/pipeline/front_camera/segmentation_mask',
                     'output_debug_topic': '/pipeline/front_camera/segmentation_debug',
                     'output_camera_info_topic': '/pipeline/front_camera/camera_info',
+                    'output_mask_overlay_topic': '/pipeline/front_camera/segmentation_overlay',
                     'device': device,
                     'pub_debug': visualize,
+                    'pub_mask_overlay': 'true',
                 }.items(),
             )
         )
 
     actions.append(
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(
-                    get_package_share_directory('vortex_pipeline_image_endpoints'),
-                    'launch', 'image_endpoints.launch.py',
-                )
-            )
+        Node(
+            package='pipeline_image_endpoints_detector',
+            executable='image_endpoints_node',
+            name='pipeline_image_endpoints',
+            parameters=[{
+                'morph_kernel_size': 5,
+                'detection_method': 'lowest_pixel',
+                'input_topic': '/pipeline/front_camera/segmentation_mask',
+                'output_topic': '/pipeline/image_endpoints',
+                'debug_topic': '/pipeline/image_endpoints/debug_image',
+                'debug': True,
+            }],
+            arguments=['--ros-args', '--log-level', 'pipeline_image_endpoints:=info'],
+            output='screen',
         )
     )
 
     actions.append(
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(
-                    get_package_share_directory('vortex_pipeline_position_estimator'),
-                    'launch', 'position_estimator.launch.py',
-                )
-            )
+        Node(
+            package='pipeline_endpoint_position_estimator',
+            executable='position_estimator_node',
+            name='pipeline_position_estimator',
+            parameters=[{
+                'endpoints_topic': '/pipeline/image_endpoints',
+                'dvl_altitude_topic': f'/{namespace}/{robot_topics["dvl_altitude"]}',
+                'camera_info_topic': '/pipeline/front_camera/camera_info',
+                'publish_topic': f'/{namespace}/{robot_topics["landmarks"]}',
+                'transform_timeout_ms': 100,
+                'apply_undistortion': True,
+                'reference_frame': f'{namespace}/odom',
+            }],
+            arguments=['--ros-args', '--log-level', 'pipeline_position_estimator:=info'],
+            output='screen',
         )
     )
 
@@ -173,7 +197,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'model_file_path',
-                default_value=os.path.join(pkg_dir, 'models', 'seg_down_with_aruco.pt'),
+                default_value=os.path.join(pkg_dir, 'models', 'yolo26l_sim_and_real.pt'),
                 description='Path to the YOLO segmentation model file.',
             ),
             DeclareLaunchArgument(

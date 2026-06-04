@@ -12,6 +12,7 @@ ArUco board config (via `target` arg):
 
 import os
 
+import yaml
 from ament_index_python.packages import get_package_share_directory
 from auv_setup.launch_arg_common import (
     declare_drone_and_namespace_args,
@@ -43,6 +44,12 @@ _VORTEX_ARUCO = {
 def _launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('perception_setup')
     drone, namespace = resolve_drone_and_namespace(context)
+
+    with open(os.path.join(
+        get_package_share_directory('auv_setup'), 'config', 'robots', f'{drone}.yaml',
+    )) as f:
+        robot_topics = yaml.safe_load(f)['/**']['ros__parameters']['topics']
+
     sim = LaunchConfiguration('sim').perform(context).lower() == 'true'
     target = LaunchConfiguration('target').perform(context)
     enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
@@ -73,7 +80,7 @@ def _launch_setup(context, *args, **kwargs):
                 'pubs.aruco_image': '/aruco_detector/image_front',
                 'pubs.aruco_poses': '/aruco_detector/markers_front',
                 'pubs.board_pose': '/aruco_detector/board_front',
-                'pubs.landmarks': f'/{namespace}/landmarks',
+                'pubs.landmarks': f'/{namespace}/{robot_topics["landmarks"]}',
                 'logger_service_name': '/toggle_marker_logger',
                 'detect_board': True,
                 'visualize': True,
@@ -154,7 +161,7 @@ def _launch_setup(context, *args, **kwargs):
                 parameters=[{
                     'detection_sub_topic': '/yolo/docking_detections',
                     'camera_info_sub_topic': f'/{namespace}/front_camera/camera_info',
-                    'landmarks_pub_topic': f'/{namespace}/landmarks',
+                    'landmarks_pub_topic': f'/{namespace}/{robot_topics["landmarks"]}',
                     'odom_frame': f'{namespace}/odom',
                     'waypoint_distance': float(waypoint_distance),
                 }],

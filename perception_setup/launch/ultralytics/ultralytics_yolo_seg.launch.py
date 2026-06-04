@@ -47,16 +47,20 @@ def _launch_setup(context, *args, **kwargs):
     pub_bbox = LaunchConfiguration('pub_bbox').perform(context).lower() == 'true'
     pub_mask = LaunchConfiguration('pub_mask').perform(context).lower() == 'true'
     pub_debug = LaunchConfiguration('pub_debug').perform(context).lower() == 'true'
+    pub_mask_overlay = LaunchConfiguration('pub_mask_overlay').perform(context).lower() == 'true'
+    output_mask_overlay_topic = LaunchConfiguration('output_mask_overlay_topic').perform(context)
     imgsz = int(LaunchConfiguration('imgsz').perform(context))
     confidence_threshold = float(LaunchConfiguration('confidence_threshold').perform(context))
     max_detections = int(LaunchConfiguration('max_detections').perform(context))
     compile_model = LaunchConfiguration('compile').perform(context).lower() == 'true'
     verbose = LaunchConfiguration('verbose').perform(context).lower() == 'true'
 
+    node_name = LaunchConfiguration('node_name').perform(context)
+
     node = Node(
         package='yolo_segmentation',
         executable='yolo_seg_node',
-        name='yolo_segmentation_node',
+        name=node_name,
         output='screen',
         parameters=[{
             'input_topic': image_topic,
@@ -68,6 +72,8 @@ def _launch_setup(context, *args, **kwargs):
             'pub_bbox': pub_bbox,
             'pub_mask': pub_mask,
             'pub_debug': pub_debug,
+            'pub_mask_overlay': pub_mask_overlay,
+            'output_mask_overlay_topic': output_mask_overlay_topic,
             'model_path': model_file_path,
             'device': device,
             'imgsz': imgsz,
@@ -85,6 +91,11 @@ def generate_launch_description():
     pkg_dir = get_package_share_directory('perception_setup')
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'node_name',
+            default_value='yolo_segmentation_node',
+            description='ROS node name for the segmentation node.',
+        ),
         DeclareLaunchArgument(
             'model_input_image_topic',
             default_value='/camera/camera/color/image_raw',
@@ -127,6 +138,15 @@ def generate_launch_description():
             'pub_debug',
             default_value='true',
             description='Publish debug annotated image',
+        ),
+        DeclareLaunchArgument(
+            'pub_mask_overlay',
+            default_value='false',
+            description='Publish alpha-blended red overlay of mask on original image.',
+        ),
+        DeclareLaunchArgument(
+            'output_mask_overlay_topic',
+            default_value='/pipeline/camera/segmentation_overlay',
         ),
         DeclareLaunchArgument(
             'device',

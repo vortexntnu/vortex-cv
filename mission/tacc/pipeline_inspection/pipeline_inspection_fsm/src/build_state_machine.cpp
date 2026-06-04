@@ -54,81 +54,115 @@ class InterruptibleTimeoutState : public yasmin::State {
 std::shared_ptr<yasmin::StateMachine> build_state_machine(
     const StateMachineConfig& config,
     yasmin::Blackboard::SharedPtr blackboard) {
-    const auto search_waypoints =
-        blackboard->get<std::vector<vortex::utils::waypoints::WaypointGoal>>(
-            "search_waypoints");
-
-    const auto convergence_goal =
-        blackboard->get<vortex::utils::waypoints::WaypointGoal>(
-            "convergence_goal");
-
     vortex_msgs::msg::LandmarkType pipeline_type;
-    pipeline_type.value = 1;
+    pipeline_type.value = vortex_msgs::msg::LandmarkType::PIPELINE_START;
 
     vortex_msgs::msg::LandmarkSubtype pipeline_subtype;
-    pipeline_subtype.value = 19;
-
-    auto search_pattern = std::make_shared<SearchWaypointGoalState>(
-        config.waypoint_manager_action_server, search_waypoints);
-
-    auto landmark_polling =
-        std::make_shared<vortex_yasmin_utils::LandmarkPollingState>(
-            config.landmark_polling_action_server, pipeline_type,
-            pipeline_subtype, "pipeline_landmarks", "landmark_found");
-
-    auto search = std::make_shared<vortex_yasmin_utils::FirstWinsConcurrence>(
-        yasmin::StateMap{{"SEARCH_PATTERN", search_pattern},
-                         {"LANDMARK_POLLING", landmark_polling}},
-        ABORT,
-        vortex_yasmin_utils::FirstWinsOutcomeMap{
-            {"SEARCH_PATTERN", {{SUCCEED, ABORT}}},
-            {"LANDMARK_POLLING", {{"landmark_found", "landmark_found"}}}});
-
-    auto converge =
-        std::make_shared<vortex_yasmin_utils::LandmarkWaypointState>(
-            config.waypoint_manager_action_server, convergence_goal,
-            "pipeline_landmarks");
+    pipeline_subtype.value = vortex_msgs::msg::LandmarkSubtype::PIPELINE_START_CAMERA;
 
     auto start_pipeline_trg = std::make_shared<
         yasmin_ros::ServiceState<pipeline_inspection_fsm::TriggerSrv>>(
         config.start_pipeline_following_service,
         [](yasmin::Blackboard::SharedPtr) {
-            return std::make_shared<
-                pipeline_inspection_fsm::TriggerSrv::Request>();
+            return std::make_shared<pipeline_inspection_fsm::TriggerSrv::Request>();
         });
 
     auto start_end_detection_trg = std::make_shared<
         yasmin_ros::ServiceState<pipeline_inspection_fsm::TriggerSrv>>(
         config.start_end_pipeline_detection_service,
         [](yasmin::Blackboard::SharedPtr) {
-            return std::make_shared<
-                pipeline_inspection_fsm::TriggerSrv::Request>();
+            return std::make_shared<pipeline_inspection_fsm::TriggerSrv::Request>();
         });
+
+    const auto altitude_descent_waypoint =
+        blackboard->get<vortex::utils::waypoints::WaypointGoal>(
+            "altitude_descent_waypoint");
+
+    auto descend_to_altitude = std::make_shared<SearchWaypointGoalState>(
+        config.waypoint_manager_action_server,
+        std::vector<vortex::utils::waypoints::WaypointGoal>{altitude_descent_waypoint});
 
     auto sm = std::make_shared<yasmin::StateMachine>(
         std::set<std::string>{SUCCEED, ABORT});
 
+    // Always wait for the start trigger and wipe before entering any active state.
     sm->add_state(
         "WAIT_FOR_START",
         std::make_shared<vortex_yasmin_utils::ServiceTriggerWaitState>(
             config.start_mission_service),
         {{SUCCEED, "WIPE"}, {CANCEL, ABORT}});
 
-    sm->add_state("WIPE", std::make_shared<vortex_yasmin_utils::WipeState>(),
-                  {{SUCCEED, "SEARCH"}});
+    if (config.start_above_pipe) {
+        // After wipe, descend to 2 m altitude then go straight to pipeline following.
+        sm->add_state("WIPE", std::make_shared<vortex_yasmin_utils::WipeState>(),
+                      {{SUCCEED, "DESCEND_TO_ALTITUDE"}});
+        sm->add_state("DESCEND_TO_ALTITUDE", descend_to_altitude,
+                      {{SUCCEED, "START_PIPELINE_TRG"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+        sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
+                      {{SUCCEED, "WAIT_5S"}, {ABORT, ABORT}});
 
-    sm->add_state(
-        "SEARCH", search,
-        {{"landmark_found", "CONVERGE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+    } else if (config.start_in_camera_range) {
+        // After wipe, descend to 2 m altitude then poll for the landmark directly and converge.
+        const auto convergence_goal =
+            blackboard->get<vortex::utils::waypoints::WaypointGoal>("convergence_goal");
 
-    sm->add_state(
-        "CONVERGE", converge,
-        {{SUCCEED, "START_PIPELINE_TRG"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+        auto landmark_polling =
+            std::make_shared<vortex_yasmin_utils::LandmarkPollingState>(
+                config.landmark_polling_action_server, pipeline_type,
+                pipeline_subtype, "pipeline_landmarks", "landmark_found");
+        auto converge =
+            std::make_shared<vortex_yasmin_utils::LandmarkWaypointState>(
+                config.waypoint_manager_action_server, convergence_goal,
+                "pipeline_landmarks");
 
-    sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
-                  {{SUCCEED, "WAIT_5S"}, {ABORT, ABORT}});
+        sm->add_state("WIPE", std::make_shared<vortex_yasmin_utils::WipeState>(),
+                      {{SUCCEED, "DESCEND_TO_ALTITUDE"}});
+        sm->add_state("DESCEND_TO_ALTITUDE", descend_to_altitude,
+                      {{SUCCEED, "LANDMARK_POLLING"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+        sm->add_state("LANDMARK_POLLING", landmark_polling,
+                      {{"landmark_found", "CONVERGE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+        sm->add_state("CONVERGE", converge,
+                      {{SUCCEED, "START_PIPELINE_TRG"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+        sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
+                      {{SUCCEED, "WAIT_5S"}, {ABORT, ABORT}});
 
-    sm->add_state("WAIT_5S", std::make_shared<InterruptibleTimeoutState>(5.0),
+    } else {
+        // Normal mode: search for the pipeline, converge, then follow.
+        const auto search_waypoints =
+            blackboard->get<std::vector<vortex::utils::waypoints::WaypointGoal>>(
+                "search_waypoints");
+        const auto convergence_goal =
+            blackboard->get<vortex::utils::waypoints::WaypointGoal>("convergence_goal");
+
+        auto search_pattern = std::make_shared<SearchWaypointGoalState>(
+            config.waypoint_manager_action_server, search_waypoints);
+        auto landmark_polling =
+            std::make_shared<vortex_yasmin_utils::LandmarkPollingState>(
+                config.landmark_polling_action_server, pipeline_type,
+                pipeline_subtype, "pipeline_landmarks", "landmark_found");
+        auto search = std::make_shared<vortex_yasmin_utils::FirstWinsConcurrence>(
+            yasmin::StateMap{{"SEARCH_PATTERN", search_pattern},
+                             {"LANDMARK_POLLING", landmark_polling}},
+            ABORT,
+            vortex_yasmin_utils::FirstWinsOutcomeMap{
+                {"SEARCH_PATTERN", {{SUCCEED, ABORT}}},
+                {"LANDMARK_POLLING", {{"landmark_found", "landmark_found"}}}});
+        auto converge =
+            std::make_shared<vortex_yasmin_utils::LandmarkWaypointState>(
+                config.waypoint_manager_action_server, convergence_goal,
+                "pipeline_landmarks");
+
+        sm->add_state("WIPE", std::make_shared<vortex_yasmin_utils::WipeState>(),
+                      {{SUCCEED, "SEARCH"}});
+        sm->add_state("SEARCH", search,
+                      {{"landmark_found", "CONVERGE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+        sm->add_state("CONVERGE", converge,
+                      {{SUCCEED, "START_PIPELINE_TRG"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+        sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
+                      {{SUCCEED, "WAIT_5S"}, {ABORT, ABORT}});
+    }
+
+    sm->add_state("WAIT_5S", std::make_shared<InterruptibleTimeoutState>(30.0),
                   {{"timeout", "START_END_DETECTION_TRG"}});
 
     sm->add_state("START_END_DETECTION_TRG", start_end_detection_trg,
@@ -138,8 +172,7 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         std::make_shared<vortex_yasmin_utils::FirstWinsConcurrence>(
             yasmin::StateMap{
                 {"PERSISTENT_WM",
-                 std::make_shared<
-                     vortex_yasmin_utils::PersistentWaypointManagerState>(
+                 std::make_shared<vortex_yasmin_utils::PersistentWaypointManagerState>(
                      config.waypoint_manager_action_server)},
                 {"WAIT_FOR_END_OF_PIPELINE",
                  std::make_shared<vortex_yasmin_utils::ServiceTriggerWaitState>(

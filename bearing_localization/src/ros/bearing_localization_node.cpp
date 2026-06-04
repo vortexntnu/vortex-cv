@@ -54,12 +54,12 @@ void BearingLocalizationNode::setup_pubsub() {
     if (node_cfg_.publish_debug_markers) {
         markers_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
             get_parameter("topics.bearing_localization_markers").as_string(),
-            vortex::utils::qos_profiles::reliable_profile());
+            vortex::utils::qos_profiles::sensor_data_profile());
     }
 
     landmark_pub_ = create_publisher<vortex_msgs::msg::LandmarkArray>(
         get_parameter("topics.landmarks").as_string(),
-        vortex::utils::qos_profiles::reliable_profile());
+        vortex::utils::qos_profiles::sensor_data_profile());
 }
 
 void BearingLocalizationNode::bearing_callback(

@@ -7,5 +7,9 @@ pipeline_start_convergence:
     roll: 0.0
     pitch: 0.0
     yaw: 0.0
-  mode: full_pose
-  convergence_threshold: 0.1
+  mode: FORWARD_HEADING
+  keep_altitude: true
+  desired_altitude: 1.0
+  require_altitude_convergence: false
+  convergence_threshold: 0.2
+  

@@ -1,0 +1,6 @@
+altitude_descent:
+  mode: pos_z_level_orientation
+  keep_altitude: true
+  desired_altitude: 1.0
+  require_altitude_convergence: true
+  convergence_threshold: 0.2

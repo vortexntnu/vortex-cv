@@ -104,7 +104,7 @@ private:
   double prev_x_ = 0.0;
   double prev_y_ = 0.0;
   double prev_z_ = 0.0;
-  bool goal_blocked_ = false;
+  bool goal_blocked_ = true;
 
   int min_dist_skip_count_ = 0;
   static constexpr int MAX_MIN_DIST_SKIPS = 20;

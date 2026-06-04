@@ -35,6 +35,9 @@ struct StateMachineConfig {
     std::string end_of_pipeline_service;
     std::string waypoint_yaml_path;
     std::string convergence_yaml_path;
+    std::string altitude_descent_waypoint_config;
+    bool start_in_camera_range{false};
+    bool start_above_pipe{false};
 };
 
 /**

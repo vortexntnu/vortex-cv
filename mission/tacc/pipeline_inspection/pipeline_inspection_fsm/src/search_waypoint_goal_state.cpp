@@ -23,6 +23,9 @@ SearchWaypointGoalState::create_goal(
         vortex_msgs::msg::Waypoint msg;
         msg.pose = vortex::utils::ros_conversions::to_pose_msg(wp.pose);
         msg.waypoint_mode.mode = static_cast<uint8_t>(wp.mode);
+        msg.keep_altitude = wp.keep_altitude;
+        msg.desired_altitude = wp.desired_altitude;
+        msg.require_altitude_convergence = wp.require_altitude_convergence;
         wp_msgs.push_back(msg);
     }
 

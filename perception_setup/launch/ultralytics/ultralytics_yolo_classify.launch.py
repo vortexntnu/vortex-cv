@@ -40,10 +40,12 @@ def _launch_setup(context, *args, **kwargs):
     imgsz = int(LaunchConfiguration('imgsz').perform(context))
     verbose = LaunchConfiguration('verbose').perform(context).lower() == 'true'
 
+    node_name = LaunchConfiguration('node_name').perform(context)
+
     node = Node(
         package='yolo_classify',
         executable='classifier_node',
-        name='classifier_node',
+        name=node_name,
         namespace='yolo',
         output='screen',
         parameters=[{
@@ -63,6 +65,11 @@ def generate_launch_description():
     pkg_dir = get_package_share_directory('perception_setup')
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'node_name',
+            default_value='classifier_node',
+            description='ROS node name for the classification node.',
+        ),
         DeclareLaunchArgument(
             'model_input_image_topic',
             default_value='/pipeline/camera/segmentation_mask',

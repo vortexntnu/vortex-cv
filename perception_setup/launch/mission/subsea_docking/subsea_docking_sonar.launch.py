@@ -10,6 +10,7 @@ Data sources (via `sim` arg):
 
 import os
 
+import yaml
 from ament_index_python.packages import get_package_share_directory
 from auv_setup.launch_arg_common import (
     declare_drone_and_namespace_args,
@@ -26,6 +27,12 @@ from launch_ros.descriptions import ComposableNode
 
 def _launch_setup(context, *args, **kwargs):
     drone, namespace = resolve_drone_and_namespace(context)
+
+    with open(os.path.join(
+        get_package_share_directory('auv_setup'), 'config', 'robots', f'{drone}.yaml',
+    )) as f:
+        robot_topics = yaml.safe_load(f)['/**']['ros__parameters']['topics']
+
     sim = LaunchConfiguration('sim').perform(context).lower() == 'true'
 
     nodes = []
@@ -95,7 +102,7 @@ def _launch_setup(context, *args, **kwargs):
                 'start_mission_service': 'docking_position_estimator/start_mission',
                 'send_pose_service': '/docking_position_estimator/docking_pose',
                 'line_sub_topic': f'/{namespace}/line_detection/line_segments',
-                'pose_sub_topic': f'/{namespace}/pose',
+                'pose_sub_topic': f'/{namespace}/{robot_topics["pose"]}',
                 'sonar_info_sub_topic': f'/{namespace}/fls/sonar_info',
                 'debug_topic': f'/{namespace}/docking_position_debug_viz',
                 'odom_frame': f'{namespace}/odom',

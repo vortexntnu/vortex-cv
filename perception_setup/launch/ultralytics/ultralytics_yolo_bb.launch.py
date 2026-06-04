@@ -40,10 +40,12 @@ def _launch_setup(context, *args, **kwargs):
     confidence_threshold = float(LaunchConfiguration('confidence_threshold').perform(context))
     visualize = LaunchConfiguration('visualize').perform(context).lower() == 'true'
 
+    node_name = LaunchConfiguration('node_name').perform(context)
+
     yolo_node = Node(
         package='yolo_object_detection',
         executable='yolo_object_detection_node',
-        name='yolo_object_detection',
+        name=node_name,
         output='screen',
         parameters=[{
             'device': device,
@@ -62,6 +64,11 @@ def generate_launch_description():
     pkg_dir = get_package_share_directory('perception_setup')
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'node_name',
+            default_value='yolo_object_detection',
+            description='ROS node name for the bounding-box detection node.',
+        ),
         DeclareLaunchArgument(
             'model_input_image_topic',
             default_value='/camera/camera/color/image_raw',
