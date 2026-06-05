@@ -29,13 +29,15 @@ using TriggerSrv = std_srvs::srv::Trigger;
 struct StateMachineConfig {
     std::string waypoint_manager_action_server;
     std::string landmark_polling_action_server;
+    std::string bearing_direction_action_server;
     std::string start_mission_service;
     std::string start_pipeline_following_service;
     std::string start_end_pipeline_detection_service;
     std::string end_of_pipeline_service;
     std::string waypoint_yaml_path;
     std::string convergence_yaml_path;
-    std::string altitude_descent_waypoint_config;
+    double bearing_collection_timeout_sec{10.0};
+    double bearing_projection_distance{10.0};
     bool start_in_camera_range{false};
     bool start_above_pipe{false};
 };

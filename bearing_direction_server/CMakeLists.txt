@@ -90,11 +90,38 @@ target_include_directories(acoustics_bearing_server PRIVATE
 ament_target_dependencies(acoustics_bearing_server ${BASE_DEPS})
 target_link_libraries(acoustics_bearing_server bearing_direction_base spdlog::spdlog)
 
+# --- Test pipeline direction publisher ---
+add_executable(test_pipeline_direction_node
+  src/test_pipeline_direction_main.cpp
+  src/test_pipeline_direction_node.cpp
+)
+target_include_directories(test_pipeline_direction_node PRIVATE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  ${EIGEN3_INCLUDE_DIRS}
+)
+ament_target_dependencies(test_pipeline_direction_node ${BASE_DEPS})
+
+target_link_libraries(test_pipeline_direction_node spdlog::spdlog)
+
+# --- Test acoustics direction publisher ---
+add_executable(test_acoustics_direction_node
+  src/test_acoustics_direction_main.cpp
+  src/test_acoustics_direction_node.cpp
+)
+target_include_directories(test_acoustics_direction_node PRIVATE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  ${EIGEN3_INCLUDE_DIRS}
+)
+ament_target_dependencies(test_acoustics_direction_node ${BASE_DEPS})
+target_link_libraries(test_acoustics_direction_node spdlog::spdlog)
+
 install(TARGETS
   bearing_direction_base
   pipeline_bearing_server
   platform_bearing_server
   acoustics_bearing_server
+  test_pipeline_direction_node
+  test_acoustics_direction_node
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}

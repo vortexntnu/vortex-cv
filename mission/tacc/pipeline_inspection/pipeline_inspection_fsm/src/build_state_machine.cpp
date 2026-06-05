@@ -15,6 +15,8 @@
 #include <vortex_msgs/msg/landmark_subtype.hpp>
 #include <vortex_msgs/msg/landmark_type.hpp>
 
+#include <vortex_yasmin_utils/bearing_waypoint_state.hpp>
+#include <vortex_yasmin_utils/collect_bearing_direction_state.hpp>
 #include <vortex_yasmin_utils/first_wins_concurrence.hpp>
 #include <vortex_yasmin_utils/landmark_polling_state.hpp>
 #include <vortex_yasmin_utils/landmark_waypoint_state.hpp>
@@ -74,14 +76,6 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
             return std::make_shared<pipeline_inspection_fsm::TriggerSrv::Request>();
         });
 
-    const auto altitude_descent_waypoint =
-        blackboard->get<vortex::utils::waypoints::WaypointGoal>(
-            "altitude_descent_waypoint");
-
-    auto descend_to_altitude = std::make_shared<SearchWaypointGoalState>(
-        config.waypoint_manager_action_server,
-        std::vector<vortex::utils::waypoints::WaypointGoal>{altitude_descent_waypoint});
-
     auto sm = std::make_shared<yasmin::StateMachine>(
         std::set<std::string>{SUCCEED, ABORT});
 
@@ -93,16 +87,14 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         {{SUCCEED, "WIPE"}, {CANCEL, ABORT}});
 
     if (config.start_above_pipe) {
-        // After wipe, descend to 2 m altitude then go straight to pipeline following.
+        // Already above the pipe at the right altitude: trigger pipeline following directly.
         sm->add_state("WIPE", std::make_shared<vortex_yasmin_utils::WipeState>(),
-                      {{SUCCEED, "DESCEND_TO_ALTITUDE"}});
-        sm->add_state("DESCEND_TO_ALTITUDE", descend_to_altitude,
-                      {{SUCCEED, "START_PIPELINE_TRG"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+                      {{SUCCEED, "START_PIPELINE_TRG"}});
         sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
                       {{SUCCEED, "WAIT_5S"}, {ABORT, ABORT}});
 
     } else if (config.start_in_camera_range) {
-        // After wipe, descend to 2 m altitude then poll for the landmark directly and converge.
+        // Already in camera range: poll for landmark, converge, then follow.
         const auto convergence_goal =
             blackboard->get<vortex::utils::waypoints::WaypointGoal>("convergence_goal");
 
@@ -116,9 +108,7 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                 "pipeline_landmarks");
 
         sm->add_state("WIPE", std::make_shared<vortex_yasmin_utils::WipeState>(),
-                      {{SUCCEED, "DESCEND_TO_ALTITUDE"}});
-        sm->add_state("DESCEND_TO_ALTITUDE", descend_to_altitude,
-                      {{SUCCEED, "LANDMARK_POLLING"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+                      {{SUCCEED, "LANDMARK_POLLING"}});
         sm->add_state("LANDMARK_POLLING", landmark_polling,
                       {{"landmark_found", "CONVERGE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
         sm->add_state("CONVERGE", converge,
@@ -127,7 +117,17 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                       {{SUCCEED, "WAIT_5S"}, {ABORT, ABORT}});
 
     } else {
-        // Normal mode: search for the pipeline, converge, then follow.
+        // Normal mode: collect bearing, navigate to bearing waypoint, search, converge, follow.
+        auto collect_bearing =
+            std::make_shared<vortex_yasmin_utils::CollectBearingDirectionState>(
+                config.bearing_direction_action_server,
+                config.bearing_collection_timeout_sec,
+                config.bearing_projection_distance);
+
+        auto send_bearing_waypoint =
+            std::make_shared<vortex_yasmin_utils::BearingWaypointState>(
+                config.waypoint_manager_action_server);
+
         const auto search_waypoints =
             blackboard->get<std::vector<vortex::utils::waypoints::WaypointGoal>>(
                 "search_waypoints");
@@ -153,7 +153,11 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                 "pipeline_landmarks");
 
         sm->add_state("WIPE", std::make_shared<vortex_yasmin_utils::WipeState>(),
-                      {{SUCCEED, "SEARCH"}});
+                      {{SUCCEED, "COLLECT_BEARING"}});
+        sm->add_state("COLLECT_BEARING", collect_bearing,
+                      {{SUCCEED, "SEND_BEARING_WAYPOINT"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+        sm->add_state("SEND_BEARING_WAYPOINT", send_bearing_waypoint,
+                      {{SUCCEED, "SEARCH"}, {ABORT, ABORT}, {CANCEL, ABORT}});
         sm->add_state("SEARCH", search,
                       {{"landmark_found", "CONVERGE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
         sm->add_state("CONVERGE", converge,

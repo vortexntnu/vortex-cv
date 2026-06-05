@@ -17,6 +17,13 @@ BearingDirectionBase::BearingDirectionBase(const std::string& node_name,
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 }
 
+BearingDirectionBase::~BearingDirectionBase() {
+    preempted_ = true;
+    if (execute_thread_.joinable()) {
+        execute_thread_.join();
+    }
+}
+
 void BearingDirectionBase::declare_base_parameters() {
     declare_parameter<std::string>("target_frame", "nautilus/odom");
     declare_parameter<std::string>("topics.odom", "/nautilus/odom");
@@ -97,7 +104,13 @@ rclcpp_action::CancelResponse BearingDirectionBase::handle_cancel(
 
 void BearingDirectionBase::handle_accepted(
     const std::shared_ptr<GoalHandle> goal_handle) {
-    std::thread([this, goal_handle]() { execute(goal_handle); }).detach();
+    std::lock_guard<std::mutex> lock(execute_mutex_);
+    preempted_ = true;
+    if (execute_thread_.joinable()) {
+        execute_thread_.join();
+    }
+    preempted_ = false;
+    execute_thread_ = std::thread([this, goal_handle]() { execute(goal_handle); });
 }
 
 void BearingDirectionBase::execute(
@@ -119,6 +132,14 @@ void BearingDirectionBase::execute(
     rclcpp::Rate rate(10.0);
 
     while (rclcpp::ok()) {
+        if (preempted_.load()) {
+            std::lock_guard lock(mutex_);
+            collecting_ = false;
+            result->success = false;
+            goal_handle->abort(result);
+            return;
+        }
+
         if (goal_handle->is_canceling()) {
             std::lock_guard lock(mutex_);
             collecting_ = false;

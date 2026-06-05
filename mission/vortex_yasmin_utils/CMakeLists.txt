@@ -17,6 +17,8 @@ find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 
 add_library(vortex_yasmin_utils
+  src/bearing_waypoint_state.cpp
+  src/collect_bearing_direction_state.cpp
   src/first_wins_concurrence.cpp
   src/gripper_state.cpp
   src/landmark_converge_state.cpp

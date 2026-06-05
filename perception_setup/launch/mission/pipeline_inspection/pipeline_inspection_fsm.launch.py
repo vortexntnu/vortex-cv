@@ -57,6 +57,9 @@ def launch_setup(context, *args, **kwargs):
                 "fsm_waypoint_config": fsm_waypoint_config,
                 "pipeline_convergence_config": pipeline_convergence_config,
                 "altitude_descent_waypoint_config": altitude_descent_waypoint_config,
+                "action_servers.bearing_direction": "acoustics_bearing_direction",
+                "bearing_collection_timeout_sec": 10.0,
+                "bearing_projection_distance": 10.0,
                 "services.start_pipeline_following": "pipeline_inspection_fsm/start_pipeline_following",
                 "services.start_end_pipeline_detection": "pipeline_end_detector/start_detection",
                 "services.end_of_pipeline": "pipeline_inspection_fsm/pipeline_finished",
@@ -76,7 +79,7 @@ def generate_launch_description():
         + [
             DeclareLaunchArgument(
                 'start_in_camera_range',
-                default_value='true',
+                default_value='false',
                 choices=['true', 'false'],
                 description=(
                     'Skip the search phase and start directly in landmark polling. '

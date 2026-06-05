@@ -7,6 +7,12 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         node->declare_parameter<std::string>("action_servers.waypoint_manager");
     config.landmark_polling_action_server =
         node->declare_parameter<std::string>("action_servers.landmark_polling");
+    config.bearing_direction_action_server =
+        node->declare_parameter<std::string>("action_servers.bearing_direction");
+    config.bearing_collection_timeout_sec =
+        node->declare_parameter<double>("bearing_collection_timeout_sec", 10.0);
+    config.bearing_projection_distance =
+        node->declare_parameter<double>("bearing_projection_distance", 10.0);
     config.start_mission_service =
         node->declare_parameter<std::string>("services.start_mission");
     config.start_pipeline_following_service =
@@ -21,8 +27,6 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         node->declare_parameter<std::string>("fsm_waypoint_config");
     config.convergence_yaml_path =
         node->declare_parameter<std::string>("pipeline_convergence_config");
-    config.altitude_descent_waypoint_config =
-        node->declare_parameter<std::string>("altitude_descent_waypoint_config");
     config.start_in_camera_range =
         node->declare_parameter<bool>("start_in_camera_range", false);
     config.start_above_pipe =
@@ -60,14 +64,6 @@ std::shared_ptr<yasmin::Blackboard> initialize_blackboard(
                 config.convergence_yaml_path, "pipeline_start_convergence");
         bb->set<vortex::utils::waypoints::WaypointGoal>("convergence_goal",
                                                         convergence_goal);
-    }
-
-    if (config.start_in_camera_range || config.start_above_pipe) {
-        const auto altitude_descent_waypoint =
-            vortex::utils::waypoints::load_waypoint_goal_from_yaml(
-                config.altitude_descent_waypoint_config, "altitude_descent");
-        bb->set<vortex::utils::waypoints::WaypointGoal>(
-            "altitude_descent_waypoint", altitude_descent_waypoint);
     }
 
     return bb;

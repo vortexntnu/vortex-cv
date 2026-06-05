@@ -3,10 +3,7 @@
 
 int main(int argc, char* argv[]) {
     rclcpp::init(argc, argv);
-    rclcpp::executors::MultiThreadedExecutor executor;
-    executor.add_node(
-        std::make_shared<bearing_direction_server::AcousticsBearingNode>());
-    executor.spin();
+    rclcpp::spin(std::make_shared<bearing_direction_server::AcousticsBearingNode>());
     rclcpp::shutdown();
     return 0;
 }

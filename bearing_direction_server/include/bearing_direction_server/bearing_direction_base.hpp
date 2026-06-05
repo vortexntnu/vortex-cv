@@ -1,9 +1,11 @@
 #ifndef BEARING_DIRECTION_SERVER__BEARING_DIRECTION_BASE_HPP_
 #define BEARING_DIRECTION_SERVER__BEARING_DIRECTION_BASE_HPP_
 
+#include <atomic>
 #include <mutex>
 #include <optional>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <Eigen/Dense>
@@ -35,6 +37,8 @@ class BearingDirectionBase : public rclcpp::Node {
    protected:
     explicit BearingDirectionBase(const std::string& node_name,
                                   const rclcpp::NodeOptions& options);
+
+    ~BearingDirectionBase();
 
     // Call from subclass constructor after declaring subclass parameters.
     void setup_base();
@@ -77,6 +81,10 @@ class BearingDirectionBase : public rclcpp::Node {
     std::vector<Eigen::Vector3d> accumulated_dirs_;
     std::optional<geometry_msgs::msg::Point> latest_drone_pos_;
     double outlier_threshold_deg_{30.0};
+
+    std::atomic<bool> preempted_{false};
+    std::mutex execute_mutex_;
+    std::thread execute_thread_;
 };
 
 }  // namespace bearing_direction_server
