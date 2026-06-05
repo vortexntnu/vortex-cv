@@ -63,6 +63,7 @@ def launch_setup(context, *args, **kwargs):
                 "services.start_pipeline_following": "pipeline_inspection_fsm/start_pipeline_following",
                 "services.start_end_pipeline_detection": "pipeline_end_detector/start_detection",
                 "services.end_of_pipeline": "pipeline_inspection_fsm/pipeline_finished",
+                "services.irls_line_detected": "/pipeline_inspection_fsm/irls_line_detected",
                 "start_in_camera_range": start_in_camera_range,
                 "start_above_pipe": start_above_pipe,
             },
@@ -70,7 +71,21 @@ def launch_setup(context, *args, **kwargs):
         output="screen",
     )
 
-    return [node]
+    irls_line_trigger = Node(
+        package="irls_line_trigger",
+        executable="irls_line_trigger_node",
+        namespace=namespace,
+        parameters=[
+            {
+                "input_topic": "/irls_line/lines",
+                "service_name": "/pipeline_inspection_fsm/irls_line_detected",
+                "min_call_interval_sec": 0.5,
+            },
+        ],
+        output="screen",
+    )
+
+    return [node, irls_line_trigger]
 
 
 def generate_launch_description():

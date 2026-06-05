@@ -146,7 +146,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'resolution',
-            default_value='',
+            default_value='1440x1080',
             description='Resolution preset: "720x540" (binning 2x2, downscale calib) or "1440x1080" (binning 1x1, full calib). Empty = use YAML defaults.',
             choices=['', '720x540', '1440x1080']
         ),

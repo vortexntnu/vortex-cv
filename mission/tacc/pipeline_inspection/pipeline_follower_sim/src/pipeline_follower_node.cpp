@@ -178,6 +178,10 @@ void PipelineFollowerNode::sendOrDebugWaypoint(
   wp.pose.position.z  = z;
   wp.pose.orientation = quatFromYaw(yaw);
   wp.waypoint_mode.mode = mode;
+  // Hold target altitude on translating waypoints, but not on orientation-only
+  // ones -- commanding altitude there can destabilise the heading convergence.
+  wp.keep_altitude    = (mode != vortex_msgs::msg::WaypointMode::ONLY_ORIENTATION);
+  wp.desired_altitude = target_height_;
 
   if (!client_->service_is_ready()) {
     debug_wp_pub_->publish(wp);
@@ -276,7 +280,6 @@ void PipelineFollowerNode::handleSingleLine(const vortex_msgs::msg::LineSegment2
 
   auto [dx, dy] = rotateXY(forward, right, robot_yaw_);
   auto [xc, yc] = rotateXY(camera_placment_x_, camera_placment_y_, robot_yaw_);
-  auto new_robot_z = hight_regulator(robot_a_, robot_z_, target_height_);
 
   double x_in_meters = robot_x_ + dx + xc;
   double y_in_meters = robot_y_ + dy + yc;
@@ -284,14 +287,14 @@ void PipelineFollowerNode::handleSingleLine(const vortex_msgs::msg::LineSegment2
   if (abs(p1.x - p2.x) >= image_width / 7) {
     double newYaw = angleBetweenLinesRad(robot_yaw_, p1, p2, cv::Point2f(0, 0), cv::Point2f(1, 1), true);
     if (abs(abs(robot_yaw_) - abs(newYaw)) > 1.35) {
-      sendOrDebugWaypoint(x_in_meters, y_in_meters, new_robot_z, robot_yaw_,
+      sendOrDebugWaypoint(x_in_meters, y_in_meters, robot_z_, robot_yaw_,
         true, false, vortex_msgs::msg::WaypointMode::FORWARD_HEADING, 0.3);
       return;
     }
-    sendOrDebugWaypoint(robot_x_, robot_y_, new_robot_z, newYaw,
+    sendOrDebugWaypoint(robot_x_, robot_y_, robot_z_, newYaw,
       true, false, vortex_msgs::msg::WaypointMode::ONLY_ORIENTATION, 0.3);
   } else {
-    sendOrDebugWaypoint(x_in_meters, y_in_meters, new_robot_z, robot_yaw_,
+    sendOrDebugWaypoint(x_in_meters, y_in_meters, robot_z_, robot_yaw_,
       true, false, vortex_msgs::msg::WaypointMode::FORWARD_HEADING, 0.3);
   }
 }
@@ -346,24 +349,26 @@ void PipelineFollowerNode::handleTwoLines(
       last_corner_x_  = x_in_meters;
       last_corner_y_  = y_in_meters;
       have_last_corner_ = true;
-      auto new_robot_z = hight_regulator(robot_a_, robot_z_, target_height_);
-
       double angle_rad = angleBetweenLinesRad(robot_yaw_, p1, p2, q1, q2);
       double yaw_rad   = angle_rad;
 
       vortex_msgs::msg::Waypoint wp1;
       wp1.pose.position.x  = x_in_meters;
       wp1.pose.position.y  = y_in_meters;
-      wp1.pose.position.z  = new_robot_z;
+      wp1.pose.position.z  = robot_z_;
       wp1.pose.orientation = quatFromYaw(robot_yaw_);
       wp1.waypoint_mode.mode = vortex_msgs::msg::WaypointMode::FULL_POSE;
+      wp1.keep_altitude    = true;
+      wp1.desired_altitude = target_height_;
 
       vortex_msgs::msg::Waypoint wp2;
       wp2.pose.position.x  = x_in_meters;
       wp2.pose.position.y  = y_in_meters;
-      wp2.pose.position.z  = new_robot_z;
+      wp2.pose.position.z  = robot_z_;
       wp2.pose.orientation = quatFromYaw(yaw_rad);
       wp2.waypoint_mode.mode = vortex_msgs::msg::WaypointMode::FULL_POSE;
+      wp2.keep_altitude    = true;
+      wp2.desired_altitude = target_height_;
 
       double xf = x_in_meters + 0.5 * std::cos(yaw_rad);
       double yf = y_in_meters + 0.5 * std::sin(yaw_rad);
@@ -371,9 +376,11 @@ void PipelineFollowerNode::handleTwoLines(
       vortex_msgs::msg::Waypoint wp3;
       wp3.pose.position.x  = xf;
       wp3.pose.position.y  = yf;
-      wp3.pose.position.z  = new_robot_z;
+      wp3.pose.position.z  = robot_z_;
       wp3.pose.orientation = quatFromYaw(yaw_rad);
       wp3.waypoint_mode.mode = vortex_msgs::msg::WaypointMode::FULL_POSE;
+      wp3.keep_altitude    = true;
+      wp3.desired_altitude = target_height_;
 
       enqueueWaypoint(wp1, true,  true, 0.1);
       enqueueWaypoint(wp2, false, true, 0.1);

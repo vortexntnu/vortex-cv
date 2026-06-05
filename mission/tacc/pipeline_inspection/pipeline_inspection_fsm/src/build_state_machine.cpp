@@ -28,31 +28,6 @@ using yasmin_ros::basic_outcomes::ABORT;
 using yasmin_ros::basic_outcomes::CANCEL;
 using yasmin_ros::basic_outcomes::SUCCEED;
 
-class InterruptibleTimeoutState : public yasmin::State {
-   public:
-    explicit InterruptibleTimeoutState(double timeout_sec)
-        : yasmin::State({"timeout"}), timeout_sec_(timeout_sec) {}
-
-    std::string execute(yasmin::Blackboard::SharedPtr) override {
-        std::unique_lock<std::mutex> lock(mutex_);
-        cv_.wait_for(lock, std::chrono::duration<double>(timeout_sec_),
-                     [this] { return cancelled_.load(); });
-        return std::string("timeout");
-    }
-
-    void cancel_state() override {
-        cancelled_.store(true);
-        cv_.notify_all();
-        yasmin::State::cancel_state();
-    }
-
-   private:
-    double timeout_sec_;
-    std::mutex mutex_;
-    std::condition_variable cv_;
-    std::atomic<bool> cancelled_{false};
-};
-
 std::shared_ptr<yasmin::StateMachine> build_state_machine(
     const StateMachineConfig& config,
     yasmin::Blackboard::SharedPtr blackboard) {
@@ -76,6 +51,29 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
             return std::make_shared<pipeline_inspection_fsm::TriggerSrv::Request>();
         });
 
+    // Wraps a convergence waypoint state so that it runs concurrently with a
+    // wait for the first IRLS line. Whichever finishes first wins: the vehicle
+    // starts converging on the pipe, but we do NOT require the (likely
+    // overshooting) convergence waypoint to be reached -- as soon as the first
+    // length-gated IRLS line is published, an external trigger node calls
+    // irls_line_detected_service and we proceed to pipeline following.
+    auto make_converge_or_line =
+        [&config](std::shared_ptr<yasmin::State> converge_state)
+        -> std::shared_ptr<vortex_yasmin_utils::FirstWinsConcurrence> {
+        auto wait_line =
+            std::make_shared<vortex_yasmin_utils::ServiceTriggerWaitState>(
+                config.irls_line_detected_service);
+        return std::make_shared<vortex_yasmin_utils::FirstWinsConcurrence>(
+            yasmin::StateMap{{"CONVERGE", converge_state},
+                             {"WAIT_FOR_IRLS_LINE", wait_line}},
+            ABORT,
+            vortex_yasmin_utils::FirstWinsOutcomeMap{
+                {"CONVERGE",
+                 {{SUCCEED, SUCCEED}, {ABORT, ABORT}, {CANCEL, ABORT}}},
+                {"WAIT_FOR_IRLS_LINE",
+                 {{SUCCEED, SUCCEED}, {CANCEL, ABORT}}}});
+    };
+
     auto sm = std::make_shared<yasmin::StateMachine>(
         std::set<std::string>{SUCCEED, ABORT});
 
@@ -91,7 +89,7 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         sm->add_state("WIPE", std::make_shared<vortex_yasmin_utils::WipeState>(),
                       {{SUCCEED, "START_PIPELINE_TRG"}});
         sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
-                      {{SUCCEED, "WAIT_5S"}, {ABORT, ABORT}});
+                      {{SUCCEED, "START_END_DETECTION_TRG"}, {ABORT, ABORT}});
 
     } else if (config.start_in_camera_range) {
         // Already in camera range: poll for landmark, converge, then follow.
@@ -111,10 +109,10 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                       {{SUCCEED, "LANDMARK_POLLING"}});
         sm->add_state("LANDMARK_POLLING", landmark_polling,
                       {{"landmark_found", "CONVERGE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
-        sm->add_state("CONVERGE", converge,
+        sm->add_state("CONVERGE", make_converge_or_line(converge),
                       {{SUCCEED, "START_PIPELINE_TRG"}, {ABORT, ABORT}, {CANCEL, ABORT}});
         sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
-                      {{SUCCEED, "WAIT_5S"}, {ABORT, ABORT}});
+                      {{SUCCEED, "START_END_DETECTION_TRG"}, {ABORT, ABORT}});
 
     } else {
         // Normal mode: collect bearing, navigate to bearing waypoint, search, converge, follow.
@@ -160,15 +158,16 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                       {{SUCCEED, "SEARCH"}, {ABORT, ABORT}, {CANCEL, ABORT}});
         sm->add_state("SEARCH", search,
                       {{"landmark_found", "CONVERGE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
-        sm->add_state("CONVERGE", converge,
+        sm->add_state("CONVERGE", make_converge_or_line(converge),
                       {{SUCCEED, "START_PIPELINE_TRG"}, {ABORT, ABORT}, {CANCEL, ABORT}});
         sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
-                      {{SUCCEED, "WAIT_5S"}, {ABORT, ABORT}});
+                      {{SUCCEED, "START_END_DETECTION_TRG"}, {ABORT, ABORT}});
     }
 
-    sm->add_state("WAIT_5S", std::make_shared<InterruptibleTimeoutState>(30.0),
-                  {{"timeout", "START_END_DETECTION_TRG"}});
-
+    // The 30s settling delay now lives inside the pipeline_end_detector node
+    // (activation_delay_sec), so the FSM triggers detection immediately and
+    // proceeds straight into pipeline following — opening the persistent
+    // waypoint manager goal without first blocking for the timeout.
     sm->add_state("START_END_DETECTION_TRG", start_end_detection_trg,
                   {{SUCCEED, "PIPELINE_FOLLOWING"}, {ABORT, ABORT}});
 

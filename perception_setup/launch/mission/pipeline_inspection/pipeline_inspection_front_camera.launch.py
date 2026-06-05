@@ -197,7 +197,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'model_file_path',
-                default_value=os.path.join(pkg_dir, 'models', 'yolo26l_sim_and_real.pt'),
+                default_value=os.path.join(pkg_dir, 'models', 'pipe-real-front-05-06-m.pt'),
                 description='Path to the YOLO segmentation model file.',
             ),
             DeclareLaunchArgument(

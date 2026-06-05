@@ -9,7 +9,7 @@ pipeline_start_convergence:
     yaw: 0.0
   mode: FORWARD_HEADING
   keep_altitude: true
-  desired_altitude: 1.0
+  desired_altitude: 1.2
   require_altitude_convergence: false
   convergence_threshold: 0.2
   

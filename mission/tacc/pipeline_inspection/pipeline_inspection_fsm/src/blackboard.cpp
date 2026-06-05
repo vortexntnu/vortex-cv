@@ -23,6 +23,8 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
             "services.start_end_pipeline_detection");
     config.end_of_pipeline_service =
         node->declare_parameter<std::string>("services.end_of_pipeline");
+    config.irls_line_detected_service =
+        node->declare_parameter<std::string>("services.irls_line_detected");
     config.waypoint_yaml_path =
         node->declare_parameter<std::string>("fsm_waypoint_config");
     config.convergence_yaml_path =

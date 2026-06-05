@@ -34,6 +34,7 @@ struct StateMachineConfig {
     std::string start_pipeline_following_service;
     std::string start_end_pipeline_detection_service;
     std::string end_of_pipeline_service;
+    std::string irls_line_detected_service;
     std::string waypoint_yaml_path;
     std::string convergence_yaml_path;
     double bearing_collection_timeout_sec{10.0};

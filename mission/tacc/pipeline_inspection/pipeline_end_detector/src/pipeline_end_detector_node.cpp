@@ -11,14 +11,15 @@ PipelineEndDetectorNode::PipelineEndDetectorNode(
 
     detection_threshold_ =
         static_cast<int>(get_parameter("detection_threshold").as_int());
+    activation_delay_sec_ = get_parameter("activation_delay_sec").as_double();
 
     setup_pubsub();
 
     RCLCPP_INFO(
         get_logger(),
-        "PipelineEndDetectorNode started. threshold=%d, awaiting activation on "
-        "'%s'",
-        detection_threshold_,
+        "PipelineEndDetectorNode started. threshold=%d, activation_delay=%.1fs, "
+        "awaiting activation on '%s'",
+        detection_threshold_, activation_delay_sec_,
         get_parameter("topics.start_detection_service").as_string().c_str());
 }
 
@@ -27,6 +28,7 @@ void PipelineEndDetectorNode::declare_parameters() {
     declare_parameter<std::string>("topics.end_of_pipeline_service");
     declare_parameter<std::string>("topics.start_detection_service");
     declare_parameter<int>("detection_threshold");
+    declare_parameter<double>("activation_delay_sec", 0.0);
 }
 
 void PipelineEndDetectorNode::setup_pubsub() {
@@ -49,10 +51,30 @@ void PipelineEndDetectorNode::setup_pubsub() {
 void PipelineEndDetectorNode::start_end_pipeline_detection_callback(
     const std_srvs::srv::Trigger::Request::SharedPtr /*request*/,
     std_srvs::srv::Trigger::Response::SharedPtr response) {
-    detection_active_ = true;
     response->success = true;
-    response->message = "Pipeline end detection activated.";
-    RCLCPP_INFO(get_logger(), "Pipeline following started — detection active.");
+
+    if (activation_delay_sec_ <= 0.0) {
+        activate_detection();
+        response->message = "Pipeline end detection activated.";
+        return;
+    }
+
+    // Acknowledge immediately so the FSM can proceed straight into pipeline
+    // following; arm a one-shot timer that activates detection after the delay.
+    response->message = "Pipeline end detection scheduled.";
+    RCLCPP_INFO(get_logger(),
+                "Pipeline following started — detection will activate in %.1fs.",
+                activation_delay_sec_);
+    activation_timer_ = create_wall_timer(
+        std::chrono::duration<double>(activation_delay_sec_), [this]() {
+            activation_timer_->cancel();  // one-shot
+            activate_detection();
+        });
+}
+
+void PipelineEndDetectorNode::activate_detection() {
+    detection_active_ = true;
+    RCLCPP_INFO(get_logger(), "Pipeline end detection active.");
 }
 
 void PipelineEndDetectorNode::detection_callback(

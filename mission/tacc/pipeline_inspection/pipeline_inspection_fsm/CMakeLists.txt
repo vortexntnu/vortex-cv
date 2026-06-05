@@ -43,9 +43,6 @@ ament_target_dependencies(pipeline_inspection_fsm
   vortex_yasmin_utils
 )
 
-target_link_libraries(pipeline_inspection_fsm
-  yasmin_viewer::yasmin_viewer
-)
 
 target_link_libraries(pipeline_inspection_fsm
   yasmin_viewer::yasmin_viewer
