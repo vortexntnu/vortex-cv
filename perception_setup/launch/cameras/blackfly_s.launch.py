@@ -36,6 +36,7 @@ def _launch_setup(context, *args, **kwargs):
     destination_port = int(LaunchConfiguration('destination_port').perform(context))
     standalone = LaunchConfiguration('standalone').perform(context).lower() == 'true'
     container_name = LaunchConfiguration('container_name').perform(context)
+    enable_camera = LaunchConfiguration('enable_camera').perform(context).lower() == 'true'
     resolution = LaunchConfiguration('resolution').perform(context)
     fps = LaunchConfiguration('fps').perform(context)
     pixel_format = LaunchConfiguration('pixel_format').perform(context)
@@ -65,28 +66,29 @@ def _launch_setup(context, *args, **kwargs):
 
     nodes = []
 
-    nodes.append(
-        ComposableNode(
-            package='spinnaker_camera_driver',
-            plugin='spinnaker_camera_driver::CameraDriver',
-            name='blackfly_s',
-            parameters=[
-                blackfly_ros_params,
-                {
-                    'parameter_file': spinnaker_map,
-                    'serial_number': '23494258',
-                    'camerainfo_url': f'file://{calib_path}',
-                    **camera_overrides,
-                },
-            ],
-            remappings=[
-                ('~/control', '/exposure_control/control'),
-                ('/blackfly_s/image_raw', down_image_topic),
-                ('/blackfly_s/camera_info', down_info_topic),
-            ],
-            extra_arguments=[{'use_intra_process_comms': True}],
+    if enable_camera:
+        nodes.append(
+            ComposableNode(
+                package='spinnaker_camera_driver',
+                plugin='spinnaker_camera_driver::CameraDriver',
+                name='blackfly_s',
+                parameters=[
+                    blackfly_ros_params,
+                    {
+                        'parameter_file': spinnaker_map,
+                        'serial_number': '23494258',
+                        'camerainfo_url': f'file://{calib_path}',
+                        **camera_overrides,
+                    },
+                ],
+                remappings=[
+                    ('~/control', '/exposure_control/control'),
+                    ('/blackfly_s/image_raw', down_image_topic),
+                    ('/blackfly_s/camera_info', down_info_topic),
+                ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            )
         )
-    )
 
     if enable_gstreamer:
         nodes.append(
@@ -125,6 +127,8 @@ def _launch_setup(context, *args, **kwargs):
             )
         ]
     else:
+        if not nodes:
+            return []
         return [
             LoadComposableNodes(
                 target_container=container_name,
@@ -156,6 +160,15 @@ def generate_launch_description():
             default_value='',
             description='Override pixel format. Empty = use YAML default.',
             choices=['', 'BayerRG8', 'BGR8']
+        ),
+        DeclareLaunchArgument(
+            'enable_camera',
+            default_value='true',
+            description=(
+                'Launch the Blackfly S camera node. Set false when replaying a '
+                'bag that already publishes the camera topics so only downstream '
+                'nodes run against the bag.'
+            ),
         ),
         DeclareLaunchArgument(
             'enable_gstreamer',
