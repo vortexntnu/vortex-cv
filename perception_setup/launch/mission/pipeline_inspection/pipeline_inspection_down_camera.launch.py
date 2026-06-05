@@ -224,6 +224,7 @@ def _launch_setup(context, *args, **kwargs):
                 'publish_original_if_fail': True,
                 'clip_to_object': True,
                 'clip_max_dist_px': 6.0,
+                'min_segment_length_px': 100.0,
                 'find_second_line': True,
                 'removal_band_px': 120.0,
                 'min_pixels_second': 250,

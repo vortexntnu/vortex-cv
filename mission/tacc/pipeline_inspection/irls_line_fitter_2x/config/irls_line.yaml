@@ -29,6 +29,9 @@ irls_line_node:
     clip_to_object: true
     clip_max_dist_px: 6.0
 
+    # Acceptance
+    min_segment_length_px: 100.0   # reject candidate segments shorter than this (px); 0 = disabled
+
     # Second-pass / intersection
     find_second_line: true
     removal_band_px: 120.0

@@ -62,6 +62,9 @@ private:
   bool clip_to_object_;
   double clip_max_dist_px_;
 
+  // Acceptance
+  double min_segment_length_px_;
+
   // Second-pass controls
   bool find_second_line_;
   double removal_band_px_;
