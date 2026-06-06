@@ -69,6 +69,7 @@ private:
   bool find_second_line_;
   double removal_band_px_;
   int min_pixels_second_;
+  double min_segment_length_px_second_;
   int draw2_b_, draw2_g_, draw2_r_;
   bool draw_intersection_;
   int intersection_radius_;

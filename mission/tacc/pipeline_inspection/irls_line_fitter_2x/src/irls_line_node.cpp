@@ -38,9 +38,10 @@ IRLSLineNode::IRLSLineNode() : Node("irls_line_node")
   min_segment_length_px_ = declare_parameter<double>("min_segment_length_px", 0.0);
 
   // Second-pass
-  find_second_line_    = declare_parameter<bool>("find_second_line", true);
-  removal_band_px_     = declare_parameter<double>("removal_band_px", 8.0);
-  min_pixels_second_   = declare_parameter<int>("min_pixels_second", 250);
+  find_second_line_             = declare_parameter<bool>("find_second_line", true);
+  removal_band_px_              = declare_parameter<double>("removal_band_px", 8.0);
+  min_pixels_second_            = declare_parameter<int>("min_pixels_second", 250);
+  min_segment_length_px_second_ = declare_parameter<double>("min_segment_length_px_second", min_segment_length_px_);
   draw2_b_             = declare_parameter<int>("draw2_b", 0);
   draw2_g_             = declare_parameter<int>("draw2_g", 255);
   draw2_r_             = declare_parameter<int>("draw2_r", 0);
@@ -167,7 +168,7 @@ void IRLSLineNode::imageCb(const sensor_msgs::msg::Image::ConstSharedPtr msg)
       if (clippedSegmentFromPts(L2, pts2, w, h, clip_to_object_, clip_max_dist_px_, p2a, p2b)) {
         const cv::Vec4i seg2(p2a.x, p2a.y, p2b.x, p2b.y);
         const double len2 = std::hypot((double)(p2b.x - p2a.x), (double)(p2b.y - p2a.y));
-        second_ok = len2 >= min_segment_length_px_ && hasEnoughWhiteUnderLine(mask, seg2, 10, 0.60);
+        second_ok = len2 >= min_segment_length_px_second_ && hasEnoughWhiteUnderLine(mask, seg2, 10, 0.60);
         if (second_ok) {
           cv::line(color, p2a, p2b, cv::Scalar(draw2_b_, draw2_g_, draw2_r_),
                    draw_thickness_, cv::LINE_AA);
