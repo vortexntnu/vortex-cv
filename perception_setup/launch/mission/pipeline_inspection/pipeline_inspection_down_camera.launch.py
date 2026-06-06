@@ -263,7 +263,7 @@ def _launch_setup(context, *args, **kwargs):
                 'camera_placment_z': 0.161,
                 'debug_waypoint_topic': '/debug/waypoint',
                 'debug_service_off_topic': '/debug/send_waypoints_service_off',
-                'target_height': 1.2,
+                'target_height': 0.8,
                 'receive_frame': f'{namespace}/downwards_camera_optical',
                 'target_frame': f'{namespace}/odom',
             }],
