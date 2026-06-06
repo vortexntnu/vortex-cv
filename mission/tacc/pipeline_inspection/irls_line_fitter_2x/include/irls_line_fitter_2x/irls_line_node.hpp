@@ -64,6 +64,7 @@ private:
 
   // Acceptance
   double min_segment_length_px_;
+  double max_opposite_white_ratio_;
 
   // Second-pass controls
   bool find_second_line_;

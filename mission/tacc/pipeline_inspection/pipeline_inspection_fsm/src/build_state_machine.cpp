@@ -82,15 +82,37 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                       {{SUCCEED, "START_END_DETECTION_TRG"}, {ABORT, ABORT}});
 
     } else if (config.start_in_camera_range) {
-        // Already in camera range: wait for the IRLS line detector to see the
-        // pipeline, then trigger following. No bearing direction server needed.
+        // Already in camera range: poll for pipeline endpoint landmarks, collect
+        // pipeline bearing from the camera, then converge toward the pipe.
+        auto landmark_polling =
+            std::make_shared<vortex_yasmin_utils::LandmarkPollingState>(
+                config.landmark_polling_action_server, pipeline_type,
+                pipeline_subtype, "pipeline_landmarks", "landmark_found");
+
+        auto pipeline_collect =
+            std::make_shared<vortex_yasmin_utils::CollectBearingDirectionState>(
+                config.pipeline_bearing_direction_action_server,
+                config.pipeline_bearing_timeout_sec,
+                config.pipeline_bearing_projection_distance,
+                config.pipeline_bearing_min_measurements,
+                config.pipeline_bearing_max_measurements,
+                "pipeline_bearing_pose");
+
+        auto pipeline_bearing_waypoint =
+            std::make_shared<vortex_yasmin_utils::BearingWaypointState>(
+                config.waypoint_manager_action_server,
+                0.5,
+                config.bearing_waypoint_altitude,
+                "pipeline_bearing_pose");
+
         sm->add_state("WIPE", std::make_shared<vortex_yasmin_utils::WipeState>(),
-                      {{SUCCEED, "WAIT_FOR_IRLS_LINE"}});
-        sm->add_state(
-            "WAIT_FOR_IRLS_LINE",
-            std::make_shared<vortex_yasmin_utils::ServiceTriggerWaitState>(
-                config.irls_line_detected_service),
-            {{SUCCEED, "START_PIPELINE_TRG"}, {CANCEL, ABORT}});
+                      {{SUCCEED, "LANDMARK_POLLING"}});
+        sm->add_state("LANDMARK_POLLING", landmark_polling,
+                      {{"landmark_found", "COLLECT_PIPELINE_BEARING"}, {ABORT, ABORT}});
+        sm->add_state("COLLECT_PIPELINE_BEARING", pipeline_collect,
+                      {{SUCCEED, "CONVERGE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+        sm->add_state("CONVERGE", make_converge_or_line(pipeline_bearing_waypoint),
+                      {{SUCCEED, "START_PIPELINE_TRG"}, {ABORT, ABORT}, {CANCEL, ABORT}});
         sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
                       {{SUCCEED, "START_END_DETECTION_TRG"}, {ABORT, ABORT}});
 

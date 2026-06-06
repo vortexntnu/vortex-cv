@@ -189,58 +189,34 @@ def _launch_setup(context, *args, **kwargs):
             )
         )
 
-        actions.append(
-            Node(
-                package='yolo_classify',
-                executable='classifier_node',
-                name='classifier_node',
-                namespace='yolo',
-                output='screen',
-                parameters=[{
-                    'input_topic': '/pipeline/down_camera/segmentation_mask',
-                    'model_path': classify_model_file_path,
-                    'device': device,
-                    'output_class_topic': '/pipeline_end_classification',
-                    'imgsz': 640,
-                    'verbose': False,
-                }],
-            )
-        )
+        # actions.append(
+        #     Node(
+        #         package='yolo_classify',
+        #         executable='classifier_node',
+        #         name='classifier_node',
+        #         namespace='yolo',
+        #         output='screen',
+        #         parameters=[{
+        #             'input_topic': '/pipeline/down_camera/segmentation_mask',
+        #             'model_path': classify_model_file_path,
+        #             'device': device,
+        #             'output_class_topic': '/pipeline_end_classification',
+        #             'imgsz': 640,
+        #             'verbose': False,
+        #         }],
+        #     )
+        # )
 
     actions.append(
         Node(
-            package='irls_line_fitter_2x',
-            executable='irls_line_node',
-            name='irls_line_node',
+            package='pipeline_line_fitting',
+            executable='pipeline_line_fitting_node',
+            name='pipeline_line_fitting_node',
             parameters=[{
-                'input_topic': '/pipeline/down_camera/segmentation_mask',
-                'input_topic_info': '/pipeline/down_camera/camera_info',
-                'output_topic_img': '/irls_line/image',
-                'output_topic_lines': '/irls_line/lines',
-                'binary_threshold': 200,
-                'min_pixels': 250,
-                'max_irls_iters': 13,
-                'eps_change': 1.0e-4,
-                'loss': 'tukey',
-                'huber_delta': 0.3,
-                'tukey_c': 2.835,
-                'scale_with_mad': True,
-                'draw_thickness': 3,
-                'draw_b': 0,
-                'draw_g': 0,
-                'draw_r': 255,
-                'publish_original_if_fail': True,
-                'clip_to_object': True,
-                'clip_max_dist_px': 6.0,
-                'min_segment_length_px': 100.0,
-                'find_second_line': True,
-                'removal_band_px': 120.0,
-                'min_pixels_second': 250,
-                'draw2_b': 0,
-                'draw2_g': 255,
-                'draw2_r': 0,
-                'draw_intersection': True,
-                'intersection_radius': 10,
+                'image_sub_topic': '/pipeline/down_camera/segmentation_mask',
+                'image_visualization_pub_topic': '/pipeline/down_camera/line_fitting_debug',
+                'lines_pub_topic': '/irls_line/lines',
+                'publish_visualization': True,
             }],
             output='screen',
         )
@@ -248,25 +224,26 @@ def _launch_setup(context, *args, **kwargs):
 
     actions.append(
         Node(
-            package='pipeline_follower_sim',
-            executable='pipeline_follower_node',
-            name='pipeline_follower_node',
-            parameters=[{
-                'input_topic_lines': '/irls_line/lines',
-                'input_topic_info': '/pipeline/down_camera/camera_info',
-                'input_topic_pose': f'/{namespace}/{robot_topics["odom"]}',
-                'input_topic_altitude': f'/{namespace}/{robot_topics["dvl_altitude"]}',
-                'camera_height': 0.5,
-                'send_rate_hz': 3.0,
-                'camera_placment_x': 0.4,
-                'camera_placment_y': -0.158,
-                'camera_placment_z': 0.161,
-                'debug_waypoint_topic': '/debug/waypoint',
-                'debug_service_off_topic': '/debug/send_waypoints_service_off',
-                'target_height': 0.5,
-                'receive_frame': f'{namespace}/downwards_camera_optical',
-                'target_frame': f'{namespace}/odom',
-            }],
+            package='pipeline_intersection_following',
+            executable='line_filtering_node',
+            name='line_filtering_node',
+            parameters=[
+                os.path.join(
+                    get_package_share_directory('pipeline_intersection_following'),
+                    'config', 'line_filtering_params.yaml',
+                ),
+                {
+                    'lines_sub_topic': '/irls_line/lines',
+                    'camera_info_sub_topic': '/pipeline/down_camera/camera_info',
+                    'altitude_sub_topic': f'/{namespace}/{robot_topics["dvl_altitude"]}',
+                    'odom_sub_topic': f'/{namespace}/{robot_topics["odom"]}',
+                    'target_frame': f'{namespace}/odom',
+                    'waypoint_service': f'/{namespace}/waypoint_addition',
+                    'start_service': f'/{namespace}/pipeline_inspection_fsm/start_pipeline_following',
+                    'finished_service': f'/{namespace}/pipeline_inspection_fsm/pipeline_finished',
+                    'target_altitude': 0.8,
+                },
+            ],
             output='screen',
         )
     )

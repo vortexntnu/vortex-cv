@@ -197,16 +197,52 @@ static inline bool intersectLines(const LineModel& A, const LineModel& B, cv::Po
   return true;
 }
 
-// Check that enough white pixels exist in the band directly beneath a segment.
+// Compute the white pixel ratio in a rectangular band on one side of a segment.
+// n must be a unit normal pointing toward the desired side.
+static inline double whiteBandRatio(
+    const cv::Mat& bin,
+    const cv::Point2f& p1, const cv::Point2f& p2,
+    const cv::Point2f& n, int bandHeight)
+{
+  cv::Point2f p1b = p1 + n * (float)bandHeight;
+  cv::Point2f p2b = p2 + n * (float)bandHeight;
+
+  auto clamp_pt = [&](const cv::Point2f& pf) {
+    int x = clampInt((int)std::lround(pf.x), 0, bin.cols - 1);
+    int y = clampInt((int)std::lround(pf.y), 0, bin.rows - 1);
+    return cv::Point(x, y);
+  };
+
+  std::vector<cv::Point> poly = {
+    clamp_pt(p1), clamp_pt(p2), clamp_pt(p2b), clamp_pt(p1b)
+  };
+
+  cv::Mat mask(bin.size(), CV_8UC1, cv::Scalar(0));
+  cv::fillConvexPoly(mask, poly, cv::Scalar(255));
+
+  int total = cv::countNonZero(mask);
+  if (total == 0) return 0.0;
+
+  cv::Mat masked;
+  cv::bitwise_and(bin, mask, masked);
+  return (double)cv::countNonZero(masked) / (double)total;
+}
+
+// Check that:
+//   (a) the band on the "under" side (downward) has >= minWhiteRatio white pixels, AND
+//   (b) the band on the opposite side has < maxOppositeWhiteRatio white pixels.
+//
+// Condition (b) rejects lines that cut through the object rather than along its
+// edge — when both sides are white, the line is an interior cross-cut, not an edge.
 static inline bool hasEnoughWhiteUnderLine(
     const cv::Mat& img,
     const cv::Vec4i& line,
     int bandHeight = 10,
-    double minWhiteRatio = 0.60)
+    double minWhiteRatio = 0.60,
+    double maxOppositeWhiteRatio = 1.0)
 {
   CV_Assert(!img.empty());
   CV_Assert(bandHeight > 0);
-  CV_Assert(minWhiteRatio >= 0.0 && minWhiteRatio <= 1.0);
 
   cv::Mat gray, bin;
   if (img.channels() == 3) cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
@@ -220,31 +256,10 @@ static inline bool hasEnoughWhiteUnderLine(
   if (len < 1e-6f) return false;
 
   cv::Point2f n(-d.y / len, d.x / len);
-  if (n.y < 0) n = -n;
+  if (n.y < 0) n = -n;  // "under" = downward in image
 
-  cv::Point2f p1b = p1 + n * (float)bandHeight;
-  cv::Point2f p2b = p2 + n * (float)bandHeight;
+  double under_ratio    = whiteBandRatio(bin, p1, p2,  n, bandHeight);
+  double opposite_ratio = whiteBandRatio(bin, p1, p2, -n, bandHeight);
 
-  auto toClampedPoint = [&](const cv::Point2f& pf) {
-    int x = clampInt((int)std::lround(pf.x), 0, bin.cols - 1);
-    int y = clampInt((int)std::lround(pf.y), 0, bin.rows - 1);
-    return cv::Point(x, y);
-  };
-
-  std::vector<cv::Point> poly = {
-    toClampedPoint(p1), toClampedPoint(p2),
-    toClampedPoint(p2b), toClampedPoint(p1b)
-  };
-
-  cv::Mat mask(bin.size(), CV_8UC1, cv::Scalar(0));
-  cv::fillConvexPoly(mask, poly, cv::Scalar(255));
-
-  int total = cv::countNonZero(mask);
-  if (total == 0) return false;
-
-  cv::Mat masked;
-  cv::bitwise_and(bin, mask, masked);
-  int white = cv::countNonZero(masked);
-
-  return (double)white / (double)total >= minWhiteRatio;
+  return under_ratio >= minWhiteRatio && opposite_ratio < maxOppositeWhiteRatio;
 }

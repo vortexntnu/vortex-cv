@@ -1,0 +1,57 @@
+line_filtering_node:
+  ros__parameters:
+    # --- Inputs ---
+    lines_sub_topic: "/irls_line/lines"
+    camera_info_sub_topic: "/pipeline/down_camera/camera_info"
+    altitude_sub_topic: "/nautilus/dvl/altitude"
+    odom_sub_topic: "/nautilus/odom"
+    target_frame: "nautilus/odom"
+
+    # --- Outputs / mission control ---
+    waypoint_service: "/nautilus/waypoint_addition"
+    start_service: "/nautilus/pipeline_inspection_fsm/start_pipeline_following"
+    finished_service: "/nautilus/pipeline_inspection_fsm/pipeline_finished"
+
+    # --- Waypoint behaviour ---
+    target_altitude: 0.5
+    switching_threshold: 0.3
+    # Resend throttling: don't re-issue a waypoint (which wipes the manager queue
+    # and resets the reference filter) unless the target moved/rotated enough.
+    min_wp_dist: 0.2      # metres
+    min_wp_yaw: 0.1       # rad
+    max_resend_skips: 20  # force a resend after this many skipped cycles
+    # If the bearing to the outgoing line exceeds this (rad), rotate in place
+    # (ONLY_ORIENTATION) to face it before driving FORWARD_HEADING.
+    realign_yaw_threshold: 0.35 # ~20 degrees
+
+    debug_visualization: true
+
+    # --- Tracking (PDAF/IPDA + N/M) ---
+    clutter_rate: 0.001
+    probability_of_detection: 0.6
+    probability_of_survival: 0.98
+    gate_threshold: 2.5
+    min_gate_threshold: 1.0
+    max_gate_threshold: 3.0
+    confirmation_threshold: 0.8
+    initial_existence_probability: 0.25
+    std_dynmod: 0.3
+    std_sensor: 0.3
+    update_interval_ms: 200
+
+    connected_lines_threshold: 0.5
+    crossing_min_angle: 0.5236 # 30 degrees
+    # Max orientation difference (rad, mod pi) for a measurement to associate to
+    # a line track. Keeps a perpendicular junction line from being absorbed into
+    # the current track (their midpoints can be <0.6 m apart). >= pi/2 disables.
+    orientation_gate_threshold: 0.5236 # 30 degrees
+
+    termination_counter_threshold: 30
+
+    # N/M track management: confirm after confirm_n hits in the last confirm_m
+    # steps; delete after delete_n misses in the last delete_m steps.
+    nm:
+      confirm_n: 2
+      confirm_m: 4
+      delete_n: 4
+      delete_m: 4

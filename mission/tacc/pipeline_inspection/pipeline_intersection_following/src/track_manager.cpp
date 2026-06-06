@@ -1,0 +1,313 @@
+#include <pipeline_intersection_following/track_manager.hpp>
+
+TrackManager::TrackManager() : tracker_id_(0) {}
+
+void TrackManager::update_line_tracks(
+    Eigen::Array<double, 2, Eigen::Dynamic> measurements,
+    Eigen::Array<double, 2, Eigen::Dynamic> line_params,
+    int update_interval,
+    double confirmation_threshold,
+    double gate_theshhold,
+    double min_gate_threshold,
+    double max_gate_threshold,
+    double prob_of_detection,
+    double prob_of_survival,
+    double clutter_intensity,
+    double initial_existence_probability) {
+    (void)confirmation_threshold;  // confirmation now uses N/M logic
+    // Sort confirmed tracks first, then by recent hits
+    std::sort(tracks_.begin(), tracks_.end());
+
+    for (auto& track : tracks_) {
+        IPDA::Config config;
+        config.pdaf.mahalanobis_threshold = gate_theshhold;
+        config.pdaf.prob_of_detection = prob_of_detection;
+        config.pdaf.clutter_intensity = clutter_intensity;
+        config.ipda.prob_of_survival = prob_of_survival;
+        config.ipda.estimate_clutter = false;
+        config.pdaf.clutter_intensity = clutter_intensity;
+
+        LineGate2D gate;
+        gate.min_gate_threshold = min_gate_threshold;
+        gate.max_gate_threshold = max_gate_threshold;
+        gate.mahalanobis_threshold = gate_theshhold;
+
+        IPDA::State state_est_prev;
+        state_est_prev.x_estimate = track.state;
+        state_est_prev.existence_probability = track.existence_probability;
+        // Predict next state
+        auto output =
+            IPDA::step(*dyn_model_, *sensor_model_, update_interval / 1000.0,
+                       state_est_prev, line_params, config, gate);
+        // Update state
+        track.state = output.state.x_estimate;
+        // Update existence probability
+        track.existence_probability = output.state.existence_probability;
+
+        // Record hit/miss for N/M track management
+        record_hit_miss(track, output.gated_measurements.any());
+
+        // Update the measurement list
+        Eigen::Array<double, 2, Eigen::Dynamic> outside(2, line_params.cols());
+        Eigen::Array<double, 2, Eigen::Dynamic> outside_measurements(
+            2, measurements.cols());
+
+        // Orientation of this track (captured before line_points is updated).
+        // Lines are undirected, so orientation is compared modulo pi.
+        const double track_ang = std::atan2(
+            track.line_points(1, 1) - track.line_points(1, 0),
+            track.line_points(0, 1) - track.line_points(0, 0));
+
+        Eigen::Index inside_num = 0;
+        for (Eigen::Index i = 0; i < line_params.cols(); ++i) {
+            bool gated = output.gated_measurements[i];
+
+            // Reject association if the measurement's orientation differs too
+            // much from the track's -- a perpendicular line at a junction whose
+            // midpoint happens to be close must NOT be absorbed into this track.
+            if (gated) {
+                const double meas_ang = std::atan2(
+                    measurements(1, i * 2 + 1) - measurements(1, i * 2),
+                    measurements(0, i * 2 + 1) - measurements(0, i * 2));
+                double dang = std::fmod(std::fabs(track_ang - meas_ang), M_PI);
+                if (dang > M_PI / 2.0) {
+                    dang = M_PI - dang;
+                }
+                if (dang > orientation_gate_threshold_) {
+                    gated = false;
+                }
+            }
+
+            if (gated) {
+                track.line_points = measurements.block<2, 2>(0, i * 2);
+                inside_num++;
+            } else {
+                outside.col(i - inside_num) = line_params.col(i);
+                outside_measurements.block<2, 2>(0, 2 * (i - inside_num)) =
+                    measurements.block<2, 2>(0, i * 2);
+            }
+        }
+        outside.conservativeResize(2, line_params.cols() - inside_num);
+        outside_measurements.conservativeResize(
+            2, measurements.cols() - inside_num * 2);
+        if (inside_num != 0) {
+            line_params = outside;
+            measurements = outside_measurements;
+        }
+    }
+    // Create new tracks based on the remaining measurements
+    create_line_tracks(measurements, line_params, initial_existence_probability);
+    confirm_tracks();
+}
+
+void TrackManager::create_line_tracks(
+    Eigen::Array<double, 2, Eigen::Dynamic> measurements,
+    Eigen::Array<double, 2, Eigen::Dynamic> line_params,
+    double initial_existence_probability) {
+    for (Eigen::Index i = 0; i < line_params.cols(); ++i) {
+        Eigen::Vector2d state_estimate;
+        state_estimate << line_params(0, i), line_params(1, i);
+        Track track;
+        track.id = tracker_id_;
+        track.state =
+            vortex::prob::Gauss2d(state_estimate, Eigen::Matrix2d::Identity());
+        track.line_points = measurements.block<2, 2>(0, i * 2);
+        track.existence_probability = initial_existence_probability;
+        track.confirmed = false;
+        track.hit_history.push_back(true);
+        tracks_.push_back(track);
+        tracker_id_++;
+    }
+}
+
+void TrackManager::update_line_intersection_tracks(Eigen::Array<double, 2, Eigen::Dynamic> intersections,
+    Eigen::Array<int, 2, Eigen::Dynamic> current_intersection_ids,
+    Eigen::Array<double, 2, Eigen::Dynamic> current_line_intersection_points,
+    int update_interval, 
+    double confirmation_threshold, 
+    double gate_theshhold, 
+    double min_gate_threshold, 
+    double max_gate_threshold, 
+    double prob_of_detection, 
+    double prob_of_survival, 
+    double clutter_intensity,
+    double initial_existence_probability)
+{
+    (void)confirmation_threshold;  // confirmation now uses N/M logic
+    // Sort confirmed tracks first, then by recent hits
+    std::sort(tracks_.begin(), tracks_.end());
+
+    for (auto &track : tracks_)
+    {
+        IPDA::Config config;
+        config.pdaf.mahalanobis_threshold = gate_theshhold;
+        config.pdaf.prob_of_detection = prob_of_detection;
+        config.pdaf.clutter_intensity = clutter_intensity;
+        config.ipda.prob_of_survival = prob_of_survival;
+        config.ipda.estimate_clutter = false;
+        config.pdaf.clutter_intensity = clutter_intensity;
+
+        LineGate2D gate;
+        gate.min_gate_threshold = min_gate_threshold;
+        gate.max_gate_threshold = max_gate_threshold;
+        gate.mahalanobis_threshold = gate_theshhold;
+
+        IPDA::State state_est_prev;
+        state_est_prev.x_estimate = track.state;
+        state_est_prev.existence_probability = track.existence_probability;
+        // Predict next state
+        auto output =
+            IPDA::step(*dyn_model_,
+            *sensor_model_,
+            update_interval / 1000.0,
+            state_est_prev,
+            intersections,
+            config,
+            gate);
+        // Update state
+        track.state = output.state.x_estimate;
+        // Update existence probability
+        track.existence_probability = output.state.existence_probability;
+
+        // Record hit/miss for N/M track management
+        record_hit_miss(track, output.gated_measurements.any());
+
+        // Update the measurement list
+        Eigen::Array<double, 2, Eigen::Dynamic> outside(2, intersections.cols());
+        Eigen::Array<int, 2, Eigen::Dynamic> outside_ids(2, intersections.cols());
+        Eigen::Array<double, 2, Eigen::Dynamic> outside_points(2, 2*intersections.cols());
+        Eigen::Index inside_num = 0;
+        for (Eigen::Index i = 0; i < intersections.cols(); ++i)
+        {
+            if (output.gated_measurements[i])
+            {
+                inside_num++;
+                track.line_points = current_line_intersection_points.block<2, 2>(0, i*2);
+                if ((track.id1 == current_intersection_ids(0, i) && track.id2 == current_intersection_ids(1, i)) ||
+                (track.id1 == current_intersection_ids(1, i) && track.id2 == current_intersection_ids(0, i)))
+                {
+                    track.id1 = current_intersection_ids(0, i);
+                    track.id2 = current_intersection_ids(1, i);
+                }
+                else
+                {
+                    // this track has gated something other than just the expected intersection
+                    // mark for deletion
+                    track.marked_for_deletion = true;
+                }
+            }
+            else
+            {
+                outside.col(i-inside_num) = intersections.col(i);
+                outside_ids.col(i-inside_num) = current_intersection_ids.col(i);
+                outside_points.block<2, 2>(0, 2*(i-inside_num)) = current_line_intersection_points.block<2, 2>(0, 2*i);
+            }
+        }
+        outside.conservativeResize(2, intersections.cols() - inside_num);
+        outside_ids.conservativeResize(2, intersections.cols() - inside_num);
+        outside_points.conservativeResize(2, 2*(intersections.cols() - inside_num));
+        if(inside_num != 0)
+        {
+            intersections = outside;
+            current_intersection_ids = outside_ids;
+            current_line_intersection_points = outside_points;
+        }
+    }
+    // Create new tracks based on the remaining measurements
+    create_line_intersection_tracks(intersections, current_intersection_ids, current_line_intersection_points,
+         initial_existence_probability);
+    confirm_tracks();
+}
+
+void TrackManager::create_line_intersection_tracks(Eigen::Array<double, 2, Eigen::Dynamic> intersections,
+    Eigen::Array<int, 2, Eigen::Dynamic> current_intersection_ids,
+    Eigen::Array<double, 2, Eigen::Dynamic> current_line_intersection_points,
+    double initial_existence_probability)
+{
+        
+    for (Eigen::Index i = 0; i < intersections.cols(); ++i)
+    {
+        Eigen::Vector2d state_estimate;
+        state_estimate << intersections.col(i);
+        Track track;
+        track.id = tracker_id_;
+        track.state = vortex::prob::Gauss2d(state_estimate, Eigen::Matrix2d::Identity());
+        track.id1 = current_intersection_ids(0, i);
+        track.id2 = current_intersection_ids(1, i);
+        track.line_points = current_line_intersection_points.block<2, 2>(0, i*2);
+        track.existence_probability = initial_existence_probability;
+        track.confirmed = false;
+        track.hit_history.push_back(true);
+        tracks_.push_back(track);
+        tracker_id_++;
+    }
+}
+
+void TrackManager::record_hit_miss(Track& track, bool hit) {
+    const int max_window = std::max(nm_.confirm_m, nm_.delete_m);
+    track.hit_history.push_back(hit);
+    while (static_cast<int>(track.hit_history.size()) > max_window) {
+        track.hit_history.pop_front();
+    }
+}
+
+void TrackManager::confirm_tracks() {
+    for (Track& track : tracks_) {
+        if (track.confirmed) {
+            continue;
+        }
+        if (static_cast<int>(track.hit_history.size()) < nm_.confirm_m) {
+            continue;
+        }
+        int recent_hits = 0;
+        auto it = track.hit_history.rbegin();
+        for (int i = 0; i < nm_.confirm_m; ++i, ++it) {
+            if (*it) {
+                ++recent_hits;
+            }
+        }
+        if (recent_hits >= nm_.confirm_n) {
+            track.confirmed = true;
+        }
+    }
+}
+
+void TrackManager::delete_tracks() {
+    tracks_.erase(
+        std::remove_if(
+            tracks_.begin(), tracks_.end(),
+            [this](const Track& track) {
+                if (track.marked_for_deletion) {
+                    return true;
+                }
+                if (static_cast<int>(track.hit_history.size()) <
+                    nm_.delete_m) {
+                    return false;
+                }
+                int recent_misses = 0;
+                auto it = track.hit_history.rbegin();
+                for (int i = 0; i < nm_.delete_m; ++i, ++it) {
+                    if (!*it) {
+                        ++recent_misses;
+                    }
+                }
+                return recent_misses >= nm_.delete_n;
+            }),
+        tracks_.end());
+}
+
+void TrackManager::delete_track_by_id(int id) {
+    tracks_.erase(std::remove_if(tracks_.begin(), tracks_.end(),
+                                 [id](const Track& track) {
+                                     return track.id == id;
+                                 }),
+                  tracks_.end());
+}
+
+void TrackManager::set_dyn_model(double std_velocity) {
+    dyn_model_ = std::make_shared<DynMod>(std_velocity);
+}
+
+void TrackManager::set_sensor_model(double std_measurement) {
+    sensor_model_ = std::make_shared<SensorMod>(std_measurement);
+}

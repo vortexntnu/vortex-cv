@@ -84,7 +84,7 @@ def generate_launch_description():
         + [
             DeclareLaunchArgument(
                 'start_in_camera_range',
-                default_value='false',
+                default_value='true',
                 choices=['true', 'false'],
                 description=(
                     'Skip acoustic hunt and start directly with pipeline bearing collection. '
