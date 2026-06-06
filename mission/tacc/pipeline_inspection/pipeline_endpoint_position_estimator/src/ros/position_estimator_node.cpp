@@ -22,6 +22,7 @@ PositionEstimatorNode::PositionEstimatorNode(const rclcpp::NodeOptions& options)
     auto publish_topic = this->declare_parameter<std::string>("publish_topic");
     transform_timeout_ms_ = this->declare_parameter<int>("transform_timeout_ms");
     apply_undistortion_ = this->declare_parameter<bool>("apply_undistortion");
+    distance_buffer_ = this->declare_parameter<double>("distance_buffer", 1.0);
     reference_frame_ = this->declare_parameter<std::string>("reference_frame");
 
     // Subscriptions
@@ -98,6 +99,16 @@ void PositionEstimatorNode::endpoints_callback(
     };
     cv::Point3d selected_3d =
         *std::min_element(endpoints_3d.begin(), endpoints_3d.end(), closest_to_origin);
+
+    // Shift the selected endpoint toward the drone by distance_buffer_ to prevent undershoot.
+    if (distance_buffer_ != 0.0) {
+        cv::Point3d drone_pos(translation[0], translation[1], translation[2]);
+        cv::Point3d to_drone = drone_pos - selected_3d;
+        double len = std::sqrt(to_drone.x * to_drone.x + to_drone.y * to_drone.y + to_drone.z * to_drone.z);
+        if (len > 1e-6) {
+            selected_3d += (distance_buffer_ / len) * to_drone;
+        }
+    }
 
     landmark_pub_->publish(build_landmark_msg(msg->header.stamp, selected_3d, endpoints_3d));
 

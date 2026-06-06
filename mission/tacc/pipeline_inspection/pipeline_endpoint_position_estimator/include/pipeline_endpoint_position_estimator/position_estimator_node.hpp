@@ -55,6 +55,7 @@ class PositionEstimatorNode : public rclcpp::Node {
     // Parameters
     int transform_timeout_ms_;
     bool apply_undistortion_;
+    double distance_buffer_;
     std::string reference_frame_;
     std::string camera_frame_id_;
 };

@@ -23,7 +23,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, Opaq
 from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import ComposableNodeContainer, Node
+from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 
 _SEG_DEBUG_IMAGE_TOPIC = '/pipeline/front_camera/segmentation_debug'
@@ -52,7 +52,36 @@ def _launch_setup(context, *args, **kwargs):
     color_image_topic = f'/{namespace}/front_camera/image_color'
     camera_info_topic = f'/{namespace}/front_camera/camera_info'
 
-    container_nodes = []
+    container_nodes = [
+        ComposableNode(
+            package='pipeline_image_endpoints_detector',
+            plugin='pipeline_image_endpoints_detector::DetectorNode',
+            name='pipeline_image_endpoints',
+            parameters=[{
+                'morph_kernel_size': 5,
+                'detection_method': 'lowest_pixel',
+                'input_topic': '/pipeline/front_camera/segmentation_mask',
+                'output_topic': '/pipeline/image_endpoints',
+                'debug_topic': '/pipeline/image_endpoints/debug_image',
+                'debug': True,
+            }],
+        ),
+        ComposableNode(
+            package='pipeline_endpoint_position_estimator',
+            plugin='pipeline_endpoint_position_estimator::PositionEstimatorNode',
+            name='pipeline_position_estimator',
+            parameters=[{
+                'endpoints_topic': '/pipeline/image_endpoints',
+                'dvl_altitude_topic': f'/{namespace}/{robot_topics["dvl_altitude"]}',
+                'camera_info_topic': '/pipeline/front_camera/camera_info',
+                'publish_topic': f'/{namespace}/{robot_topics["landmarks"]}',
+                'transform_timeout_ms': 100,
+                'apply_undistortion': True,
+                'distance_buffer': 1.0,
+                'reference_frame': f'{namespace}/odom',
+            }],
+        ),
+    ]
 
     if enable_gstreamer:
         container_nodes.append(
@@ -113,43 +142,6 @@ def _launch_setup(context, *args, **kwargs):
                 }.items(),
             )
         )
-
-    actions.append(
-        Node(
-            package='pipeline_image_endpoints_detector',
-            executable='image_endpoints_node',
-            name='pipeline_image_endpoints',
-            parameters=[{
-                'morph_kernel_size': 5,
-                'detection_method': 'lowest_pixel',
-                'input_topic': '/pipeline/front_camera/segmentation_mask',
-                'output_topic': '/pipeline/image_endpoints',
-                'debug_topic': '/pipeline/image_endpoints/debug_image',
-                'debug': True,
-            }],
-            arguments=['--ros-args', '--log-level', 'pipeline_image_endpoints:=info'],
-            output='screen',
-        )
-    )
-
-    actions.append(
-        Node(
-            package='pipeline_endpoint_position_estimator',
-            executable='position_estimator_node',
-            name='pipeline_position_estimator',
-            parameters=[{
-                'endpoints_topic': '/pipeline/image_endpoints',
-                'dvl_altitude_topic': f'/{namespace}/{robot_topics["dvl_altitude"]}',
-                'camera_info_topic': '/pipeline/front_camera/camera_info',
-                'publish_topic': f'/{namespace}/{robot_topics["landmarks"]}',
-                'transform_timeout_ms': 100,
-                'apply_undistortion': True,
-                'reference_frame': f'{namespace}/odom',
-            }],
-            arguments=['--ros-args', '--log-level', 'pipeline_position_estimator:=info'],
-            output='screen',
-        )
-    )
 
     return actions
 
