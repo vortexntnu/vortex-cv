@@ -87,6 +87,7 @@ class BearingDirectionBase : public rclcpp::Node {
 
     std::vector<Eigen::Vector3d> accumulated_dirs_;
     std::optional<geometry_msgs::msg::Point> latest_drone_pos_;
+    std::optional<geometry_msgs::msg::Point> collection_start_pos_;
     double outlier_threshold_deg_{30.0};
 
     std::atomic<bool> preempted_{false};

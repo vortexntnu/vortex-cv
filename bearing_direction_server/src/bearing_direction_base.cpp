@@ -138,6 +138,7 @@ void BearingDirectionBase::execute(
     {
         std::lock_guard lock(mutex_);
         accumulated_dirs_.clear();
+        collection_start_pos_ = latest_drone_pos_;
         collecting_ = true;
     }
 
@@ -184,7 +185,7 @@ void BearingDirectionBase::execute(
         }
         {
             std::lock_guard lock(mutex_);
-            publish_viz_markers(accumulated_dirs_, latest_drone_pos_,
+            publish_viz_markers(accumulated_dirs_, collection_start_pos_,
                                 std::nullopt, goal->distance);
         }
         feedback->time_remaining_sec = remaining;
@@ -194,26 +195,16 @@ void BearingDirectionBase::execute(
 
     // Snapshot state
     std::vector<Eigen::Vector3d> dirs;
-    std::optional<geometry_msgs::msg::Point> drone_pos;
     {
         std::lock_guard lock(mutex_);
         collecting_ = false;
         dirs = accumulated_dirs_;
-        drone_pos = latest_drone_pos_;
     }
 
     if (dirs.empty()) {
         spdlog::warn("BearingDirectionBase '{}': no measurements collected.",
                      get_name());
-        result->success = false;
-        goal_handle->succeed(result);
-        return;
-    }
-
-    if (static_cast<int32_t>(dirs.size()) < goal->min_measurements) {
-        spdlog::warn(
-            "BearingDirectionBase '{}': only {} measurements collected, need {}.",
-            get_name(), dirs.size(), goal->min_measurements);
+        publish_viz_markers(dirs, collection_start_pos_, std::nullopt, goal->distance);
         result->success = false;
         goal_handle->succeed(result);
         return;
@@ -222,12 +213,22 @@ void BearingDirectionBase::execute(
     const Eigen::Vector3d avg_dir =
         filtered_mean(dirs, outlier_threshold_deg_);
 
-    // Build pose: position = drone_pos + avg_dir * distance
-    const double px = drone_pos ? drone_pos->x : 0.0;
-    const double py = drone_pos ? drone_pos->y : 0.0;
-    const double pz = drone_pos ? drone_pos->z : 0.0;
+    if (static_cast<int32_t>(dirs.size()) < goal->min_measurements) {
+        spdlog::warn(
+            "BearingDirectionBase '{}': only {} measurements collected, need {}.",
+            get_name(), dirs.size(), goal->min_measurements);
+        publish_viz_markers(dirs, collection_start_pos_, avg_dir, goal->distance);
+        result->success = false;
+        goal_handle->succeed(result);
+        return;
+    }
 
-    if (!drone_pos) {
+    // Build pose: position = collection_start_pos + avg_dir * distance
+    const double px = collection_start_pos_ ? collection_start_pos_->x : 0.0;
+    const double py = collection_start_pos_ ? collection_start_pos_->y : 0.0;
+    const double pz = collection_start_pos_ ? collection_start_pos_->z : 0.0;
+
+    if (!collection_start_pos_) {
         spdlog::warn("BearingDirectionBase '{}': no odom yet, using origin.",
                      get_name());
     }
@@ -243,7 +244,7 @@ void BearingDirectionBase::execute(
 
     result->success = true;
 
-    publish_viz_markers(dirs, drone_pos, avg_dir, goal->distance);
+    publish_viz_markers(dirs, collection_start_pos_, avg_dir, goal->distance);
 
     spdlog::info(
         "BearingDirectionBase '{}': {} measurements ({} after filtering), "
@@ -325,7 +326,7 @@ void BearingDirectionBase::publish_viz_markers(
         arrow.color.g = 0.6f;
         arrow.color.b = 1.0f;
         arrow.color.a = 0.6f;
-        arrow.lifetime = rclcpp::Duration::from_seconds(4.0);
+        arrow.lifetime = rclcpp::Duration::from_seconds(0.0);  // persist
         geometry_msgs::msg::Point start, end;
         start.x = ox; start.y = oy; start.z = oz;
         end.x = ox + d.x() * ray_len;
