@@ -34,7 +34,7 @@ void AcousticsBearingNode::bearing_callback(
         const double norm = dir.norm();
         if (!std::isfinite(norm) || norm < 1e-6) continue;
 
-        const std::string& src_frame = bearing.header.frame_id;
+        const std::string& src_frame = "nautilus/base_link"; // Acoustic frame same as base_link
         if (src_frame.empty()) continue;
 
         const auto dir_odom = rotate_to_odom(
