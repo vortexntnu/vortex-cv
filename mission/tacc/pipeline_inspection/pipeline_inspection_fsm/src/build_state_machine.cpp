@@ -82,82 +82,80 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                       {{SUCCEED, "START_END_DETECTION_TRG"}, {ABORT, ABORT}});
 
     } else if (config.start_in_camera_range) {
-        // Already in camera range: collect pipeline bearing, converge, follow.
-        auto pipeline_collect =
-            std::make_shared<vortex_yasmin_utils::CollectBearingDirectionState>(
-                config.pipeline_bearing_direction_action_server,
-                config.bearing_collection_timeout_sec,
-                config.pipeline_bearing_projection_distance,
-                config.bearing_min_measurements,
-                "pipeline_bearing_pose");
-
-        auto pipeline_bearing_waypoint =
-            std::make_shared<vortex_yasmin_utils::BearingWaypointState>(
-                config.waypoint_manager_action_server,
-                0.5,
-                config.bearing_waypoint_altitude,
-                "pipeline_bearing_pose");
-
+        // Already in camera range: wait for the IRLS line detector to see the
+        // pipeline, then trigger following. No bearing direction server needed.
         sm->add_state("WIPE", std::make_shared<vortex_yasmin_utils::WipeState>(),
-                      {{SUCCEED, "COLLECT_PIPELINE_BEARING"}});
-        sm->add_state("COLLECT_PIPELINE_BEARING", pipeline_collect,
-                      {{SUCCEED, "CONVERGE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
-        sm->add_state("CONVERGE", make_converge_or_line(pipeline_bearing_waypoint),
-                      {{SUCCEED, "START_PIPELINE_TRG"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+                      {{SUCCEED, "WAIT_FOR_IRLS_LINE"}});
+        sm->add_state(
+            "WAIT_FOR_IRLS_LINE",
+            std::make_shared<vortex_yasmin_utils::ServiceTriggerWaitState>(
+                config.irls_line_detected_service),
+            {{SUCCEED, "START_PIPELINE_TRG"}, {CANCEL, ABORT}});
         sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
                       {{SUCCEED, "START_END_DETECTION_TRG"}, {ABORT, ABORT}});
 
     } else {
         // Normal mode:
-        //   Acoustic bearing loop (collect → 3m waypoint → repeat) runs
-        //   concurrently with landmark polling. When the pipeline is spotted,
-        //   landmark polling wins and cancels the acoustic loop.
-        //   Then collect the pipeline bearing direction and converge.
+        //   1. Collect acoustic bearing → drive 3 m at 2 m altitude.
+        //   2. Collect acoustic bearing → drive 10 m at 2 m altitude, racing
+        //      against landmark polling. Either the drive completes or the
+        //      pipeline is spotted — both advance to pipeline bearing collection.
+        //   3. Collect pipeline bearing from camera (ep1/ep2 endpoints).
+        //   4. Converge toward the pipe at 1 m altitude, racing against IRLS
+        //      line detection. Either way advances to pipeline following.
 
-        auto acoustic_collect =
+        auto acoustic_collect_short =
             std::make_shared<vortex_yasmin_utils::CollectBearingDirectionState>(
                 config.bearing_direction_action_server,
-                config.bearing_collection_timeout_sec,
+                config.acoustic_short_timeout_sec,
                 config.acoustic_bearing_projection_distance,
-                config.bearing_min_measurements);
+                config.acoustic_short_min_measurements,
+                config.acoustic_short_max_measurements);
 
-        auto acoustic_waypoint =
+        auto drive_3m =
             std::make_shared<vortex_yasmin_utils::BearingWaypointState>(
                 config.waypoint_manager_action_server,
                 0.5,
-                config.bearing_waypoint_altitude);
+                config.acoustic_bearing_waypoint_altitude);
 
-        // Inner loop: collect acoustic bearing → send 3m waypoint → repeat
-        auto acoustic_loop = std::make_shared<yasmin::StateMachine>(
-            std::set<std::string>{ABORT});
-        acoustic_loop->add_state(
-            "COLLECT_ACOUSTIC_BEARING", acoustic_collect,
-            {{SUCCEED, "SEND_ACOUSTIC_WAYPOINT"}, {ABORT, ABORT}, {CANCEL, ABORT}});
-        acoustic_loop->add_state(
-            "SEND_ACOUSTIC_WAYPOINT", acoustic_waypoint,
-            {{SUCCEED, "COLLECT_ACOUSTIC_BEARING"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+        auto acoustic_collect_long =
+            std::make_shared<vortex_yasmin_utils::CollectBearingDirectionState>(
+                config.bearing_direction_action_server,
+                config.acoustic_long_timeout_sec,
+                config.acoustic_search_projection_distance,
+                config.acoustic_long_min_measurements,
+                config.acoustic_long_max_measurements);
+
+        auto drive_10m =
+            std::make_shared<vortex_yasmin_utils::BearingWaypointState>(
+                config.waypoint_manager_action_server,
+                0.5,
+                config.acoustic_bearing_waypoint_altitude);
 
         auto landmark_polling =
             std::make_shared<vortex_yasmin_utils::LandmarkPollingState>(
                 config.landmark_polling_action_server, pipeline_type,
                 pipeline_subtype, "pipeline_landmarks", "landmark_found");
 
-        auto acoustic_hunt = std::make_shared<vortex_yasmin_utils::FirstWinsConcurrence>(
+        // Race: drive 10 m vs landmark polling — either outcome proceeds.
+        auto hunt_10m = std::make_shared<vortex_yasmin_utils::FirstWinsConcurrence>(
             yasmin::StateMap{
-                {"ACOUSTIC_LOOP", acoustic_loop},
+                {"DRIVE_10M", drive_10m},
                 {"LANDMARK_POLLING", landmark_polling}},
             ABORT,
             vortex_yasmin_utils::FirstWinsOutcomeMap{
-                {"ACOUSTIC_LOOP", {{ABORT, ABORT}}},
+                {"DRIVE_10M",
+                 {{SUCCEED, "pipeline_in_range"}, {ABORT, ABORT}}},
                 {"LANDMARK_POLLING",
-                 {{"landmark_found", "landmark_found"}, {ABORT, ABORT}}}});
+                 {{"landmark_found", "pipeline_in_range"}, {ABORT, ABORT}}}});
 
         auto pipeline_collect =
             std::make_shared<vortex_yasmin_utils::CollectBearingDirectionState>(
                 config.pipeline_bearing_direction_action_server,
-                config.bearing_collection_timeout_sec,
+                config.pipeline_bearing_timeout_sec,
                 config.pipeline_bearing_projection_distance,
-                config.bearing_min_measurements,
+                config.pipeline_bearing_min_measurements,
+                config.pipeline_bearing_max_measurements,
                 "pipeline_bearing_pose");
 
         auto pipeline_bearing_waypoint =
@@ -168,9 +166,15 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                 "pipeline_bearing_pose");
 
         sm->add_state("WIPE", std::make_shared<vortex_yasmin_utils::WipeState>(),
-                      {{SUCCEED, "ACOUSTIC_HUNT"}});
-        sm->add_state("ACOUSTIC_HUNT", acoustic_hunt,
-                      {{"landmark_found", "COLLECT_PIPELINE_BEARING"},
+                      {{SUCCEED, "COLLECT_ACOUSTIC_1"}});
+        sm->add_state("COLLECT_ACOUSTIC_1", acoustic_collect_short,
+                      {{SUCCEED, "DRIVE_3M"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+        sm->add_state("DRIVE_3M", drive_3m,
+                      {{SUCCEED, "COLLECT_ACOUSTIC_2"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+        sm->add_state("COLLECT_ACOUSTIC_2", acoustic_collect_long,
+                      {{SUCCEED, "HUNT_10M"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+        sm->add_state("HUNT_10M", hunt_10m,
+                      {{"pipeline_in_range", "COLLECT_PIPELINE_BEARING"},
                        {ABORT, ABORT},
                        {CANCEL, ABORT}});
         sm->add_state("COLLECT_PIPELINE_BEARING", pipeline_collect,

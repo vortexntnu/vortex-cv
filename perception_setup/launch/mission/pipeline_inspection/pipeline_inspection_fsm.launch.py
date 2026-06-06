@@ -32,32 +32,30 @@ def launch_setup(context, *args, **kwargs):
             {
                 "action_servers.bearing_direction": "acoustics_bearing_direction",
                 "action_servers.pipeline_bearing_direction": "pipeline_bearing_direction",
-                "bearing_collection_timeout_sec": 10.0,
-                "acoustic_bearing_projection_distance": 3.0,
+                # Acoustic short collect → 3 m drive
+                "acoustic_short_timeout_sec": 15.0,
+                "acoustic_bearing_projection_distance": 2.0,
+                "acoustic_short_min_measurements": 10,
+                "acoustic_short_max_measurements": 15,
+                # Acoustic long collect → 10 m drive (races landmark polling)
+                "acoustic_long_timeout_sec": 15.0,
+                "acoustic_search_projection_distance": 10.0,
+                "acoustic_long_min_measurements": 10,
+                "acoustic_long_max_measurements": 15,
+                # Pipeline bearing collect → converge toward pipe
+                "pipeline_bearing_timeout_sec": 15.0,
                 "pipeline_bearing_projection_distance": 5.0,
-                "bearing_waypoint_altitude": 1.0,
+                "pipeline_bearing_min_measurements": 10,
+                "pipeline_bearing_max_measurements": 15,
+                # Waypoint altitudes
+                "acoustic_bearing_waypoint_altitude": 0.8,
+                "bearing_waypoint_altitude": 0.8,
                 "services.start_pipeline_following": "pipeline_inspection_fsm/start_pipeline_following",
                 "services.start_end_pipeline_detection": "pipeline_end_detector/start_detection",
                 "services.end_of_pipeline": "pipeline_inspection_fsm/pipeline_finished",
                 "services.irls_line_detected": "/pipeline_inspection_fsm/irls_line_detected",
                 "start_in_camera_range": start_in_camera_range,
                 "start_above_pipe": start_above_pipe,
-            },
-        ],
-        output="screen",
-    )
-
-    pipeline_bearing_server = Node(
-        package="bearing_direction_server",
-        executable="pipeline_bearing_server",
-        name="pipeline_bearing_server",
-        namespace=namespace,
-        parameters=[
-            drone_config,
-            {
-                "action_name": "pipeline_bearing_direction",
-                "topics.pixel_detections": "/pipeline/image_endpoints",
-                "topics.camera_info": "/pipeline/front_camera/camera_info",
             },
         ],
         output="screen",
@@ -77,7 +75,7 @@ def launch_setup(context, *args, **kwargs):
         output="screen",
     )
 
-    return [node, pipeline_bearing_server, irls_line_trigger]
+    return [node, irls_line_trigger]
 
 
 def generate_launch_description():

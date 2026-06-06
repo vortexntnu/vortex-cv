@@ -11,16 +11,37 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         node->declare_parameter<std::string>("action_servers.bearing_direction");
     config.pipeline_bearing_direction_action_server =
         node->declare_parameter<std::string>("action_servers.pipeline_bearing_direction");
-    config.bearing_collection_timeout_sec =
-        node->declare_parameter<double>("bearing_collection_timeout_sec", 10.0);
+    config.acoustic_short_timeout_sec =
+        node->declare_parameter<double>("acoustic_short_timeout_sec", 15.0);
     config.acoustic_bearing_projection_distance =
         node->declare_parameter<double>("acoustic_bearing_projection_distance", 3.0);
+    config.acoustic_short_min_measurements =
+        node->declare_parameter<int>("acoustic_short_min_measurements", 10);
+    config.acoustic_short_max_measurements =
+        node->declare_parameter<int>("acoustic_short_max_measurements", 15);
+
+    config.acoustic_long_timeout_sec =
+        node->declare_parameter<double>("acoustic_long_timeout_sec", 15.0);
+    config.acoustic_search_projection_distance =
+        node->declare_parameter<double>("acoustic_search_projection_distance", 10.0);
+    config.acoustic_long_min_measurements =
+        node->declare_parameter<int>("acoustic_long_min_measurements", 10);
+    config.acoustic_long_max_measurements =
+        node->declare_parameter<int>("acoustic_long_max_measurements", 15);
+
+    config.pipeline_bearing_timeout_sec =
+        node->declare_parameter<double>("pipeline_bearing_timeout_sec", 15.0);
     config.pipeline_bearing_projection_distance =
         node->declare_parameter<double>("pipeline_bearing_projection_distance", 5.0);
+    config.pipeline_bearing_min_measurements =
+        node->declare_parameter<int>("pipeline_bearing_min_measurements", 10);
+    config.pipeline_bearing_max_measurements =
+        node->declare_parameter<int>("pipeline_bearing_max_measurements", 15);
+
+    config.acoustic_bearing_waypoint_altitude =
+        node->declare_parameter<double>("acoustic_bearing_waypoint_altitude", 2.0);
     config.bearing_waypoint_altitude =
         node->declare_parameter<double>("bearing_waypoint_altitude", 1.0);
-    config.bearing_min_measurements =
-        node->declare_parameter<int>("bearing_min_measurements", 0);
     config.start_mission_service =
         node->declare_parameter<std::string>("services.start_mission");
     config.start_pipeline_following_service =

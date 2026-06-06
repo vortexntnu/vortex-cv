@@ -203,6 +203,7 @@ def _launch_setup(context, *args, **kwargs):
                     'launch', 'platform_bearing_server.launch.py',
                 )
             ),
+            launch_arguments={'namespace': namespace}.items(),
         )
     )
 
@@ -224,7 +225,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'target',
-                default_value='vortex',
+                default_value='tac',
                 choices=['tac', 'vortex'],
                 description=(
                     'tac = TAC competition board (marker_size=0.150, xDist=0.430); '

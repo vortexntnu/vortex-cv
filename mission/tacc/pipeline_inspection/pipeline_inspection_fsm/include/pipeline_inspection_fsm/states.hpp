@@ -36,11 +36,26 @@ struct StateMachineConfig {
     std::string start_end_pipeline_detection_service;
     std::string end_of_pipeline_service;
     std::string irls_line_detected_service;
-    double bearing_collection_timeout_sec{10.0};
+    // Acoustic short collect (→ 3 m drive)
+    double acoustic_short_timeout_sec{15.0};
     double acoustic_bearing_projection_distance{3.0};
+    int acoustic_short_min_measurements{10};
+    int acoustic_short_max_measurements{15};
+
+    // Acoustic long collect (→ 10 m drive, races landmark polling)
+    double acoustic_long_timeout_sec{15.0};
+    double acoustic_search_projection_distance{10.0};
+    int acoustic_long_min_measurements{10};
+    int acoustic_long_max_measurements{15};
+
+    // Pipeline bearing collect (→ converge toward pipe)
+    double pipeline_bearing_timeout_sec{15.0};
     double pipeline_bearing_projection_distance{5.0};
+    int pipeline_bearing_min_measurements{10};
+    int pipeline_bearing_max_measurements{15};
+
+    double acoustic_bearing_waypoint_altitude{2.0};
     double bearing_waypoint_altitude{1.0};
-    int bearing_min_measurements{0};
     bool start_in_camera_range{false};
     bool start_above_pipe{false};
 };

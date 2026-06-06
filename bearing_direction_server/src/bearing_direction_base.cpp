@@ -40,7 +40,7 @@ void BearingDirectionBase::setup_base() {
                   std::placeholders::_1));
 
     viz_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
-        "~/bearing_direction_markers", rclcpp::QoS(1).transient_local());
+        "~/bearing_direction_markers", rclcpp::QoS(10));
 
     const std::string action_name = get_parameter("action_name").as_string();
     action_server_ = rclcpp_action::create_server<Action>(

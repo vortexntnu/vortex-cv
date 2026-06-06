@@ -35,10 +35,9 @@ WaypointManagerAction::Goal BearingWaypointState::create_goal(
 
     vortex_msgs::msg::Waypoint wp;
     wp.pose = pose;
-    if (desired_altitude_ >= 0.0) {
-        wp.pose.position.z = desired_altitude_;
-    }
     wp.waypoint_mode.mode = vortex_msgs::msg::WaypointMode::FORWARD_HEADING;
+    wp.keep_altitude = (desired_altitude_ >= 0.0);
+    wp.desired_altitude = desired_altitude_;
 
     WaypointManagerAction::Goal goal;
     goal.waypoints = {wp};

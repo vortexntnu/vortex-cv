@@ -23,7 +23,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, Opaq
 from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import ComposableNodeContainer
+from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
 
 _SEG_DEBUG_IMAGE_TOPIC = '/pipeline/front_camera/segmentation_debug'
@@ -32,6 +32,10 @@ _SEG_DEBUG_IMAGE_TOPIC = '/pipeline/front_camera/segmentation_debug'
 def _launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('perception_setup')
     drone, namespace = resolve_drone_and_namespace(context)
+    bearing_dir_config = os.path.join(
+        get_package_share_directory('bearing_direction_server'),
+        'config', 'bearing_direction_server.yaml',
+    )
 
     with open(os.path.join(
         get_package_share_directory('auv_setup'), 'config', 'robots', f'{drone}.yaml',
@@ -142,6 +146,42 @@ def _launch_setup(context, *args, **kwargs):
                 }.items(),
             )
         )
+
+    actions += [
+        Node(
+            package='bearing_direction_server',
+            executable='pipeline_bearing_server',
+            name='pipeline_bearing_server',
+            namespace=namespace,
+            output='screen',
+            parameters=[
+                bearing_dir_config,
+                {
+                    'target_frame': f'{namespace}/odom',
+                    'topics.odom': f'/{namespace}/odom',
+                    'action_name': 'pipeline_bearing_direction',
+                    'topics.pixel_detections': '/pipeline/image_endpoints',
+                    'topics.camera_info': '/pipeline/front_camera/camera_info',
+                },
+            ],
+        ),
+        Node(
+            package='bearing_direction_server',
+            executable='acoustics_bearing_server',
+            name='acoustics_bearing_server',
+            namespace=namespace,
+            output='screen',
+            parameters=[
+                bearing_dir_config,
+                {
+                    'target_frame': f'{namespace}/odom',
+                    'topics.odom': f'/{namespace}/odom',
+                    'action_name': 'acoustics_bearing_direction',
+                    'topics.bearing_measurements': 'acoustics/bearing_measurements',
+                },
+            ],
+        ),
+    ]
 
     return actions
 
