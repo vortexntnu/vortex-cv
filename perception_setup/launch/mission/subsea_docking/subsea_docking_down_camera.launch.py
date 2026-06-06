@@ -105,7 +105,7 @@ def _launch_setup(context, *args, **kwargs):
                     'control_rate': 1,
                     'pt': 96,
                     'config_interval': 1,
-                    'input_format': 'RGB',
+                    'input_format': 'BGR',
                     'hw_encoder': use_nvidia,
                 }],
                 extra_arguments=[{'use_intra_process_comms': True}],
@@ -140,7 +140,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'target',
-                default_value='tac',
+                default_value='vortex',
                 choices=['tac', 'vortex'],
                 description=(
                     'tac = TAC competition board (marker_size=0.150, xDist=0.430); '

@@ -2,7 +2,7 @@ depth_level_waypoint:  # Sent after wipe to establish altitude and level orienta
   mode: pos_z_level_orientation
   convergence_threshold: 0.15
   keep_altitude: true
-  desired_altitude: 2.0
+  desired_altitude: 0.75
   require_altitude_convergence: true
 
 dock_config_waypoint:  # Navigated to when wall detection times out or is disabled.
@@ -17,5 +17,5 @@ dock_config_waypoint:  # Navigated to when wall detection times out or is disabl
     yaw: 0.0
   convergence_threshold: 0.3
   keep_altitude: true
-  desired_altitude: 2.0
+  desired_altitude: 0.75
   require_altitude_convergence: false

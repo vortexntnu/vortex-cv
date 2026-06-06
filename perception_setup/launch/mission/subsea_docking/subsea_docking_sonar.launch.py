@@ -186,7 +186,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'enable_gstreamer',
-                default_value='true',
+                default_value='false',
                 description='Stream the sonar line detection visualization via GStreamer/RTP.',
             ),
             OpaqueFunction(function=_launch_setup),

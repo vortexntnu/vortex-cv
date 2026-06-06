@@ -6,14 +6,14 @@ camera_direction_waypoint:  # Zero offset — YOLO direction landmark is already
   mode: xy_forward_dir
   convergence_threshold: 0.5
   keep_altitude: true
-  desired_altitude: 2.0
+  desired_altitude: 0.75
   require_altitude_convergence: false
 
 above_dock_waypoint:  # Offset applied to polled landmark to navigate above the docking station.
   position:
     x: 0.0
     y: 0.0
-    z: -2.0  # 2m above the docking station landmark (NED: negative z = up)
+    z: -1.0  # 0.75m above the docking station landmark (NED: negative z = up)
   orientation:
     roll: 0.0
     pitch: 0.0

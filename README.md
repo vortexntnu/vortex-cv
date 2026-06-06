@@ -12,6 +12,8 @@ TODO: Write a simple description / introduction to the repository
 
 ```
 TODO: Write a setup guide
+
+export FASTRTPS_DEFAULT_PROFILES_FILE=/home/vortex/fastdds.xml
 ```
 
 ## Using pre-commit

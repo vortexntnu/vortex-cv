@@ -187,19 +187,7 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
 
     sm->add_state("WAIT_AFTER_WIPE",
                   std::make_shared<InterruptibleTimeoutState>(1.0),
-                  {{"timeout", "DEPTH_LEVEL_INIT"}});
-
-    const auto depth_level_goal =
-        blackboard->get<vortex::utils::waypoints::WaypointGoal>(
-            "depth_level_waypoint_goal");
-
-    sm->add_state(
-        "DEPTH_LEVEL_INIT",
-        std::make_shared<WaypointGoalState>(
-            config.waypoint_manager_action_server, depth_level_goal),
-        {{SUCCEED, first_estimate_state},
-         {ABORT, first_estimate_state},
-         {CANCEL, ABORT}});
+                  {{"timeout", first_estimate_state}});
 
     if (config.start_in_range) {
         sm->add_state(

@@ -23,7 +23,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, Opaq
 from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import ComposableNodeContainer
+from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
 
 _TAC_ARUCO = {
@@ -96,12 +96,14 @@ def _launch_setup(context, *args, **kwargs):
         ),
     ]
 
+    yolo_destination_port = int(LaunchConfiguration('yolo_destination_port').perform(context))
+
     if enable_gstreamer:
         container_nodes.append(
             ComposableNode(
                 package='gstreamer_from_ros',
                 plugin='gstreamer_from_ros::GStreamerFromRos',
-                name='gstreamer_from_ros_node',
+                name='gstreamer_aruco',
                 parameters=[{
                     'input_topic': '/aruco_detector/image_front',
                     'destination_ip': destination_ip,
@@ -113,7 +115,7 @@ def _launch_setup(context, *args, **kwargs):
                     'control_rate': 1,
                     'pt': 96,
                     'config_interval': 1,
-                    'input_format': 'RGB',
+                    'input_format': 'BGR',
                     'hw_encoder': use_nvidia,
                 }],
                 extra_arguments=[{'use_intra_process_comms': True}],
@@ -132,6 +134,30 @@ def _launch_setup(context, *args, **kwargs):
             additional_env={'EGL_PLATFORM': 'surfaceless'},
         )
     ]
+
+    if enable_gstreamer and backend != 'none':
+        actions.append(
+            Node(
+                package='gstreamer_from_ros',
+                executable='gstreamer_from_ros_node',
+                name='gstreamer_yolo',
+                parameters=[{
+                    'input_topic': '/yolo/annotated_image',
+                    'destination_ip': destination_ip,
+                    'destination_port': yolo_destination_port,
+                    'bitrate': 500000,
+                    'expected_input_fps': 15,
+                    'preset_level': 1,
+                    'iframe_interval': 15,
+                    'control_rate': 1,
+                    'pt': 96,
+                    'config_interval': 1,
+                    'input_format': 'BGR',
+                    'hw_encoder': use_nvidia,
+                }],
+                output='screen',
+            )
+        )
 
     # -------------------------------------------------------------------------
     # BB inference backend
@@ -187,7 +213,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'target',
-                default_value='tac',
+                default_value='vortex',
                 choices=['tac', 'vortex'],
                 description=(
                     'tac = TAC competition board (marker_size=0.150, xDist=0.430); '
@@ -197,7 +223,7 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 'enable_gstreamer',
                 default_value='true',
-                description='Stream the ArUco annotated front image via GStreamer/RTP to 10.0.0.169:5000',
+                description='Stream ArUco (port 5000) and YOLO (port 5001) annotated images via GStreamer/RTP.',
             ),
             DeclareLaunchArgument(
                 'gst_nvidia_encoder',
@@ -212,7 +238,12 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 'destination_port',
                 default_value='5000',
-                description='Destination UDP port for GStreamer RTP stream.',
+                description='Destination UDP port for ArUco GStreamer RTP stream.',
+            ),
+            DeclareLaunchArgument(
+                'yolo_destination_port',
+                default_value='5003',
+                description='Destination UDP port for YOLO GStreamer RTP stream.',
             ),
             DeclareLaunchArgument(
                 'backend',
