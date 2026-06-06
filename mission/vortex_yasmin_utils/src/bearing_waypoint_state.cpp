@@ -12,12 +12,14 @@ namespace vortex_yasmin_utils {
 BearingWaypointState::BearingWaypointState(
     const std::string& action_server_name,
     double convergence_threshold,
+    double desired_altitude,
     const std::string& pose_bb_key)
     : ActionState(action_server_name,
                   std::bind(&BearingWaypointState::create_goal,
                             this,
                             std::placeholders::_1)),
       convergence_threshold_(convergence_threshold),
+      desired_altitude_(desired_altitude),
       pose_bb_key_(pose_bb_key) {}
 
 WaypointManagerAction::Goal BearingWaypointState::create_goal(
@@ -33,7 +35,10 @@ WaypointManagerAction::Goal BearingWaypointState::create_goal(
 
     vortex_msgs::msg::Waypoint wp;
     wp.pose = pose;
-    wp.waypoint_mode.mode = vortex_msgs::msg::WaypointMode::POSITION_AND_YAW;
+    if (desired_altitude_ >= 0.0) {
+        wp.pose.position.z = desired_altitude_;
+    }
+    wp.waypoint_mode.mode = vortex_msgs::msg::WaypointMode::FORWARD_HEADING;
 
     WaypointManagerAction::Goal goal;
     goal.waypoints = {wp};
@@ -41,8 +46,9 @@ WaypointManagerAction::Goal BearingWaypointState::create_goal(
     goal.convergence_threshold = convergence_threshold_;
 
     YASMIN_LOG_INFO(
-        "BearingWaypointState: navigating to bearing waypoint (%.3f, %.3f, %.3f)",
-        pose.position.x, pose.position.y, pose.position.z);
+        "BearingWaypointState: navigating to bearing waypoint (%.3f, %.3f, %.3f), "
+        "altitude=%.1fm",
+        pose.position.x, pose.position.y, pose.position.z, desired_altitude_);
     return goal;
 }
 

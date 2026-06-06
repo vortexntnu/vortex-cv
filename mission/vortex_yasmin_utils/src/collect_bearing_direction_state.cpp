@@ -9,6 +9,8 @@ CollectBearingDirectionState::CollectBearingDirectionState(
     const std::string& action_server_name,
     double timeout_sec,
     double projection_distance,
+    int min_measurements,
+    int max_measurements,
     const std::string& pose_bb_key)
     : ActionState(
           action_server_name,
@@ -25,6 +27,8 @@ CollectBearingDirectionState::CollectBearingDirectionState(
                     std::placeholders::_2)),
       timeout_sec_(timeout_sec),
       projection_distance_(projection_distance),
+      min_measurements_(min_measurements),
+      max_measurements_(max_measurements),
       pose_bb_key_(pose_bb_key) {}
 
 CollectBearingAction::Goal CollectBearingDirectionState::create_goal(
@@ -32,10 +36,13 @@ CollectBearingAction::Goal CollectBearingDirectionState::create_goal(
     CollectBearingAction::Goal goal;
     goal.timeout_sec = timeout_sec_;
     goal.distance = projection_distance_;
+    goal.min_measurements = min_measurements_;
+    goal.max_measurements = max_measurements_;
     YASMIN_LOG_INFO(
         "CollectBearingDirectionState: collecting for %.1fs, "
-        "projecting %.1fm along bearing",
-        timeout_sec_, projection_distance_);
+        "projecting %.1fm along bearing, min=%d max=%d",
+        timeout_sec_, projection_distance_, min_measurements_,
+        max_measurements_);
     return goal;
 }
 

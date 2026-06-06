@@ -28,6 +28,7 @@
   <depend>vortex_msgs</depend>
   <depend>vortex_utils_ros</depend>
   <depend>spdlog</depend>
+  <depend>visualization_msgs</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

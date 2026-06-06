@@ -24,6 +24,7 @@ find_package(Eigen3 REQUIRED)
 find_package(vortex_msgs REQUIRED)
 find_package(vortex_utils_ros REQUIRED)
 find_package(spdlog REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 include_directories(include)
 
@@ -35,6 +36,7 @@ set(BASE_DEPS
   nav_msgs
   sensor_msgs
   vision_msgs
+  visualization_msgs
   tf2
   tf2_ros
   tf2_geometry_msgs

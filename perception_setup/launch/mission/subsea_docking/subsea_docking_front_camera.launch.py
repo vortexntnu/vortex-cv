@@ -195,6 +195,17 @@ def _launch_setup(context, *args, **kwargs):
             )
         )
 
+    actions.append(
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(
+                    get_package_share_directory('bearing_direction_server'),
+                    'launch', 'platform_bearing_server.launch.py',
+                )
+            ),
+        )
+    )
+
     return actions
 
 

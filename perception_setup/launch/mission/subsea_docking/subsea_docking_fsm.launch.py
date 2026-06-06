@@ -37,10 +37,8 @@ def launch_setup(context, *args, **kwargs):
         f"{drone}.yaml",
     )
 
-    start_in_range     = LaunchConfiguration('start_in_range').perform(context).lower() == 'true'
-    use_camera_direction = LaunchConfiguration('use_camera_direction').perform(context).lower() == 'true'
-    use_wall_detection = LaunchConfiguration('use_wall_detection').perform(context).lower() == 'true'
-    use_service_waypoint = LaunchConfiguration('use_service_waypoint').perform(context).lower() == 'true'
+    def arg(name):
+        return LaunchConfiguration(name).perform(context)
 
     node = Node(
         package="subsea_docking_fsm",
@@ -51,15 +49,22 @@ def launch_setup(context, *args, **kwargs):
             {
                 "fsm_waypoint_config": fsm_waypoint_config,
                 "landmark_convergence_config": landmark_convergence_config,
-                "start_in_range": start_in_range,
-                "use_camera_direction": use_camera_direction,
-                "use_wall_detection": use_wall_detection,
-                "use_service_waypoint": use_service_waypoint,
-                "wall_detection_estimate_timeout_sec": 20.0,
-                "camera_direction_timeout_sec": 30.0,
-                "wait_before_fallback_sec": 5.0,
+                "start_in_range":      arg('start_in_range').lower() == 'true',
+                "use_camera_direction": arg('use_camera_direction').lower() == 'true',
+                "use_wall_detection":  arg('use_wall_detection').lower() == 'true',
+                "use_service_waypoint": arg('use_service_waypoint').lower() == 'true',
                 "docking_position_service": "/docking_position_estimator/docking_pose",
                 "docking_estimator_start_service": "docking_position_estimator/start_mission",
+                # Timing
+                "camera_direction_timeout_sec":       float(arg('camera_direction_timeout_sec')),
+                "wall_detection_estimate_timeout_sec": float(arg('wall_detection_estimate_timeout_sec')),
+                "wait_before_fallback_sec":           float(arg('wait_before_fallback_sec')),
+                # Bearing direction server
+                "bearing_direction_action_server": arg('bearing_direction_action_server'),
+                "bearing_direction_distance":      float(arg('bearing_direction_distance')),
+                "bearing_direction_altitude":      float(arg('bearing_direction_altitude')),
+                "bearing_direction_min_measurements": int(arg('bearing_direction_min_measurements')),
+                "bearing_direction_max_measurements": int(arg('bearing_direction_max_measurements')),
             },
         ],
         output="screen",
@@ -72,44 +77,35 @@ def generate_launch_description():
     return LaunchDescription(
         declare_drone_and_namespace_args()
         + [
-            DeclareLaunchArgument(
-                'start_in_range',
-                default_value='false',
+            DeclareLaunchArgument('start_in_range',       default_value='false',
+                description='Skip all estimation and poll immediately for ArUco.'),
+            DeclareLaunchArgument('use_camera_direction', default_value='true',
+                description='Enable YOLO camera-direction estimation via bearing direction server.'),
+            DeclareLaunchArgument('use_wall_detection',   default_value='false',
+                description='Enable sonar wall-detection estimation.'),
+            DeclareLaunchArgument('use_service_waypoint', default_value='false',
+                description='Skip estimation and go directly to fixed dock config waypoint.'),
 
-                description=(
-                    'Skip all estimation and poll immediately for ArUco. '
-                    'Use when already close to the docking platform.'
-                ),
-            ),
-            DeclareLaunchArgument(
-                'use_camera_direction',
-                default_value='True',
+            # Timing
+            DeclareLaunchArgument('camera_direction_timeout_sec',        default_value='30.0',
+                description='Bearing collection window (s).'),
+            DeclareLaunchArgument('wall_detection_estimate_timeout_sec', default_value='20.0',
+                description='Wall detection service timeout (s).'),
+            DeclareLaunchArgument('wait_before_fallback_sec',            default_value='5.0',
+                description='Wait at estimate waypoint before falling back to dock config (s).'),
 
-                description=(
-                    'Enable YOLO camera-direction estimation. Polls for a '
-                    'projected waypoint from the front camera and navigates '
-                    'toward it before falling back to wall detection or dock config.'
-                ),
-            ),
-            DeclareLaunchArgument(
-                'use_wall_detection',
-                default_value='false',
+            # Bearing direction server
+            DeclareLaunchArgument('bearing_direction_action_server', default_value='platform_bearing_direction',
+                description='Action server name for the bearing direction collector.'),
+            DeclareLaunchArgument('bearing_direction_distance',      default_value='20.0',
+                description='Metres to project the waypoint along the averaged bearing.'),
+            DeclareLaunchArgument('bearing_direction_altitude',      default_value='1.5',
+                description='Absolute z to set on the bearing waypoint (odom frame). Negative = use bearing server z as-is.'),
+            DeclareLaunchArgument('bearing_direction_min_measurements', default_value='10',
+                description='Minimum YOLO detections required; falls back if not met at timeout.'),
+            DeclareLaunchArgument('bearing_direction_max_measurements', default_value='30',
+                description='Early-exit: return as soon as this many detections collected (0 = wait full timeout).'),
 
-                description=(
-                    'Enable sonar wall-detection estimation. Waits for a pose '
-                    'from the docking position estimator service and navigates '
-                    'toward it before falling back to dock config.'
-                ),
-            ),
-            DeclareLaunchArgument(
-                'use_service_waypoint',
-                default_value='false',
-
-                description=(
-                    'Skip all estimation and navigate directly to the fixed '
-                    'dock config waypoint defined in fsm_waypoint_config.yaml.'
-                ),
-            ),
             OpaqueFunction(function=launch_setup),
         ]
     )

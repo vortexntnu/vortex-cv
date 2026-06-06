@@ -47,10 +47,24 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
     }
 
     if (config.use_camera_direction) {
+        config.bearing_direction_action_server =
+            node->declare_parameter<std::string>("bearing_direction_action_server");
+        config.bearing_direction_distance =
+            node->declare_parameter<double>("bearing_direction_distance", 5.0);
+        config.bearing_direction_altitude =
+            node->declare_parameter<double>("bearing_direction_altitude", 1.5);
+        config.bearing_direction_min_measurements =
+            node->declare_parameter<int>("bearing_direction_min_measurements", 20);
+        config.bearing_direction_max_measurements =
+            node->declare_parameter<int>("bearing_direction_max_measurements", 30);
         spdlog::info(
-            "Camera direction estimation enabled: will poll for YOLO direction "
-            "landmark (timeout: {:.1f}s).",
-            config.camera_direction_timeout_sec);
+            "Camera direction estimation enabled: bearing_direction_server='{}', "
+            "timeout={:.1f}s, dist={:.1f}m, min={}, max={}.",
+            config.bearing_direction_action_server,
+            config.camera_direction_timeout_sec,
+            config.bearing_direction_distance,
+            config.bearing_direction_min_measurements,
+            config.bearing_direction_max_measurements);
     }
 
     if (config.use_wall_detection) {

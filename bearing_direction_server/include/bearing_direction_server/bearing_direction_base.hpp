@@ -14,6 +14,7 @@
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
+#include <visualization_msgs/msg/marker_array.hpp>
 
 #include <vortex_msgs/action/collect_bearing_direction.hpp>
 
@@ -75,8 +76,14 @@ class BearingDirectionBase : public rclcpp::Node {
     static Eigen::Vector3d filtered_mean(const std::vector<Eigen::Vector3d>& dirs,
                                          double threshold_deg);
 
+    void publish_viz_markers(const std::vector<Eigen::Vector3d>& dirs,
+                              const std::optional<geometry_msgs::msg::Point>& drone_pos,
+                              const std::optional<Eigen::Vector3d>& final_dir,
+                              double distance);
+
     rclcpp_action::Server<Action>::SharedPtr action_server_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_pub_;
 
     std::vector<Eigen::Vector3d> accumulated_dirs_;
     std::optional<geometry_msgs::msg::Point> latest_drone_pos_;

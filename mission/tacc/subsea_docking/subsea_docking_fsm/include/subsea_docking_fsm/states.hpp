@@ -26,6 +26,11 @@ struct StateMachineConfig {
     double wait_before_fallback_sec;
     std::string docking_position_service;
     std::string docking_estimator_start_service;
+    std::string bearing_direction_action_server;
+    double bearing_direction_distance;
+    double bearing_direction_altitude;
+    int32_t bearing_direction_min_measurements;
+    int32_t bearing_direction_max_measurements;
 };
 
 StateMachineConfig load_config(rclcpp::Node::SharedPtr node);

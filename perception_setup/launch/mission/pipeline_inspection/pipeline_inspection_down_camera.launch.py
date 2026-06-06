@@ -155,7 +155,7 @@ def _launch_setup(context, *args, **kwargs):
                     # window. 0 = activate now.
                     'activation_delay_sec': 30.0,
                     # Topic published by the end-of-pipeline classifier (std_msgs/UInt8)
-                    'topics.detection': '/pipeline_end_classification',
+                    'topics.detection': '/pipeline_end_classification/turned_off',
                     # FSM service called when the end of pipeline is reached
                     'topics.end_of_pipeline_service': 'pipeline_inspection_fsm/pipeline_finished',
                     # Service the FSM calls to activate detection on this node
@@ -326,7 +326,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'seg_model_file_path',
-                default_value=os.path.join(pkg_dir, 'models', 'pipe-real-down-nyhavna-m-05-06.pt'),
+                default_value=os.path.join(pkg_dir, 'models', 'seg_down_with_aruco.pt'),
                 description='Path to the YOLO segmentation model file.',
             ),
             DeclareLaunchArgument(

@@ -3,6 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <tf2/exceptions.h>
 #include <cmath>
+#include <visualization_msgs/msg/marker.hpp>
 #include <vortex/utils/ros/qos_profiles.hpp>
 
 namespace bearing_direction_server {
@@ -37,6 +38,9 @@ void BearingDirectionBase::setup_base() {
         vortex::utils::qos_profiles::sensor_data_profile(1),
         std::bind(&BearingDirectionBase::odom_callback, this,
                   std::placeholders::_1));
+
+    viz_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
+        "~/bearing_direction_markers", rclcpp::QoS(1).transient_local());
 
     const std::string action_name = get_parameter("action_name").as_string();
     action_server_ = rclcpp_action::create_server<Action>(
@@ -93,6 +97,18 @@ rclcpp_action::GoalResponse BearingDirectionBase::handle_goal(
                      get_name(), goal->timeout_sec);
         return rclcpp_action::GoalResponse::REJECT;
     }
+    if (goal->min_measurements < 1) {
+        spdlog::warn("BearingDirectionBase '{}': min_measurements must be >= 1.",
+                     get_name());
+        return rclcpp_action::GoalResponse::REJECT;
+    }
+    if (goal->max_measurements > 0 &&
+        goal->max_measurements < goal->min_measurements) {
+        spdlog::warn(
+            "BearingDirectionBase '{}': max_measurements ({}) < min_measurements ({}).",
+            get_name(), goal->max_measurements, goal->min_measurements);
+        return rclcpp_action::GoalResponse::REJECT;
+    }
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 
@@ -125,8 +141,12 @@ void BearingDirectionBase::execute(
         collecting_ = true;
     }
 
-    spdlog::info("BearingDirectionBase '{}': collecting for {:.1f}s, dist={:.1f}m.",
-                 get_name(), goal->timeout_sec, goal->distance);
+    spdlog::info(
+        "BearingDirectionBase '{}': collecting for {:.1f}s, dist={:.1f}m, "
+        "min={} max={}.",
+        get_name(), goal->timeout_sec, goal->distance,
+        goal->min_measurements,
+        goal->max_measurements > 0 ? std::to_string(goal->max_measurements) : "unlimited");
 
     const rclcpp::Time start = now();
     rclcpp::Rate rate(10.0);
@@ -156,6 +176,16 @@ void BearingDirectionBase::execute(
             std::lock_guard lock(mutex_);
             feedback->measurements_collected =
                 static_cast<int32_t>(accumulated_dirs_.size());
+            if (goal->max_measurements > 0 &&
+                feedback->measurements_collected >= goal->max_measurements) {
+                collecting_ = false;
+                break;
+            }
+        }
+        {
+            std::lock_guard lock(mutex_);
+            publish_viz_markers(accumulated_dirs_, latest_drone_pos_,
+                                std::nullopt, goal->distance);
         }
         feedback->time_remaining_sec = remaining;
         goal_handle->publish_feedback(feedback);
@@ -175,6 +205,15 @@ void BearingDirectionBase::execute(
     if (dirs.empty()) {
         spdlog::warn("BearingDirectionBase '{}': no measurements collected.",
                      get_name());
+        result->success = false;
+        goal_handle->succeed(result);
+        return;
+    }
+
+    if (static_cast<int32_t>(dirs.size()) < goal->min_measurements) {
+        spdlog::warn(
+            "BearingDirectionBase '{}': only {} measurements collected, need {}.",
+            get_name(), dirs.size(), goal->min_measurements);
         result->success = false;
         goal_handle->succeed(result);
         return;
@@ -203,6 +242,8 @@ void BearingDirectionBase::execute(
     result->pose.orientation.w = std::cos(yaw * 0.5);
 
     result->success = true;
+
+    publish_viz_markers(dirs, drone_pos, avg_dir, goal->distance);
 
     spdlog::info(
         "BearingDirectionBase '{}': {} measurements ({} after filtering), "
@@ -248,6 +289,104 @@ Eigen::Vector3d BearingDirectionBase::filtered_mean(
     spdlog::debug("BearingDirectionBase: kept {}/{} vectors after outlier rejection.",
                   kept, dirs.size());
     return filtered_sum.normalized();
+}
+
+void BearingDirectionBase::publish_viz_markers(
+    const std::vector<Eigen::Vector3d>& dirs,
+    const std::optional<geometry_msgs::msg::Point>& drone_pos,
+    const std::optional<Eigen::Vector3d>& final_dir,
+    double distance) {
+    visualization_msgs::msg::MarkerArray array;
+
+    visualization_msgs::msg::Marker del;
+    del.action = visualization_msgs::msg::Marker::DELETEALL;
+    array.markers.push_back(del);
+
+    const double ox = drone_pos ? drone_pos->x : 0.0;
+    const double oy = drone_pos ? drone_pos->y : 0.0;
+    const double oz = drone_pos ? drone_pos->z : 0.0;
+    const rclcpp::Time stamp = now();
+
+    // Individual bearing ray arrows (blue)
+    int id = 0;
+    constexpr double ray_len = 3.0;
+    for (const auto& d : dirs) {
+        visualization_msgs::msg::Marker arrow;
+        arrow.header.stamp = stamp;
+        arrow.header.frame_id = target_frame_;
+        arrow.ns = "bearing_rays";
+        arrow.id = id++;
+        arrow.type = visualization_msgs::msg::Marker::ARROW;
+        arrow.action = visualization_msgs::msg::Marker::ADD;
+        arrow.scale.x = 0.04;
+        arrow.scale.y = 0.08;
+        arrow.scale.z = 0.08;
+        arrow.color.r = 0.2f;
+        arrow.color.g = 0.6f;
+        arrow.color.b = 1.0f;
+        arrow.color.a = 0.6f;
+        arrow.lifetime = rclcpp::Duration::from_seconds(4.0);
+        geometry_msgs::msg::Point start, end;
+        start.x = ox; start.y = oy; start.z = oz;
+        end.x = ox + d.x() * ray_len;
+        end.y = oy + d.y() * ray_len;
+        end.z = oz + d.z() * ray_len;
+        arrow.points.push_back(start);
+        arrow.points.push_back(end);
+        array.markers.push_back(arrow);
+    }
+
+    // Final averaged direction arrow (orange) + target sphere
+    if (final_dir.has_value()) {
+        const Eigen::Vector3d& fd = *final_dir;
+
+        visualization_msgs::msg::Marker avg_arrow;
+        avg_arrow.header.stamp = stamp;
+        avg_arrow.header.frame_id = target_frame_;
+        avg_arrow.ns = "bearing_avg_direction";
+        avg_arrow.id = 0;
+        avg_arrow.type = visualization_msgs::msg::Marker::ARROW;
+        avg_arrow.action = visualization_msgs::msg::Marker::ADD;
+        avg_arrow.scale.x = 0.08;
+        avg_arrow.scale.y = 0.16;
+        avg_arrow.scale.z = 0.16;
+        avg_arrow.color.r = 1.0f;
+        avg_arrow.color.g = 0.5f;
+        avg_arrow.color.b = 0.0f;
+        avg_arrow.color.a = 1.0f;
+        avg_arrow.lifetime = rclcpp::Duration::from_seconds(0.0);  // persist
+        geometry_msgs::msg::Point start, end;
+        start.x = ox; start.y = oy; start.z = oz;
+        end.x = ox + fd.x() * distance;
+        end.y = oy + fd.y() * distance;
+        end.z = oz + fd.z() * distance;
+        avg_arrow.points.push_back(start);
+        avg_arrow.points.push_back(end);
+        array.markers.push_back(avg_arrow);
+
+        visualization_msgs::msg::Marker sphere;
+        sphere.header.stamp = stamp;
+        sphere.header.frame_id = target_frame_;
+        sphere.ns = "bearing_target";
+        sphere.id = 0;
+        sphere.type = visualization_msgs::msg::Marker::SPHERE;
+        sphere.action = visualization_msgs::msg::Marker::ADD;
+        sphere.pose.position.x = end.x;
+        sphere.pose.position.y = end.y;
+        sphere.pose.position.z = end.z;
+        sphere.pose.orientation.w = 1.0;
+        sphere.scale.x = 0.3;
+        sphere.scale.y = 0.3;
+        sphere.scale.z = 0.3;
+        sphere.color.r = 1.0f;
+        sphere.color.g = 0.35f;
+        sphere.color.b = 0.0f;
+        sphere.color.a = 1.0f;
+        sphere.lifetime = rclcpp::Duration::from_seconds(0.0);  // persist
+        array.markers.push_back(sphere);
+    }
+
+    viz_pub_->publish(array);
 }
 
 }  // namespace bearing_direction_server

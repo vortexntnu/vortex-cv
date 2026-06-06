@@ -11,6 +11,8 @@
 #include <yasmin_ros/basic_outcomes.hpp>
 #include <yasmin_ros/ros_logs.hpp>
 
+#include <vortex_yasmin_utils/bearing_waypoint_state.hpp>
+#include <vortex_yasmin_utils/collect_bearing_direction_state.hpp>
 #include <vortex_msgs/msg/landmark_subtype.hpp>
 #include <vortex_msgs/msg/landmark_type.hpp>
 #include <vortex_msgs/msg/waypoint.hpp>
@@ -28,6 +30,8 @@
 #include <vortex_yasmin_utils/wipe_state.hpp>
 #include <yasmin_ros/yasmin_node.hpp>
 
+using vortex_yasmin_utils::BearingWaypointState;
+using vortex_yasmin_utils::CollectBearingDirectionState;
 using vortex_yasmin_utils::FirstWinsConcurrence;
 using vortex_yasmin_utils::FirstWinsOutcomeMap;
 using vortex_yasmin_utils::LandmarkPollingState;
@@ -123,6 +127,7 @@ class SearchPoseWaypointState : public vortex_yasmin_utils::WaypointGoalState {
     double convergence_threshold_;
 };
 
+
 std::shared_ptr<yasmin::StateMachine> build_state_machine(
     const StateMachineConfig& config,
     yasmin::Blackboard::SharedPtr blackboard) {
@@ -141,21 +146,12 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         blackboard->get<vortex::utils::waypoints::WaypointGoal>(
             "power_puck_waypoint_goal");
 
-    const auto camera_direction_waypoint_goal =
-        blackboard->get<vortex::utils::waypoints::WaypointGoal>(
-            "camera_direction_waypoint_goal");
-
     vortex_msgs::msg::LandmarkType dock_landmark_type;
     dock_landmark_type.value = vortex_msgs::msg::LandmarkType::ARUCO_BOARD;
 
     // Accepts all subtypes (camera, sonar, aruco detections).
     vortex_msgs::msg::LandmarkSubtype dock_landmark_subtype;
     dock_landmark_subtype.value = 0;
-
-    // Only the YOLO camera-direction estimate (subtype 3).
-    vortex_msgs::msg::LandmarkSubtype camera_direction_subtype;
-    camera_direction_subtype.value =
-        vortex_msgs::msg::LandmarkSubtype::ARUCO_BOARD_DETECTION;
 
     // Determine entry state (priority order):
     //   start_in_range      → poll immediately for ArUco, skip all estimation
@@ -230,42 +226,31 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                                                  ? "WALL_DETECTION_ESTIMATE"
                                                  : "WAIT_BEFORE_FALLBACK";
 
-        // Timeout state: wakes immediately on cancellation.
-        auto cam_dir_timeout = std::make_shared<InterruptibleTimeoutState>(
-            config.camera_direction_timeout_sec);
-
-        // Poll specifically for YOLO direction landmark (subtype 3).
-        auto cam_dir_poll = std::make_shared<LandmarkPollingState>(
-            config.landmark_polling_action_server, dock_landmark_type,
-            camera_direction_subtype, "camera_direction_landmark");
-
-        auto cam_dir_estimate = std::make_shared<FirstWinsConcurrence>(
-            yasmin::StateMap{{"CAM_DIR_TIMEOUT", cam_dir_timeout},
-                             {"CAM_DIR_POLL", cam_dir_poll}},
-            ABORT,
-            FirstWinsOutcomeMap{
-                {"CAM_DIR_TIMEOUT", {{"timeout", "camera_timeout"}}},
-                {"CAM_DIR_POLL",
-                 {{"landmarks_found", "direction_found"},
-                  {ABORT, "camera_timeout"}}}});
+        // Call the bearing direction server: collects YOLO platform detections
+        // for timeout_sec, averages with outlier rejection, and returns a
+        // projected waypoint pose. SUCCEED = min_measurements met; ABORT = not.
+        auto cam_dir_estimate = std::make_shared<CollectBearingDirectionState>(
+            config.bearing_direction_action_server,
+            config.camera_direction_timeout_sec,
+            config.bearing_direction_distance,
+            config.bearing_direction_min_measurements,
+            config.bearing_direction_max_measurements);
 
         sm->add_state("CAMERA_DIRECTION_ESTIMATE", cam_dir_estimate,
-                      {{"direction_found", "NAV_TO_CAMERA_DIRECTION_WAYPOINT"},
-                       {"camera_timeout", cam_dir_fallback},
-                       {ABORT, ABORT},
+                      {{SUCCEED, "NAV_TO_CAMERA_DIRECTION_WAYPOINT"},
+                       {ABORT, cam_dir_fallback},
                        {CANCEL, ABORT}});
 
-        // Navigate to the YOLO direction waypoint, polling for real ArUco
-        // detections only (subtype 1 = ARUCO_BOARD_CAMERA). Subtype 0 would
-        // also match the YOLO direction landmark (subtype 3) still in the
-        // server, causing an immediate false positive.
+        // Navigate to the bearing-computed waypoint while polling for real
+        // ArUco detections (subtype 1 = ARUCO_BOARD_CAMERA only, to avoid
+        // matching stale direction estimates still in the landmark server).
         vortex_msgs::msg::LandmarkSubtype aruco_camera_subtype;
         aruco_camera_subtype.value =
             vortex_msgs::msg::LandmarkSubtype::ARUCO_BOARD_CAMERA;
 
-        auto cam_dir_nav = std::make_shared<LandmarkWaypointState>(
-            config.waypoint_manager_action_server,
-            camera_direction_waypoint_goal, "camera_direction_landmark");
+        auto cam_dir_nav = std::make_shared<BearingWaypointState>(
+            config.waypoint_manager_action_server, 0.5,
+            config.bearing_direction_altitude);
 
         auto cam_dir_nav_poll = std::make_shared<LandmarkPollingState>(
             config.landmark_polling_action_server, dock_landmark_type,

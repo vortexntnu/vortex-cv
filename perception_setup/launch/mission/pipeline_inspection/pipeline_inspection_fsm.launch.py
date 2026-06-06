@@ -16,30 +16,6 @@ def launch_setup(context, *args, **kwargs):
     start_in_camera_range = LaunchConfiguration('start_in_camera_range').perform(context).lower() == 'true'
     start_above_pipe = LaunchConfiguration('start_above_pipe').perform(context).lower() == 'true'
 
-    fsm_waypoint_config = os.path.join(
-        get_package_share_directory("perception_setup"),
-        "config",
-        "mission",
-        "pipeline_inspection",
-        "search_waypoints.yaml",
-    )
-
-    pipeline_convergence_config = os.path.join(
-        get_package_share_directory("perception_setup"),
-        "config",
-        "mission",
-        "pipeline_inspection",
-        "pipeline_convergence.yaml",
-    )
-
-    altitude_descent_waypoint_config = os.path.join(
-        get_package_share_directory("perception_setup"),
-        "config",
-        "mission",
-        "pipeline_inspection",
-        "altitude_descent_waypoint.yaml",
-    )
-
     drone_config = os.path.join(
         get_package_share_directory("auv_setup"),
         "config",
@@ -54,18 +30,34 @@ def launch_setup(context, *args, **kwargs):
         parameters=[
             drone_config,
             {
-                "fsm_waypoint_config": fsm_waypoint_config,
-                "pipeline_convergence_config": pipeline_convergence_config,
-                "altitude_descent_waypoint_config": altitude_descent_waypoint_config,
                 "action_servers.bearing_direction": "acoustics_bearing_direction",
+                "action_servers.pipeline_bearing_direction": "pipeline_bearing_direction",
                 "bearing_collection_timeout_sec": 10.0,
-                "bearing_projection_distance": 10.0,
+                "acoustic_bearing_projection_distance": 3.0,
+                "pipeline_bearing_projection_distance": 5.0,
+                "bearing_waypoint_altitude": 1.0,
                 "services.start_pipeline_following": "pipeline_inspection_fsm/start_pipeline_following",
                 "services.start_end_pipeline_detection": "pipeline_end_detector/start_detection",
                 "services.end_of_pipeline": "pipeline_inspection_fsm/pipeline_finished",
                 "services.irls_line_detected": "/pipeline_inspection_fsm/irls_line_detected",
                 "start_in_camera_range": start_in_camera_range,
                 "start_above_pipe": start_above_pipe,
+            },
+        ],
+        output="screen",
+    )
+
+    pipeline_bearing_server = Node(
+        package="bearing_direction_server",
+        executable="pipeline_bearing_server",
+        name="pipeline_bearing_server",
+        namespace=namespace,
+        parameters=[
+            drone_config,
+            {
+                "action_name": "pipeline_bearing_direction",
+                "topics.pixel_detections": "/pipeline/image_endpoints",
+                "topics.camera_info": "/pipeline/front_camera/camera_info",
             },
         ],
         output="screen",
@@ -85,7 +77,7 @@ def launch_setup(context, *args, **kwargs):
         output="screen",
     )
 
-    return [node, irls_line_trigger]
+    return [node, pipeline_bearing_server, irls_line_trigger]
 
 
 def generate_launch_description():
@@ -97,7 +89,7 @@ def generate_launch_description():
                 default_value='false',
                 choices=['true', 'false'],
                 description=(
-                    'Skip the search phase and start directly in landmark polling. '
+                    'Skip acoustic hunt and start directly with pipeline bearing collection. '
                     'Use when the vehicle is already within camera range of the pipeline.'
                 ),
             ),
