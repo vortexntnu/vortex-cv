@@ -23,7 +23,6 @@
   <depend>ament_cmake</depend>
   <depend>nav_msgs</depend>
   <depend>visualization_msgs</depend>
-  <depend>foxglove_msgs</depend>
   <depend>vortex_msgs</depend>
 
   <export>

@@ -140,10 +140,10 @@ LineFilteringNode::LineFilteringNode() : Node("line_filtering_node") {
             this->create_publisher<visualization_msgs::msg::MarkerArray>(
                 "/tracks/points", qos_sensor_data);
         scene_update_line_pub_ =
-            this->create_publisher<foxglove_msgs::msg::SceneUpdate>(
+            this->create_publisher<visualization_msgs::msg::MarkerArray>(
                 "/scene_update", qos_sensor_data);
         scene_update_intersection_pub_ =
-            this->create_publisher<foxglove_msgs::msg::SceneUpdate>(
+            this->create_publisher<visualization_msgs::msg::MarkerArray>(
                 "/scene_update_intersection", qos_sensor_data);
         line_intersection_pose_pub_ =
             this->create_publisher<geometry_msgs::msg::PoseStamped>(

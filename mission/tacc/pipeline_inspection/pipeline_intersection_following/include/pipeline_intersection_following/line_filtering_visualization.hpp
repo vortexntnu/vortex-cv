@@ -1,8 +1,5 @@
 #pragma once
 #include <rclcpp/rclcpp.hpp>
-#include <foxglove_msgs/msg/scene_update.hpp>
-#include <foxglove_msgs/msg/scene_entity.hpp>
-#include <foxglove_msgs/msg/line_primitive.hpp>
 #include <pipeline_intersection_following/line_filtering_ros.hpp>
 
 #include <vector>
@@ -13,7 +10,7 @@
 #include <vortex_filtering/vortex_filtering.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
-foxglove_msgs::msg::SceneUpdate visualize_track_gates(
+visualization_msgs::msg::MarkerArray visualize_track_gates(
     const std::vector<Track>& tracks,
     const rclcpp::Time & timestamp,
     const std::string & frame_id,

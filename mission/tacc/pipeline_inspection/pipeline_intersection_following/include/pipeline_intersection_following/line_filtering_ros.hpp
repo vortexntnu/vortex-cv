@@ -35,7 +35,6 @@
 
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <pipeline_intersection_following/line_filtering_visualization.hpp>
-#include <foxglove_msgs/msg/scene_update.hpp>
 
 struct LineIntersection {
     double x;
@@ -100,9 +99,9 @@ class LineFilteringNode : public rclcpp::Node {
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr point_2_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr point_3_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr point_4_;
-    rclcpp::Publisher<foxglove_msgs::msg::SceneUpdate>::SharedPtr
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr
         scene_update_line_pub_;
-    rclcpp::Publisher<foxglove_msgs::msg::SceneUpdate>::SharedPtr
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr
         scene_update_intersection_pub_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr
         line_points_pub_;
