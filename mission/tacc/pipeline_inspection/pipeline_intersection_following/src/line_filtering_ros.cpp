@@ -150,6 +150,9 @@ LineFilteringNode::LineFilteringNode() : Node("line_filtering_node") {
                 "/line/intersection_pose", qos_sensor_data);
         line_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
             "/line/pose", qos_sensor_data);
+        termination_track_count_pub_ =
+            this->create_publisher<std_msgs::msg::Int32>(
+                "/line/termination_track_count", qos_sensor_data);
     }
 
     // --- Track managers -------------------------------------------------------
@@ -1126,8 +1129,18 @@ void LineFilteringNode::get_track_by_yaw(Track& line_track) {
 }
 
 void LineFilteringNode::termination_check() {
+    const auto& ltracks = line_tracker_.get_tracks();
+
+    if (termination_track_count_pub_) {
+        std_msgs::msg::Int32 count_msg;
+        count_msg.data = static_cast<int32_t>(ltracks.size());
+        termination_track_count_pub_->publish(count_msg);
+    }
+
     Track line_track;
     if (get_track_by_id(line_track, current_line_id_) == -1) {
+        dlog("TERMINATION: lost track of cur_line=%d (line_tracks=%zu) -- counter reset",
+             current_line_id_, ltracks.size());
         termination_counter_ = 0;
         return;
     }
@@ -1147,8 +1160,16 @@ void LineFilteringNode::termination_check() {
     } else {
         termination_counter_ = 0;
     }
-    if (termination_counter_ >
-        this->get_parameter("termination_counter_threshold").as_int()) {
+
+    const int threshold =
+        this->get_parameter("termination_counter_threshold").as_int();
+    dlog("TERMINATION: cur_line=%d endpoint=(%.2f,%.2f) orca=(%.2f,%.2f) "
+         "dist_to_endpoint=%.2f counter=%d/%d line_tracks=%zu",
+         current_line_id_, endpoint(0), endpoint(1), orca_position(0),
+         orca_position(1), distance, termination_counter_, threshold,
+         ltracks.size());
+
+    if (termination_counter_ > threshold) {
         RCLCPP_INFO(this->get_logger(),
                     "End of pipeline reached -- notifying FSM.");
         is_executing_action_ = false;

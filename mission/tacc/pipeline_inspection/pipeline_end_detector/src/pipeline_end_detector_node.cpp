@@ -12,6 +12,7 @@ PipelineEndDetectorNode::PipelineEndDetectorNode(
     detection_threshold_ =
         static_cast<int>(get_parameter("detection_threshold").as_int());
     activation_delay_sec_ = get_parameter("activation_delay_sec").as_double();
+    debug_ = get_parameter("debug").as_bool();
 
     setup_pubsub();
 
@@ -29,6 +30,9 @@ void PipelineEndDetectorNode::declare_parameters() {
     declare_parameter<std::string>("topics.start_detection_service");
     declare_parameter<int>("detection_threshold");
     declare_parameter<double>("activation_delay_sec", 0.0);
+    declare_parameter<bool>("debug", true);
+    declare_parameter<std::string>("topics.debug_counter",
+                                   "pipeline_end_detector/debug_counter");
 }
 
 void PipelineEndDetectorNode::setup_pubsub() {
@@ -46,6 +50,15 @@ void PipelineEndDetectorNode::setup_pubsub() {
         std::bind(
             &PipelineEndDetectorNode::start_end_pipeline_detection_callback,
             this, std::placeholders::_1, std::placeholders::_2));
+
+    if (debug_) {
+        const auto debug_topic =
+            get_parameter("topics.debug_counter").as_string();
+        debug_counter_pub_ =
+            create_publisher<std_msgs::msg::Int32>(debug_topic, sensor_qos);
+        RCLCPP_INFO(get_logger(), "Debug counter publishing on '%s'.",
+                    debug_topic.c_str());
+    }
 }
 
 void PipelineEndDetectorNode::start_end_pipeline_detection_callback(
@@ -85,14 +98,18 @@ void PipelineEndDetectorNode::detection_callback(
 
     if (msg->data > 0) {
         ++consecutive_detections_;
-        RCLCPP_DEBUG(get_logger(), "Consecutive detections: %d / %d",
+        RCLCPP_DEBUG(get_logger(), "Detection counter: %d / %d",
                      consecutive_detections_, detection_threshold_);
-    } else {
-        if (consecutive_detections_ > 0) {
-            RCLCPP_DEBUG(get_logger(),
-                         "Detection streak broken, resetting counter.");
-        }
-        consecutive_detections_ = 0;
+    } else if (consecutive_detections_ > 0) {
+        --consecutive_detections_;
+        RCLCPP_DEBUG(get_logger(), "No detection, decaying counter to %d.",
+                     consecutive_detections_);
+    }
+
+    if (debug_counter_pub_) {
+        std_msgs::msg::Int32 counter_msg;
+        counter_msg.data = consecutive_detections_;
+        debug_counter_pub_->publish(counter_msg);
     }
 
     if (consecutive_detections_ >= detection_threshold_) {

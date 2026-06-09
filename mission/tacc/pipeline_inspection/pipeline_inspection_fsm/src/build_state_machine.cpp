@@ -226,8 +226,19 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                  {{SUCCEED, SUCCEED}, {CANCEL, CANCEL}}}},
             std::unordered_set<std::string>{"WAIT_FOR_END_OF_PIPELINE"});
 
+    vortex::utils::waypoints::WaypointGoal origin_wp;
+    origin_wp.mode = vortex::utils::waypoints::WaypointMode::ONLY_POSITION;
+    origin_wp.convergence_threshold = 0.5;
+
+    auto return_to_origin = std::make_shared<SearchWaypointGoalState>(
+        config.waypoint_manager_action_server,
+        std::vector<vortex::utils::waypoints::WaypointGoal>{origin_wp});
+
     sm->add_state("PIPELINE_FOLLOWING", pipeline_following,
-                  {{SUCCEED, "DONE"}, {CANCEL, ABORT}, {ABORT, ABORT}});
+                  {{SUCCEED, "RETURN_TO_ORIGIN"}, {CANCEL, ABORT}, {ABORT, ABORT}});
+
+    sm->add_state("RETURN_TO_ORIGIN", return_to_origin,
+                  {{SUCCEED, "DONE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     sm->add_state(
         "DONE",

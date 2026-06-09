@@ -148,14 +148,14 @@ def _launch_setup(context, *args, **kwargs):
                 namespace=namespace,
                 parameters=[{
                     # Consecutive Class 1 detections required before declaring end of pipeline
-                    'detection_threshold': 10,
+                    'detection_threshold': 40,
                     # Delay (s) between the start_detection trigger and detection
                     # becoming active; lets the FSM enter pipeline following
                     # immediately while suppressing end detection for a settling
                     # window. 0 = activate now.
                     'activation_delay_sec': 30.0,
                     # Topic published by the end-of-pipeline classifier (std_msgs/UInt8)
-                    'topics.detection': '/pipeline_end_classification/turned_off',
+                    'topics.detection': '/pipeline_end_classification',
                     # FSM service called when the end of pipeline is reached
                     'topics.end_of_pipeline_service': 'pipeline_inspection_fsm/pipeline_finished',
                     # Service the FSM calls to activate detection on this node
@@ -189,24 +189,23 @@ def _launch_setup(context, *args, **kwargs):
             )
         )
 
-        # actions.append(
-        #     Node(
-        #         package='yolo_classify',
-        #         executable='classifier_node',
-        #         name='classifier_node',
-        #         namespace='yolo',
-        #         output='screen',
-        #         parameters=[{
-        #             'input_topic': '/pipeline/down_camera/segmentation_mask',
-        #             'model_path': classify_model_file_path,
-        #             'device': device,
-        #             'output_class_topic': '/pipeline_end_classification',
-        #             'imgsz': 640,
-        #             'verbose': False,
-        #         }],
-        #     )
-        # )
-
+    actions.append(
+        Node(
+            package='yolo_classify',
+            executable='classifier_node',
+            name='classifier_node',
+            namespace='yolo',
+            output='screen',
+            parameters=[{
+                'input_topic': '/pipeline/down_camera/segmentation_mask',
+                'model_path': classify_model_file_path,
+                'device': device,
+                'output_class_topic': '/pipeline_end_classification',
+                'imgsz': 640,
+                'verbose': False,
+            }],
+        )
+    )
     actions.append(
         Node(
             package='pipeline_line_fitting',
@@ -308,7 +307,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'classify_model_file_path',
-                default_value=os.path.join(pkg_dir, 'models', 'pipeline_end_classification.pt'),
+                default_value=os.path.join(pkg_dir, 'models', 'pipeline_end_detection_best_best.pt'),
                 description='Path to the YOLO classification model file.',
             ),
             DeclareLaunchArgument(

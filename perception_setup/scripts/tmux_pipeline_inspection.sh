@@ -65,11 +65,8 @@ tmux send-keys -t "$PANE_P1" "source install/setup.bash && ros2 launch perceptio
 PANE_P2=$(tmux split-window -h -t "$PANE_P1" -P -F '#{pane_id}')
 tmux send-keys -t "$PANE_P2" "source install/setup.bash && ros2 launch perception_setup pipeline_inspection_down_camera.launch.py$DOWN_ARGS" Enter
 
-PANE_P3=$(tmux split-window -v -t "$PANE_P1" -P -F '#{pane_id}')
-tmux send-keys -t "$PANE_P3" "source install/setup.bash && ros2 launch perception_setup bearing_localization.launch.py" Enter
-
-PANE_P4=$(tmux split-window -v -t "$PANE_P2" -P -F '#{pane_id}')
-tmux send-keys -t "$PANE_P4" "source install/setup.bash" Enter
+PANE_P3=$(tmux split-window -v -t "$PANE_P2" -P -F '#{pane_id}')
+tmux send-keys -t "$PANE_P3" "source install/setup.bash" Enter
 
 tmux select-layout -t "$SESSION:perception" tiled
 

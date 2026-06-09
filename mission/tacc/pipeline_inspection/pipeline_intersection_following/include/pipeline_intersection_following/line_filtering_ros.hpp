@@ -17,6 +17,7 @@
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/header.hpp>
+#include <std_msgs/msg/int32.hpp>
 #include <std_srvs/srv/trigger.hpp>
 
 #include <vortex_msgs/msg/line_segment2_d_array.hpp>
@@ -111,6 +112,7 @@ class LineFilteringNode : public rclcpp::Node {
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr
         line_intersection_pose_pub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr line_pose_pub_;
+    rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr termination_track_count_pub_;
 
     std::string target_frame_;
     std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;

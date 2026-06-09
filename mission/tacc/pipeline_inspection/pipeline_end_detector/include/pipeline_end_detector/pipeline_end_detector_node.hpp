@@ -1,6 +1,7 @@
 #pragma once
 
 #include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/int32.hpp>
 #include <std_msgs/msg/u_int8.hpp>
 #include <std_srvs/srv/trigger.hpp>
 
@@ -24,11 +25,18 @@ class PipelineEndDetectorNode : public rclcpp::Node {
     rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr detection_sub_;
     rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr end_of_pipeline_client_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr start_detection_server_;
+    rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr debug_counter_pub_;
     rclcpp::TimerBase::SharedPtr activation_timer_;  // one-shot delay before
                                                      // detection becomes active
 
-    int consecutive_detections_{0};  // number of consecutive Class 1 (end of
-                                     // pipeline) detections so far
+    bool debug_{false};  // when true, publishes the live detection counter on
+                         // 'topics.debug_counter' for plotting (e.g. rqt_plot,
+                         // PlotJuggler)
+
+    int consecutive_detections_{
+        0};  // running counter of Class 1 (end of pipeline) detections;
+             // increments on each detection and decays by one (floored at
+             // zero) on each non-detection
     int detection_threshold_;  // number of consecutive detections required to
                                // trigger the service call
     double activation_delay_sec_{
