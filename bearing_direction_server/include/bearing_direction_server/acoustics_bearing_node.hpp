@@ -3,13 +3,16 @@
 
 #include "bearing_direction_server/bearing_direction_base.hpp"
 
-#include <vortex_msgs/msg/bearing_measurement_array.hpp>
+#include <optional>
+#include <Eigen/Dense>
+#include <vortex_msgs/msg/bearing_measurement.hpp>
 
 namespace bearing_direction_server {
 
 /**
- * Subscribes to BearingMeasurementArray (acoustic pinger).
- * Rotates each direction vector into the odom frame via TF.
+ * Subscribes to BearingMeasurement (acoustic pinger).
+ * Rotates the direction vector into the odom frame via TF, then applies
+ * a weighted-average filter before committing to the base class buffer.
  */
 class AcousticsBearingNode : public BearingDirectionBase {
    public:
@@ -17,11 +20,20 @@ class AcousticsBearingNode : public BearingDirectionBase {
         const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
    private:
-    void bearing_callback(
-        const vortex_msgs::msg::BearingMeasurementArray::SharedPtr msg);
+    void on_collection_start() override { filter_ = FilterState{}; }
 
-    rclcpp::Subscription<vortex_msgs::msg::BearingMeasurementArray>::SharedPtr
+    void bearing_callback(
+        const vortex_msgs::msg::BearingMeasurement::SharedPtr msg);
+
+    rclcpp::Subscription<vortex_msgs::msg::BearingMeasurement>::SharedPtr
         bearing_sub_;
+
+    struct FilterState {
+        Eigen::Vector3d dir{0.0, 0.0, 0.0};
+        Eigen::Vector3d pos{0.0, 0.0, 0.0};
+        double weight{0.0};
+    };
+    FilterState filter_;
 };
 
 }  // namespace bearing_direction_server

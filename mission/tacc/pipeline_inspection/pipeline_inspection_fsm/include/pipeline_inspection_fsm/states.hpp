@@ -2,11 +2,13 @@
 #define PIPELINE_INSPECTION_FSM__STATES_HPP_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include <rclcpp/rclcpp.hpp>
 
+#include <geometry_msgs/msg/pose.hpp>
 #include <vortex/utils/waypoint_utils.hpp>
 #include <vortex_msgs/action/waypoint_manager.hpp>
 #include <vortex_msgs/msg/landmark.hpp>
@@ -18,6 +20,10 @@
 #include <yasmin_ros/basic_outcomes.hpp>
 
 #include <std_srvs/srv/trigger.hpp>
+
+// Shared pointer to the latest drone pose from odom — written by subscriber,
+// read by the STORE_ORIGIN state to snapshot the starting position.
+using LatestPose = std::shared_ptr<std::optional<geometry_msgs::msg::Pose>>;
 
 namespace pipeline_inspection_fsm {
 
@@ -36,6 +42,7 @@ struct StateMachineConfig {
     std::string start_end_pipeline_detection_service;
     std::string end_of_pipeline_service;
     std::string irls_line_detected_service;
+    std::string odom_topic;
     // Acoustic short collect (→ 3 m drive)
     double acoustic_short_timeout_sec{15.0};
     double acoustic_bearing_projection_distance{3.0};
@@ -89,6 +96,7 @@ std::shared_ptr<yasmin::Blackboard> initialize_blackboard(
 
 std::shared_ptr<yasmin::StateMachine> build_state_machine(
     const StateMachineConfig& config,
-    yasmin::Blackboard::SharedPtr blackboard);
+    yasmin::Blackboard::SharedPtr blackboard,
+    LatestPose latest_pose);
 
 #endif  // PIPELINE_INSPECTION_FSM__STATES_HPP_

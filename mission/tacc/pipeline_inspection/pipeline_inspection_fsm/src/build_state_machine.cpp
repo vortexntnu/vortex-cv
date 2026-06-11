@@ -25,7 +25,8 @@ using yasmin_ros::basic_outcomes::SUCCEED;
 
 std::shared_ptr<yasmin::StateMachine> build_state_machine(
     const StateMachineConfig& config,
-    yasmin::Blackboard::SharedPtr blackboard) {
+    yasmin::Blackboard::SharedPtr blackboard,
+    LatestPose latest_pose) {
     (void)blackboard;
 
     vortex_msgs::msg::LandmarkType pipeline_type;
@@ -69,11 +70,29 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
     auto sm = std::make_shared<yasmin::StateMachine>(
         std::set<std::string>{SUCCEED, ABORT});
 
+    // Snapshot the drone pose the moment the start-mission service is triggered.
+    auto store_origin = yasmin::CbState::make_shared(
+        yasmin::Outcomes{SUCCEED, ABORT},
+        [latest_pose](yasmin::Blackboard::SharedPtr bb) -> std::string {
+            if (!latest_pose || !*latest_pose) {
+                YASMIN_LOG_ERROR("STORE_ORIGIN: no odom received yet, cannot store origin pose");
+                return ABORT;
+            }
+            bb->set("origin_pose", **latest_pose);
+            const auto& p = (*latest_pose)->position;
+            YASMIN_LOG_INFO("STORE_ORIGIN: origin stored at [%.2f, %.2f, %.2f]",
+                            p.x, p.y, p.z);
+            return SUCCEED;
+        });
+
     sm->add_state(
         "WAIT_FOR_START",
         std::make_shared<vortex_yasmin_utils::ServiceTriggerWaitState>(
             config.start_mission_service),
-        {{SUCCEED, "WIPE"}, {CANCEL, ABORT}});
+        {{SUCCEED, "STORE_ORIGIN"}, {CANCEL, ABORT}});
+
+    sm->add_state("STORE_ORIGIN", store_origin,
+                  {{SUCCEED, "WIPE"}, {ABORT, ABORT}});
 
     if (config.start_above_pipe) {
         sm->add_state("WIPE", std::make_shared<vortex_yasmin_utils::WipeState>(),

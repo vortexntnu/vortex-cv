@@ -44,8 +44,18 @@ class BearingDirectionBase : public rclcpp::Node {
     // Call from subclass constructor after declaring subclass parameters.
     void setup_base();
 
-    // Subclasses call this for each direction vector already in odom frame.
-    void add_direction(const Eigen::Vector3d& dir_odom);
+    // Subclasses call this for each direction vector already in odom frame,
+    // along with the drone position at the time of measurement.
+    void add_direction(const Eigen::Vector3d& dir_odom, const Eigen::Vector3d& origin);
+
+    // Called under mutex_ just before collecting_ is set to true.
+    // Override in subclasses that maintain per-collection state (e.g. filters).
+    virtual void on_collection_start() {}
+
+    // Subclasses that run their own filter can set this to bypass the base
+    // class filtered_mean() and use their own final (dir, origin) instead.
+    // Cleared at the start of each collection.
+    std::optional<std::pair<Eigen::Vector3d, Eigen::Vector3d>> final_result_override_;
 
     // Rotate a direction vector from src_frame into target_frame_ via TF.
     std::optional<Eigen::Vector3d> rotate_to_odom(const Eigen::Vector3d& dir,
@@ -59,6 +69,7 @@ class BearingDirectionBase : public rclcpp::Node {
     // True while a goal is actively collecting — subclass callbacks check this.
     bool collecting_{false};
     std::mutex mutex_;
+    std::optional<geometry_msgs::msg::Point> latest_drone_pos_;
 
    private:
     void declare_base_parameters();
@@ -76,17 +87,18 @@ class BearingDirectionBase : public rclcpp::Node {
     static Eigen::Vector3d filtered_mean(const std::vector<Eigen::Vector3d>& dirs,
                                          double threshold_deg);
 
-    void publish_viz_markers(const std::vector<Eigen::Vector3d>& dirs,
-                              const std::optional<geometry_msgs::msg::Point>& drone_pos,
-                              const std::optional<Eigen::Vector3d>& final_dir,
-                              double distance);
+    void publish_viz_markers(
+        const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>& measurements,
+        const std::optional<geometry_msgs::msg::Point>& drone_pos,
+        const std::optional<Eigen::Vector3d>& final_dir,
+        double distance);
 
     rclcpp_action::Server<Action>::SharedPtr action_server_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_pub_;
 
-    std::vector<Eigen::Vector3d> accumulated_dirs_;
-    std::optional<geometry_msgs::msg::Point> latest_drone_pos_;
+    // Each entry is (origin, direction) in odom frame.
+    std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> accumulated_dirs_;
     std::optional<geometry_msgs::msg::Point> collection_start_pos_;
     double outlier_threshold_deg_{30.0};
 

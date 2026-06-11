@@ -61,10 +61,11 @@ void BearingDirectionBase::odom_callback(
     latest_drone_pos_ = msg->pose.pose.position;
 }
 
-void BearingDirectionBase::add_direction(const Eigen::Vector3d& dir_odom) {
+void BearingDirectionBase::add_direction(const Eigen::Vector3d& dir_odom,
+                                          const Eigen::Vector3d& origin) {
     std::lock_guard lock(mutex_);
     if (!collecting_) return;
-    accumulated_dirs_.push_back(dir_odom);
+    accumulated_dirs_.emplace_back(origin, dir_odom);
 }
 
 std::optional<Eigen::Vector3d> BearingDirectionBase::rotate_to_odom(
@@ -139,6 +140,8 @@ void BearingDirectionBase::execute(
         std::lock_guard lock(mutex_);
         accumulated_dirs_.clear();
         collection_start_pos_ = latest_drone_pos_;
+        final_result_override_ = std::nullopt;
+        on_collection_start();
         collecting_ = true;
     }
 
@@ -194,48 +197,56 @@ void BearingDirectionBase::execute(
     }
 
     // Snapshot state
-    std::vector<Eigen::Vector3d> dirs;
+    std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> measurements;
     {
         std::lock_guard lock(mutex_);
         collecting_ = false;
-        dirs = accumulated_dirs_;
+        measurements = accumulated_dirs_;
     }
+
+    std::vector<Eigen::Vector3d> dirs;
+    dirs.reserve(measurements.size());
+    for (const auto& [origin, dir] : measurements) dirs.push_back(dir);
 
     if (dirs.empty()) {
         spdlog::warn("BearingDirectionBase '{}': no measurements collected.",
                      get_name());
-        publish_viz_markers(dirs, collection_start_pos_, std::nullopt, goal->distance);
+        publish_viz_markers(measurements, collection_start_pos_, std::nullopt, goal->distance);
         result->success = false;
         goal_handle->succeed(result);
         return;
     }
 
-    const Eigen::Vector3d avg_dir =
-        filtered_mean(dirs, outlier_threshold_deg_);
+    // Subclasses (e.g. acoustics running-average filter) can inject the final
+    // direction+origin directly to bypass filtered_mean / avg_origin computation.
+    Eigen::Vector3d avg_dir;
+    Eigen::Vector3d avg_origin;
+    {
+        std::lock_guard lock(mutex_);
+        if (final_result_override_) {
+            avg_dir    = final_result_override_->first;
+            avg_origin = final_result_override_->second;
+        } else {
+            avg_dir = filtered_mean(dirs, outlier_threshold_deg_);
+            avg_origin = Eigen::Vector3d::Zero();
+            for (const auto& [origin, dir] : measurements) avg_origin += origin;
+            avg_origin /= static_cast<double>(measurements.size());
+        }
+    }
 
     if (static_cast<int32_t>(dirs.size()) < goal->min_measurements) {
         spdlog::warn(
             "BearingDirectionBase '{}': only {} measurements collected, need {}.",
             get_name(), dirs.size(), goal->min_measurements);
-        publish_viz_markers(dirs, collection_start_pos_, avg_dir, goal->distance);
+        publish_viz_markers(measurements, collection_start_pos_, avg_dir, goal->distance);
         result->success = false;
         goal_handle->succeed(result);
         return;
     }
 
-    // Build pose: position = collection_start_pos + avg_dir * distance
-    const double px = collection_start_pos_ ? collection_start_pos_->x : 0.0;
-    const double py = collection_start_pos_ ? collection_start_pos_->y : 0.0;
-    const double pz = collection_start_pos_ ? collection_start_pos_->z : 0.0;
-
-    if (!collection_start_pos_) {
-        spdlog::warn("BearingDirectionBase '{}': no odom yet, using origin.",
-                     get_name());
-    }
-
-    result->pose.position.x = px + avg_dir.x() * goal->distance;
-    result->pose.position.y = py + avg_dir.y() * goal->distance;
-    result->pose.position.z = pz + avg_dir.z() * goal->distance;
+    result->pose.position.x = avg_origin.x() + avg_dir.x() * goal->distance;
+    result->pose.position.y = avg_origin.y() + avg_dir.y() * goal->distance;
+    result->pose.position.z = avg_origin.z() + avg_dir.z() * goal->distance;
 
     // Orientation: yaw towards the target direction
     const double yaw = std::atan2(avg_dir.y(), avg_dir.x());
@@ -244,14 +255,19 @@ void BearingDirectionBase::execute(
 
     result->success = true;
 
-    publish_viz_markers(dirs, collection_start_pos_, avg_dir, goal->distance);
+    geometry_msgs::msg::Point avg_origin_pt;
+    avg_origin_pt.x = avg_origin.x();
+    avg_origin_pt.y = avg_origin.y();
+    avg_origin_pt.z = avg_origin.z();
+    publish_viz_markers(measurements, avg_origin_pt, avg_dir, goal->distance);
 
     spdlog::info(
-        "BearingDirectionBase '{}': {} measurements ({} after filtering), "
-        "avg_dir=[{:.3f},{:.3f},{:.3f}], waypoint=[{:.2f},{:.2f},{:.2f}]",
+        "BearingDirectionBase '{}': {} measurements, "
+        "avg_dir=[{:.3f},{:.3f},{:.3f}], avg_origin=[{:.2f},{:.2f},{:.2f}], "
+        "waypoint=[{:.2f},{:.2f},{:.2f}]",
         get_name(), dirs.size(),
-        static_cast<int>(dirs.size()),  // filtered count logged separately
         avg_dir.x(), avg_dir.y(), avg_dir.z(),
+        avg_origin.x(), avg_origin.y(), avg_origin.z(),
         result->pose.position.x, result->pose.position.y,
         result->pose.position.z);
 
@@ -293,7 +309,7 @@ Eigen::Vector3d BearingDirectionBase::filtered_mean(
 }
 
 void BearingDirectionBase::publish_viz_markers(
-    const std::vector<Eigen::Vector3d>& dirs,
+    const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>& measurements,
     const std::optional<geometry_msgs::msg::Point>& drone_pos,
     const std::optional<Eigen::Vector3d>& final_dir,
     double distance) {
@@ -303,15 +319,12 @@ void BearingDirectionBase::publish_viz_markers(
     del.action = visualization_msgs::msg::Marker::DELETEALL;
     array.markers.push_back(del);
 
-    const double ox = drone_pos ? drone_pos->x : 0.0;
-    const double oy = drone_pos ? drone_pos->y : 0.0;
-    const double oz = drone_pos ? drone_pos->z : 0.0;
     const rclcpp::Time stamp = now();
 
-    // Individual bearing ray arrows (blue)
+    // Individual bearing ray arrows (blue) — each originates from its own measurement position
     int id = 0;
     constexpr double ray_len = 3.0;
-    for (const auto& d : dirs) {
+    for (const auto& [origin, dir] : measurements) {
         visualization_msgs::msg::Marker arrow;
         arrow.header.stamp = stamp;
         arrow.header.frame_id = target_frame_;
@@ -326,20 +339,23 @@ void BearingDirectionBase::publish_viz_markers(
         arrow.color.g = 0.6f;
         arrow.color.b = 1.0f;
         arrow.color.a = 0.6f;
-        arrow.lifetime = rclcpp::Duration::from_seconds(0.0);  // persist
+        arrow.lifetime = rclcpp::Duration::from_seconds(0.0);
         geometry_msgs::msg::Point start, end;
-        start.x = ox; start.y = oy; start.z = oz;
-        end.x = ox + d.x() * ray_len;
-        end.y = oy + d.y() * ray_len;
-        end.z = oz + d.z() * ray_len;
+        start.x = origin.x(); start.y = origin.y(); start.z = origin.z();
+        end.x = origin.x() + dir.x() * ray_len;
+        end.y = origin.y() + dir.y() * ray_len;
+        end.z = origin.z() + dir.z() * ray_len;
         arrow.points.push_back(start);
         arrow.points.push_back(end);
         array.markers.push_back(arrow);
     }
 
-    // Final averaged direction arrow (orange) + target sphere
+    // Final averaged direction arrow (orange) + target sphere — from drone_pos (collection start)
     if (final_dir.has_value()) {
         const Eigen::Vector3d& fd = *final_dir;
+        const double ox = drone_pos ? drone_pos->x : 0.0;
+        const double oy = drone_pos ? drone_pos->y : 0.0;
+        const double oz = drone_pos ? drone_pos->z : 0.0;
 
         visualization_msgs::msg::Marker avg_arrow;
         avg_arrow.header.stamp = stamp;
@@ -355,7 +371,7 @@ void BearingDirectionBase::publish_viz_markers(
         avg_arrow.color.g = 0.5f;
         avg_arrow.color.b = 0.0f;
         avg_arrow.color.a = 1.0f;
-        avg_arrow.lifetime = rclcpp::Duration::from_seconds(0.0);  // persist
+        avg_arrow.lifetime = rclcpp::Duration::from_seconds(0.0);
         geometry_msgs::msg::Point start, end;
         start.x = ox; start.y = oy; start.z = oz;
         end.x = ox + fd.x() * distance;
@@ -383,7 +399,7 @@ void BearingDirectionBase::publish_viz_markers(
         sphere.color.g = 0.35f;
         sphere.color.b = 0.0f;
         sphere.color.a = 1.0f;
-        sphere.lifetime = rclcpp::Duration::from_seconds(0.0);  // persist
+        sphere.lifetime = rclcpp::Duration::from_seconds(0.0);
         array.markers.push_back(sphere);
     }
 

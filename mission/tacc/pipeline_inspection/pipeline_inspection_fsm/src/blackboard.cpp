@@ -54,6 +54,8 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         node->declare_parameter<std::string>("services.end_of_pipeline");
     config.irls_line_detected_service =
         node->declare_parameter<std::string>("services.irls_line_detected");
+    config.odom_topic =
+        node->declare_parameter<std::string>("topics.odom", "/nautilus/nucleus/odom");
     config.start_in_camera_range =
         node->declare_parameter<bool>("start_in_camera_range", false);
     config.start_above_pipe =

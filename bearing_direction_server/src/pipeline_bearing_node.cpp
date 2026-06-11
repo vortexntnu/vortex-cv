@@ -64,7 +64,15 @@ void PipelineBearingNode::pixel_callback(
         const auto dir_odom = rotate_to_odom(
             dir_cam.normalized(), cam_frame,
             rclcpp::Time(msg->header.stamp));
-        if (dir_odom) add_direction(*dir_odom);
+        if (dir_odom) {
+            Eigen::Vector3d pos = Eigen::Vector3d::Zero();
+            {
+                std::lock_guard lock(mutex_);
+                if (latest_drone_pos_)
+                    pos = Eigen::Vector3d(latest_drone_pos_->x, latest_drone_pos_->y, latest_drone_pos_->z);
+            }
+            add_direction(*dir_odom, pos);
+        }
     }
 }
 
