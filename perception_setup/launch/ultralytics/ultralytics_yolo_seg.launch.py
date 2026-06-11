@@ -9,7 +9,7 @@ Args (shared interface style):
 Segmentation-specific:
   output_bbox_topic, output_mask_topic, output_debug_topic,
   output_camera_info_topic, pub_bbox, pub_mask, pub_debug,
-  imgsz, confidence_threshold, max_detections, compile, verbose
+  imgsz, confidence_threshold, compile, verbose
 """
 
 import os
@@ -51,7 +51,6 @@ def _launch_setup(context, *args, **kwargs):
     output_mask_overlay_topic = LaunchConfiguration('output_mask_overlay_topic').perform(context)
     imgsz = int(LaunchConfiguration('imgsz').perform(context))
     confidence_threshold = float(LaunchConfiguration('confidence_threshold').perform(context))
-    max_detections = int(LaunchConfiguration('max_detections').perform(context))
     compile_model = LaunchConfiguration('compile').perform(context).lower() == 'true'
     verbose = LaunchConfiguration('verbose').perform(context).lower() == 'true'
 
@@ -78,7 +77,6 @@ def _launch_setup(context, *args, **kwargs):
             'device': device,
             'imgsz': imgsz,
             'confidence_threshold': confidence_threshold,
-            'max_detections': max_detections,
             'compile': compile_model,
             'verbose': verbose,
         }],
@@ -161,10 +159,6 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'confidence_threshold',
             default_value='0.3',
-        ),
-        DeclareLaunchArgument(
-            'max_detections',
-            default_value='1',
         ),
         DeclareLaunchArgument(
             'compile',

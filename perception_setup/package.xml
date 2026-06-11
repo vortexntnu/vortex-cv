@@ -5,6 +5,7 @@
   <version>0.0.0</version>
   <description>Launch package for perception</description>
   <maintainer email="jorgen.fjermedal@hotmail.com">jorgen</maintainer>
+  <maintainer email="89779148+kluge7@users.noreply.github.com">kluge7</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
@@ -30,6 +31,19 @@
   <exec_depend>gstreamer_from_ros</exec_depend>
   <exec_depend>gstreamer_to_ros</exec_depend>
   <exec_depend>vortex_cv_util_nodes</exec_depend>
+  <exec_depend>pipeline_intersection_following</exec_depend>
+  <exec_depend>pipeline_end_detector</exec_depend>
+  <exec_depend>yolo_segmentation</exec_depend>
+  <exec_depend>yolo_object_detection</exec_depend>
+  <exec_depend>yolo_classify</exec_depend>
+  <exec_depend>pipeline_line_fitting</exec_depend>
+  <exec_depend>bearing_direction_server</exec_depend>
+  <exec_depend>pipeline_image_endpoints_detector</exec_depend>
+  <exec_depend>pipeline_endpoint_position_estimator</exec_depend>
+  <exec_depend>pipeline_inspection_fsm</exec_depend>
+  <exec_depend>waypoint_manager</exec_depend>
+  <exec_depend>landmark_server</exec_depend>
+  <exec_depend>irls_line_trigger</exec_depend>
   <export>
     <build_type>ament_cmake</build_type>
   </export>

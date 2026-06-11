@@ -302,7 +302,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'seg_model_file_path',
-                default_value=os.path.join(pkg_dir, 'models', 'seg_down_with_aruco.pt'),
+                default_value=os.path.join(pkg_dir, 'models', 'yellowsylinder-only-sim-down-1-m.pt'),
                 description='Path to the YOLO segmentation model file.',
             ),
             DeclareLaunchArgument(
