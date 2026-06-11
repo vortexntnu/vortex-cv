@@ -115,6 +115,7 @@ class LineFilteringNode : public rclcpp::Node {
     rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr termination_track_count_pub_;
 
     std::string target_frame_;
+    std::string camera_frame_;
     std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
 
@@ -151,17 +152,13 @@ class LineFilteringNode : public rclcpp::Node {
     /**
      * @brief Emit a following waypoint toward (target_x, target_y).
      *
-     * If the bearing to the target differs from the current heading by more than
-     * realign_yaw_threshold_, first rotate in place (ONLY_ORIENTATION) to face
-     * the line; otherwise translate along it (FORWARD_HEADING). This avoids the
-     * curved path FORWARD_HEADING would take when the chosen outgoing line is far
-     * off the current heading (e.g. after the original outgoing line is lost and
-     * a new one is selected).
+     * Sends XY_AND_YAW with pipe_yaw derived from the track's endpoint pair so
+     * the vehicle faces along the pipe, not toward the endpoint. Lateral
+     * re-centering is handled by the DP controller's XY axis.
      *
-     * @return true if a translating (FORWARD_HEADING) waypoint was sent, false
-     *         if a rotation was issued instead.
+     * @return true (waypoint sent or skipped due to throttle).
      */
-    bool follow_toward(double target_x, double target_y);
+    bool follow_toward(double target_x, double target_y, double pipe_yaw);
     void get_track_by_yaw(Track& line_track);
     void termination_check();
 

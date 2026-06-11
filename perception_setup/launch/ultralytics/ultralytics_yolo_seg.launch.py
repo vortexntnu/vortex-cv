@@ -51,6 +51,7 @@ def _launch_setup(context, *args, **kwargs):
     output_mask_overlay_topic = LaunchConfiguration('output_mask_overlay_topic').perform(context)
     imgsz = int(LaunchConfiguration('imgsz').perform(context))
     confidence_threshold = float(LaunchConfiguration('confidence_threshold').perform(context))
+    iou = float(LaunchConfiguration('iou').perform(context))
     compile_model = LaunchConfiguration('compile').perform(context).lower() == 'true'
     verbose = LaunchConfiguration('verbose').perform(context).lower() == 'true'
 
@@ -77,6 +78,7 @@ def _launch_setup(context, *args, **kwargs):
             'device': device,
             'imgsz': imgsz,
             'confidence_threshold': confidence_threshold,
+            'iou': iou,
             'compile': compile_model,
             'verbose': verbose,
         }],
@@ -159,6 +161,10 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'confidence_threshold',
             default_value='0.3',
+        ),
+        DeclareLaunchArgument(
+            'iou',
+            default_value='0.7',
         ),
         DeclareLaunchArgument(
             'compile',

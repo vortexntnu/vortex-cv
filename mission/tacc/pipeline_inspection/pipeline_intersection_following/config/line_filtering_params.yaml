@@ -6,6 +6,7 @@ line_filtering_node:
     altitude_sub_topic: "/nautilus/dvl/altitude"
     odom_sub_topic: "/nautilus/odom"
     target_frame: "nautilus/odom"
+    camera_frame: "nautilus/downwards_camera_optical"
 
     # --- Outputs / mission control ---
     waypoint_service: "/nautilus/waypoint_addition"

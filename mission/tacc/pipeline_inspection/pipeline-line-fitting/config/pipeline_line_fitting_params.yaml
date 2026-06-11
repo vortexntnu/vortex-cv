@@ -5,15 +5,15 @@ pipeline_line_fitting_node:
     pose_array_pub_topic: "/line/pose_array"
     publish_visualization: true
 
-    morph_close_size: 20
+    morph_close_size: 30
     dist_thresh: 0.2
 
     #randsac__parameters:
-    n: 5                    # How many random points to choose to start each iteration
-    k: 500                  # Number of iterations to run
-    t: 50.0                 # Distance threshold to consider a point as an inlier
+    n: 2                    # Seed points per iteration (2 is correct for a line)
+    k: 200                  # Iterations: log(1-0.999)/log(1-0.25) ≈ 24 at 50% outliers
+    t: 9.0                  # Inlier threshold (sqrt(9)=3px in 200px space, tight for skeleton)
     fracOfPoints: 0.001     # Fraction of points to be considered as inliers
-    removeT: 1000.0         # Threshold to remove points after a line is detected
-    finalScorethresh: 65.0  # Final score threshold to accept a line
-    minTurnAngle: 1.5       # Minimum turning angle to consider a line
+    removeT: 50.0           # Strip radius after line 1 (sqrt(50)≈7px, ~half pipe width)
+    finalScorethresh: 35.0  # Minimum inlier count to accept a line
+    minTurnAngle: 0.0       # Set to 0 to disable; intersection-within-image test handles duplicate-pipe rejection
     size: 200               # Size of the sample points

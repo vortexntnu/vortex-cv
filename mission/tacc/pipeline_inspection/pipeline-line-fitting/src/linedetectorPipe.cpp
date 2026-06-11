@@ -151,6 +151,28 @@ std::vector<Line> LinedetectorPipe::detect(const cv::Mat& img,
 
     std::vector<Line> lines;
 
+    // Returns true if `candidate` intersects all lines in `lines` within the
+    // image frame. Two segments of the same pipe are parallel/collinear and
+    // their intersection lies far outside the image. A genuine junction arm
+    // meets the pipe at the junction point which must be visible in frame.
+    auto intersects_in_frame = [&](const Line& candidate) -> bool {
+        for (const auto& prev : lines) {
+            double ax = prev.start.x * scaleX_, ay = prev.start.y * scaleY_;
+            double bx = prev.end.x  * scaleX_, by = prev.end.y  * scaleY_;
+            double cx = candidate.start.x * scaleX_, cy = candidate.start.y * scaleY_;
+            double ex = candidate.end.x   * scaleX_, ey = candidate.end.y   * scaleY_;
+            // General form ax+by+c=0 for each line.
+            double p1 = -(by-ay), q1 = bx-ax, r1 = (by-ay)*ax - (bx-ax)*ay;
+            double p2 = -(ey-cy), q2 = ex-cx, r2 = (ey-cy)*cx - (ex-cx)*cy;
+            double det = p1*q2 - p2*q1;
+            if (std::abs(det) < 1e-6) return false;  // parallel → same pipe
+            double xi = (-r1*q2 + r2*q1) / det;
+            double yi = (-r2*p1 + r1*p2) / det;
+            if (xi < 0.0 || xi > size_ || yi < 0.0 || yi > size_) return false;
+        }
+        return true;
+    };
+
     for (int i = 0; i < maxLines; ++i) {
         int returnCode = detectSingleLine(points, values, lines, i);
         Line line;
@@ -180,6 +202,13 @@ std::vector<Line> LinedetectorPipe::detect(const cv::Mat& img,
             line = Line{randsac_.bestFit.params[1], randsac_.bestFit.params[0],
                         randsac_.bestScore};
             getEndPoints(line);
+        }
+
+        // For second+ lines: reject if intersection with previous lines is
+        // outside the image frame (same pipe with segmentation gap, not a
+        // genuine junction arm).
+        if (i > 0 && !intersects_in_frame(line)) {
+            continue;
         }
 
         // Remove points for next iteration

@@ -185,6 +185,8 @@ def _launch_setup(context, *args, **kwargs):
                     'device': device,
                     'pub_debug': visualize,
                     'pub_mask_overlay': 'true',
+                    'confidence_threshold': '0.2', # TODO Tune this
+                    'iou': '1.0', # Treats it as semantic segmentation, we dont care about multiple instances
                 }.items(),
             )
         )
@@ -211,12 +213,18 @@ def _launch_setup(context, *args, **kwargs):
             package='pipeline_line_fitting',
             executable='pipeline_line_fitting_node',
             name='pipeline_line_fitting_node',
-            parameters=[{
-                'image_sub_topic': '/pipeline/down_camera/segmentation_mask',
-                'image_visualization_pub_topic': '/pipeline/down_camera/line_fitting_debug',
-                'lines_pub_topic': '/irls_line/lines',
-                'publish_visualization': True,
-            }],
+            parameters=[
+                os.path.join(
+                    get_package_share_directory('pipeline_line_fitting'),
+                    'config', 'pipeline_line_fitting_params.yaml',
+                ),
+                {
+                    'image_sub_topic': '/pipeline/down_camera/segmentation_mask',
+                    'image_visualization_pub_topic': '/pipeline/down_camera/line_fitting_debug',
+                    'lines_pub_topic': '/irls_line/lines',
+                    'publish_visualization': True,
+                },
+            ],
             output='screen',
         )
     )

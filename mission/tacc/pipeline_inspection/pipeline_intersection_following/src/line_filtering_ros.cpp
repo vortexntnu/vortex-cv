@@ -41,6 +41,8 @@ LineFilteringNode::LineFilteringNode() : Node("line_filtering_node") {
 
     target_frame_ =
         this->declare_parameter<std::string>("target_frame", "nautilus/odom");
+    camera_frame_ = this->declare_parameter<std::string>(
+        "camera_frame", "nautilus/downwards_camera_optical");
     auto lines_sub_topic = this->declare_parameter<std::string>(
         "lines_sub_topic", "/irls_line/lines");
     auto camera_info_sub_topic = this->declare_parameter<std::string>(
@@ -548,18 +550,17 @@ void LineFilteringNode::publish_intersection() {
         used_line_intersections_.push_back(LineIntersection{
             ix, iy, int_track.id1, int_track.id2, int_track.line_points});
 
-        // Two priority waypoints for the junction:
-        //   1. Translate to the intersection while heading forward.
-        //   2. Rotate in place to align with the outgoing line.
-        auto wp_translate = make_waypoint(
-            ix, iy, 0.0, vortex_msgs::msg::WaypointMode::FORWARD_HEADING);
-        auto wp_align =
+        // Single priority waypoint: drive to the junction XY while rotating to
+        // the outgoing heading simultaneously. XY_AND_YAW uses
+        // current_yaw + ssa(next_line_yaw - current_yaw) so the orientation
+        // target is always the short-path turn, with no bearing-to-target
+        // computation that could flip 180° when the nominal pose has already
+        // passed the junction.
+        auto wp_junction =
             make_waypoint(ix, iy, next_line_yaw_,
-                          vortex_msgs::msg::WaypointMode::ONLY_ORIENTATION);
+                          vortex_msgs::msg::WaypointMode::XY_AND_YAW);
 
-        enqueue_waypoint(wp_translate, /*overwrite_prior=*/true,
-                         /*take_priority=*/true, switching_threshold_);
-        enqueue_waypoint(wp_align, /*overwrite_prior=*/false,
+        enqueue_waypoint(wp_junction, /*overwrite_prior=*/true,
                          /*take_priority=*/true, switching_threshold_);
 
         // Remove so not used again
@@ -822,46 +823,39 @@ int LineFilteringNode::get_track_by_id(Track& line_track, int id) {
     return -1;
 }
 
-bool LineFilteringNode::follow_toward(double target_x, double target_y) {
+bool LineFilteringNode::follow_toward(double target_x, double target_y,
+                                       double pipe_yaw) {
     // Current heading.
     tf2::Quaternion q(orca_pose_.orientation.x, orca_pose_.orientation.y,
                       orca_pose_.orientation.z, orca_pose_.orientation.w);
     double roll, pitch, yaw;
     tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
 
-    // Bearing from the vehicle to the target endpoint.
-    // NOTE: do NOT overwrite next_line_yaw_ here. next_line_yaw_ holds the
-    // junction's intended outgoing-line direction (set in set_next_line) and is
-    // used by get_track_by_yaw to recover the correct line if its track flickers.
-    // Clobbering it with the per-cycle bearing made recovery lock onto the wrong
-    // (incoming) line after a junction.
-    const double desired_yaw = std::atan2(target_y - orca_pose_.position.y,
-                                          target_x - orca_pose_.position.x);
-
     const double heading_err = std::fabs(
-        std::atan2(std::sin(desired_yaw - yaw), std::cos(desired_yaw - yaw)));
+        std::atan2(std::sin(pipe_yaw - yaw), std::cos(pipe_yaw - yaw)));
 
-    dlog("FOLLOW: target=(%.2f,%.2f) desired_yaw=%.1fdeg cur_yaw=%.1fdeg "
+    dlog("FOLLOW: target=(%.2f,%.2f) pipe_yaw=%.1fdeg cur_yaw=%.1fdeg "
          "err=%.1fdeg",
-         target_x, target_y, desired_yaw * 180.0 / M_PI, yaw * 180.0 / M_PI,
+         target_x, target_y, pipe_yaw * 180.0 / M_PI, yaw * 180.0 / M_PI,
          heading_err * 180.0 / M_PI);
 
-    // Always drive with FORWARD_HEADING: the controller turns toward the target
-    // while translating, which handles corners quickly. (A standalone
-    // ONLY_ORIENTATION "rotate in place first" barely turns the vehicle ~0.1
-    // deg/cycle and stalls at junctions, so it is intentionally not used here.)
-    //
-    // Throttle the resend: skip if the target has not moved enough, so we don't
-    // wipe the manager queue / reset the reference filter every cycle. Force one
-    // through after max_resend_skips_ consecutive skips.
+    // Throttle the resend: skip if neither target XY nor pipe yaw has changed
+    // enough, so we don't wipe the manager queue / reset the reference filter
+    // every cycle. Force one through after max_resend_skips_ consecutive skips.
     if (have_prev_wp_) {
         const double moved = std::hypot(target_x - prev_wp_x_,
                                         target_y - prev_wp_y_);
-        if (moved < min_wp_dist_) {
+        const double yaw_delta = std::fabs(std::atan2(
+            std::sin(pipe_yaw - prev_wp_yaw_),
+            std::cos(pipe_yaw - prev_wp_yaw_)));
+        if (moved < min_wp_dist_ && yaw_delta < min_wp_yaw_) {
             if (++wp_skip_count_ < max_resend_skips_) {
-                dlog("FOLLOW: FORWARD skipped (moved=%.2f < %.2f, skip %d/%d)",
-                     moved, min_wp_dist_, wp_skip_count_, max_resend_skips_);
-                return true;  // treat as still-following toward the same target
+                dlog("FOLLOW: skipped (moved=%.2f<%.2f yaw_delta=%.1fdeg<%.1fdeg "
+                     "skip %d/%d)",
+                     moved, min_wp_dist_, yaw_delta * 180.0 / M_PI,
+                     min_wp_yaw_ * 180.0 / M_PI, wp_skip_count_,
+                     max_resend_skips_);
+                return true;
             }
             wp_skip_count_ = 0;
         } else {
@@ -869,15 +863,19 @@ bool LineFilteringNode::follow_toward(double target_x, double target_y) {
         }
     }
 
-    dlog("FOLLOW: SEND FORWARD_HEADING to (%.2f,%.2f)", target_x, target_y);
-    auto wp = make_waypoint(target_x, target_y, 0.0,
-                            vortex_msgs::msg::WaypointMode::FORWARD_HEADING);
+    // XY_AND_YAW: move to the far pipe endpoint while holding heading along
+    // the pipe direction. This keeps the drone aligned with the pipe rather
+    // than angling toward the endpoint when laterally offset.
+    dlog("FOLLOW: SEND XY_AND_YAW to (%.2f,%.2f) pipe_yaw=%.1fdeg",
+         target_x, target_y, pipe_yaw * 180.0 / M_PI);
+    auto wp = make_waypoint(target_x, target_y, pipe_yaw,
+                            vortex_msgs::msg::WaypointMode::XY_AND_YAW);
     enqueue_waypoint(wp, /*overwrite_prior=*/true, /*take_priority=*/false,
                      switching_threshold_);
     prev_wp_x_ = target_x;
     prev_wp_y_ = target_y;
-    prev_wp_yaw_ = desired_yaw;
-    prev_wp_mode_ = vortex_msgs::msg::WaypointMode::FORWARD_HEADING;
+    prev_wp_yaw_ = pipe_yaw;
+    prev_wp_mode_ = vortex_msgs::msg::WaypointMode::XY_AND_YAW;
     have_prev_wp_ = true;
     return true;
 }
@@ -1007,10 +1005,20 @@ void LineFilteringNode::find_and_publish_initial_waypoint() {
         current_line_id_counter_ = 0;
     }
 
-    dlog("INITIAL_WP: chosen_line=%d robotBetween=%d -> endpoint=(%.2f,%.2f)",
-         chosen_track.id, robotBetween ? 1 : 0, chosen_x, chosen_y);
-    // Drive toward the chosen endpoint, rotating to face it first if needed.
-    follow_toward(chosen_x, chosen_y);
+    // Pipe direction: from A→B or B→A, whichever points toward chosen endpoint.
+    double dir_x = bx - ax;
+    double dir_y = by - ay;
+    if (dir_x * (chosen_x - rx) + dir_y * (chosen_y - ry) < 0.0) {
+        dir_x = -dir_x;
+        dir_y = -dir_y;
+    }
+    const double pipe_yaw = std::atan2(dir_y, dir_x);
+
+    dlog("INITIAL_WP: chosen_line=%d robotBetween=%d -> endpoint=(%.2f,%.2f) "
+         "pipe_yaw=%.1fdeg",
+         chosen_track.id, robotBetween ? 1 : 0, chosen_x, chosen_y,
+         pipe_yaw * 180.0 / M_PI);
+    follow_toward(chosen_x, chosen_y, pipe_yaw);
 
     geometry_msgs::msg::PointStamped chosen_point;
     chosen_point.header.stamp = this->now();
@@ -1076,15 +1084,40 @@ void LineFilteringNode::publish_waypoint() {
         chosen_y = next_line_p2(1);
     }
 
-    dlog("PUB_WP: next_line=%d endpoints p1=(%.2f,%.2f) p2=(%.2f,%.2f) "
-         "junction=(%.2f,%.2f) -> far endpoint=(%.2f,%.2f)",
-         next_line.id, next_line_p1(0), next_line_p1(1), next_line_p2(0),
-         next_line_p2(1), intersection.x, intersection.y, chosen_x, chosen_y);
+    // Pipe direction: from the near (junction-side) endpoint toward the far one.
+    Eigen::Vector2d near_ep = (distance1 > distance2) ? next_line_p2 : next_line_p1;
+    const double pipe_yaw = std::atan2(chosen_y - near_ep(1),
+                                       chosen_x - near_ep(0));
 
-    // Rotate to face the (possibly newly chosen) outgoing line before driving
-    // forward, so a re-selected line far off the current heading does not
-    // produce a curved approach.
-    follow_toward(chosen_x, chosen_y);
+    dlog("PUB_WP: next_line=%d endpoints p1=(%.2f,%.2f) p2=(%.2f,%.2f) "
+         "junction=(%.2f,%.2f) -> far endpoint=(%.2f,%.2f) pipe_yaw=%.1fdeg",
+         next_line.id, next_line_p1(0), next_line_p1(1), next_line_p2(0),
+         next_line_p2(1), intersection.x, intersection.y, chosen_x, chosen_y,
+         pipe_yaw * 180.0 / M_PI);
+
+    // The pipe endpoint (chosen_x, chosen_y) is in odom. The reference filter
+    // drives baselink, but the pipe is detected by the downward camera which has
+    // a horizontal offset from baselink. Shift the target so that the camera —
+    // not baselink — ends up centred above the pipe.
+    double follow_x = chosen_x;
+    double follow_y = chosen_y;
+    try {
+        geometry_msgs::msg::TransformStamped cam_tf =
+            tf2_buffer_->lookupTransform(target_frame_, camera_frame_,
+                                         tf2::TimePointZero);
+        double cam_offset_x =
+            cam_tf.transform.translation.x - orca_pose_.position.x;
+        double cam_offset_y =
+            cam_tf.transform.translation.y - orca_pose_.position.y;
+        follow_x = chosen_x - cam_offset_x;
+        follow_y = chosen_y - cam_offset_y;
+        dlog("PUB_WP: cam offset (%.3f, %.3f) -> adjusted target (%.2f, %.2f)",
+             cam_offset_x, cam_offset_y, follow_x, follow_y);
+    } catch (const tf2::TransformException& ex) {
+        dlog("PUB_WP: camera TF lookup failed (%s), using raw endpoint", ex.what());
+    }
+
+    follow_toward(follow_x, follow_y, pipe_yaw);
 
     geometry_msgs::msg::PointStamped line_point;
     line_point.header.frame_id = target_frame_;
@@ -1106,26 +1139,56 @@ void LineFilteringNode::publish_waypoint() {
 }
 
 void LineFilteringNode::get_track_by_yaw(Track& line_track) {
-    double prev_yaw = next_line_yaw_;
-    double min_diff = std::numeric_limits<double>::max();
-    for (const auto& track : line_tracker_.get_tracks()) {
-        if (!track.confirmed) {
-            continue;
+    constexpr double kMaxYawDiff = M_PI / 4.0;  // 45 deg
+
+    // After a corner the vehicle has already rotated toward the outgoing pipe,
+    // so the vehicle's current heading is a better reference than next_line_yaw_
+    // (which was estimated from noisy junction geometry and can be 20-50° off).
+    tf2::Quaternion q(orca_pose_.orientation.x, orca_pose_.orientation.y,
+                      orca_pose_.orientation.z, orca_pose_.orientation.w);
+    double roll, pitch, vehicle_yaw;
+    tf2::Matrix3x3(q).getRPY(roll, pitch, vehicle_yaw);
+
+    auto best_by_yaw = [&](bool confirmed_only) -> std::pair<double, Track> {
+        double min_diff = std::numeric_limits<double>::max();
+        Track best{};
+        for (const auto& track : line_tracker_.get_tracks()) {
+            if (confirmed_only && !track.confirmed) continue;
+            if (!confirmed_only && track.confirmed) continue;
+            Eigen::Vector2d a = track.line_points.col(0);
+            Eigen::Vector2d b = track.line_points.col(1);
+            double angle = std::atan2(b(1) - a(1), b(0) - a(0));
+            double diff = std::fmod(std::fabs(angle - vehicle_yaw), M_PI);
+            if (diff > M_PI / 2.0) diff = M_PI - diff;
+            if (diff < min_diff) { min_diff = diff; best = track; }
         }
-        Eigen::Vector2d a = track.line_points.col(0);
-        Eigen::Vector2d b = track.line_points.col(1);
-        double angle = std::atan2(b(1) - a(1), b(0) - a(0));
-        // Lines are undirected -> compare orientation modulo pi so the
-        // detector's endpoint ordering can't flip the match.
-        double diff = std::fmod(std::fabs(angle - prev_yaw), M_PI);
-        if (diff > M_PI / 2.0) {
-            diff = M_PI - diff;
-        }
-        if (diff < min_diff) {
-            min_diff = diff;
-            line_track = track;
-        }
+        return {min_diff, best};
+    };
+
+    // First pass: confirmed tracks (prevents picking the incoming line, which
+    // stays confirmed for several cycles after the junction).
+    auto [cdiff, cbest] = best_by_yaw(true);
+    if (cdiff <= kMaxYawDiff) {
+        line_track = cbest;
+        return;
     }
+
+    // Second pass: unconfirmed tracks, still gated by the same angle threshold.
+    // After a corner the outgoing line track is often deleted during the turn
+    // and its replacement takes a few cycles to confirm; allowing unconfirmed
+    // here prevents the multi-second gap in waypoint output while it reconverges.
+    auto [udiff, ubest] = best_by_yaw(false);
+    if (udiff <= kMaxYawDiff) {
+        dlog("GET_TRACK_YAW: no confirmed match; using unconfirmed id=%d diff=%.1fdeg",
+             ubest.id, udiff * 180.0 / M_PI);
+        line_track = ubest;
+        return;
+    }
+
+    dlog("GET_TRACK_YAW: best match diff=%.1f deg > threshold %.1f deg (vehicle_yaw=%.1fdeg) -> hold",
+         std::min(cdiff, udiff) * 180.0 / M_PI, kMaxYawDiff * 180.0 / M_PI,
+         vehicle_yaw * 180.0 / M_PI);
+    line_track = Track{};
 }
 
 void LineFilteringNode::termination_check() {

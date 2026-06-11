@@ -82,7 +82,7 @@ PANE_A2=$(tmux split-window -h -t "$PANE_A1" -P -F '#{pane_id}')
 tmux send-keys -t "$PANE_A2" "source install/setup.bash && ros2 launch landmark_server landmark_server.launch.py" Enter
 
 PANE_A3=$(tmux split-window -v -t "$PANE_A1" -P -F '#{pane_id}')
-tmux send-keys -t "$PANE_A3" "source install/setup.bash && ros2 launch perception_setup pipeline_inspection_fsm.launch.py" Enter
+tmux send-keys -t "$PANE_A3" "source install/setup.bash && ros2 launch perception_setup pipeline_inspection_fsm.launch.py start_above_pipe:=false" Enter
 
 PANE_A4=$(tmux split-window -v -t "$PANE_A2" -P -F '#{pane_id}')
 tmux send-keys -t "$PANE_A4" "source install/setup.bash" Enter
