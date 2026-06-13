@@ -467,10 +467,10 @@ void ValvePoseNode::publish_box_colormap(
 
     cv::Mat colormap = build_depth_colormap(depth);
 
-    const float scale = (color_props_.intr.fx > 0.0)
-                            ? static_cast<float>(depth_props_.intr.fx /
-                                                 color_props_.intr.fx)
-                            : 1.0f;
+    const float scale =
+        (color_props_.intr.fx > 0.0)
+            ? static_cast<float>(depth_props_.intr.fx / color_props_.intr.fx)
+            : 1.0f;
 
     auto draw_box = [&](const BoundingBox& box, const cv::Scalar& color) {
         const int u_d = std::clamp(static_cast<int>(box.center_x * scale), 0,
@@ -478,8 +478,7 @@ void ValvePoseNode::publish_box_colormap(
         const int v_d = std::clamp(static_cast<int>(box.center_y * scale), 0,
                                    depth_img.rows - 1);
         const float Z = depth_img.at<float>(v_d, u_d);
-        const float Z_color =
-            (std::isfinite(Z) && Z > 0.0f) ? Z : 1.0f;
+        const float Z_color = (std::isfinite(Z) && Z > 0.0f) ? Z : 1.0f;
 
         const float angle_deg = box.theta * 180.0f / static_cast<float>(M_PI);
         cv::RotatedRect rrect(cv::Point2f(box.center_x, box.center_y),
@@ -495,9 +494,9 @@ void ValvePoseNode::publish_box_colormap(
     };
 
     for (const auto& v : valve_boxes)
-        draw_box(v, cv::Scalar(0, 255, 0));     // green
+        draw_box(v, cv::Scalar(0, 255, 0));  // green
     for (const auto& h : handle_boxes)
-        draw_box(h, cv::Scalar(0, 165, 255));   // orange
+        draw_box(h, cv::Scalar(0, 165, 255));  // orange
 
     depth_colormap_pub_->publish(
         *cv_bridge::CvImage(depth->header, "bgr8", colormap).toImageMsg());

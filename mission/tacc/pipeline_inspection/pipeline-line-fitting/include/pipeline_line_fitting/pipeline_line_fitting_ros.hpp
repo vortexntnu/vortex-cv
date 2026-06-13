@@ -19,7 +19,8 @@ class PipelineLineFittingNode : public rclcpp::Node {
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr imageSub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr
         imageVisualizationPub_;
-    rclcpp::Publisher<vortex_msgs::msg::LineSegment2DArray>::SharedPtr linesPub_;
+    rclcpp::Publisher<vortex_msgs::msg::LineSegment2DArray>::SharedPtr
+        linesPub_;
 
     LinedetectorPipe pipeline_;
     bool publishVisualization_;

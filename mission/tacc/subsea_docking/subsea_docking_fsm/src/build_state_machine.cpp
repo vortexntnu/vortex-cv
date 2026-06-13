@@ -11,13 +11,13 @@
 #include <yasmin_ros/basic_outcomes.hpp>
 #include <yasmin_ros/ros_logs.hpp>
 
-#include <vortex_yasmin_utils/bearing_waypoint_state.hpp>
-#include <vortex_yasmin_utils/collect_bearing_direction_state.hpp>
 #include <vortex_msgs/msg/landmark_subtype.hpp>
 #include <vortex_msgs/msg/landmark_type.hpp>
 #include <vortex_msgs/msg/waypoint.hpp>
 #include <vortex_msgs/msg/waypoint_mode.hpp>
 #include <vortex_msgs/srv/send_pose.hpp>
+#include <vortex_yasmin_utils/bearing_waypoint_state.hpp>
+#include <vortex_yasmin_utils/collect_bearing_direction_state.hpp>
 
 #include <spdlog/spdlog.h>
 #include <std_srvs/srv/trigger.hpp>
@@ -126,7 +126,6 @@ class SearchPoseWaypointState : public vortex_yasmin_utils::WaypointGoalState {
    private:
     double convergence_threshold_;
 };
-
 
 std::shared_ptr<yasmin::StateMachine> build_state_machine(
     const StateMachineConfig& config,

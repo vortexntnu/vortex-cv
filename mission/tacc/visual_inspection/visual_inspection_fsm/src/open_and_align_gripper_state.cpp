@@ -51,7 +51,7 @@ valve_inspection_fsm::GripperAction::Goal OpenAndAlignGripperState::create_goal(
     computed_roll_ = std::abs(
         yaw);  // std::clamp(M_PI / 2.0 - std::abs(yaw), 0.0, M_PI / 2.0);
 
-    computed_roll_ = M_PI/2.0;
+    computed_roll_ = M_PI / 2.0;
 
     YASMIN_LOG_INFO(
         "OpenAndAlignGripper: valve yaw=%.4f rad, gripper roll → %.4f rad", yaw,

@@ -19,7 +19,11 @@ from auv_setup.launch_arg_common import (
     resolve_drone_and_namespace,
 )
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import (
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+)
 from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
@@ -34,15 +38,25 @@ def _launch_setup(context, *args, **kwargs):
     drone, namespace = resolve_drone_and_namespace(context)
     bearing_dir_config = os.path.join(
         get_package_share_directory('bearing_direction_server'),
-        'config', 'bearing_direction_server.yaml',
+        'config',
+        'bearing_direction_server.yaml',
     )
 
-    with open(os.path.join(
-        get_package_share_directory('auv_setup'), 'config', 'robots', f'{drone}.yaml',
-    )) as f:
+    with open(
+        os.path.join(
+            get_package_share_directory('auv_setup'),
+            'config',
+            'robots',
+            f'{drone}.yaml',
+        )
+    ) as f:
         robot_topics = yaml.safe_load(f)['/**']['ros__parameters']['topics']
-    enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
-    use_nvidia = LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
+    enable_gstreamer = (
+        LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
+    )
+    use_nvidia = (
+        LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
+    )
     destination_ip = LaunchConfiguration('destination_ip').perform(context)
     destination_port = int(LaunchConfiguration('destination_port').perform(context))
 
@@ -61,29 +75,33 @@ def _launch_setup(context, *args, **kwargs):
             package='pipeline_image_endpoints_detector',
             plugin='pipeline_image_endpoints_detector::DetectorNode',
             name='pipeline_image_endpoints',
-            parameters=[{
-                'morph_kernel_size': 5,
-                'detection_method': 'lowest_pixel',
-                'input_topic': '/pipeline/front_camera/segmentation_mask',
-                'output_topic': '/pipeline/image_endpoints',
-                'debug_topic': '/pipeline/image_endpoints/debug_image',
-                'debug': True,
-            }],
+            parameters=[
+                {
+                    'morph_kernel_size': 5,
+                    'detection_method': 'lowest_pixel',
+                    'input_topic': '/pipeline/front_camera/segmentation_mask',
+                    'output_topic': '/pipeline/image_endpoints',
+                    'debug_topic': '/pipeline/image_endpoints/debug_image',
+                    'debug': True,
+                }
+            ],
         ),
         ComposableNode(
             package='pipeline_endpoint_position_estimator',
             plugin='pipeline_endpoint_position_estimator::PositionEstimatorNode',
             name='pipeline_position_estimator',
-            parameters=[{
-                'endpoints_topic': '/pipeline/image_endpoints',
-                'dvl_altitude_topic': f'/{namespace}/{robot_topics["dvl_altitude"]}',
-                'camera_info_topic': '/pipeline/front_camera/camera_info',
-                'publish_topic': f'/{namespace}/{robot_topics["landmarks"]}',
-                'transform_timeout_ms': 100,
-                'apply_undistortion': True,
-                'distance_buffer': 1.0,
-                'reference_frame': f'{namespace}/odom',
-            }],
+            parameters=[
+                {
+                    'endpoints_topic': '/pipeline/image_endpoints',
+                    'dvl_altitude_topic': f'/{namespace}/{robot_topics["dvl_altitude"]}',
+                    'camera_info_topic': '/pipeline/front_camera/camera_info',
+                    'publish_topic': f'/{namespace}/{robot_topics["landmarks"]}',
+                    'transform_timeout_ms': 100,
+                    'apply_undistortion': True,
+                    'distance_buffer': 1.0,
+                    'reference_frame': f'{namespace}/odom',
+                }
+            ],
         ),
     ]
 
@@ -93,20 +111,22 @@ def _launch_setup(context, *args, **kwargs):
                 package='gstreamer_from_ros',
                 plugin='gstreamer_from_ros::GStreamerFromRos',
                 name='gstreamer_from_ros_node',
-                parameters=[{
-                    'input_topic': _SEG_DEBUG_IMAGE_TOPIC,
-                    'destination_ip': destination_ip,
-                    'destination_port': destination_port,
-                    'bitrate': 500000,
-                    'expected_input_fps': 15,
-                    'preset_level': 1,
-                    'iframe_interval': 15,
-                    'control_rate': 1,
-                    'pt': 96,
-                    'config_interval': 1,
-                    'input_format': 'RGB',
-                    'hw_encoder': use_nvidia,
-                }],
+                parameters=[
+                    {
+                        'input_topic': _SEG_DEBUG_IMAGE_TOPIC,
+                        'destination_ip': destination_ip,
+                        'destination_port': destination_port,
+                        'bitrate': 500000,
+                        'expected_input_fps': 15,
+                        'preset_level': 1,
+                        'iframe_interval': 15,
+                        'control_rate': 1,
+                        'pt': 96,
+                        'config_interval': 1,
+                        'input_format': 'RGB',
+                        'hw_encoder': use_nvidia,
+                    }
+                ],
                 extra_arguments=[{'use_intra_process_comms': True}],
             )
         )
@@ -229,7 +249,9 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'model_file_path',
-                default_value=os.path.join(pkg_dir, 'models', 'yolo26l_sim_and_real.pt'),
+                default_value=os.path.join(
+                    pkg_dir, 'models', 'yolo26l_sim_and_real.pt'
+                ),
                 description='Path to the YOLO segmentation model file.',
             ),
             DeclareLaunchArgument(
@@ -247,7 +269,9 @@ def generate_launch_description():
                 PythonLaunchDescriptionSource(
                     os.path.join(
                         get_package_share_directory('perception_setup'),
-                        'launch', 'cameras', 'realsense_d555.launch.py',
+                        'launch',
+                        'cameras',
+                        'realsense_d555.launch.py',
                     )
                 ),
                 launch_arguments={

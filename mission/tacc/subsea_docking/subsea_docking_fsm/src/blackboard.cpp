@@ -20,8 +20,7 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         node->declare_parameter<bool>("use_wall_detection");
     config.use_camera_direction =
         node->declare_parameter<bool>("use_camera_direction");
-    config.start_in_range =
-        node->declare_parameter<bool>("start_in_range");
+    config.start_in_range = node->declare_parameter<bool>("start_in_range");
 
     config.wall_detection_estimate_timeout_sec =
         node->declare_parameter<double>("wall_detection_estimate_timeout_sec");
@@ -48,17 +47,21 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
 
     if (config.use_camera_direction) {
         config.bearing_direction_action_server =
-            node->declare_parameter<std::string>("bearing_direction_action_server");
+            node->declare_parameter<std::string>(
+                "bearing_direction_action_server");
         config.bearing_direction_distance =
             node->declare_parameter<double>("bearing_direction_distance", 5.0);
         config.bearing_direction_altitude =
             node->declare_parameter<double>("bearing_direction_altitude", 1.5);
         config.bearing_direction_min_measurements =
-            node->declare_parameter<int>("bearing_direction_min_measurements", 20);
+            node->declare_parameter<int>("bearing_direction_min_measurements",
+                                         20);
         config.bearing_direction_max_measurements =
-            node->declare_parameter<int>("bearing_direction_max_measurements", 30);
+            node->declare_parameter<int>("bearing_direction_max_measurements",
+                                         30);
         spdlog::info(
-            "Camera direction estimation enabled: bearing_direction_server='{}', "
+            "Camera direction estimation enabled: "
+            "bearing_direction_server='{}', "
             "timeout={:.1f}s, dist={:.1f}m, min={}, max={}.",
             config.bearing_direction_action_server,
             config.camera_direction_timeout_sec,

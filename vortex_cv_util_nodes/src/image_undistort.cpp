@@ -74,10 +74,11 @@ ImageUndistort::ImageUndistort(const rclcpp::NodeOptions& options)
                 });
         }
 
-        RCLCPP_INFO(get_logger(),
-                    "image_undistort: passthrough %s -> %s (camera_info from %s)",
-                    image_topic.c_str(), out_topic.c_str(),
-                    raw_info_from_file_ready_ ? "file" : "upstream");
+        RCLCPP_INFO(
+            get_logger(),
+            "image_undistort: passthrough %s -> %s (camera_info from %s)",
+            image_topic.c_str(), out_topic.c_str(),
+            raw_info_from_file_ready_ ? "file" : "upstream");
     }
 }
 
@@ -106,8 +107,8 @@ void ImageUndistort::load_raw_info_from_file(const std::string& path) {
                              k_vec[6], k_vec[7], k_vec[8], 0.0};
     raw_info_from_file_ready_ = true;
     RCLCPP_INFO(get_logger(),
-                "Loaded raw camera_info from file (%dx%d, %zu dist coeffs)",
-                w, h, d_vec.size());
+                "Loaded raw camera_info from file (%dx%d, %zu dist coeffs)", w,
+                h, d_vec.size());
 }
 
 void ImageUndistort::init_maps_from_file(const std::string& path) {

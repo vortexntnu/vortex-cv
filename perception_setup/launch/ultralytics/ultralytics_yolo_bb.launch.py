@@ -36,8 +36,12 @@ def _launch_setup(context, *args, **kwargs):
     image_topic = LaunchConfiguration('model_input_image_topic').perform(context)
     model_file_path = LaunchConfiguration('model_file_path').perform(context)
     detections_topic = LaunchConfiguration('detections_topic').perform(context)
-    annotated_image_topic = LaunchConfiguration('annotated_image_topic').perform(context)
-    confidence_threshold = float(LaunchConfiguration('confidence_threshold').perform(context))
+    annotated_image_topic = LaunchConfiguration('annotated_image_topic').perform(
+        context
+    )
+    confidence_threshold = float(
+        LaunchConfiguration('confidence_threshold').perform(context)
+    )
     visualize = LaunchConfiguration('visualize').perform(context).lower() == 'true'
 
     node_name = LaunchConfiguration('node_name').perform(context)
@@ -47,14 +51,16 @@ def _launch_setup(context, *args, **kwargs):
         executable='yolo_object_detection_node',
         name=node_name,
         output='screen',
-        parameters=[{
-            'device': device,
-            'model_path': model_file_path,
-            'confidence_threshold': confidence_threshold,
-            'input_topic': image_topic,
-            'output_detections_topic': detections_topic,
-            'output_annotated_topic': annotated_image_topic if visualize else '',
-        }],
+        parameters=[
+            {
+                'device': device,
+                'model_path': model_file_path,
+                'confidence_threshold': confidence_threshold,
+                'input_topic': image_topic,
+                'output_detections_topic': detections_topic,
+                'output_annotated_topic': annotated_image_topic if visualize else '',
+            }
+        ],
     )
 
     return [yolo_node]
@@ -63,40 +69,40 @@ def _launch_setup(context, *args, **kwargs):
 def generate_launch_description():
     pkg_dir = get_package_share_directory('perception_setup')
 
-    return LaunchDescription([
-        DeclareLaunchArgument(
-            'node_name',
-            default_value='yolo_object_detection',
-            description='ROS node name for the bounding-box detection node.',
-        ),
-        DeclareLaunchArgument(
-            'model_input_image_topic',
-            default_value='/camera/camera/color/image_raw',
-        ),
-        DeclareLaunchArgument(
-            'model_file_path',
-            default_value=os.path.join(
-                pkg_dir, 'models', 'best.pt'
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument(
+                'node_name',
+                default_value='yolo_object_detection',
+                description='ROS node name for the bounding-box detection node.',
             ),
-        ),
-        DeclareLaunchArgument(
-            'detections_topic',
-            default_value='/yolo/detections',
-        ),
-        DeclareLaunchArgument(
-            'annotated_image_topic',
-            default_value='/yolo/annotated_image',
-        ),
-        DeclareLaunchArgument('confidence_threshold', default_value='0.50'),
-        DeclareLaunchArgument(
-            'device',
-            default_value='0',
-            description="Inference device: 'cpu', GPU index, 'cuda', 'cuda:N', or 'mps'",
-        ),
-        DeclareLaunchArgument(
-            'visualize',
-            default_value='true',
-            description='Publish annotated images on annotated_image_topic',
-        ),
-        OpaqueFunction(function=_launch_setup),
-    ])
+            DeclareLaunchArgument(
+                'model_input_image_topic',
+                default_value='/camera/camera/color/image_raw',
+            ),
+            DeclareLaunchArgument(
+                'model_file_path',
+                default_value=os.path.join(pkg_dir, 'models', 'best.pt'),
+            ),
+            DeclareLaunchArgument(
+                'detections_topic',
+                default_value='/yolo/detections',
+            ),
+            DeclareLaunchArgument(
+                'annotated_image_topic',
+                default_value='/yolo/annotated_image',
+            ),
+            DeclareLaunchArgument('confidence_threshold', default_value='0.50'),
+            DeclareLaunchArgument(
+                'device',
+                default_value='0',
+                description="Inference device: 'cpu', GPU index, 'cuda', 'cuda:N', or 'mps'",
+            ),
+            DeclareLaunchArgument(
+                'visualize',
+                default_value='true',
+                description='Publish annotated images on annotated_image_topic',
+            ),
+            OpaqueFunction(function=_launch_setup),
+        ]
+    )

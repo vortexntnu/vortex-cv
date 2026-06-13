@@ -53,8 +53,7 @@ PipelineLineFittingNode::PipelineLineFittingNode(
 
     publishVisualization_ =
         this->declare_parameter("publish_visualization", true);
-    dedup_dist_thresh_ =
-        this->declare_parameter("dedup_dist_thresh", 10.0);
+    dedup_dist_thresh_ = this->declare_parameter("dedup_dist_thresh", 10.0);
     dedup_angle_thresh_ =
         this->declare_parameter("dedup_angle_thresh", 0.17);  // ~10 degrees
     if (publishVisualization_) {
@@ -83,9 +82,11 @@ void PipelineLineFittingNode::imageCallback(
 
     std::vector<Line> lines = pipeline_.detect(img, 2);
 
-    uint64_t ts = msg->header.stamp.sec * 1000000000ULL + msg->header.stamp.nanosec;
+    uint64_t ts =
+        msg->header.stamp.sec * 1000000000ULL + msg->header.stamp.nanosec;
     for (size_t i = 0; i < lines.size(); i++) {
-        log_file_ << ts << "," << i << "," << static_cast<int>(lines[i].score) << "\n";
+        log_file_ << ts << "," << i << "," << static_cast<int>(lines[i].score)
+                  << "\n";
     }
     log_file_.flush();
 
@@ -93,13 +94,17 @@ void PipelineLineFittingNode::imageCallback(
         if (static_cast<int>(l.score) < 50) {
             auto dbg = drawLines(img, lines);
             for (size_t i = 0; i < lines.size(); i++) {
-                int mx = static_cast<int>((lines[i].start.x + lines[i].end.x) / 2.0);
-                int my = static_cast<int>((lines[i].start.y + lines[i].end.y) / 2.0);
-                cv::putText(dbg, std::to_string(static_cast<int>(lines[i].score)),
+                int mx =
+                    static_cast<int>((lines[i].start.x + lines[i].end.x) / 2.0);
+                int my =
+                    static_cast<int>((lines[i].start.y + lines[i].end.y) / 2.0);
+                cv::putText(dbg,
+                            std::to_string(static_cast<int>(lines[i].score)),
                             cv::Point(mx, my), cv::FONT_HERSHEY_SIMPLEX, 0.4,
                             cv::Scalar(0, 255, 0), 1);
             }
-            cv::imwrite("/tmp/ransac_debug_" + std::to_string(ts) + ".png", dbg);
+            cv::imwrite("/tmp/ransac_debug_" + std::to_string(ts) + ".png",
+                        dbg);
             break;
         }
     }
@@ -111,23 +116,25 @@ void PipelineLineFittingNode::imageCallback(
     for (const auto& cand : lines) {
         double mx_c = (cand.start.x + cand.end.x) / 2.0;
         double my_c = (cand.start.y + cand.end.y) / 2.0;
-        double ang_c = std::atan2(cand.end.y - cand.start.y,
-                                   cand.end.x - cand.start.x);
+        double ang_c =
+            std::atan2(cand.end.y - cand.start.y, cand.end.x - cand.start.x);
         bool duplicate = false;
         for (const auto& kept : deduped) {
             double mx_k = (kept.start.x + kept.end.x) / 2.0;
             double my_k = (kept.start.y + kept.end.y) / 2.0;
             double ang_k = std::atan2(kept.end.y - kept.start.y,
-                                       kept.end.x - kept.start.x);
+                                      kept.end.x - kept.start.x);
             double dist = std::hypot(mx_c - mx_k, my_c - my_k);
             double dang = std::fmod(std::fabs(ang_c - ang_k), M_PI);
-            if (dang > M_PI / 2.0) dang = M_PI - dang;
+            if (dang > M_PI / 2.0)
+                dang = M_PI - dang;
             if (dist < dedup_dist_thresh_ && dang < dedup_angle_thresh_) {
                 duplicate = true;
                 break;
             }
         }
-        if (!duplicate) deduped.push_back(cand);
+        if (!duplicate)
+            deduped.push_back(cand);
     }
     lines = deduped;
 

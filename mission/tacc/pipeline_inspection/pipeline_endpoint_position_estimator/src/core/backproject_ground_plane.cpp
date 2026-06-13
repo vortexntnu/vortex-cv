@@ -19,8 +19,8 @@ cv::Point3d backprojectGroundPlane(int u,
     if (apply_undistortion && !intrinsics.D.empty()) {
         std::vector<cv::Point2f> pts = {pixel};
         std::vector<cv::Point2f> undistorted;
-        cv::undistortPoints(pts, undistorted, intrinsics.K, intrinsics.D, cv::noArray(),
-                            intrinsics.K);
+        cv::undistortPoints(pts, undistorted, intrinsics.K, intrinsics.D,
+                            cv::noArray(), intrinsics.K);
         pixel = undistorted[0];
     }
 
@@ -36,7 +36,8 @@ cv::Point3d backprojectGroundPlane(int u,
     double ray_z_cam = 1.0;
 
     // Normalize ray
-    double norm = std::sqrt(ray_x_cam * ray_x_cam + ray_y_cam * ray_y_cam + ray_z_cam * ray_z_cam);
+    double norm = std::sqrt(ray_x_cam * ray_x_cam + ray_y_cam * ray_y_cam +
+                            ray_z_cam * ray_z_cam);
     ray_x_cam /= norm;
     ray_y_cam /= norm;
     ray_z_cam /= norm;
@@ -48,10 +49,12 @@ cv::Point3d backprojectGroundPlane(int u,
     double ray_y_world = ray_world[1];
     double ray_z_world = ray_world[2];
 
-    // Intersect ray with ground plane in WORLD frame (NED: X=North, Y=East, Z=Down)
-    // Ground plane at Z = cam_z + altitude. Solve: t * ray_z_world = altitude
+    // Intersect ray with ground plane in WORLD frame (NED: X=North, Y=East,
+    // Z=Down) Ground plane at Z = cam_z + altitude. Solve: t * ray_z_world =
+    // altitude
     if (ray_z_world < 1e-6)
-        return cv::Point3d(0, 0, 0);  // ray parallel to or pointing away from ground
+        return cv::Point3d(0, 0,
+                           0);  // ray parallel to or pointing away from ground
 
     double t = altitude / ray_z_world;
 
@@ -62,7 +65,7 @@ cv::Point3d backprojectGroundPlane(int u,
     // Ray equation: P = camera_pos + t * ray_direction
     return cv::Point3d(cam_x + ray_x_world * t,  // North
                        cam_y + ray_y_world * t,  // East
-                       cam_z + altitude          // Down (ground plane below camera)
+                       cam_z + altitude  // Down (ground plane below camera)
     );
 }
 

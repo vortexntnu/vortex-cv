@@ -18,7 +18,8 @@ using std::placeholders::_1;
 ValveSubtypeResolverNode::ValveSubtypeResolverNode(
     const rclcpp::NodeOptions& options)
     : Node("valve_subtype_resolver_node", options) {
-    const std::string drone = declare_parameter<std::string>("drone", "nautilus");
+    const std::string drone =
+        declare_parameter<std::string>("drone", "nautilus");
     const std::string odom_frame_base =
         declare_parameter<std::string>("odom_frame", "odom");
     world_frame_ = drone + "/" + odom_frame_base;

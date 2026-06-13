@@ -18,7 +18,8 @@ PipelineEndDetectorNode::PipelineEndDetectorNode(
 
     RCLCPP_INFO(
         get_logger(),
-        "PipelineEndDetectorNode started. threshold=%d, activation_delay=%.1fs, "
+        "PipelineEndDetectorNode started. threshold=%d, "
+        "activation_delay=%.1fs, "
         "awaiting activation on '%s'",
         detection_threshold_, activation_delay_sec_,
         get_parameter("topics.start_detection_service").as_string().c_str());
@@ -75,9 +76,10 @@ void PipelineEndDetectorNode::start_end_pipeline_detection_callback(
     // Acknowledge immediately so the FSM can proceed straight into pipeline
     // following; arm a one-shot timer that activates detection after the delay.
     response->message = "Pipeline end detection scheduled.";
-    RCLCPP_INFO(get_logger(),
-                "Pipeline following started — detection will activate in %.1fs.",
-                activation_delay_sec_);
+    RCLCPP_INFO(
+        get_logger(),
+        "Pipeline following started — detection will activate in %.1fs.",
+        activation_delay_sec_);
     activation_timer_ = create_wall_timer(
         std::chrono::duration<double>(activation_delay_sec_), [this]() {
             activation_timer_->cancel();  // one-shot

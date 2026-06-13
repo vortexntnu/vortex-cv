@@ -4,6 +4,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
+
 def generate_launch_description():
     line_filtering_node = Node(
         package='pipeline_intersection_following',
@@ -15,7 +16,7 @@ def generate_launch_description():
                 'config',
                 'line_filtering_params.yaml',
             ),
-            {"use_sim_time": True}  # Enable simulated time
+            {"use_sim_time": True},  # Enable simulated time
         ],
         output='screen',
     )

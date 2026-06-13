@@ -13,14 +13,19 @@ PositionEstimatorNode::PositionEstimatorNode(const rclcpp::NodeOptions& options)
 
     // Initialize tf2 buffer and listener
     tf2_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
-    tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_, this);
+    tf2_listener_ =
+        std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_, this);
 
     // Declare parameters
-    auto endpoints_topic = this->declare_parameter<std::string>("endpoints_topic");
-    auto camera_info_topic = this->declare_parameter<std::string>("camera_info_topic");
-    auto dvl_altitude_topic = this->declare_parameter<std::string>("dvl_altitude_topic");
+    auto endpoints_topic =
+        this->declare_parameter<std::string>("endpoints_topic");
+    auto camera_info_topic =
+        this->declare_parameter<std::string>("camera_info_topic");
+    auto dvl_altitude_topic =
+        this->declare_parameter<std::string>("dvl_altitude_topic");
     auto publish_topic = this->declare_parameter<std::string>("publish_topic");
-    transform_timeout_ms_ = this->declare_parameter<int>("transform_timeout_ms");
+    transform_timeout_ms_ =
+        this->declare_parameter<int>("transform_timeout_ms");
     apply_undistortion_ = this->declare_parameter<bool>("apply_undistortion");
     distance_buffer_ = this->declare_parameter<double>("distance_buffer", 1.0);
     reference_frame_ = this->declare_parameter<std::string>("reference_frame");
@@ -28,23 +33,29 @@ PositionEstimatorNode::PositionEstimatorNode(const rclcpp::NodeOptions& options)
     // Subscriptions
     endpoints_sub_ = this->create_subscription<vortex_msgs::msg::Point2DArray>(
         endpoints_topic, qos,
-        std::bind(&PositionEstimatorNode::endpoints_callback, this, std::placeholders::_1));
+        std::bind(&PositionEstimatorNode::endpoints_callback, this,
+                  std::placeholders::_1));
 
     caminfo_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
         camera_info_topic, qos,
-        std::bind(&PositionEstimatorNode::camera_info_callback, this, std::placeholders::_1));
+        std::bind(&PositionEstimatorNode::camera_info_callback, this,
+                  std::placeholders::_1));
 
     dvl_sub_ = this->create_subscription<vortex_msgs::msg::DVLAltitude>(
         dvl_altitude_topic, qos,
-        std::bind(&PositionEstimatorNode::dvl_callback, this, std::placeholders::_1));
+        std::bind(&PositionEstimatorNode::dvl_callback, this,
+                  std::placeholders::_1));
 
     // Publishers
-    landmark_pub_ = this->create_publisher<vortex_msgs::msg::LandmarkArray>(publish_topic, qos);
+    landmark_pub_ = this->create_publisher<vortex_msgs::msg::LandmarkArray>(
+        publish_topic, qos);
 
     RCLCPP_INFO(this->get_logger(), "Pipeline position estimator node started");
     RCLCPP_INFO(this->get_logger(), "  Endpoints: %s", endpoints_topic.c_str());
-    RCLCPP_INFO(this->get_logger(), "  Camera info: %s", camera_info_topic.c_str());
-    RCLCPP_INFO(this->get_logger(), "  DVL altitude: %s", dvl_altitude_topic.c_str());
+    RCLCPP_INFO(this->get_logger(), "  Camera info: %s",
+                camera_info_topic.c_str());
+    RCLCPP_INFO(this->get_logger(), "  DVL altitude: %s",
+                dvl_altitude_topic.c_str());
     RCLCPP_INFO(this->get_logger(), "  Publish to: %s", publish_topic.c_str());
 }
 
@@ -66,7 +77,8 @@ void PositionEstimatorNode::endpoints_callback(
         return;
     }
 
-    auto transform = lookup_camera_to_world(camera_frame_id_, msg->header.stamp);
+    auto transform =
+        lookup_camera_to_world(camera_frame_id_, msg->header.stamp);
     if (!transform) {
         return;
     }
@@ -88,43 +100,49 @@ void PositionEstimatorNode::endpoints_callback(
     std::vector<cv::Point3d> endpoints_3d;
     endpoints_3d.reserve(msg->points.size());
     for (const auto& pt : msg->points) {
-        endpoints_3d.push_back(
-            backprojectGroundPlane(static_cast<int>(pt.x), static_cast<int>(pt.y), dvl_altitude_,
-                                   *intrinsics_, rotation, translation, apply_undistortion_));
+        endpoints_3d.push_back(backprojectGroundPlane(
+            static_cast<int>(pt.x), static_cast<int>(pt.y), dvl_altitude_,
+            *intrinsics_, rotation, translation, apply_undistortion_));
     }
 
     // Select endpoint closest to 3D origin as pipeline start
     auto closest_to_origin = [](const cv::Point3d& a, const cv::Point3d& b) {
-        return (a.x * a.x + a.y * a.y + a.z * a.z) < (b.x * b.x + b.y * b.y + b.z * b.z);
+        return (a.x * a.x + a.y * a.y + a.z * a.z) <
+               (b.x * b.x + b.y * b.y + b.z * b.z);
     };
-    cv::Point3d selected_3d =
-        *std::min_element(endpoints_3d.begin(), endpoints_3d.end(), closest_to_origin);
+    cv::Point3d selected_3d = *std::min_element(
+        endpoints_3d.begin(), endpoints_3d.end(), closest_to_origin);
 
-    // Shift the selected endpoint toward the drone by distance_buffer_ to prevent undershoot.
+    // Shift the selected endpoint toward the drone by distance_buffer_ to
+    // prevent undershoot.
     if (distance_buffer_ != 0.0) {
         cv::Point3d drone_pos(translation[0], translation[1], translation[2]);
         cv::Point3d to_drone = drone_pos - selected_3d;
-        double len = std::sqrt(to_drone.x * to_drone.x + to_drone.y * to_drone.y + to_drone.z * to_drone.z);
+        double len =
+            std::sqrt(to_drone.x * to_drone.x + to_drone.y * to_drone.y +
+                      to_drone.z * to_drone.z);
         if (len > 1e-6) {
             selected_3d += (distance_buffer_ / len) * to_drone;
         }
     }
 
-    landmark_pub_->publish(build_landmark_msg(msg->header.stamp, selected_3d, endpoints_3d));
+    landmark_pub_->publish(
+        build_landmark_msg(msg->header.stamp, selected_3d, endpoints_3d));
 
     RCLCPP_DEBUG(this->get_logger(), "DVL altitude: %.3f m", dvl_altitude_);
     for (size_t i = 0; i < endpoints_3d.size(); ++i) {
-        RCLCPP_DEBUG(this->get_logger(), "  EP%zu: (%.3f, %.3f, %.3f) m [%s]", i + 1,
-                     endpoints_3d[i].x, endpoints_3d[i].y, endpoints_3d[i].z,
-                     reference_frame_.c_str());
+        RCLCPP_DEBUG(this->get_logger(), "  EP%zu: (%.3f, %.3f, %.3f) m [%s]",
+                     i + 1, endpoints_3d[i].x, endpoints_3d[i].y,
+                     endpoints_3d[i].z, reference_frame_.c_str());
     }
-    RCLCPP_DEBUG(this->get_logger(), "  Selected: (%.3f, %.3f, %.3f) m [%s]", selected_3d.x,
-                 selected_3d.y, selected_3d.z, reference_frame_.c_str());
+    RCLCPP_DEBUG(this->get_logger(), "  Selected: (%.3f, %.3f, %.3f) m [%s]",
+                 selected_3d.x, selected_3d.y, selected_3d.z,
+                 reference_frame_.c_str());
 }
 
-std::optional<geometry_msgs::msg::TransformStamped> PositionEstimatorNode::lookup_camera_to_world(
-    const std::string& frame_id,
-    const rclcpp::Time& stamp) {
+std::optional<geometry_msgs::msg::TransformStamped>
+PositionEstimatorNode::lookup_camera_to_world(const std::string& frame_id,
+                                              const rclcpp::Time& stamp) {
     try {
         return tf2_buffer_->lookupTransform(
             reference_frame_,  // target frame (world)
@@ -133,8 +151,9 @@ std::optional<geometry_msgs::msg::TransformStamped> PositionEstimatorNode::looku
             std::chrono::milliseconds(transform_timeout_ms_));
     } catch (const tf2::TransformException& ex) {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "Could not transform %s to %s: %s", frame_id.c_str(),
-                             reference_frame_.c_str(), ex.what());
+                             "Could not transform %s to %s: %s",
+                             frame_id.c_str(), reference_frame_.c_str(),
+                             ex.what());
         return std::nullopt;
     }
 }
@@ -147,8 +166,10 @@ vortex_msgs::msg::LandmarkArray PositionEstimatorNode::build_landmark_msg(
     msg.header.stamp = stamp;
     msg.header.frame_id = reference_frame_;
     msg.landmarks.resize(1);
-    msg.landmarks.at(0).type.value = vortex_msgs::msg::LandmarkType::PIPELINE_START;
-    msg.landmarks.at(0).subtype.value = vortex_msgs::msg::LandmarkSubtype::PIPELINE_START_CAMERA;
+    msg.landmarks.at(0).type.value =
+        vortex_msgs::msg::LandmarkType::PIPELINE_START;
+    msg.landmarks.at(0).subtype.value =
+        vortex_msgs::msg::LandmarkSubtype::PIPELINE_START_CAMERA;
     msg.landmarks.at(0).id = 0;
     msg.landmarks.at(0).pose.pose.position.x = selected_3d.x;
     msg.landmarks.at(0).pose.pose.position.y = selected_3d.y;
@@ -156,18 +177,23 @@ vortex_msgs::msg::LandmarkArray PositionEstimatorNode::build_landmark_msg(
     msg.landmarks.at(0).pose.pose.orientation.x = 0.0;
     msg.landmarks.at(0).pose.pose.orientation.y = 0.0;
     if (endpoints_3d.size() == 2) {
-        auto closest_to_origin = [](const cv::Point3d& a, const cv::Point3d& b) {
-            return (a.x * a.x + a.y * a.y + a.z * a.z) < (b.x * b.x + b.y * b.y + b.z * b.z);
+        auto closest_to_origin = [](const cv::Point3d& a,
+                                    const cv::Point3d& b) {
+            return (a.x * a.x + a.y * a.y + a.z * a.z) <
+                   (b.x * b.x + b.y * b.y + b.z * b.z);
         };
-        // The far endpoint is the one NOT selected as start — compute the pipeline direction
-        // from start toward far end, expressed as a pure yaw quaternion (x=0, y=0)
-        auto furthest =
-            std::max_element(endpoints_3d.begin(), endpoints_3d.end(), closest_to_origin);
-        double yaw = std::atan2(furthest->y - selected_3d.y, furthest->x - selected_3d.x);
+        // The far endpoint is the one NOT selected as start — compute the
+        // pipeline direction from start toward far end, expressed as a pure yaw
+        // quaternion (x=0, y=0)
+        auto furthest = std::max_element(endpoints_3d.begin(),
+                                         endpoints_3d.end(), closest_to_origin);
+        double yaw = std::atan2(furthest->y - selected_3d.y,
+                                furthest->x - selected_3d.x);
         msg.landmarks.at(0).pose.pose.orientation.z = std::sin(yaw / 2.0);
         msg.landmarks.at(0).pose.pose.orientation.w = std::cos(yaw / 2.0);
     } else {
-        // Only one endpoint detected — no direction information, use identity orientation
+        // Only one endpoint detected — no direction information, use identity
+        // orientation
         msg.landmarks.at(0).pose.pose.orientation.z = 0.0;
         msg.landmarks.at(0).pose.pose.orientation.w = 1.0;
     }
@@ -179,23 +205,28 @@ void PositionEstimatorNode::camera_info_callback(
     if (!intrinsics_) {
         CameraIntrinsics intrinsics;
         // msg->k is row-major [fx 0 cx / 0 fy cy / 0 0 1]
-        intrinsics.K = cv::Mat(3, 3, CV_64F, const_cast<double*>(msg->k.data())).clone();
+        intrinsics.K =
+            cv::Mat(3, 3, CV_64F, const_cast<double*>(msg->k.data())).clone();
         camera_frame_id_ = msg->header.frame_id;
         if (!msg->d.empty()) {
             intrinsics.D = cv::Mat(msg->d).clone();
         }
         intrinsics_ = intrinsics;
 
-        RCLCPP_INFO(this->get_logger(), "Received camera info, unsubscribing (static data)");
+        RCLCPP_INFO(this->get_logger(),
+                    "Received camera info, unsubscribing (static data)");
         caminfo_sub_.reset();
     }
 }
 
-void PositionEstimatorNode::dvl_callback(const vortex_msgs::msg::DVLAltitude::SharedPtr msg) {
+void PositionEstimatorNode::dvl_callback(
+    const vortex_msgs::msg::DVLAltitude::SharedPtr msg) {
     dvl_altitude_ = msg->altitude;
-    RCLCPP_DEBUG(this->get_logger(), "Received DVL altitude: %.3f m", dvl_altitude_);
+    RCLCPP_DEBUG(this->get_logger(), "Received DVL altitude: %.3f m",
+                 dvl_altitude_);
 }
 
 }  // namespace pipeline_endpoint_position_estimator
 
-RCLCPP_COMPONENTS_REGISTER_NODE(pipeline_endpoint_position_estimator::PositionEstimatorNode)
+RCLCPP_COMPONENTS_REGISTER_NODE(
+    pipeline_endpoint_position_estimator::PositionEstimatorNode)

@@ -15,13 +15,13 @@ SearchWaypointGoalState::SearchWaypointGoalState(
       waypoints_(std::move(waypoints)) {}
 
 pipeline_inspection_fsm::WaypointManagerAction::Goal
-SearchWaypointGoalState::create_goal(
-    yasmin::Blackboard::SharedPtr blackboard) {
+SearchWaypointGoalState::create_goal(yasmin::Blackboard::SharedPtr blackboard) {
     pipeline_inspection_fsm::WaypointManagerAction::Goal goal;
     goal.persistent = false;
     goal.convergence_threshold = waypoints_.front().convergence_threshold;
 
-    // Use the snapshotted start pose when available (set by STORE_ORIGIN state).
+    // Use the snapshotted start pose when available (set by STORE_ORIGIN
+    // state).
     if (blackboard->contains("origin_pose")) {
         vortex_msgs::msg::Waypoint wp;
         wp.pose = blackboard->get<geometry_msgs::msg::Pose>("origin_pose");

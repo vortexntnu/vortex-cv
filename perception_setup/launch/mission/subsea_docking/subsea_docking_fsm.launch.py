@@ -49,26 +49,22 @@ def launch_setup(context, *args, **kwargs):
             {
                 "fsm_waypoint_config": fsm_waypoint_config,
                 "landmark_convergence_config": landmark_convergence_config,
-
                 # ── Feature flags (also overridable via CLI args) ─────────────
-                "start_in_range":      arg('start_in_range').lower() == 'true',
+                "start_in_range": arg('start_in_range').lower() == 'true',
                 "use_camera_direction": arg('use_camera_direction').lower() == 'true',
-                "use_wall_detection":  arg('use_wall_detection').lower() == 'true',
+                "use_wall_detection": arg('use_wall_detection').lower() == 'true',
                 "use_service_waypoint": arg('use_service_waypoint').lower() == 'true',
-
                 # ── Services ──────────────────────────────────────────────────
                 "docking_position_service": "/docking_position_estimator/docking_pose",
                 "docking_estimator_start_service": "docking_position_estimator/start_mission",
-
                 # ── Timing ────────────────────────────────────────────────────
                 "camera_direction_timeout_sec": 30.0,
                 "wall_detection_estimate_timeout_sec": 20.0,
                 "wait_before_fallback_sec": 5.0,
-
                 # ── Bearing direction server ──────────────────────────────────
                 "bearing_direction_action_server": "platform_bearing_direction",
-                "bearing_direction_distance": 20.0,      # metres along averaged bearing
-                "bearing_direction_altitude": 1.1,       # absolute z in odom frame
+                "bearing_direction_distance": 20.0,  # metres along averaged bearing
+                "bearing_direction_altitude": 1.1,  # absolute z in odom frame
                 "bearing_direction_min_measurements": 10,
                 "bearing_direction_max_measurements": 30,
             },

@@ -69,19 +69,24 @@ class DockingCameraYoloDirectionWaypointNode : public rclcpp::Node {
     lookup_camera_transform_in_odom(const rclcpp::Time& stamp);
 
     /**
-     * @brief Publish a landmark with the computed waypoint pose in the odom frame.
+     * @brief Publish a landmark with the computed waypoint pose in the odom
+     * frame.
      *
      * @param x    Waypoint x in odom [m].
      * @param y    Waypoint y in odom [m].
      * @param yaw  Target heading in odom [rad].
      */
-    void publish_landmark(double x, double y, double z, const rclcpp::Time& stamp);
+    void publish_landmark(double x,
+                          double y,
+                          double z,
+                          const rclcpp::Time& stamp);
 
     std::string detection_sub_topic_;
     std::string camera_info_sub_topic_;
     std::string landmarks_pub_topic_;
     std::string odom_frame_;
-    std::string camera_frame_;   // derived from CameraInfo header, not a parameter
+    std::string
+        camera_frame_;  // derived from CameraInfo header, not a parameter
     double waypoint_distance_;
 
     std::optional<CameraIntrinsics> intrinsics_;
@@ -94,7 +99,8 @@ class DockingCameraYoloDirectionWaypointNode : public rclcpp::Node {
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr
         camera_info_sub_;
 
-    rclcpp::Publisher<vortex_msgs::msg::LandmarkArray>::SharedPtr landmarks_pub_;
+    rclcpp::Publisher<vortex_msgs::msg::LandmarkArray>::SharedPtr
+        landmarks_pub_;
 };
 
 }  // namespace vortex::docking_camera_yolo_direction_waypoint

@@ -43,14 +43,22 @@ def _launch_setup(context, *args, **kwargs):
     output_bbox_topic = LaunchConfiguration('output_bbox_topic').perform(context)
     output_mask_topic = LaunchConfiguration('output_mask_topic').perform(context)
     output_debug_topic = LaunchConfiguration('output_debug_topic').perform(context)
-    output_camera_info_topic = LaunchConfiguration('output_camera_info_topic').perform(context)
+    output_camera_info_topic = LaunchConfiguration('output_camera_info_topic').perform(
+        context
+    )
     pub_bbox = LaunchConfiguration('pub_bbox').perform(context).lower() == 'true'
     pub_mask = LaunchConfiguration('pub_mask').perform(context).lower() == 'true'
     pub_debug = LaunchConfiguration('pub_debug').perform(context).lower() == 'true'
-    pub_mask_overlay = LaunchConfiguration('pub_mask_overlay').perform(context).lower() == 'true'
-    output_mask_overlay_topic = LaunchConfiguration('output_mask_overlay_topic').perform(context)
+    pub_mask_overlay = (
+        LaunchConfiguration('pub_mask_overlay').perform(context).lower() == 'true'
+    )
+    output_mask_overlay_topic = LaunchConfiguration(
+        'output_mask_overlay_topic'
+    ).perform(context)
     imgsz = int(LaunchConfiguration('imgsz').perform(context))
-    confidence_threshold = float(LaunchConfiguration('confidence_threshold').perform(context))
+    confidence_threshold = float(
+        LaunchConfiguration('confidence_threshold').perform(context)
+    )
     iou = float(LaunchConfiguration('iou').perform(context))
     compile_model = LaunchConfiguration('compile').perform(context).lower() == 'true'
     verbose = LaunchConfiguration('verbose').perform(context).lower() == 'true'
@@ -62,26 +70,28 @@ def _launch_setup(context, *args, **kwargs):
         executable='yolo_seg_node',
         name=node_name,
         output='screen',
-        parameters=[{
-            'input_topic': image_topic,
-            'input_camera_info_topic': camera_info_topic,
-            'output_bbox_topic': output_bbox_topic,
-            'output_mask_topic': output_mask_topic,
-            'output_debug_topic': output_debug_topic,
-            'output_camera_info_topic': output_camera_info_topic,
-            'pub_bbox': pub_bbox,
-            'pub_mask': pub_mask,
-            'pub_debug': pub_debug,
-            'pub_mask_overlay': pub_mask_overlay,
-            'output_mask_overlay_topic': output_mask_overlay_topic,
-            'model_path': model_file_path,
-            'device': device,
-            'imgsz': imgsz,
-            'confidence_threshold': confidence_threshold,
-            'iou': iou,
-            'compile': compile_model,
-            'verbose': verbose,
-        }],
+        parameters=[
+            {
+                'input_topic': image_topic,
+                'input_camera_info_topic': camera_info_topic,
+                'output_bbox_topic': output_bbox_topic,
+                'output_mask_topic': output_mask_topic,
+                'output_debug_topic': output_debug_topic,
+                'output_camera_info_topic': output_camera_info_topic,
+                'pub_bbox': pub_bbox,
+                'pub_mask': pub_mask,
+                'pub_debug': pub_debug,
+                'pub_mask_overlay': pub_mask_overlay,
+                'output_mask_overlay_topic': output_mask_overlay_topic,
+                'model_path': model_file_path,
+                'device': device,
+                'imgsz': imgsz,
+                'confidence_threshold': confidence_threshold,
+                'iou': iou,
+                'compile': compile_model,
+                'verbose': verbose,
+            }
+        ],
     )
 
     return [node]
@@ -90,91 +100,93 @@ def _launch_setup(context, *args, **kwargs):
 def generate_launch_description():
     pkg_dir = get_package_share_directory('perception_setup')
 
-    return LaunchDescription([
-        DeclareLaunchArgument(
-            'node_name',
-            default_value='yolo_segmentation_node',
-            description='ROS node name for the segmentation node.',
-        ),
-        DeclareLaunchArgument(
-            'model_input_image_topic',
-            default_value='/camera/camera/color/image_raw',
-        ),
-        DeclareLaunchArgument(
-            'camera_info_topic',
-            default_value='/camera/camera/color/camera_info',
-        ),
-        DeclareLaunchArgument(
-            'model_file_path',
-            default_value=os.path.join(pkg_dir, 'models', 'best.pt'),
-        ),
-        DeclareLaunchArgument(
-            'output_bbox_topic',
-            default_value='/pipeline/camera/bboxes',
-        ),
-        DeclareLaunchArgument(
-            'output_mask_topic',
-            default_value='/pipeline/camera/segmentation_mask',
-        ),
-        DeclareLaunchArgument(
-            'output_debug_topic',
-            default_value='/pipeline/camera/segmentation_debug',
-        ),
-        DeclareLaunchArgument(
-            'output_camera_info_topic',
-            default_value='/pipeline/camera/camera_info',
-        ),
-        DeclareLaunchArgument(
-            'pub_bbox',
-            default_value='true',
-            description='Publish bounding boxes',
-        ),
-        DeclareLaunchArgument(
-            'pub_mask',
-            default_value='true',
-            description='Publish segmentation mask',
-        ),
-        DeclareLaunchArgument(
-            'pub_debug',
-            default_value='true',
-            description='Publish debug annotated image',
-        ),
-        DeclareLaunchArgument(
-            'pub_mask_overlay',
-            default_value='false',
-            description='Publish alpha-blended red overlay of mask on original image.',
-        ),
-        DeclareLaunchArgument(
-            'output_mask_overlay_topic',
-            default_value='/pipeline/camera/segmentation_overlay',
-        ),
-        DeclareLaunchArgument(
-            'device',
-            default_value='cuda',
-            description="Inference device: 'cpu', GPU index, 'cuda', 'cuda:N', or 'mps'",
-        ),
-        DeclareLaunchArgument(
-            'imgsz',
-            default_value='640',
-            description='Longest side input size; shorter side scaled proportionally and padded to stride multiple',
-        ),
-        DeclareLaunchArgument(
-            'confidence_threshold',
-            default_value='0.3',
-        ),
-        DeclareLaunchArgument(
-            'iou',
-            default_value='0.7',
-        ),
-        DeclareLaunchArgument(
-            'compile',
-            default_value='false',
-            description='Compile model with torch.compile for faster inference',
-        ),
-        DeclareLaunchArgument(
-            'verbose',
-            default_value='false',
-            description='Print Ultralytics per-frame output (speed, detections, image size)',
-        ),
-        OpaqueFunction(function=_launch_setup),
-    ])
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument(
+                'node_name',
+                default_value='yolo_segmentation_node',
+                description='ROS node name for the segmentation node.',
+            ),
+            DeclareLaunchArgument(
+                'model_input_image_topic',
+                default_value='/camera/camera/color/image_raw',
+            ),
+            DeclareLaunchArgument(
+                'camera_info_topic',
+                default_value='/camera/camera/color/camera_info',
+            ),
+            DeclareLaunchArgument(
+                'model_file_path',
+                default_value=os.path.join(pkg_dir, 'models', 'best.pt'),
+            ),
+            DeclareLaunchArgument(
+                'output_bbox_topic',
+                default_value='/pipeline/camera/bboxes',
+            ),
+            DeclareLaunchArgument(
+                'output_mask_topic',
+                default_value='/pipeline/camera/segmentation_mask',
+            ),
+            DeclareLaunchArgument(
+                'output_debug_topic',
+                default_value='/pipeline/camera/segmentation_debug',
+            ),
+            DeclareLaunchArgument(
+                'output_camera_info_topic',
+                default_value='/pipeline/camera/camera_info',
+            ),
+            DeclareLaunchArgument(
+                'pub_bbox',
+                default_value='true',
+                description='Publish bounding boxes',
+            ),
+            DeclareLaunchArgument(
+                'pub_mask',
+                default_value='true',
+                description='Publish segmentation mask',
+            ),
+            DeclareLaunchArgument(
+                'pub_debug',
+                default_value='true',
+                description='Publish debug annotated image',
+            ),
+            DeclareLaunchArgument(
+                'pub_mask_overlay',
+                default_value='false',
+                description='Publish alpha-blended red overlay of mask on original image.',
+            ),
+            DeclareLaunchArgument(
+                'output_mask_overlay_topic',
+                default_value='/pipeline/camera/segmentation_overlay',
+            ),
+            DeclareLaunchArgument(
+                'device',
+                default_value='cuda',
+                description="Inference device: 'cpu', GPU index, 'cuda', 'cuda:N', or 'mps'",
+            ),
+            DeclareLaunchArgument(
+                'imgsz',
+                default_value='640',
+                description='Longest side input size; shorter side scaled proportionally and padded to stride multiple',
+            ),
+            DeclareLaunchArgument(
+                'confidence_threshold',
+                default_value='0.3',
+            ),
+            DeclareLaunchArgument(
+                'iou',
+                default_value='0.7',
+            ),
+            DeclareLaunchArgument(
+                'compile',
+                default_value='false',
+                description='Compile model with torch.compile for faster inference',
+            ),
+            DeclareLaunchArgument(
+                'verbose',
+                default_value='false',
+                description='Print Ultralytics per-frame output (speed, detections, image size)',
+            ),
+            OpaqueFunction(function=_launch_setup),
+        ]
+    )

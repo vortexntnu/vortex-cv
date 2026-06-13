@@ -23,7 +23,11 @@ from auv_setup.launch_arg_common import (
     resolve_drone_and_namespace,
 )
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import (
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+)
 from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
@@ -51,20 +55,31 @@ def _launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('perception_setup')
     drone, namespace = resolve_drone_and_namespace(context)
 
-    with open(os.path.join(
-        get_package_share_directory('auv_setup'), 'config', 'robots', f'{drone}.yaml',
-    )) as f:
+    with open(
+        os.path.join(
+            get_package_share_directory('auv_setup'),
+            'config',
+            'robots',
+            f'{drone}.yaml',
+        )
+    ) as f:
         robot_topics = yaml.safe_load(f)['/**']['ros__parameters']['topics']
 
     target = LaunchConfiguration('target').perform(context)
-    enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
-    use_nvidia = LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
+    enable_gstreamer = (
+        LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
+    )
+    use_nvidia = (
+        LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
+    )
     destination_ip = LaunchConfiguration('destination_ip').perform(context)
     destination_port = int(LaunchConfiguration('destination_port').perform(context))
 
     backend = LaunchConfiguration('backend').perform(context)
     seg_model_file_path = LaunchConfiguration('seg_model_file_path').perform(context)
-    classify_model_file_path = LaunchConfiguration('classify_model_file_path').perform(context)
+    classify_model_file_path = LaunchConfiguration('classify_model_file_path').perform(
+        context
+    )
     device = LaunchConfiguration('device').perform(context)
     visualize = LaunchConfiguration('visualize').perform(context)
 
@@ -81,24 +96,26 @@ def _launch_setup(context, *args, **kwargs):
             plugin='ArucoDetectorNode',
             name='down_aruco_detector',
             namespace=namespace,
-            parameters=[{
-                'subs.image_topic': color_image_topic,
-                'subs.camera_info_topic': camera_info_topic,
-                'pubs.aruco_image': _ARUCO_IMAGE_TOPIC,
-                'pubs.aruco_poses': '/aruco_detector/markers_down',
-                'pubs.board_pose': '/aruco_detector/board_down',
-                'pubs.landmarks': f'/{namespace}/{robot_topics["landmarks"]}',
-                'logger_service_name': '/toggle_marker_logger',
-                'detect_board': True,
-                'visualize': True,
-                'log_markers': False,
-                'publish_detections': True,
-                'publish_landmarks': True,
-                'aruco.dictionary': 'DICT_ARUCO_ORIGINAL',
-                'enu_ned_rotation': True,
-                'out_tf_frame': f'{namespace}/downwards_camera_optical',
-                **aruco_params,
-            }],
+            parameters=[
+                {
+                    'subs.image_topic': color_image_topic,
+                    'subs.camera_info_topic': camera_info_topic,
+                    'pubs.aruco_image': _ARUCO_IMAGE_TOPIC,
+                    'pubs.aruco_poses': '/aruco_detector/markers_down',
+                    'pubs.board_pose': '/aruco_detector/board_down',
+                    'pubs.landmarks': f'/{namespace}/{robot_topics["landmarks"]}',
+                    'logger_service_name': '/toggle_marker_logger',
+                    'detect_board': True,
+                    'visualize': True,
+                    'log_markers': False,
+                    'publish_detections': True,
+                    'publish_landmarks': True,
+                    'aruco.dictionary': 'DICT_ARUCO_ORIGINAL',
+                    'enu_ned_rotation': True,
+                    'out_tf_frame': f'{namespace}/downwards_camera_optical',
+                    **aruco_params,
+                }
+            ],
             extra_arguments=[{'use_intra_process_comms': True}],
         ),
     ]
@@ -109,20 +126,22 @@ def _launch_setup(context, *args, **kwargs):
                 package='gstreamer_from_ros',
                 plugin='gstreamer_from_ros::GStreamerFromRos',
                 name='gstreamer_from_ros_node',
-                parameters=[{
-                    'input_topic': _ARUCO_IMAGE_TOPIC,
-                    'destination_ip': destination_ip,
-                    'destination_port': destination_port,
-                    'bitrate': 500000,
-                    'expected_input_fps': 15,
-                    'preset_level': 1,
-                    'iframe_interval': 15,
-                    'control_rate': 1,
-                    'pt': 96,
-                    'config_interval': 1,
-                    'input_format': 'RGB',
-                    'hw_encoder': use_nvidia,
-                }],
+                parameters=[
+                    {
+                        'input_topic': _ARUCO_IMAGE_TOPIC,
+                        'destination_ip': destination_ip,
+                        'destination_port': destination_port,
+                        'bitrate': 500000,
+                        'expected_input_fps': 15,
+                        'preset_level': 1,
+                        'iframe_interval': 15,
+                        'control_rate': 1,
+                        'pt': 96,
+                        'config_interval': 1,
+                        'input_format': 'RGB',
+                        'hw_encoder': use_nvidia,
+                    }
+                ],
                 extra_arguments=[{'use_intra_process_comms': True}],
             )
         )
@@ -146,21 +165,23 @@ def _launch_setup(context, *args, **kwargs):
                 executable='pipeline_end_detector_node',
                 name='pipeline_end_detector_node',
                 namespace=namespace,
-                parameters=[{
-                    # Consecutive Class 1 detections required before declaring end of pipeline
-                    'detection_threshold': 40,
-                    # Delay (s) between the start_detection trigger and detection
-                    # becoming active; lets the FSM enter pipeline following
-                    # immediately while suppressing end detection for a settling
-                    # window. 0 = activate now.
-                    'activation_delay_sec': 30.0,
-                    # Topic published by the end-of-pipeline classifier (std_msgs/UInt8)
-                    'topics.detection': '/pipeline_end_classification',
-                    # FSM service called when the end of pipeline is reached
-                    'topics.end_of_pipeline_service': 'pipeline_inspection_fsm/pipeline_finished',
-                    # Service the FSM calls to activate detection on this node
-                    'topics.start_detection_service': 'pipeline_end_detector/start_detection',
-                }],
+                parameters=[
+                    {
+                        # Consecutive Class 1 detections required before declaring end of pipeline
+                        'detection_threshold': 40,
+                        # Delay (s) between the start_detection trigger and detection
+                        # becoming active; lets the FSM enter pipeline following
+                        # immediately while suppressing end detection for a settling
+                        # window. 0 = activate now.
+                        'activation_delay_sec': 30.0,
+                        # Topic published by the end-of-pipeline classifier (std_msgs/UInt8)
+                        'topics.detection': '/pipeline_end_classification',
+                        # FSM service called when the end of pipeline is reached
+                        'topics.end_of_pipeline_service': 'pipeline_inspection_fsm/pipeline_finished',
+                        # Service the FSM calls to activate detection on this node
+                        'topics.start_detection_service': 'pipeline_end_detector/start_detection',
+                    }
+                ],
                 output='screen',
             )
         )
@@ -185,8 +206,8 @@ def _launch_setup(context, *args, **kwargs):
                     'device': device,
                     'pub_debug': visualize,
                     'pub_mask_overlay': 'true',
-                    'confidence_threshold': '0.2', # TODO Tune this
-                    'iou': '1.0', # Treats it as semantic segmentation, we dont care about multiple instances
+                    'confidence_threshold': '0.2',  # TODO Tune this
+                    'iou': '1.0',  # Treats it as semantic segmentation, we dont care about multiple instances
                 }.items(),
             )
         )
@@ -198,14 +219,16 @@ def _launch_setup(context, *args, **kwargs):
             name='classifier_node',
             namespace='yolo',
             output='screen',
-            parameters=[{
-                'input_topic': '/pipeline/down_camera/segmentation_mask',
-                'model_path': classify_model_file_path,
-                'device': device,
-                'output_class_topic': '/pipeline_end_classification',
-                'imgsz': 640,
-                'verbose': False,
-            }],
+            parameters=[
+                {
+                    'input_topic': '/pipeline/down_camera/segmentation_mask',
+                    'model_path': classify_model_file_path,
+                    'device': device,
+                    'output_class_topic': '/pipeline_end_classification',
+                    'imgsz': 640,
+                    'verbose': False,
+                }
+            ],
         )
     )
     actions.append(
@@ -216,7 +239,8 @@ def _launch_setup(context, *args, **kwargs):
             parameters=[
                 os.path.join(
                     get_package_share_directory('pipeline_line_fitting'),
-                    'config', 'pipeline_line_fitting_params.yaml',
+                    'config',
+                    'pipeline_line_fitting_params.yaml',
                 ),
                 {
                     'image_sub_topic': '/pipeline/down_camera/segmentation_mask',
@@ -237,7 +261,8 @@ def _launch_setup(context, *args, **kwargs):
             parameters=[
                 os.path.join(
                     get_package_share_directory('pipeline_intersection_following'),
-                    'config', 'line_filtering_params.yaml',
+                    'config',
+                    'line_filtering_params.yaml',
                 ),
                 {
                     'lines_sub_topic': '/irls_line/lines',
@@ -315,7 +340,9 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'classify_model_file_path',
-                default_value=os.path.join(pkg_dir, 'models', 'pipeline_end_detection_best_best.pt'),
+                default_value=os.path.join(
+                    pkg_dir, 'models', 'pipeline_end_detection_best_best.pt'
+                ),
                 description='Path to the YOLO classification model file.',
             ),
             DeclareLaunchArgument(
@@ -333,7 +360,9 @@ def generate_launch_description():
                 PythonLaunchDescriptionSource(
                     os.path.join(
                         get_package_share_directory('perception_setup'),
-                        'launch', 'cameras', 'blackfly_s.launch.py',
+                        'launch',
+                        'cameras',
+                        'blackfly_s.launch.py',
                     )
                 ),
                 launch_arguments={

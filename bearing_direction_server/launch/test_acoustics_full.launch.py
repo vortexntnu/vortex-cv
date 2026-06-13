@@ -1,5 +1,4 @@
-"""
-Acoustics bearing test — run this alongside the simulation and FSM.
+"""Acoustics bearing test — run this alongside the simulation and FSM.
 
 Starts:
   1. acoustics_bearing_server   → exposes /nautilus/acoustics_bearing_direction
@@ -17,6 +16,7 @@ Or test the action directly:
 """
 
 import os
+
 from ament_index_python.packages import get_package_share_directory
 from auv_setup.launch_arg_common import (
     declare_drone_and_namespace_args,
@@ -32,7 +32,8 @@ def launch_setup(context, *args, **kwargs):
 
     config = os.path.join(
         get_package_share_directory("bearing_direction_server"),
-        "config", "bearing_direction_server.yaml",
+        "config",
+        "bearing_direction_server.yaml",
     )
 
     acoustics_server = Node(
@@ -56,15 +57,17 @@ def launch_setup(context, *args, **kwargs):
         name="test_acoustics_direction_node",
         namespace=namespace,
         output="screen",
-        parameters=[{
-            "target.x": 1.777425535555405,
-            "target.y": -0.053997583427242916,
-            "target.z": 5.301166999942316,
-            "noise_std_deg": 3.0,
-            "topics.odom": "/nautilus/odom",
-            "topics.bearing_measurements": "acoustics/bearing_measurements",
-            "publish_rate_hz": 10.0,
-        }],
+        parameters=[
+            {
+                "target.x": 1.777425535555405,
+                "target.y": -0.053997583427242916,
+                "target.z": 5.301166999942316,
+                "noise_std_deg": 3.0,
+                "topics.odom": "/nautilus/odom",
+                "topics.bearing_measurements": "acoustics/bearing_measurements",
+                "publish_rate_hz": 10.0,
+            }
+        ],
     )
 
     return [acoustics_server, test_publisher]
@@ -72,6 +75,5 @@ def launch_setup(context, *args, **kwargs):
 
 def generate_launch_description():
     return LaunchDescription(
-        declare_drone_and_namespace_args()
-        + [OpaqueFunction(function=launch_setup)]
+        declare_drone_and_namespace_args() + [OpaqueFunction(function=launch_setup)]
     )

@@ -67,8 +67,8 @@ valve_inspection_fsm::WaypointManagerAction::Goal AlignHeightState::create_goal(
     // Camera TF for XY: same logic as AlignHeightCameraState.
     geometry_msgs::msg::TransformStamped cam_tf;
     try {
-        cam_tf = tf_buffer->lookupTransform(tcp_base_frame_, depth_camera_frame_,
-                                            obs_time);
+        cam_tf = tf_buffer->lookupTransform(tcp_base_frame_,
+                                            depth_camera_frame_, obs_time);
     } catch (const tf2::TransformException& ex) {
         throw std::runtime_error(std::string("Camera TF lookup failed (") +
                                  tcp_base_frame_ + " -> " +
@@ -91,8 +91,9 @@ valve_inspection_fsm::WaypointManagerAction::Goal AlignHeightState::create_goal(
         valve_pose.pos_vector() - cam_z_odom * standoff_dist;
     const Eigen::Vector3d align_pos = cam_target - cam_pos_odom;
 
-    // TCP TF for Z: compute the full converge target (identical to ConvergeState)
-    // and take its z, so the AlignHeight→Converge transition is purely horizontal.
+    // TCP TF for Z: compute the full converge target (identical to
+    // ConvergeState) and take its z, so the AlignHeight→Converge transition is
+    // purely horizontal.
     geometry_msgs::msg::TransformStamped tcp_tf;
     try {
         tcp_tf = tf_buffer->lookupTransform(tcp_base_frame_, tcp_tip_frame_,
@@ -107,7 +108,8 @@ valve_inspection_fsm::WaypointManagerAction::Goal AlignHeightState::create_goal(
     const Eigen::Vector3d tcp_odom = q_drone * Eigen::Vector3d{t.x, t.y, t.z};
 
     // Project valve_z_offset along the valve normal (same as ConvergeState) so
-    // the z target is correct for any valve orientation, not just upward-facing.
+    // the z target is correct for any valve orientation, not just
+    // upward-facing.
     const Eigen::Vector3d converge_pos =
         valve_pose.pos_vector() + z_valve * valve_z_offset_ - tcp_odom;
 

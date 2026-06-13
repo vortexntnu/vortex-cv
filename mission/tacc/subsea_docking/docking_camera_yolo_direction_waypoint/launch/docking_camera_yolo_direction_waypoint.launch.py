@@ -37,16 +37,18 @@ def _launch_setup(context):
 
 
 def generate_launch_description():
-    return LaunchDescription([
-        DeclareLaunchArgument(
-            "drone",
-            default_value="nautilus",
-            description="Robot name, used as topic namespace prefix",
-        ),
-        DeclareLaunchArgument(
-            "waypoint_distance",
-            default_value="2.0",
-            description="Distance [m] ahead of the camera to place the waypoint along the target yaw.",
-        ),
-        OpaqueFunction(function=_launch_setup),
-    ])
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument(
+                "drone",
+                default_value="nautilus",
+                description="Robot name, used as topic namespace prefix",
+            ),
+            DeclareLaunchArgument(
+                "waypoint_distance",
+                default_value="2.0",
+                description="Distance [m] ahead of the camera to place the waypoint along the target yaw.",
+            ),
+            OpaqueFunction(function=_launch_setup),
+        ]
+    )

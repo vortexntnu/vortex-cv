@@ -2,23 +2,26 @@
 
 namespace pipeline_image_endpoints_detector {
 
-std::optional<std::pair<cv::Point, cv::Point>> PipelineDetector::find_furthest_points(
-    const cv::Mat& binary) {
+std::optional<std::pair<cv::Point, cv::Point>>
+PipelineDetector::find_furthest_points(const cv::Mat& binary) {
     std::vector<std::vector<cv::Point>> contours;
-    cv::findContours(binary.clone(), contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    cv::findContours(binary.clone(), contours, cv::RETR_EXTERNAL,
+                     cv::CHAIN_APPROX_SIMPLE);
 
-    if (contours.empty()) return std::nullopt;
+    if (contours.empty())
+        return std::nullopt;
 
-    auto largest_it =
-        std::max_element(contours.begin(), contours.end(),
-                         [](const std::vector<cv::Point>& a, const std::vector<cv::Point>& b) {
-                             return cv::contourArea(a) < cv::contourArea(b);
-                         });
+    auto largest_it = std::max_element(
+        contours.begin(), contours.end(),
+        [](const std::vector<cv::Point>& a, const std::vector<cv::Point>& b) {
+            return cv::contourArea(a) < cv::contourArea(b);
+        });
 
     std::vector<cv::Point> hull;
     cv::convexHull(*largest_it, hull);
 
-    if (hull.size() < 2) return std::nullopt;
+    if (hull.size() < 2)
+        return std::nullopt;
 
     // Find two hull points with maximum pairwise distance
     double max_dist = 0;

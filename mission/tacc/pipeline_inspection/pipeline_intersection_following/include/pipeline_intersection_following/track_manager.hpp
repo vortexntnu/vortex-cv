@@ -47,7 +47,8 @@ struct LineGate2D {
  * @brief N/M track confirmation / deletion window sizes.
  *
  * A track is confirmed once it has @c confirm_n hits within the last
- * @c confirm_m steps, and deleted once it has @c delete_n misses within the last
+ * @c confirm_m steps, and deleted once it has @c delete_n misses within the
+ * last
  * @c delete_m steps. Mirrors the N/M logic used by pose_filtering.
  */
 struct NMConfig {
@@ -85,9 +86,7 @@ struct Track {
         return hits() > other.hits();
     }
 
-    bool operator==(const Track& other) const {
-        return id == other.id;
-    }
+    bool operator==(const Track& other) const { return id == other.id; }
 };
 
 class TrackManager {
@@ -109,44 +108,50 @@ class TrackManager {
      * @param prob_of_survival The probability of survival.
      * @param clutter_intensity The intensity of clutter.
      */
-    void update_line_tracks(Eigen::Array<double, 2, Eigen::Dynamic> measurements,
-                      Eigen::Array<double, 2, Eigen::Dynamic> line_params,
-                      int update_interval,
-                      double confirmation_threshold,
-                      double gate_theshhold,
-                      double min_gate_threshold,
-                      double max_gate_threshold,
-                      double prob_of_detection,
-                      double prob_of_survival,
-                      double clutter_intensity,
-                      double initial_existence_probability);
+    void update_line_tracks(
+        Eigen::Array<double, 2, Eigen::Dynamic> measurements,
+        Eigen::Array<double, 2, Eigen::Dynamic> line_params,
+        int update_interval,
+        double confirmation_threshold,
+        double gate_theshhold,
+        double min_gate_threshold,
+        double max_gate_threshold,
+        double prob_of_detection,
+        double prob_of_survival,
+        double clutter_intensity,
+        double initial_existence_probability);
 
-    void update_line_intersection_tracks(Eigen::Array<double, 2, Eigen::Dynamic> intersections,
-                    Eigen::Array<int, 2, Eigen::Dynamic> current_intersection_ids,
-                    Eigen::Array<double, 2, Eigen::Dynamic> current_line_intersection_points,
-                    int update_interval, 
-                    double confirmation_threshold, 
-                    double gate_theshhold, 
-                    double min_gate_threshold, 
-                    double max_gate_threshold, 
-                    double prob_of_detection, 
-                    double prob_of_survival, 
-                    double clutter_intensity,
-                    double initial_existence_probability);
+    void update_line_intersection_tracks(
+        Eigen::Array<double, 2, Eigen::Dynamic> intersections,
+        Eigen::Array<int, 2, Eigen::Dynamic> current_intersection_ids,
+        Eigen::Array<double, 2, Eigen::Dynamic>
+            current_line_intersection_points,
+        int update_interval,
+        double confirmation_threshold,
+        double gate_theshhold,
+        double min_gate_threshold,
+        double max_gate_threshold,
+        double prob_of_detection,
+        double prob_of_survival,
+        double clutter_intensity,
+        double initial_existence_probability);
 
     /**
      * @brief Creates new tracks for every measurements.
      *
      * @param measurements The measurements received.
      */
-    void create_line_tracks(Eigen::Array<double, 2, Eigen::Dynamic> measurements,
-                      Eigen::Array<double, 2, Eigen::Dynamic> line_params,
-                      double initial_existence_probability);
+    void create_line_tracks(
+        Eigen::Array<double, 2, Eigen::Dynamic> measurements,
+        Eigen::Array<double, 2, Eigen::Dynamic> line_params,
+        double initial_existence_probability);
 
-    void create_line_intersection_tracks(Eigen::Array<double, 2, Eigen::Dynamic> intersections,
-                    Eigen::Array<int, 2, Eigen::Dynamic> current_intersection_ids,
-                    Eigen::Array<double, 2, Eigen::Dynamic> current_line_intersection_points,
-                    double initial_existence_probability);
+    void create_line_intersection_tracks(
+        Eigen::Array<double, 2, Eigen::Dynamic> intersections,
+        Eigen::Array<int, 2, Eigen::Dynamic> current_intersection_ids,
+        Eigen::Array<double, 2, Eigen::Dynamic>
+            current_line_intersection_points,
+        double initial_existence_probability);
 
     /**
      * @brief Deletes tracks via N/M logic (delete_n misses within the last
@@ -181,8 +186,8 @@ class TrackManager {
      * A measurement is only associated to a line track if its orientation
      * differs from the track's by less than this threshold (radians, compared
      * modulo pi since lines are undirected). This prevents a perpendicular line
-     * at a junction from being absorbed into the current line track just because
-     * their midpoints are close. Set to >= pi/2 to disable.
+     * at a junction from being absorbed into the current line track just
+     * because their midpoints are close. Set to >= pi/2 to disable.
      *
      * @param rad The orientation gate threshold in radians.
      */
@@ -208,7 +213,8 @@ class TrackManager {
 
     NMConfig nm_;  ///< N/M confirmation / deletion window sizes.
 
-    /// Max orientation difference (rad, mod pi) for line-measurement association.
+    /// Max orientation difference (rad, mod pi) for line-measurement
+    /// association.
     double orientation_gate_threshold_ = M_PI;  // disabled by default
 
     std::shared_ptr<DynMod>

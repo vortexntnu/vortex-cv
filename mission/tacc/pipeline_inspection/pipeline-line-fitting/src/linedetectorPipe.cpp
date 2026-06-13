@@ -48,9 +48,11 @@ void LinedetectorPipe::preprocess(cv::Mat& img, bool dist) {
     // noise blobs that survived thinning and would seed bad RANSAC lines.
     if (min_skeleton_component_size_ > 0) {
         cv::Mat labels, stats, centroids;
-        int n_labels = cv::connectedComponentsWithStats(img, labels, stats, centroids);
+        int n_labels =
+            cv::connectedComponentsWithStats(img, labels, stats, centroids);
         for (int lbl = 1; lbl < n_labels; ++lbl) {
-            if (stats.at<int>(lbl, cv::CC_STAT_AREA) < min_skeleton_component_size_) {
+            if (stats.at<int>(lbl, cv::CC_STAT_AREA) <
+                min_skeleton_component_size_) {
                 img.setTo(0, labels == lbl);
             }
         }
@@ -170,17 +172,23 @@ std::vector<Line> LinedetectorPipe::detect(const cv::Mat& img,
     auto intersects_in_frame = [&](const Line& candidate) -> bool {
         for (const auto& prev : lines) {
             double ax = prev.start.x * scaleX_, ay = prev.start.y * scaleY_;
-            double bx = prev.end.x  * scaleX_, by = prev.end.y  * scaleY_;
-            double cx = candidate.start.x * scaleX_, cy = candidate.start.y * scaleY_;
-            double ex = candidate.end.x   * scaleX_, ey = candidate.end.y   * scaleY_;
+            double bx = prev.end.x * scaleX_, by = prev.end.y * scaleY_;
+            double cx = candidate.start.x * scaleX_,
+                   cy = candidate.start.y * scaleY_;
+            double ex = candidate.end.x * scaleX_,
+                   ey = candidate.end.y * scaleY_;
             // General form ax+by+c=0 for each line.
-            double p1 = -(by-ay), q1 = bx-ax, r1 = (by-ay)*ax - (bx-ax)*ay;
-            double p2 = -(ey-cy), q2 = ex-cx, r2 = (ey-cy)*cx - (ex-cx)*cy;
-            double det = p1*q2 - p2*q1;
-            if (std::abs(det) < 1e-6) return false;  // parallel → same pipe
-            double xi = (-r1*q2 + r2*q1) / det;
-            double yi = (-r2*p1 + r1*p2) / det;
-            if (xi < 0.0 || xi > size_ || yi < 0.0 || yi > size_) return false;
+            double p1 = -(by - ay), q1 = bx - ax,
+                   r1 = (by - ay) * ax - (bx - ax) * ay;
+            double p2 = -(ey - cy), q2 = ex - cx,
+                   r2 = (ey - cy) * cx - (ex - cx) * cy;
+            double det = p1 * q2 - p2 * q1;
+            if (std::abs(det) < 1e-6)
+                return false;  // parallel → same pipe
+            double xi = (-r1 * q2 + r2 * q1) / det;
+            double yi = (-r2 * p1 + r1 * p2) / det;
+            if (xi < 0.0 || xi > size_ || yi < 0.0 || yi > size_)
+                return false;
         }
         return true;
     };

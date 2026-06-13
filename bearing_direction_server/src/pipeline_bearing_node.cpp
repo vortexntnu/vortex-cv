@@ -30,24 +30,27 @@ PipelineBearingNode::PipelineBearingNode(const rclcpp::NodeOptions& options)
 
 void PipelineBearingNode::camera_info_callback(
     const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
-    if (intrinsics_) return;  // set once
+    if (intrinsics_)
+        return;  // set once
     intrinsics_ = CameraIntrinsics{
-        .fx = msg->k[0], .fy = msg->k[4],
-        .cx = msg->k[2], .cy = msg->k[5]};
-    spdlog::info("PipelineBearingNode: got camera intrinsics "
-                 "fx={:.1f} fy={:.1f} cx={:.1f} cy={:.1f}",
-                 intrinsics_->fx, intrinsics_->fy,
-                 intrinsics_->cx, intrinsics_->cy);
+        .fx = msg->k[0], .fy = msg->k[4], .cx = msg->k[2], .cy = msg->k[5]};
+    spdlog::info(
+        "PipelineBearingNode: got camera intrinsics "
+        "fx={:.1f} fy={:.1f} cx={:.1f} cy={:.1f}",
+        intrinsics_->fx, intrinsics_->fy, intrinsics_->cx, intrinsics_->cy);
 }
 
 void PipelineBearingNode::pixel_callback(
     const vortex_msgs::msg::Point2DArray::SharedPtr msg) {
     {
         std::lock_guard lock(mutex_);
-        if (!collecting_) return;
+        if (!collecting_)
+            return;
     }
-    if (!intrinsics_) return;
-    if (msg->points.empty()) return;
+    if (!intrinsics_)
+        return;
+    if (msg->points.empty())
+        return;
 
     const std::string& cam_frame = msg->header.frame_id;
     if (cam_frame.empty()) {
@@ -58,18 +61,18 @@ void PipelineBearingNode::pixel_callback(
     for (const auto& pt : msg->points) {
         const Eigen::Vector3d dir_cam(
             (pt.x - intrinsics_->cx) / intrinsics_->fx,
-            (pt.y - intrinsics_->cy) / intrinsics_->fy,
-            1.0);
+            (pt.y - intrinsics_->cy) / intrinsics_->fy, 1.0);
 
-        const auto dir_odom = rotate_to_odom(
-            dir_cam.normalized(), cam_frame,
-            rclcpp::Time(msg->header.stamp));
+        const auto dir_odom = rotate_to_odom(dir_cam.normalized(), cam_frame,
+                                             rclcpp::Time(msg->header.stamp));
         if (dir_odom) {
             Eigen::Vector3d pos = Eigen::Vector3d::Zero();
             {
                 std::lock_guard lock(mutex_);
                 if (latest_drone_pos_)
-                    pos = Eigen::Vector3d(latest_drone_pos_->x, latest_drone_pos_->y, latest_drone_pos_->z);
+                    pos = Eigen::Vector3d(latest_drone_pos_->x,
+                                          latest_drone_pos_->y,
+                                          latest_drone_pos_->z);
             }
             add_direction(*dir_odom, pos);
         }

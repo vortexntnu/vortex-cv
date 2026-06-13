@@ -33,20 +33,23 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
     pipeline_type.value = vortex_msgs::msg::LandmarkType::PIPELINE_START;
 
     vortex_msgs::msg::LandmarkSubtype pipeline_subtype;
-    pipeline_subtype.value = vortex_msgs::msg::LandmarkSubtype::PIPELINE_START_CAMERA;
+    pipeline_subtype.value =
+        vortex_msgs::msg::LandmarkSubtype::PIPELINE_START_CAMERA;
 
     auto start_pipeline_trg = std::make_shared<
         yasmin_ros::ServiceState<pipeline_inspection_fsm::TriggerSrv>>(
         config.start_pipeline_following_service,
         [](yasmin::Blackboard::SharedPtr) {
-            return std::make_shared<pipeline_inspection_fsm::TriggerSrv::Request>();
+            return std::make_shared<
+                pipeline_inspection_fsm::TriggerSrv::Request>();
         });
 
     auto start_end_detection_trg = std::make_shared<
         yasmin_ros::ServiceState<pipeline_inspection_fsm::TriggerSrv>>(
         config.start_end_pipeline_detection_service,
         [](yasmin::Blackboard::SharedPtr) {
-            return std::make_shared<pipeline_inspection_fsm::TriggerSrv::Request>();
+            return std::make_shared<
+                pipeline_inspection_fsm::TriggerSrv::Request>();
         });
 
     // Wraps a converge state in a race against the first IRLS line detection.
@@ -63,19 +66,21 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
             vortex_yasmin_utils::FirstWinsOutcomeMap{
                 {"CONVERGE",
                  {{SUCCEED, SUCCEED}, {ABORT, ABORT}, {CANCEL, ABORT}}},
-                {"WAIT_FOR_IRLS_LINE",
-                 {{SUCCEED, SUCCEED}, {CANCEL, ABORT}}}});
+                {"WAIT_FOR_IRLS_LINE", {{SUCCEED, SUCCEED}, {CANCEL, ABORT}}}});
     };
 
     auto sm = std::make_shared<yasmin::StateMachine>(
         std::set<std::string>{SUCCEED, ABORT});
 
-    // Snapshot the drone pose the moment the start-mission service is triggered.
+    // Snapshot the drone pose the moment the start-mission service is
+    // triggered.
     auto store_origin = yasmin::CbState::make_shared(
         yasmin::Outcomes{SUCCEED, ABORT},
         [latest_pose](yasmin::Blackboard::SharedPtr bb) -> std::string {
             if (!latest_pose || !*latest_pose) {
-                YASMIN_LOG_ERROR("STORE_ORIGIN: no odom received yet, cannot store origin pose");
+                YASMIN_LOG_ERROR(
+                    "STORE_ORIGIN: no odom received yet, cannot store origin "
+                    "pose");
                 return ABORT;
             }
             bb->set("origin_pose", **latest_pose);
@@ -95,14 +100,16 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                   {{SUCCEED, "WIPE"}, {ABORT, ABORT}});
 
     if (config.start_above_pipe) {
-        sm->add_state("WIPE", std::make_shared<vortex_yasmin_utils::WipeState>(),
+        sm->add_state("WIPE",
+                      std::make_shared<vortex_yasmin_utils::WipeState>(),
                       {{SUCCEED, "START_PIPELINE_TRG"}});
         sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
                       {{SUCCEED, "START_END_DETECTION_TRG"}, {ABORT, ABORT}});
 
     } else if (config.start_in_camera_range) {
-        // Already in camera range: poll for pipeline endpoint landmarks, collect
-        // pipeline bearing from the camera, then converge toward the pipe.
+        // Already in camera range: poll for pipeline endpoint landmarks,
+        // collect pipeline bearing from the camera, then converge toward the
+        // pipe.
         auto landmark_polling =
             std::make_shared<vortex_yasmin_utils::LandmarkPollingState>(
                 config.landmark_polling_action_server, pipeline_type,
@@ -119,19 +126,20 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
 
         auto pipeline_bearing_waypoint =
             std::make_shared<vortex_yasmin_utils::BearingWaypointState>(
-                config.waypoint_manager_action_server,
-                0.5,
-                config.bearing_waypoint_altitude,
-                "pipeline_bearing_pose");
+                config.waypoint_manager_action_server, 0.5,
+                config.bearing_waypoint_altitude, "pipeline_bearing_pose");
 
-        sm->add_state("WIPE", std::make_shared<vortex_yasmin_utils::WipeState>(),
+        sm->add_state("WIPE",
+                      std::make_shared<vortex_yasmin_utils::WipeState>(),
                       {{SUCCEED, "LANDMARK_POLLING"}});
-        sm->add_state("LANDMARK_POLLING", landmark_polling,
-                      {{"landmark_found", "COLLECT_PIPELINE_BEARING"}, {ABORT, ABORT}});
+        sm->add_state(
+            "LANDMARK_POLLING", landmark_polling,
+            {{"landmark_found", "COLLECT_PIPELINE_BEARING"}, {ABORT, ABORT}});
         sm->add_state("COLLECT_PIPELINE_BEARING", pipeline_collect,
                       {{SUCCEED, "CONVERGE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
-        sm->add_state("CONVERGE", make_converge_or_line(pipeline_bearing_waypoint),
-                      {{SUCCEED, "START_PIPELINE_TRG"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+        sm->add_state(
+            "CONVERGE", make_converge_or_line(pipeline_bearing_waypoint),
+            {{SUCCEED, "START_PIPELINE_TRG"}, {ABORT, ABORT}, {CANCEL, ABORT}});
         sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
                       {{SUCCEED, "START_END_DETECTION_TRG"}, {ABORT, ABORT}});
 
@@ -140,7 +148,8 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         //   1. Collect acoustic bearing → drive 3 m at 2 m altitude.
         //   2. Collect acoustic bearing → drive 10 m at 2 m altitude, racing
         //      against landmark polling. Either the drive completes or the
-        //      pipeline is spotted — both advance to pipeline bearing collection.
+        //      pipeline is spotted — both advance to pipeline bearing
+        //      collection.
         //   3. Collect pipeline bearing from camera (ep1/ep2 endpoints).
         //   4. Converge toward the pipe at 1 m altitude, racing against IRLS
         //      line detection. Either way advances to pipeline following.
@@ -155,8 +164,7 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
 
         auto drive_3m =
             std::make_shared<vortex_yasmin_utils::BearingWaypointState>(
-                config.waypoint_manager_action_server,
-                0.5,
+                config.waypoint_manager_action_server, 0.5,
                 config.acoustic_bearing_waypoint_altitude);
 
         auto acoustic_collect_long =
@@ -169,8 +177,7 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
 
         auto drive_10m =
             std::make_shared<vortex_yasmin_utils::BearingWaypointState>(
-                config.waypoint_manager_action_server,
-                0.5,
+                config.waypoint_manager_action_server, 0.5,
                 config.acoustic_bearing_waypoint_altitude);
 
         auto landmark_polling =
@@ -179,16 +186,17 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                 pipeline_subtype, "pipeline_landmarks", "landmark_found");
 
         // Race: drive 10 m vs landmark polling — either outcome proceeds.
-        auto hunt_10m = std::make_shared<vortex_yasmin_utils::FirstWinsConcurrence>(
-            yasmin::StateMap{
-                {"DRIVE_10M", drive_10m},
-                {"LANDMARK_POLLING", landmark_polling}},
-            ABORT,
-            vortex_yasmin_utils::FirstWinsOutcomeMap{
-                {"DRIVE_10M",
-                 {{SUCCEED, "pipeline_in_range"}, {ABORT, ABORT}}},
-                {"LANDMARK_POLLING",
-                 {{"landmark_found", "pipeline_in_range"}, {ABORT, ABORT}}}});
+        auto hunt_10m =
+            std::make_shared<vortex_yasmin_utils::FirstWinsConcurrence>(
+                yasmin::StateMap{{"DRIVE_10M", drive_10m},
+                                 {"LANDMARK_POLLING", landmark_polling}},
+                ABORT,
+                vortex_yasmin_utils::FirstWinsOutcomeMap{
+                    {"DRIVE_10M",
+                     {{SUCCEED, "pipeline_in_range"}, {ABORT, ABORT}}},
+                    {"LANDMARK_POLLING",
+                     {{"landmark_found", "pipeline_in_range"},
+                      {ABORT, ABORT}}}});
 
         auto pipeline_collect =
             std::make_shared<vortex_yasmin_utils::CollectBearingDirectionState>(
@@ -201,17 +209,17 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
 
         auto pipeline_bearing_waypoint =
             std::make_shared<vortex_yasmin_utils::BearingWaypointState>(
-                config.waypoint_manager_action_server,
-                0.5,
-                config.bearing_waypoint_altitude,
-                "pipeline_bearing_pose");
+                config.waypoint_manager_action_server, 0.5,
+                config.bearing_waypoint_altitude, "pipeline_bearing_pose");
 
-        sm->add_state("WIPE", std::make_shared<vortex_yasmin_utils::WipeState>(),
+        sm->add_state("WIPE",
+                      std::make_shared<vortex_yasmin_utils::WipeState>(),
                       {{SUCCEED, "COLLECT_ACOUSTIC_1"}});
         sm->add_state("COLLECT_ACOUSTIC_1", acoustic_collect_short,
                       {{SUCCEED, "DRIVE_3M"}, {ABORT, ABORT}, {CANCEL, ABORT}});
-        sm->add_state("DRIVE_3M", drive_3m,
-                      {{SUCCEED, "COLLECT_ACOUSTIC_2"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+        sm->add_state(
+            "DRIVE_3M", drive_3m,
+            {{SUCCEED, "COLLECT_ACOUSTIC_2"}, {ABORT, ABORT}, {CANCEL, ABORT}});
         sm->add_state("COLLECT_ACOUSTIC_2", acoustic_collect_long,
                       {{SUCCEED, "HUNT_10M"}, {ABORT, ABORT}, {CANCEL, ABORT}});
         sm->add_state("HUNT_10M", hunt_10m,
@@ -220,8 +228,9 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                        {CANCEL, ABORT}});
         sm->add_state("COLLECT_PIPELINE_BEARING", pipeline_collect,
                       {{SUCCEED, "CONVERGE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
-        sm->add_state("CONVERGE", make_converge_or_line(pipeline_bearing_waypoint),
-                      {{SUCCEED, "START_PIPELINE_TRG"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+        sm->add_state(
+            "CONVERGE", make_converge_or_line(pipeline_bearing_waypoint),
+            {{SUCCEED, "START_PIPELINE_TRG"}, {ABORT, ABORT}, {CANCEL, ABORT}});
         sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
                       {{SUCCEED, "START_END_DETECTION_TRG"}, {ABORT, ABORT}});
     }
@@ -230,19 +239,21 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         sm->add_state("START_END_DETECTION_TRG", start_end_detection_trg,
                       {{SUCCEED, "PIPELINE_FOLLOWING"}, {ABORT, ABORT}});
     } else {
-        sm->add_state("START_END_DETECTION_TRG",
-                      yasmin::CbState::make_shared(
-                          yasmin::Outcomes{SUCCEED},
-                          [](auto) { return SUCCEED; }),
-                      {{SUCCEED, "PIPELINE_FOLLOWING"}});
+        sm->add_state(
+            "START_END_DETECTION_TRG",
+            yasmin::CbState::make_shared(yasmin::Outcomes{SUCCEED},
+                                         [](auto) { return SUCCEED; }),
+            {{SUCCEED, "PIPELINE_FOLLOWING"}});
     }
 
     std::shared_ptr<yasmin::State> pipeline_following;
     if (config.enable_end_detection) {
-        pipeline_following = std::make_shared<vortex_yasmin_utils::FirstWinsConcurrence>(
+        pipeline_following = std::make_shared<
+            vortex_yasmin_utils::FirstWinsConcurrence>(
             yasmin::StateMap{
                 {"PERSISTENT_WM",
-                 std::make_shared<vortex_yasmin_utils::PersistentWaypointManagerState>(
+                 std::make_shared<
+                     vortex_yasmin_utils::PersistentWaypointManagerState>(
                      config.waypoint_manager_action_server)},
                 {"WAIT_FOR_END_OF_PIPELINE",
                  std::make_shared<vortex_yasmin_utils::ServiceTriggerWaitState>(
@@ -254,15 +265,17 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                  {{SUCCEED, SUCCEED}, {CANCEL, CANCEL}}}},
             std::unordered_set<std::string>{"WAIT_FOR_END_OF_PIPELINE"});
     } else {
-        pipeline_following = std::make_shared<vortex_yasmin_utils::FirstWinsConcurrence>(
-            yasmin::StateMap{
-                {"PERSISTENT_WM",
-                 std::make_shared<vortex_yasmin_utils::PersistentWaypointManagerState>(
-                     config.waypoint_manager_action_server)}},
-            ABORT,
-            vortex_yasmin_utils::FirstWinsOutcomeMap{
-                {"PERSISTENT_WM", {{SUCCEED, ABORT}, {ABORT, ABORT}}}},
-            std::unordered_set<std::string>{});
+        pipeline_following =
+            std::make_shared<vortex_yasmin_utils::FirstWinsConcurrence>(
+                yasmin::StateMap{
+                    {"PERSISTENT_WM",
+                     std::make_shared<
+                         vortex_yasmin_utils::PersistentWaypointManagerState>(
+                         config.waypoint_manager_action_server)}},
+                ABORT,
+                vortex_yasmin_utils::FirstWinsOutcomeMap{
+                    {"PERSISTENT_WM", {{SUCCEED, ABORT}, {ABORT, ABORT}}}},
+                std::unordered_set<std::string>{});
     }
 
     vortex::utils::waypoints::WaypointGoal origin_wp;
@@ -274,8 +287,9 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         std::vector<vortex::utils::waypoints::WaypointGoal>{origin_wp});
 
     if (config.enable_end_detection) {
-        sm->add_state("PIPELINE_FOLLOWING", pipeline_following,
-                      {{SUCCEED, "RETURN_TO_ORIGIN"}, {CANCEL, ABORT}, {ABORT, ABORT}});
+        sm->add_state(
+            "PIPELINE_FOLLOWING", pipeline_following,
+            {{SUCCEED, "RETURN_TO_ORIGIN"}, {CANCEL, ABORT}, {ABORT, ABORT}});
     } else {
         sm->add_state("PIPELINE_FOLLOWING", pipeline_following,
                       {{CANCEL, ABORT}, {ABORT, ABORT}});

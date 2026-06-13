@@ -19,10 +19,21 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer, LoadComposableNodes
 from launch_ros.descriptions import ComposableNode
 
-
 RESOLUTION_PRESETS = {
-    '720x540':   {'image_width': 720,  'image_height': 540,  'binning_x': 2, 'binning_y': 2, 'calib': 'blackfly_s_calib_downscale.yaml'},
-    '1440x1080': {'image_width': 1440, 'image_height': 1080, 'binning_x': 1, 'binning_y': 1, 'calib': 'blackfly_s_calib.yaml'},
+    '720x540': {
+        'image_width': 720,
+        'image_height': 540,
+        'binning_x': 2,
+        'binning_y': 2,
+        'calib': 'blackfly_s_calib_downscale.yaml',
+    },
+    '1440x1080': {
+        'image_width': 1440,
+        'image_height': 1080,
+        'binning_x': 1,
+        'binning_y': 1,
+        'calib': 'blackfly_s_calib.yaml',
+    },
 }
 
 
@@ -30,32 +41,46 @@ def _launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('perception_setup')
 
     drone = LaunchConfiguration('drone').perform(context)
-    enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
-    use_nvidia = LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
+    enable_gstreamer = (
+        LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
+    )
+    use_nvidia = (
+        LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
+    )
     destination_ip = LaunchConfiguration('destination_ip').perform(context)
     destination_port = int(LaunchConfiguration('destination_port').perform(context))
     standalone = LaunchConfiguration('standalone').perform(context).lower() == 'true'
     container_name = LaunchConfiguration('container_name').perform(context)
-    enable_camera = LaunchConfiguration('enable_camera').perform(context).lower() == 'true'
+    enable_camera = (
+        LaunchConfiguration('enable_camera').perform(context).lower() == 'true'
+    )
     resolution = LaunchConfiguration('resolution').perform(context)
     fps = LaunchConfiguration('fps').perform(context)
     pixel_format = LaunchConfiguration('pixel_format').perform(context)
 
-    blackfly_ros_params = os.path.join(pkg_dir, 'config', 'cameras', 'blackfly_s_ros_params.yaml')
+    blackfly_ros_params = os.path.join(
+        pkg_dir, 'config', 'cameras', 'blackfly_s_ros_params.yaml'
+    )
     spinnaker_map = os.path.join(pkg_dir, 'config', 'cameras', 'blackfly_s_params.yaml')
 
-    calib_file = RESOLUTION_PRESETS[resolution]['calib'] if resolution in RESOLUTION_PRESETS else 'blackfly_s_calib.yaml'
+    calib_file = (
+        RESOLUTION_PRESETS[resolution]['calib']
+        if resolution in RESOLUTION_PRESETS
+        else 'blackfly_s_calib.yaml'
+    )
     calib_path = os.path.join(pkg_dir, 'config', 'cameras', calib_file)
 
     camera_overrides = {}
     if resolution in RESOLUTION_PRESETS:
         preset = RESOLUTION_PRESETS[resolution]
-        camera_overrides.update({
-            'image_width':  preset['image_width'],
-            'image_height': preset['image_height'],
-            'binning_x':    preset['binning_x'],
-            'binning_y':    preset['binning_y'],
-        })
+        camera_overrides.update(
+            {
+                'image_width': preset['image_width'],
+                'image_height': preset['image_height'],
+                'binning_x': preset['binning_x'],
+                'binning_y': preset['binning_y'],
+            }
+        )
     if fps:
         camera_overrides['frame_rate'] = float(fps)
     if pixel_format:
@@ -96,20 +121,22 @@ def _launch_setup(context, *args, **kwargs):
                 package='gstreamer_from_ros',
                 plugin='gstreamer_from_ros::GStreamerFromRos',
                 name='gstreamer_from_ros_node',
-                parameters=[{
-                    'input_topic': down_image_topic,
-                    'destination_ip': destination_ip,
-                    'destination_port': destination_port,
-                    'bitrate': 500000,
-                    'expected_input_fps': 15,
-                    'preset_level': 1,
-                    'iframe_interval': 15,
-                    'control_rate': 1,
-                    'pt': 96,
-                    'config_interval': 1,
-                    'input_format': 'RGB',
-                    'hw_encoder': use_nvidia,
-                }],
+                parameters=[
+                    {
+                        'input_topic': down_image_topic,
+                        'destination_ip': destination_ip,
+                        'destination_port': destination_port,
+                        'bitrate': 500000,
+                        'expected_input_fps': 15,
+                        'preset_level': 1,
+                        'iframe_interval': 15,
+                        'control_rate': 1,
+                        'pt': 96,
+                        'config_interval': 1,
+                        'input_format': 'RGB',
+                        'hw_encoder': use_nvidia,
+                    }
+                ],
                 extra_arguments=[{'use_intra_process_comms': True}],
             )
         )
@@ -138,70 +165,72 @@ def _launch_setup(context, *args, **kwargs):
 
 
 def generate_launch_description():
-    return LaunchDescription([
-        DeclareLaunchArgument(
-            'drone',
-            default_value='nautilus',
-            description='Robot name, used as topic/TF namespace prefix',
-        ),
-        DeclareLaunchArgument(
-            'resolution',
-            default_value='1440x1080',
-            description='Resolution preset: "720x540" (binning 2x2, downscale calib) or "1440x1080" (binning 1x1, full calib). Empty = use YAML defaults.',
-            choices=['', '720x540', '1440x1080']
-        ),
-        DeclareLaunchArgument(
-            'fps',
-            default_value='',
-            description='Override camera frame rate (e.g. "30.0"). Empty = use YAML default.',
-        ),
-        DeclareLaunchArgument(
-            'pixel_format',
-            default_value='',
-            description='Override pixel format. Empty = use YAML default.',
-            choices=['', 'BayerRG8', 'BGR8']
-        ),
-        DeclareLaunchArgument(
-            'enable_camera',
-            default_value='true',
-            description=(
-                'Launch the Blackfly S camera node. Set false when replaying a '
-                'bag that already publishes the camera topics so only downstream '
-                'nodes run against the bag.'
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument(
+                'drone',
+                default_value='nautilus',
+                description='Robot name, used as topic/TF namespace prefix',
             ),
-        ),
-        DeclareLaunchArgument(
-            'enable_gstreamer',
-            default_value='false',
-            description='Stream the camera image via GStreamer/RTP H.265',
-        ),
-        DeclareLaunchArgument(
-            'gst_nvidia_encoder',
-            default_value='true',
-            description='Use NVIDIA hardware H.265 encoder. Set false for software x265enc.',
-        ),
-        DeclareLaunchArgument(
-            'destination_ip',
-            default_value='10.0.0.169',
-            description='Destination IP for GStreamer RTP stream.',
-        ),
-        DeclareLaunchArgument(
-            'destination_port',
-            default_value='5001',
-            description='Destination UDP port for GStreamer RTP stream.',
-        ),
-        DeclareLaunchArgument(
-            'standalone',
-            default_value='true',
-            description=(
-                'true = create a new ComposableNodeContainer named by container_name; '
-                'false = attach nodes to an existing container named by container_name'
+            DeclareLaunchArgument(
+                'resolution',
+                default_value='1440x1080',
+                description='Resolution preset: "720x540" (binning 2x2, downscale calib) or "1440x1080" (binning 1x1, full calib). Empty = use YAML defaults.',
+                choices=['', '720x540', '1440x1080'],
             ),
-        ),
-        DeclareLaunchArgument(
-            'container_name',
-            default_value='blackfly_s_container',
-            description='Container name to create (standalone=true) or attach to (standalone=false)',
-        ),
-        OpaqueFunction(function=_launch_setup),
-    ])
+            DeclareLaunchArgument(
+                'fps',
+                default_value='',
+                description='Override camera frame rate (e.g. "30.0"). Empty = use YAML default.',
+            ),
+            DeclareLaunchArgument(
+                'pixel_format',
+                default_value='',
+                description='Override pixel format. Empty = use YAML default.',
+                choices=['', 'BayerRG8', 'BGR8'],
+            ),
+            DeclareLaunchArgument(
+                'enable_camera',
+                default_value='true',
+                description=(
+                    'Launch the Blackfly S camera node. Set false when replaying a '
+                    'bag that already publishes the camera topics so only downstream '
+                    'nodes run against the bag.'
+                ),
+            ),
+            DeclareLaunchArgument(
+                'enable_gstreamer',
+                default_value='false',
+                description='Stream the camera image via GStreamer/RTP H.265',
+            ),
+            DeclareLaunchArgument(
+                'gst_nvidia_encoder',
+                default_value='true',
+                description='Use NVIDIA hardware H.265 encoder. Set false for software x265enc.',
+            ),
+            DeclareLaunchArgument(
+                'destination_ip',
+                default_value='10.0.0.169',
+                description='Destination IP for GStreamer RTP stream.',
+            ),
+            DeclareLaunchArgument(
+                'destination_port',
+                default_value='5001',
+                description='Destination UDP port for GStreamer RTP stream.',
+            ),
+            DeclareLaunchArgument(
+                'standalone',
+                default_value='true',
+                description=(
+                    'true = create a new ComposableNodeContainer named by container_name; '
+                    'false = attach nodes to an existing container named by container_name'
+                ),
+            ),
+            DeclareLaunchArgument(
+                'container_name',
+                default_value='blackfly_s_container',
+                description='Container name to create (standalone=true) or attach to (standalone=false)',
+            ),
+            OpaqueFunction(function=_launch_setup),
+        ]
+    )

@@ -10,8 +10,9 @@ enum class DetectionMethod { FURTHEST_POINTS, LOWEST_PIXEL };
 
 // Result of endpoint detection
 struct PipelineEndpoints {
-    cv::Point endpoint1;                 // First (or only) detected endpoint (pixel coords)
-    std::optional<cv::Point> endpoint2;  // Second endpoint; nullopt for single-endpoint methods
+    cv::Point endpoint1;  // First (or only) detected endpoint (pixel coords)
+    std::optional<cv::Point>
+        endpoint2;  // Second endpoint; nullopt for single-endpoint methods
 };
 
 class PipelineDetector {
@@ -19,10 +20,11 @@ class PipelineDetector {
     // Find pipeline endpoints using the specified detection method
     // Returns struct with endpoint(s) if found
     // debug_out: optional debug visualization (nullptr = no debug)
-    static std::optional<PipelineEndpoints> find_pipeline_endpoints(const cv::Mat& mask,
-                                                                    DetectionMethod method,
-                                                                    int kernel_size,
-                                                                    cv::Mat* debug_out = nullptr);
+    static std::optional<PipelineEndpoints> find_pipeline_endpoints(
+        const cv::Mat& mask,
+        DetectionMethod method,
+        int kernel_size,
+        cv::Mat* debug_out = nullptr);
 
    private:
     // --- Preprocessing ---

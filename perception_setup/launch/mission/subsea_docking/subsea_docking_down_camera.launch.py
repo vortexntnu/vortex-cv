@@ -19,7 +19,11 @@ from auv_setup.launch_arg_common import (
     resolve_drone_and_namespace,
 )
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import (
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+)
 from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
@@ -47,14 +51,23 @@ def _launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('perception_setup')
     drone, namespace = resolve_drone_and_namespace(context)
 
-    with open(os.path.join(
-        get_package_share_directory('auv_setup'), 'config', 'robots', f'{drone}.yaml',
-    )) as f:
+    with open(
+        os.path.join(
+            get_package_share_directory('auv_setup'),
+            'config',
+            'robots',
+            f'{drone}.yaml',
+        )
+    ) as f:
         robot_topics = yaml.safe_load(f)['/**']['ros__parameters']['topics']
 
     target = LaunchConfiguration('target').perform(context)
-    enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
-    use_nvidia = LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
+    enable_gstreamer = (
+        LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
+    )
+    use_nvidia = (
+        LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
+    )
     destination_ip = LaunchConfiguration('destination_ip').perform(context)
     destination_port = int(LaunchConfiguration('destination_port').perform(context))
 
@@ -66,24 +79,26 @@ def _launch_setup(context, *args, **kwargs):
             plugin='ArucoDetectorNode',
             name='down_aruco_detector',
             namespace=namespace,
-            parameters=[{
-                'subs.image_topic': f'/{namespace}/down_camera/image_color',
-                'subs.camera_info_topic': f'/{namespace}/down_camera/camera_info',
-                'pubs.aruco_image': _ARUCO_IMAGE_TOPIC,
-                'pubs.aruco_poses': '/aruco_detector/markers_down',
-                'pubs.board_pose': '/aruco_detector/board_down',
-                'pubs.landmarks': f'/{namespace}/{robot_topics["landmarks"]}',
-                'logger_service_name': '/toggle_marker_logger',
-                'detect_board': True,
-                'visualize': True,
-                'log_markers': False,
-                'publish_detections': True,
-                'publish_landmarks': True,
-                'aruco.dictionary': 'DICT_ARUCO_ORIGINAL',
-                'enu_ned_rotation': True,
-                'out_tf_frame': f'{namespace}/downwards_camera_optical',
-                **aruco_params,
-            }],
+            parameters=[
+                {
+                    'subs.image_topic': f'/{namespace}/down_camera/image_color',
+                    'subs.camera_info_topic': f'/{namespace}/down_camera/camera_info',
+                    'pubs.aruco_image': _ARUCO_IMAGE_TOPIC,
+                    'pubs.aruco_poses': '/aruco_detector/markers_down',
+                    'pubs.board_pose': '/aruco_detector/board_down',
+                    'pubs.landmarks': f'/{namespace}/{robot_topics["landmarks"]}',
+                    'logger_service_name': '/toggle_marker_logger',
+                    'detect_board': True,
+                    'visualize': True,
+                    'log_markers': False,
+                    'publish_detections': True,
+                    'publish_landmarks': True,
+                    'aruco.dictionary': 'DICT_ARUCO_ORIGINAL',
+                    'enu_ned_rotation': True,
+                    'out_tf_frame': f'{namespace}/downwards_camera_optical',
+                    **aruco_params,
+                }
+            ],
             extra_arguments=[{'use_intra_process_comms': True}],
         ),
     ]
@@ -94,20 +109,22 @@ def _launch_setup(context, *args, **kwargs):
                 package='gstreamer_from_ros',
                 plugin='gstreamer_from_ros::GStreamerFromRos',
                 name='gstreamer_from_ros_node',
-                parameters=[{
-                    'input_topic': _ARUCO_IMAGE_TOPIC,
-                    'destination_ip': destination_ip,
-                    'destination_port': destination_port,
-                    'bitrate': 500000,
-                    'expected_input_fps': 15,
-                    'preset_level': 1,
-                    'iframe_interval': 15,
-                    'control_rate': 1,
-                    'pt': 96,
-                    'config_interval': 1,
-                    'input_format': 'BGR',
-                    'hw_encoder': use_nvidia,
-                }],
+                parameters=[
+                    {
+                        'input_topic': _ARUCO_IMAGE_TOPIC,
+                        'destination_ip': destination_ip,
+                        'destination_port': destination_port,
+                        'bitrate': 500000,
+                        'expected_input_fps': 15,
+                        'preset_level': 1,
+                        'iframe_interval': 15,
+                        'control_rate': 1,
+                        'pt': 96,
+                        'config_interval': 1,
+                        'input_format': 'BGR',
+                        'hw_encoder': use_nvidia,
+                    }
+                ],
                 extra_arguments=[{'use_intra_process_comms': True}],
             )
         )
@@ -172,7 +189,9 @@ def generate_launch_description():
                 PythonLaunchDescriptionSource(
                     os.path.join(
                         get_package_share_directory('perception_setup'),
-                        'launch', 'cameras', 'blackfly_s.launch.py',
+                        'launch',
+                        'cameras',
+                        'blackfly_s.launch.py',
                     )
                 ),
                 launch_arguments={

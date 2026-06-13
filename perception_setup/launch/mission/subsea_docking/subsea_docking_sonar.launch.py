@@ -17,7 +17,11 @@ from auv_setup.launch_arg_common import (
     resolve_drone_and_namespace,
 )
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import (
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+)
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression
@@ -28,9 +32,14 @@ from launch_ros.descriptions import ComposableNode
 def _launch_setup(context, *args, **kwargs):
     drone, namespace = resolve_drone_and_namespace(context)
 
-    with open(os.path.join(
-        get_package_share_directory('auv_setup'), 'config', 'robots', f'{drone}.yaml',
-    )) as f:
+    with open(
+        os.path.join(
+            get_package_share_directory('auv_setup'),
+            'config',
+            'robots',
+            f'{drone}.yaml',
+        )
+    ) as f:
         robot_topics = yaml.safe_load(f)['/**']['ros__parameters']['topics']
 
     sim = LaunchConfiguration('sim').perform(context).lower() == 'true'
@@ -98,30 +107,32 @@ def _launch_setup(context, *args, **kwargs):
             plugin='vortex::docking_position_estimator::DockingPositionEstimatorNode',
             name='docking_position_estimator',
             namespace=namespace,
-            parameters=[{
-                'start_mission_service': 'docking_position_estimator/start_mission',
-                'send_pose_service': '/docking_position_estimator/docking_pose',
-                'line_sub_topic': f'/{namespace}/line_detection/line_segments',
-                'pose_sub_topic': f'/{namespace}/{robot_topics["pose"]}',
-                'sonar_info_sub_topic': f'/{namespace}/fls/sonar_info',
-                'debug_topic': f'/{namespace}/docking_position_debug_viz',
-                'odom_frame': f'{namespace}/odom',
-                'min_wall_distance_m': 0.5,
-                'max_wall_distance_m': 10.0,
-                'parallel_heading_angle_threshold_rad': 0.4,
-                'perpendicular_heading_angle_threshold_rad': 1.35,
-                'min_corner_angle_rad': 1.50,
-                'max_corner_angle_rad': 1.70,
-                'side_wall_offset_m': 2.5,
-                'far_wall_offset_m': 4.0,
-                'right_wall_max_y_m': 0.4,
-                'far_wall_min_x_m': 0.5,
-                'use_left_wall': False,
-                'switching_threshold': 0.5,
-                'overwrite_prior_waypoints': True,
-                'take_priority': True,
-                'use_sim_time': False,
-            }],
+            parameters=[
+                {
+                    'start_mission_service': 'docking_position_estimator/start_mission',
+                    'send_pose_service': '/docking_position_estimator/docking_pose',
+                    'line_sub_topic': f'/{namespace}/line_detection/line_segments',
+                    'pose_sub_topic': f'/{namespace}/{robot_topics["pose"]}',
+                    'sonar_info_sub_topic': f'/{namespace}/fls/sonar_info',
+                    'debug_topic': f'/{namespace}/docking_position_debug_viz',
+                    'odom_frame': f'{namespace}/odom',
+                    'min_wall_distance_m': 0.5,
+                    'max_wall_distance_m': 10.0,
+                    'parallel_heading_angle_threshold_rad': 0.4,
+                    'perpendicular_heading_angle_threshold_rad': 1.35,
+                    'min_corner_angle_rad': 1.50,
+                    'max_corner_angle_rad': 1.70,
+                    'side_wall_offset_m': 2.5,
+                    'far_wall_offset_m': 4.0,
+                    'right_wall_max_y_m': 0.4,
+                    'far_wall_min_x_m': 0.5,
+                    'use_left_wall': False,
+                    'switching_threshold': 0.5,
+                    'overwrite_prior_waypoints': True,
+                    'take_priority': True,
+                    'use_sim_time': False,
+                }
+            ],
         )
     )
 
@@ -194,7 +205,9 @@ def generate_launch_description():
                 PythonLaunchDescriptionSource(
                     os.path.join(
                         get_package_share_directory('perception_setup'),
-                        'launch', 'cameras', 'sonar.launch.py',
+                        'launch',
+                        'cameras',
+                        'sonar.launch.py',
                     )
                 ),
                 launch_arguments={
@@ -203,11 +216,17 @@ def generate_launch_description():
                     'enable_gstreamer': LaunchConfiguration('enable_gstreamer'),
                 }.items(),
                 condition=IfCondition(
-                    PythonExpression([
-                        '"', LaunchConfiguration('sim'), '" == "false"',
-                        ' and ',
-                        '"', LaunchConfiguration('enable_sonar'), '" == "true"',
-                    ])
+                    PythonExpression(
+                        [
+                            '"',
+                            LaunchConfiguration('sim'),
+                            '" == "false"',
+                            ' and ',
+                            '"',
+                            LaunchConfiguration('enable_sonar'),
+                            '" == "true"',
+                        ]
+                    )
                 ),
             ),
         ]

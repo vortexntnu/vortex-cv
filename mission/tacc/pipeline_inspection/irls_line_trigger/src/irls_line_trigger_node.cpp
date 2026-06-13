@@ -23,8 +23,8 @@ using namespace std::chrono_literals;
 class IrlsLineTriggerNode : public rclcpp::Node {
    public:
     IrlsLineTriggerNode() : Node("irls_line_trigger_node") {
-        input_topic_ = declare_parameter<std::string>(
-            "input_topic", "/irls_line/lines");
+        input_topic_ =
+            declare_parameter<std::string>("input_topic", "/irls_line/lines");
         service_name_ = declare_parameter<std::string>(
             "service_name", "pipeline_inspection_fsm/irls_line_detected");
         // Minimum spacing between service calls, to avoid spamming the FSM at
@@ -46,16 +46,19 @@ class IrlsLineTriggerNode : public rclcpp::Node {
 
    private:
     void lines_cb(const vortex_msgs::msg::LineSegment2DArray::SharedPtr msg) {
-        if (msg->lines.empty()) return;
+        if (msg->lines.empty())
+            return;
 
         const auto now = std::chrono::steady_clock::now();
-        if (now - last_call_ < min_call_interval_) return;
+        if (now - last_call_ < min_call_interval_)
+            return;
         last_call_ = now;
 
         if (!client_->service_is_ready()) {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                 "IRLS line seen but service '%s' not available",
-                                 service_name_.c_str());
+            RCLCPP_WARN_THROTTLE(
+                get_logger(), *get_clock(), 2000,
+                "IRLS line seen but service '%s' not available",
+                service_name_.c_str());
             return;
         }
 

@@ -35,12 +35,10 @@ TestAcousticsDirectionNode::TestAcousticsDirectionNode(
             odom_callback(msg);
         });
 
-    bearing_pub_ =
-        create_publisher<vortex_msgs::msg::BearingMeasurementArray>(
-            get_parameter("topics.bearing_measurements").as_string(), 10);
+    bearing_pub_ = create_publisher<vortex_msgs::msg::BearingMeasurementArray>(
+        get_parameter("topics.bearing_measurements").as_string(), 10);
 
-    const double period_s =
-        1.0 / get_parameter("publish_rate_hz").as_double();
+    const double period_s = 1.0 / get_parameter("publish_rate_hz").as_double();
     timer_ = create_wall_timer(std::chrono::duration<double>(period_s),
                                [this]() { publish_bearing(); });
 

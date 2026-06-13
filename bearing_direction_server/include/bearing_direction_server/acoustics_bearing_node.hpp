@@ -3,8 +3,8 @@
 
 #include "bearing_direction_server/bearing_direction_base.hpp"
 
-#include <optional>
 #include <Eigen/Dense>
+#include <optional>
 #include <vortex_msgs/msg/bearing_measurement.hpp>
 
 namespace bearing_direction_server {

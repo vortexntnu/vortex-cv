@@ -30,8 +30,7 @@ WaypointManagerAction::Goal BearingWaypointState::create_goal(
             "' not found — CollectBearingDirectionState must run first");
     }
 
-    const auto& pose =
-        blackboard->get<geometry_msgs::msg::Pose>(pose_bb_key_);
+    const auto& pose = blackboard->get<geometry_msgs::msg::Pose>(pose_bb_key_);
 
     vortex_msgs::msg::Waypoint wp;
     wp.pose = pose;
@@ -45,7 +44,8 @@ WaypointManagerAction::Goal BearingWaypointState::create_goal(
     goal.convergence_threshold = convergence_threshold_;
 
     YASMIN_LOG_INFO(
-        "BearingWaypointState: navigating to bearing waypoint (%.3f, %.3f, %.3f), "
+        "BearingWaypointState: navigating to bearing waypoint (%.3f, %.3f, "
+        "%.3f), "
         "altitude=%.1fm",
         pose.position.x, pose.position.y, pose.position.z, desired_altitude_);
     return goal;

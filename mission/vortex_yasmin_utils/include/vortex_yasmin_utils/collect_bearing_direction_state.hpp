@@ -26,11 +26,12 @@ using CollectBearingAction = vortex_msgs::action::CollectBearingDirection;
  * @param action_server_name  Name of the CollectBearingDirection action server
  *                            (e.g. "acoustics_bearing_direction").
  * @param timeout_sec         How long to collect bearing measurements.
- * @param projection_distance Distance along the bearing to project the waypoint.
+ * @param projection_distance Distance along the bearing to project the
+ * waypoint.
  * @param min_measurements    Minimum data points required; returns ABORT if not
  *                            met before timeout.
- * @param max_measurements    Early-exit: return SUCCEED as soon as this many are
- *                            collected; 0 = wait for full timeout.
+ * @param max_measurements    Early-exit: return SUCCEED as soon as this many
+ * are collected; 0 = wait for full timeout.
  * @param pose_bb_key         Blackboard key for the output pose.
  */
 class CollectBearingDirectionState
@@ -47,9 +48,8 @@ class CollectBearingDirectionState
     CollectBearingAction::Goal create_goal(
         yasmin::Blackboard::SharedPtr blackboard);
 
-    std::string result_handler(
-        yasmin::Blackboard::SharedPtr blackboard,
-        CollectBearingAction::Result::SharedPtr result);
+    std::string result_handler(yasmin::Blackboard::SharedPtr blackboard,
+                               CollectBearingAction::Result::SharedPtr result);
 
     void feedback_handler(
         yasmin::Blackboard::SharedPtr blackboard,

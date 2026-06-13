@@ -24,8 +24,7 @@ class PipelineBearingNode : public BearingDirectionBase {
         const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
    private:
-    void pixel_callback(
-        const vortex_msgs::msg::Point2DArray::SharedPtr msg);
+    void pixel_callback(const vortex_msgs::msg::Point2DArray::SharedPtr msg);
     void camera_info_callback(
         const sensor_msgs::msg::CameraInfo::SharedPtr msg);
 

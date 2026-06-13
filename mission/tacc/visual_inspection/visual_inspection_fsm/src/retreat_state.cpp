@@ -48,9 +48,9 @@ valve_inspection_fsm::WaypointManagerAction::Goal RetreatState::create_goal(
         base_tf = tf_buffer->lookupTransform(odom_frame, tcp_base_frame_,
                                              tf2::TimePointZero);
     } catch (const tf2::TransformException& ex) {
-        throw std::runtime_error(
-            std::string("Retreat TF lookup failed (") + odom_frame + " -> " +
-            tcp_base_frame_ + "): " + ex.what());
+        throw std::runtime_error(std::string("Retreat TF lookup failed (") +
+                                 odom_frame + " -> " + tcp_base_frame_ +
+                                 "): " + ex.what());
     }
 
     Eigen::Vector3d retreat_pos = retreat_xy;

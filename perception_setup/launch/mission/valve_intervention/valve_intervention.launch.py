@@ -17,7 +17,11 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import (
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+)
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer
@@ -33,16 +37,25 @@ def _launch_setup(context, *args, **kwargs):
     backend = LaunchConfiguration('backend').perform(context)
     sim = LaunchConfiguration('sim').perform(context).lower() == 'true'
     drone = LaunchConfiguration('drone').perform(context)
-    enable_undistort = LaunchConfiguration('enable_undistort').perform(context).lower() == 'true'
+    enable_undistort = (
+        LaunchConfiguration('enable_undistort').perform(context).lower() == 'true'
+    )
     image_width = int(LaunchConfiguration('image_width').perform(context))
     image_height = int(LaunchConfiguration('image_height').perform(context))
     device = LaunchConfiguration('device').perform(context)
-    enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
-    use_nvidia = LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
+    enable_gstreamer = (
+        LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
+    )
+    use_nvidia = (
+        LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
+    )
     destination_ip = LaunchConfiguration('destination_ip').perform(context)
     destination_port = int(LaunchConfiguration('destination_port').perform(context))
     visualize = LaunchConfiguration('visualize').perform(context)
-    enable_subtype_resolver = LaunchConfiguration('enable_subtype_resolver').perform(context).lower() == 'true'
+    enable_subtype_resolver = (
+        LaunchConfiguration('enable_subtype_resolver').perform(context).lower()
+        == 'true'
+    )
 
     # All downstream nodes subscribe to these drone-prefixed topics.
     # Real hardware: camera + undistort publish here.
@@ -60,7 +73,9 @@ def _launch_setup(context, *args, **kwargs):
     if backend == 'isaac_ros':
         detections_letterboxed = True
         undistort_detections = False if sim else (not enable_undistort)
-        obb_launch_file = os.path.join(installed_launch_dir, 'isaac_ros', 'isaac_ros_yolo_obb.launch.py')
+        obb_launch_file = os.path.join(
+            installed_launch_dir, 'isaac_ros', 'isaac_ros_yolo_obb.launch.py'
+        )
         obb_args = {
             'image_topic': color_image_topic,
             'camera_info_topic': color_info_topic,
@@ -125,9 +140,15 @@ def _launch_setup(context, *args, **kwargs):
                     'extrinsic_ty': 7.41585317882709e-05,
                     'extrinsic_tz': 0.000453426211606711,
                     'extrinsic_R': [
-                        0.999998, 0.00057367, 0.00211211,
-                        -0.00057441, 1.0, 0.00034676,
-                        -0.00211191, -0.00034797, 0.999998,
+                        0.999998,
+                        0.00057367,
+                        0.00211211,
+                        -0.00057441,
+                        1.0,
+                        0.00034676,
+                        -0.00211191,
+                        -0.00034797,
+                        0.999998,
                     ],
                 },
             ],
@@ -158,20 +179,22 @@ def _launch_setup(context, *args, **kwargs):
                 plugin='gstreamer_from_ros::GStreamerFromRos',
                 name='gstreamer_from_ros_node',
                 extra_arguments=[{'use_intra_process_comms': True}],
-                parameters=[{
-                    'input_topic': _ANNOTATED_TOPIC,
-                    'destination_ip': destination_ip,
-                    'destination_port': destination_port,
-                    'bitrate': 500000,
-                    'expected_input_fps': 15,
-                    'preset_level': 1,
-                    'iframe_interval': 15,
-                    'control_rate': 1,
-                    'pt': 96,
-                    'config_interval': 1,
-                    'input_format': 'RGB',
-                    'hw_encoder': use_nvidia,
-                }],
+                parameters=[
+                    {
+                        'input_topic': _ANNOTATED_TOPIC,
+                        'destination_ip': destination_ip,
+                        'destination_port': destination_port,
+                        'bitrate': 500000,
+                        'expected_input_fps': 15,
+                        'preset_level': 1,
+                        'iframe_interval': 15,
+                        'control_rate': 1,
+                        'pt': 96,
+                        'config_interval': 1,
+                        'input_format': 'RGB',
+                        'hw_encoder': use_nvidia,
+                    }
+                ],
             )
         )
 
@@ -200,7 +223,9 @@ def _launch_setup(context, *args, **kwargs):
         actions.append(
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
-                    os.path.join(installed_launch_dir, 'cameras', 'realsense_d555.launch.py')
+                    os.path.join(
+                        installed_launch_dir, 'cameras', 'realsense_d555.launch.py'
+                    )
                 ),
                 launch_arguments={
                     'drone': drone,
@@ -227,95 +252,97 @@ def _launch_setup(context, *args, **kwargs):
 
 
 def generate_launch_description():
-    return LaunchDescription([
-        DeclareLaunchArgument(
-            'backend',
-            default_value='isaac_ros',
-            choices=['isaac_ros', 'ultralytics'],
-            description="OBB inference backend: 'isaac_ros' (TensorRT) or 'ultralytics' (Python)",
-        ),
-        DeclareLaunchArgument(
-            'sim',
-            default_value='false',
-            description=(
-                'false = launch RealSense D555 attached to the mission container; '
-                'true = skip camera (simulator publishes on /{drone}/front_camera/ topics)'
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument(
+                'backend',
+                default_value='isaac_ros',
+                choices=['isaac_ros', 'ultralytics'],
+                description="OBB inference backend: 'isaac_ros' (TensorRT) or 'ultralytics' (Python)",
             ),
-        ),
-        DeclareLaunchArgument(
-            'enable_camera',
-            default_value='true',
-            description=(
-                'When sim:=false, controls whether the live RealSense camera '
-                'node is launched. Set false for bag replay against raw '
-                '/camera/camera/color/image_raw — undistort + crop still run.'
+            DeclareLaunchArgument(
+                'sim',
+                default_value='false',
+                description=(
+                    'false = launch RealSense D555 attached to the mission container; '
+                    'true = skip camera (simulator publishes on /{drone}/front_camera/ topics)'
+                ),
             ),
-        ),
-        DeclareLaunchArgument(
-            'drone',
-            default_value='nautilus',
-            description='Robot name, used as topic/TF namespace prefix',
-        ),
-        DeclareLaunchArgument(
-            'enable_undistort',
-            default_value='true',
-            description='Apply lens undistortion (sim:=false only)',
-        ),
-        DeclareLaunchArgument(
-            'image_width',
-            default_value='896',
-            description='Input image width (must match camera profile; sim may differ)',
-        ),
-        DeclareLaunchArgument(
-            'image_height',
-            default_value='504',
-            description='Input image height',
-        ),
-        DeclareLaunchArgument(
-            'device',
-            default_value='0',
-            description="Ultralytics inference device: 'cpu', GPU index, 'cuda', 'cuda:N', or 'mps'",
-        ),
-        DeclareLaunchArgument(
-            'debug_visualize',
-            default_value='true',
-            description='Enable valve_detection debug visualisation topics',
-        ),
-        DeclareLaunchArgument(
-            'use_hardcoded_extrinsic',
-            default_value='true',
-            description='Use hardcoded depth-to-color extrinsic instead of TF lookup',
-        ),
-        DeclareLaunchArgument(
-            'visualize',
-            default_value='true',
-            description='Launch the OBB visualizer and publish annotated images',
-        ),
-        DeclareLaunchArgument(
-            'enable_subtype_resolver',
-            default_value='true',
-            description='Launch the valve_subtype_resolver node alongside the pipeline',
-        ),
-        DeclareLaunchArgument(
-            'enable_gstreamer',
-            default_value='true',
-            description='Stream annotated image over GStreamer/RTP to 10.0.0.169:5000',
-        ),
-        DeclareLaunchArgument(
-            'gst_nvidia_encoder',
-            default_value='true',
-            description='Use NVIDIA hardware H.265 encoder (nvv4l2h265enc). '
-                        'Set false to use software x265enc.',
-        ),
-        DeclareLaunchArgument(
-            'destination_ip',
-            default_value='10.0.0.169',
-            description='Destination IP for GStreamer RTP stream.',
-        ),
-        DeclareLaunchArgument(
-            'destination_port',
-            default_value='5000',
-            description='Destination UDP port for GStreamer RTP stream.',
-        ),
-        OpaqueFunction(function=_launch_setup),
-    ])
+            DeclareLaunchArgument(
+                'enable_camera',
+                default_value='true',
+                description=(
+                    'When sim:=false, controls whether the live RealSense camera '
+                    'node is launched. Set false for bag replay against raw '
+                    '/camera/camera/color/image_raw — undistort + crop still run.'
+                ),
+            ),
+            DeclareLaunchArgument(
+                'drone',
+                default_value='nautilus',
+                description='Robot name, used as topic/TF namespace prefix',
+            ),
+            DeclareLaunchArgument(
+                'enable_undistort',
+                default_value='true',
+                description='Apply lens undistortion (sim:=false only)',
+            ),
+            DeclareLaunchArgument(
+                'image_width',
+                default_value='896',
+                description='Input image width (must match camera profile; sim may differ)',
+            ),
+            DeclareLaunchArgument(
+                'image_height',
+                default_value='504',
+                description='Input image height',
+            ),
+            DeclareLaunchArgument(
+                'device',
+                default_value='0',
+                description="Ultralytics inference device: 'cpu', GPU index, 'cuda', 'cuda:N', or 'mps'",
+            ),
+            DeclareLaunchArgument(
+                'debug_visualize',
+                default_value='true',
+                description='Enable valve_detection debug visualisation topics',
+            ),
+            DeclareLaunchArgument(
+                'use_hardcoded_extrinsic',
+                default_value='true',
+                description='Use hardcoded depth-to-color extrinsic instead of TF lookup',
+            ),
+            DeclareLaunchArgument(
+                'visualize',
+                default_value='true',
+                description='Launch the OBB visualizer and publish annotated images',
+            ),
+            DeclareLaunchArgument(
+                'enable_subtype_resolver',
+                default_value='true',
+                description='Launch the valve_subtype_resolver node alongside the pipeline',
+            ),
+            DeclareLaunchArgument(
+                'enable_gstreamer',
+                default_value='true',
+                description='Stream annotated image over GStreamer/RTP to 10.0.0.169:5000',
+            ),
+            DeclareLaunchArgument(
+                'gst_nvidia_encoder',
+                default_value='true',
+                description='Use NVIDIA hardware H.265 encoder (nvv4l2h265enc). '
+                'Set false to use software x265enc.',
+            ),
+            DeclareLaunchArgument(
+                'destination_ip',
+                default_value='10.0.0.169',
+                description='Destination IP for GStreamer RTP stream.',
+            ),
+            DeclareLaunchArgument(
+                'destination_port',
+                default_value='5000',
+                description='Destination UDP port for GStreamer RTP stream.',
+            ),
+            OpaqueFunction(function=_launch_setup),
+        ]
+    )

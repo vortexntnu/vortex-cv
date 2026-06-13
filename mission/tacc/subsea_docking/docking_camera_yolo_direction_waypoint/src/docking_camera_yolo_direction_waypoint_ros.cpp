@@ -19,15 +19,19 @@ DockingCameraYoloDirectionWaypointNode::DockingCameraYoloDirectionWaypointNode(
 }
 
 void DockingCameraYoloDirectionWaypointNode::setup_parameters() {
-    detection_sub_topic_  = this->declare_parameter<std::string>("detection_sub_topic");
-    camera_info_sub_topic_ = this->declare_parameter<std::string>("camera_info_sub_topic");
-    landmarks_pub_topic_  = this->declare_parameter<std::string>("landmarks_pub_topic");
-    odom_frame_           = this->declare_parameter<std::string>("odom_frame");
-    waypoint_distance_    = this->declare_parameter<double>("waypoint_distance");
+    detection_sub_topic_ =
+        this->declare_parameter<std::string>("detection_sub_topic");
+    camera_info_sub_topic_ =
+        this->declare_parameter<std::string>("camera_info_sub_topic");
+    landmarks_pub_topic_ =
+        this->declare_parameter<std::string>("landmarks_pub_topic");
+    odom_frame_ = this->declare_parameter<std::string>("odom_frame");
+    waypoint_distance_ = this->declare_parameter<double>("waypoint_distance");
 }
 
-void DockingCameraYoloDirectionWaypointNode::setup_publishers_and_subscribers() {
-    tf_buffer_   = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+void DockingCameraYoloDirectionWaypointNode::
+    setup_publishers_and_subscribers() {
+    tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
     const auto qos = rclcpp::SensorDataQoS();
@@ -35,20 +39,19 @@ void DockingCameraYoloDirectionWaypointNode::setup_publishers_and_subscribers() 
     detection_sub_ =
         this->create_subscription<vision_msgs::msg::Detection2DArray>(
             detection_sub_topic_, qos,
-            [this](const vision_msgs::msg::Detection2DArray::ConstSharedPtr& msg) {
+            [this](
+                const vision_msgs::msg::Detection2DArray::ConstSharedPtr& msg) {
                 detection_callback(msg);
             });
 
-    camera_info_sub_ =
-        this->create_subscription<sensor_msgs::msg::CameraInfo>(
-            camera_info_sub_topic_, rclcpp::QoS(1).best_effort(),
-            [this](const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg) {
-                camera_info_callback(msg);
-            });
+    camera_info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
+        camera_info_sub_topic_, rclcpp::QoS(1).best_effort(),
+        [this](const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg) {
+            camera_info_callback(msg);
+        });
 
-    landmarks_pub_ =
-        this->create_publisher<vortex_msgs::msg::LandmarkArray>(
-            landmarks_pub_topic_, rclcpp::QoS(10).best_effort());
+    landmarks_pub_ = this->create_publisher<vortex_msgs::msg::LandmarkArray>(
+        landmarks_pub_topic_, rclcpp::QoS(10).best_effort());
 }
 
 void DockingCameraYoloDirectionWaypointNode::camera_info_callback(
@@ -67,17 +70,18 @@ void DockingCameraYoloDirectionWaypointNode::camera_info_callback(
     camera_frame_ = msg->header.frame_id;
 
     RCLCPP_INFO(this->get_logger(),
-                "Camera intrinsics received: fx=%.2f fy=%.2f cx=%.2f cy=%.2f frame='%s'",
-                intrinsics_->fx, intrinsics_->fy, intrinsics_->cx, intrinsics_->cy,
-                camera_frame_.c_str());
+                "Camera intrinsics received: fx=%.2f fy=%.2f cx=%.2f cy=%.2f "
+                "frame='%s'",
+                intrinsics_->fx, intrinsics_->fy, intrinsics_->cx,
+                intrinsics_->cy, camera_frame_.c_str());
 }
 
 std::optional<geometry_msgs::msg::TransformStamped>
 DockingCameraYoloDirectionWaypointNode::lookup_camera_transform_in_odom(
     const rclcpp::Time& stamp) {
     try {
-        return tf_buffer_->lookupTransform(odom_frame_, camera_frame_,
-                                           stamp, tf2::durationFromSec(0.1));
+        return tf_buffer_->lookupTransform(odom_frame_, camera_frame_, stamp,
+                                           tf2::durationFromSec(0.1));
     } catch (const tf2::TransformException& ex) {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
                              "TF %s -> %s failed: %s", odom_frame_.c_str(),
@@ -119,10 +123,8 @@ void DockingCameraYoloDirectionWaypointNode::detection_callback(
     // Back-project bbox centre to a ray in camera frame.
     const double px = best.bbox.center.position.x;
     const double py = best.bbox.center.position.y;
-    tf2::Vector3 d_cam(
-        (px - intrinsics_->cx) / intrinsics_->fx,
-        (py - intrinsics_->cy) / intrinsics_->fy,
-        1.0);
+    tf2::Vector3 d_cam((px - intrinsics_->cx) / intrinsics_->fx,
+                       (py - intrinsics_->cy) / intrinsics_->fy, 1.0);
 
     // Rotate direction into odom frame (rotation only — direction vectors
     // are unaffected by translation).
@@ -147,29 +149,34 @@ void DockingCameraYoloDirectionWaypointNode::detection_callback(
 }
 
 void DockingCameraYoloDirectionWaypointNode::publish_landmark(
-    double x, double y, double z, const rclcpp::Time& stamp) {
+    double x,
+    double y,
+    double z,
+    const rclcpp::Time& stamp) {
     vortex_msgs::msg::Landmark landmark;
-    landmark.header.stamp    = stamp;
+    landmark.header.stamp = stamp;
     landmark.header.frame_id = odom_frame_;
-    landmark.id              = 0;
-    landmark.type.value      = vortex_msgs::msg::LandmarkType::ARUCO_BOARD;
-    landmark.subtype.value   = vortex_msgs::msg::LandmarkSubtype::ARUCO_BOARD_DETECTION;
-    landmark.pose.pose.position.x    = x;
-    landmark.pose.pose.position.y    = y;
-    landmark.pose.pose.position.z    = z;
+    landmark.id = 0;
+    landmark.type.value = vortex_msgs::msg::LandmarkType::ARUCO_BOARD;
+    landmark.subtype.value =
+        vortex_msgs::msg::LandmarkSubtype::ARUCO_BOARD_DETECTION;
+    landmark.pose.pose.position.x = x;
+    landmark.pose.pose.position.y = y;
+    landmark.pose.pose.position.z = z;
     landmark.pose.pose.orientation.w = 1.0;
 
     vortex_msgs::msg::LandmarkArray landmark_array;
-    landmark_array.header.stamp    = stamp;
+    landmark_array.header.stamp = stamp;
     landmark_array.header.frame_id = odom_frame_;
     landmark_array.landmarks.push_back(landmark);
 
     landmarks_pub_->publish(landmark_array);
 
-    RCLCPP_INFO(this->get_logger(),
-                "Landmark published: x=%.2f y=%.2f z=%.2f", x, y, z);
+    RCLCPP_INFO(this->get_logger(), "Landmark published: x=%.2f y=%.2f z=%.2f",
+                x, y, z);
 }
 
-RCLCPP_COMPONENTS_REGISTER_NODE(vortex::docking_camera_yolo_direction_waypoint::DockingCameraYoloDirectionWaypointNode)
+RCLCPP_COMPONENTS_REGISTER_NODE(vortex::docking_camera_yolo_direction_waypoint::
+                                    DockingCameraYoloDirectionWaypointNode)
 
 }  // namespace vortex::docking_camera_yolo_direction_waypoint

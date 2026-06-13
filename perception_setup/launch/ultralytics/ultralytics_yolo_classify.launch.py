@@ -48,14 +48,16 @@ def _launch_setup(context, *args, **kwargs):
         name=node_name,
         namespace='yolo',
         output='screen',
-        parameters=[{
-            'model_path': model_file_path,
-            'device': device,
-            'input_topic': image_topic,
-            'output_class_topic': output_class_topic,
-            'imgsz': imgsz,
-            'verbose': verbose,
-        }],
+        parameters=[
+            {
+                'model_path': model_file_path,
+                'device': device,
+                'input_topic': image_topic,
+                'output_class_topic': output_class_topic,
+                'imgsz': imgsz,
+                'verbose': verbose,
+            }
+        ],
     )
 
     return [node]
@@ -64,38 +66,40 @@ def _launch_setup(context, *args, **kwargs):
 def generate_launch_description():
     pkg_dir = get_package_share_directory('perception_setup')
 
-    return LaunchDescription([
-        DeclareLaunchArgument(
-            'node_name',
-            default_value='classifier_node',
-            description='ROS node name for the classification node.',
-        ),
-        DeclareLaunchArgument(
-            'model_input_image_topic',
-            default_value='/pipeline/camera/segmentation_mask',
-        ),
-        DeclareLaunchArgument(
-            'model_file_path',
-            default_value=os.path.join(pkg_dir, 'models', 'best.pt'),
-        ),
-        DeclareLaunchArgument(
-            'output_class_topic',
-            default_value='/classification_result',
-        ),
-        DeclareLaunchArgument(
-            'device',
-            default_value='cpu',
-            description="Inference device: 'cpu', GPU index, 'cuda', 'cuda:N', or 'mps'",
-        ),
-        DeclareLaunchArgument(
-            'imgsz',
-            default_value='640',
-            description='Input image size passed to YOLO inference',
-        ),
-        DeclareLaunchArgument(
-            'verbose',
-            default_value='false',
-            description='Enable YOLO per-inference console output',
-        ),
-        OpaqueFunction(function=_launch_setup),
-    ])
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument(
+                'node_name',
+                default_value='classifier_node',
+                description='ROS node name for the classification node.',
+            ),
+            DeclareLaunchArgument(
+                'model_input_image_topic',
+                default_value='/pipeline/camera/segmentation_mask',
+            ),
+            DeclareLaunchArgument(
+                'model_file_path',
+                default_value=os.path.join(pkg_dir, 'models', 'best.pt'),
+            ),
+            DeclareLaunchArgument(
+                'output_class_topic',
+                default_value='/classification_result',
+            ),
+            DeclareLaunchArgument(
+                'device',
+                default_value='cpu',
+                description="Inference device: 'cpu', GPU index, 'cuda', 'cuda:N', or 'mps'",
+            ),
+            DeclareLaunchArgument(
+                'imgsz',
+                default_value='640',
+                description='Input image size passed to YOLO inference',
+            ),
+            DeclareLaunchArgument(
+                'verbose',
+                default_value='false',
+                description='Enable YOLO per-inference console output',
+            ),
+            OpaqueFunction(function=_launch_setup),
+        ]
+    )

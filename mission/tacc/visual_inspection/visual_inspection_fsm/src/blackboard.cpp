@@ -57,7 +57,8 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         if (yaml[config.tcp_offset_goal_id] &&
             yaml[config.tcp_offset_goal_id]["arm_z_correction"]) {
             config.arm_z_correction =
-                yaml[config.tcp_offset_goal_id]["arm_z_correction"].as<double>();
+                yaml[config.tcp_offset_goal_id]["arm_z_correction"]
+                    .as<double>();
         }
     } catch (const std::exception& e) {
         RCLCPP_WARN(node->get_logger(),

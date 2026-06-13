@@ -62,23 +62,25 @@ void BearingDirectionBase::odom_callback(
 }
 
 void BearingDirectionBase::add_direction(const Eigen::Vector3d& dir_odom,
-                                          const Eigen::Vector3d& origin) {
+                                         const Eigen::Vector3d& origin) {
     std::lock_guard lock(mutex_);
-    if (!collecting_) return;
+    if (!collecting_)
+        return;
     accumulated_dirs_.emplace_back(origin, dir_odom);
 }
 
 std::optional<Eigen::Vector3d> BearingDirectionBase::rotate_to_odom(
-    const Eigen::Vector3d& dir, const std::string& src_frame,
+    const Eigen::Vector3d& dir,
+    const std::string& src_frame,
     const rclcpp::Time& stamp) {
     geometry_msgs::msg::TransformStamped tf_stamped;
     try {
-        tf_stamped = tf_buffer_->lookupTransform(
-            target_frame_, src_frame, stamp,
-            rclcpp::Duration::from_seconds(0.2));
+        tf_stamped =
+            tf_buffer_->lookupTransform(target_frame_, src_frame, stamp,
+                                        rclcpp::Duration::from_seconds(0.2));
     } catch (const tf2::TransformException& ex) {
-        spdlog::warn("BearingDirectionBase '{}': TF ({} -> {}): {}",
-                     get_name(), src_frame, target_frame_, ex.what());
+        spdlog::warn("BearingDirectionBase '{}': TF ({} -> {}): {}", get_name(),
+                     src_frame, target_frame_, ex.what());
         return std::nullopt;
     }
     const auto& rot = tf_stamped.transform.rotation;
@@ -99,14 +101,16 @@ rclcpp_action::GoalResponse BearingDirectionBase::handle_goal(
         return rclcpp_action::GoalResponse::REJECT;
     }
     if (goal->min_measurements < 1) {
-        spdlog::warn("BearingDirectionBase '{}': min_measurements must be >= 1.",
-                     get_name());
+        spdlog::warn(
+            "BearingDirectionBase '{}': min_measurements must be >= 1.",
+            get_name());
         return rclcpp_action::GoalResponse::REJECT;
     }
     if (goal->max_measurements > 0 &&
         goal->max_measurements < goal->min_measurements) {
         spdlog::warn(
-            "BearingDirectionBase '{}': max_measurements ({}) < min_measurements ({}).",
+            "BearingDirectionBase '{}': max_measurements ({}) < "
+            "min_measurements ({}).",
             get_name(), goal->max_measurements, goal->min_measurements);
         return rclcpp_action::GoalResponse::REJECT;
     }
@@ -127,7 +131,8 @@ void BearingDirectionBase::handle_accepted(
         execute_thread_.join();
     }
     preempted_ = false;
-    execute_thread_ = std::thread([this, goal_handle]() { execute(goal_handle); });
+    execute_thread_ =
+        std::thread([this, goal_handle]() { execute(goal_handle); });
 }
 
 void BearingDirectionBase::execute(
@@ -148,9 +153,9 @@ void BearingDirectionBase::execute(
     spdlog::info(
         "BearingDirectionBase '{}': collecting for {:.1f}s, dist={:.1f}m, "
         "min={} max={}.",
-        get_name(), goal->timeout_sec, goal->distance,
-        goal->min_measurements,
-        goal->max_measurements > 0 ? std::to_string(goal->max_measurements) : "unlimited");
+        get_name(), goal->timeout_sec, goal->distance, goal->min_measurements,
+        goal->max_measurements > 0 ? std::to_string(goal->max_measurements)
+                                   : "unlimited");
 
     const rclcpp::Time start = now();
     rclcpp::Rate rate(10.0);
@@ -174,7 +179,8 @@ void BearingDirectionBase::execute(
         }
 
         const double remaining = goal->timeout_sec - (now() - start).seconds();
-        if (remaining <= 0.0) break;
+        if (remaining <= 0.0)
+            break;
 
         {
             std::lock_guard lock(mutex_);
@@ -206,39 +212,45 @@ void BearingDirectionBase::execute(
 
     std::vector<Eigen::Vector3d> dirs;
     dirs.reserve(measurements.size());
-    for (const auto& [origin, dir] : measurements) dirs.push_back(dir);
+    for (const auto& [origin, dir] : measurements)
+        dirs.push_back(dir);
 
     if (dirs.empty()) {
         spdlog::warn("BearingDirectionBase '{}': no measurements collected.",
                      get_name());
-        publish_viz_markers(measurements, collection_start_pos_, std::nullopt, goal->distance);
+        publish_viz_markers(measurements, collection_start_pos_, std::nullopt,
+                            goal->distance);
         result->success = false;
         goal_handle->succeed(result);
         return;
     }
 
     // Subclasses (e.g. acoustics running-average filter) can inject the final
-    // direction+origin directly to bypass filtered_mean / avg_origin computation.
+    // direction+origin directly to bypass filtered_mean / avg_origin
+    // computation.
     Eigen::Vector3d avg_dir;
     Eigen::Vector3d avg_origin;
     {
         std::lock_guard lock(mutex_);
         if (final_result_override_) {
-            avg_dir    = final_result_override_->first;
+            avg_dir = final_result_override_->first;
             avg_origin = final_result_override_->second;
         } else {
             avg_dir = filtered_mean(dirs, outlier_threshold_deg_);
             avg_origin = Eigen::Vector3d::Zero();
-            for (const auto& [origin, dir] : measurements) avg_origin += origin;
+            for (const auto& [origin, dir] : measurements)
+                avg_origin += origin;
             avg_origin /= static_cast<double>(measurements.size());
         }
     }
 
     if (static_cast<int32_t>(dirs.size()) < goal->min_measurements) {
         spdlog::warn(
-            "BearingDirectionBase '{}': only {} measurements collected, need {}.",
+            "BearingDirectionBase '{}': only {} measurements collected, need "
+            "{}.",
             get_name(), dirs.size(), goal->min_measurements);
-        publish_viz_markers(measurements, collection_start_pos_, avg_dir, goal->distance);
+        publish_viz_markers(measurements, collection_start_pos_, avg_dir,
+                            goal->distance);
         result->success = false;
         goal_handle->succeed(result);
         return;
@@ -265,11 +277,9 @@ void BearingDirectionBase::execute(
         "BearingDirectionBase '{}': {} measurements, "
         "avg_dir=[{:.3f},{:.3f},{:.3f}], avg_origin=[{:.2f},{:.2f},{:.2f}], "
         "waypoint=[{:.2f},{:.2f},{:.2f}]",
-        get_name(), dirs.size(),
-        avg_dir.x(), avg_dir.y(), avg_dir.z(),
-        avg_origin.x(), avg_origin.y(), avg_origin.z(),
-        result->pose.position.x, result->pose.position.y,
-        result->pose.position.z);
+        get_name(), dirs.size(), avg_dir.x(), avg_dir.y(), avg_dir.z(),
+        avg_origin.x(), avg_origin.y(), avg_origin.z(), result->pose.position.x,
+        result->pose.position.y, result->pose.position.z);
 
     goal_handle->succeed(result);
 }
@@ -277,11 +287,14 @@ void BearingDirectionBase::execute(
 // ---------------------------------------------------------------------------
 
 Eigen::Vector3d BearingDirectionBase::filtered_mean(
-    const std::vector<Eigen::Vector3d>& dirs, double threshold_deg) {
+    const std::vector<Eigen::Vector3d>& dirs,
+    double threshold_deg) {
     // Spherical mean
     Eigen::Vector3d sum = Eigen::Vector3d::Zero();
-    for (const auto& d : dirs) sum += d;
-    if (sum.norm() < 1e-6) return Eigen::Vector3d::UnitX();
+    for (const auto& d : dirs)
+        sum += d;
+    if (sum.norm() < 1e-6)
+        return Eigen::Vector3d::UnitX();
     const Eigen::Vector3d mean = sum.normalized();
 
     // One pass: keep vectors within threshold_deg of mean
@@ -303,13 +316,15 @@ Eigen::Vector3d BearingDirectionBase::filtered_mean(
         return mean;
     }
 
-    spdlog::debug("BearingDirectionBase: kept {}/{} vectors after outlier rejection.",
-                  kept, dirs.size());
+    spdlog::debug(
+        "BearingDirectionBase: kept {}/{} vectors after outlier rejection.",
+        kept, dirs.size());
     return filtered_sum.normalized();
 }
 
 void BearingDirectionBase::publish_viz_markers(
-    const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>& measurements,
+    const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>&
+        measurements,
     const std::optional<geometry_msgs::msg::Point>& drone_pos,
     const std::optional<Eigen::Vector3d>& final_dir,
     double distance) {
@@ -321,7 +336,8 @@ void BearingDirectionBase::publish_viz_markers(
 
     const rclcpp::Time stamp = now();
 
-    // Individual bearing ray arrows (blue) — each originates from its own measurement position
+    // Individual bearing ray arrows (blue) — each originates from its own
+    // measurement position
     int id = 0;
     constexpr double ray_len = 3.0;
     for (const auto& [origin, dir] : measurements) {
@@ -341,7 +357,9 @@ void BearingDirectionBase::publish_viz_markers(
         arrow.color.a = 0.6f;
         arrow.lifetime = rclcpp::Duration::from_seconds(0.0);
         geometry_msgs::msg::Point start, end;
-        start.x = origin.x(); start.y = origin.y(); start.z = origin.z();
+        start.x = origin.x();
+        start.y = origin.y();
+        start.z = origin.z();
         end.x = origin.x() + dir.x() * ray_len;
         end.y = origin.y() + dir.y() * ray_len;
         end.z = origin.z() + dir.z() * ray_len;
@@ -350,7 +368,8 @@ void BearingDirectionBase::publish_viz_markers(
         array.markers.push_back(arrow);
     }
 
-    // Final averaged direction arrow (orange) + target sphere — from drone_pos (collection start)
+    // Final averaged direction arrow (orange) + target sphere — from drone_pos
+    // (collection start)
     if (final_dir.has_value()) {
         const Eigen::Vector3d& fd = *final_dir;
         const double ox = drone_pos ? drone_pos->x : 0.0;
@@ -373,7 +392,9 @@ void BearingDirectionBase::publish_viz_markers(
         avg_arrow.color.a = 1.0f;
         avg_arrow.lifetime = rclcpp::Duration::from_seconds(0.0);
         geometry_msgs::msg::Point start, end;
-        start.x = ox; start.y = oy; start.z = oz;
+        start.x = ox;
+        start.y = oy;
+        start.z = oz;
         end.x = ox + fd.x() * distance;
         end.y = oy + fd.y() * distance;
         end.z = oz + fd.z() * distance;

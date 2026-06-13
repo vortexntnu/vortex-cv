@@ -12,4 +12,4 @@ pipeline_start_convergence:
   desired_altitude: 1.2
   require_altitude_convergence: false
   convergence_threshold: 0.2
-  
+

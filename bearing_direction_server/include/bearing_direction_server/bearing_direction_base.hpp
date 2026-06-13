@@ -8,12 +8,12 @@
 #include <thread>
 #include <vector>
 
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 #include <Eigen/Dense>
 #include <nav_msgs/msg/odometry.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
-#include <tf2_ros/buffer.h>
-#include <tf2_ros/transform_listener.h>
 #include <visualization_msgs/msg/marker_array.hpp>
 
 #include <vortex_msgs/action/collect_bearing_direction.hpp>
@@ -46,7 +46,8 @@ class BearingDirectionBase : public rclcpp::Node {
 
     // Subclasses call this for each direction vector already in odom frame,
     // along with the drone position at the time of measurement.
-    void add_direction(const Eigen::Vector3d& dir_odom, const Eigen::Vector3d& origin);
+    void add_direction(const Eigen::Vector3d& dir_odom,
+                       const Eigen::Vector3d& origin);
 
     // Called under mutex_ just before collecting_ is set to true.
     // Override in subclasses that maintain per-collection state (e.g. filters).
@@ -55,12 +56,13 @@ class BearingDirectionBase : public rclcpp::Node {
     // Subclasses that run their own filter can set this to bypass the base
     // class filtered_mean() and use their own final (dir, origin) instead.
     // Cleared at the start of each collection.
-    std::optional<std::pair<Eigen::Vector3d, Eigen::Vector3d>> final_result_override_;
+    std::optional<std::pair<Eigen::Vector3d, Eigen::Vector3d>>
+        final_result_override_;
 
     // Rotate a direction vector from src_frame into target_frame_ via TF.
     std::optional<Eigen::Vector3d> rotate_to_odom(const Eigen::Vector3d& dir,
-                                                   const std::string& src_frame,
-                                                   const rclcpp::Time& stamp);
+                                                  const std::string& src_frame,
+                                                  const rclcpp::Time& stamp);
 
     std::string target_frame_;
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
@@ -83,12 +85,15 @@ class BearingDirectionBase : public rclcpp::Node {
     void handle_accepted(const std::shared_ptr<GoalHandle> goal_handle);
     void execute(const std::shared_ptr<GoalHandle> goal_handle);
 
-    // Spherical mean then one pass of outlier rejection (angle > threshold_deg).
-    static Eigen::Vector3d filtered_mean(const std::vector<Eigen::Vector3d>& dirs,
-                                         double threshold_deg);
+    // Spherical mean then one pass of outlier rejection (angle >
+    // threshold_deg).
+    static Eigen::Vector3d filtered_mean(
+        const std::vector<Eigen::Vector3d>& dirs,
+        double threshold_deg);
 
     void publish_viz_markers(
-        const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>& measurements,
+        const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>&
+            measurements,
         const std::optional<geometry_msgs::msg::Point>& drone_pos,
         const std::optional<Eigen::Vector3d>& final_dir,
         double distance);

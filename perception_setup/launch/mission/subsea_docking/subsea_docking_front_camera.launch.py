@@ -19,7 +19,11 @@ from auv_setup.launch_arg_common import (
     resolve_drone_and_namespace,
 )
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import (
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+)
 from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
@@ -45,15 +49,24 @@ def _launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('perception_setup')
     drone, namespace = resolve_drone_and_namespace(context)
 
-    with open(os.path.join(
-        get_package_share_directory('auv_setup'), 'config', 'robots', f'{drone}.yaml',
-    )) as f:
+    with open(
+        os.path.join(
+            get_package_share_directory('auv_setup'),
+            'config',
+            'robots',
+            f'{drone}.yaml',
+        )
+    ) as f:
         robot_topics = yaml.safe_load(f)['/**']['ros__parameters']['topics']
 
     sim = LaunchConfiguration('sim').perform(context).lower() == 'true'
     target = LaunchConfiguration('target').perform(context)
-    enable_gstreamer = LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
-    use_nvidia = LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
+    enable_gstreamer = (
+        LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
+    )
+    use_nvidia = (
+        LaunchConfiguration('gst_nvidia_encoder').perform(context).lower() == 'true'
+    )
     destination_ip = LaunchConfiguration('destination_ip').perform(context)
     destination_port = int(LaunchConfiguration('destination_port').perform(context))
 
@@ -74,29 +87,33 @@ def _launch_setup(context, *args, **kwargs):
             plugin='ArucoDetectorNode',
             name='front_aruco_detector',
             namespace=namespace,
-            parameters=[{
-                'subs.image_topic': f'/{namespace}/front_camera/image_color',
-                'subs.camera_info_topic': f'/{namespace}/front_camera/camera_info',
-                'pubs.aruco_image': '/aruco_detector/image_front',
-                'pubs.aruco_poses': '/aruco_detector/markers_front',
-                'pubs.board_pose': '/aruco_detector/board_front',
-                'pubs.landmarks': f'/{namespace}/{robot_topics["landmarks"]}',
-                'logger_service_name': '/toggle_marker_logger',
-                'detect_board': True,
-                'visualize': True,
-                'log_markers': False,
-                'publish_detections': True,
-                'publish_landmarks': True,
-                'aruco.dictionary': 'DICT_ARUCO_ORIGINAL',
-                'enu_ned_rotation': True,
-                'out_tf_frame': f'{namespace}/front_camera_optical',
-                **aruco_params,
-            }],
+            parameters=[
+                {
+                    'subs.image_topic': f'/{namespace}/front_camera/image_color',
+                    'subs.camera_info_topic': f'/{namespace}/front_camera/camera_info',
+                    'pubs.aruco_image': '/aruco_detector/image_front',
+                    'pubs.aruco_poses': '/aruco_detector/markers_front',
+                    'pubs.board_pose': '/aruco_detector/board_front',
+                    'pubs.landmarks': f'/{namespace}/{robot_topics["landmarks"]}',
+                    'logger_service_name': '/toggle_marker_logger',
+                    'detect_board': True,
+                    'visualize': True,
+                    'log_markers': False,
+                    'publish_detections': True,
+                    'publish_landmarks': True,
+                    'aruco.dictionary': 'DICT_ARUCO_ORIGINAL',
+                    'enu_ned_rotation': True,
+                    'out_tf_frame': f'{namespace}/front_camera_optical',
+                    **aruco_params,
+                }
+            ],
             extra_arguments=[{'use_intra_process_comms': True}],
         ),
     ]
 
-    yolo_destination_port = int(LaunchConfiguration('yolo_destination_port').perform(context))
+    yolo_destination_port = int(
+        LaunchConfiguration('yolo_destination_port').perform(context)
+    )
 
     if enable_gstreamer:
         container_nodes.append(
@@ -104,20 +121,22 @@ def _launch_setup(context, *args, **kwargs):
                 package='gstreamer_from_ros',
                 plugin='gstreamer_from_ros::GStreamerFromRos',
                 name='gstreamer_aruco',
-                parameters=[{
-                    'input_topic': '/aruco_detector/image_front',
-                    'destination_ip': destination_ip,
-                    'destination_port': destination_port,
-                    'bitrate': 500000,
-                    'expected_input_fps': 15,
-                    'preset_level': 1,
-                    'iframe_interval': 15,
-                    'control_rate': 1,
-                    'pt': 96,
-                    'config_interval': 1,
-                    'input_format': 'BGR',
-                    'hw_encoder': use_nvidia,
-                }],
+                parameters=[
+                    {
+                        'input_topic': '/aruco_detector/image_front',
+                        'destination_ip': destination_ip,
+                        'destination_port': destination_port,
+                        'bitrate': 500000,
+                        'expected_input_fps': 15,
+                        'preset_level': 1,
+                        'iframe_interval': 15,
+                        'control_rate': 1,
+                        'pt': 96,
+                        'config_interval': 1,
+                        'input_format': 'BGR',
+                        'hw_encoder': use_nvidia,
+                    }
+                ],
                 extra_arguments=[{'use_intra_process_comms': True}],
             )
         )
@@ -141,20 +160,22 @@ def _launch_setup(context, *args, **kwargs):
                 package='gstreamer_from_ros',
                 executable='gstreamer_from_ros_node',
                 name='gstreamer_yolo',
-                parameters=[{
-                    'input_topic': '/yolo/annotated_image',
-                    'destination_ip': destination_ip,
-                    'destination_port': yolo_destination_port,
-                    'bitrate': 500000,
-                    'expected_input_fps': 15,
-                    'preset_level': 1,
-                    'iframe_interval': 15,
-                    'control_rate': 1,
-                    'pt': 96,
-                    'config_interval': 1,
-                    'input_format': 'BGR',
-                    'hw_encoder': use_nvidia,
-                }],
+                parameters=[
+                    {
+                        'input_topic': '/yolo/annotated_image',
+                        'destination_ip': destination_ip,
+                        'destination_port': yolo_destination_port,
+                        'bitrate': 500000,
+                        'expected_input_fps': 15,
+                        'preset_level': 1,
+                        'iframe_interval': 15,
+                        'control_rate': 1,
+                        'pt': 96,
+                        'config_interval': 1,
+                        'input_format': 'BGR',
+                        'hw_encoder': use_nvidia,
+                    }
+                ],
                 output='screen',
             )
         )
@@ -184,13 +205,15 @@ def _launch_setup(context, *args, **kwargs):
                 package='docking_camera_yolo_direction_waypoint',
                 plugin='vortex::docking_camera_yolo_direction_waypoint::DockingCameraYoloDirectionWaypointNode',
                 name='docking_camera_yolo_direction_waypoint',
-                parameters=[{
-                    'detection_sub_topic': '/yolo/docking_detections',
-                    'camera_info_sub_topic': f'/{namespace}/front_camera/camera_info',
-                    'landmarks_pub_topic': f'/{namespace}/{robot_topics["landmarks"]}',
-                    'odom_frame': f'{namespace}/odom',
-                    'waypoint_distance': float(waypoint_distance),
-                }],
+                parameters=[
+                    {
+                        'detection_sub_topic': '/yolo/docking_detections',
+                        'camera_info_sub_topic': f'/{namespace}/front_camera/camera_info',
+                        'landmarks_pub_topic': f'/{namespace}/{robot_topics["landmarks"]}',
+                        'odom_frame': f'{namespace}/odom',
+                        'waypoint_distance': float(waypoint_distance),
+                    }
+                ],
                 extra_arguments=[{'use_intra_process_comms': True}],
             )
         )
@@ -200,7 +223,8 @@ def _launch_setup(context, *args, **kwargs):
             PythonLaunchDescriptionSource(
                 os.path.join(
                     get_package_share_directory('bearing_direction_server'),
-                    'launch', 'platform_bearing_server.launch.py',
+                    'launch',
+                    'platform_bearing_server.launch.py',
                 )
             ),
             launch_arguments={'namespace': namespace}.items(),
@@ -266,7 +290,9 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 'model_file_path',
                 default_value=os.path.join(
-                    get_package_share_directory('perception_setup'), 'models', 'dicking-pall-real-and-sim-1-l.pt'
+                    get_package_share_directory('perception_setup'),
+                    'models',
+                    'dicking-pall-real-and-sim-1-l.pt',
                 ),
                 description='Path to the YOLO BB model file.',
             ),
@@ -306,7 +332,9 @@ def generate_launch_description():
                 PythonLaunchDescriptionSource(
                     os.path.join(
                         get_package_share_directory('perception_setup'),
-                        'launch', 'cameras', 'realsense_d555.launch.py',
+                        'launch',
+                        'cameras',
+                        'realsense_d555.launch.py',
                     )
                 ),
                 launch_arguments={

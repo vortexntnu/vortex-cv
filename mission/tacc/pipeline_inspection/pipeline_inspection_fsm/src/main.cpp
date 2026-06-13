@@ -19,7 +19,8 @@ int main(int argc, char** argv) {
     auto blackboard = initialize_blackboard(config);
 
     // Capture the drone pose continuously so STORE_ORIGIN can snapshot it.
-    auto latest_pose = std::make_shared<std::optional<geometry_msgs::msg::Pose>>();
+    auto latest_pose =
+        std::make_shared<std::optional<geometry_msgs::msg::Pose>>();
     auto odom_sub = node->create_subscription<nav_msgs::msg::Odometry>(
         config.odom_topic, rclcpp::QoS(1).best_effort(),
         [latest_pose](nav_msgs::msg::Odometry::SharedPtr msg) {
@@ -27,7 +28,8 @@ int main(int argc, char** argv) {
         });
 
     // Spin node in background so odom callbacks are processed while FSM runs.
-    auto executor = std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
+    auto executor =
+        std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
     executor->add_node(node);
     auto spin_thread = std::thread([executor]() { executor->spin(); });
 

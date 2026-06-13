@@ -4,8 +4,8 @@
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
-    rclcpp::spin(
-        std::make_shared<bearing_direction_server::TestAcousticsDirectionNode>());
+    rclcpp::spin(std::make_shared<
+                 bearing_direction_server::TestAcousticsDirectionNode>());
     rclcpp::shutdown();
     return 0;
 }

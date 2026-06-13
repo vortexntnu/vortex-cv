@@ -13,9 +13,15 @@ from launch_ros.actions import Node
 
 def launch_setup(context, *args, **kwargs):
     drone, namespace = resolve_drone_and_namespace(context)
-    start_in_camera_range = LaunchConfiguration('start_in_camera_range').perform(context).lower() == 'true'
-    start_above_pipe = LaunchConfiguration('start_above_pipe').perform(context).lower() == 'true'
-    enable_end_detection = LaunchConfiguration('enable_end_detection').perform(context).lower() == 'true'
+    start_in_camera_range = (
+        LaunchConfiguration('start_in_camera_range').perform(context).lower() == 'true'
+    )
+    start_above_pipe = (
+        LaunchConfiguration('start_above_pipe').perform(context).lower() == 'true'
+    )
+    enable_end_detection = (
+        LaunchConfiguration('enable_end_detection').perform(context).lower() == 'true'
+    )
 
     drone_config = os.path.join(
         get_package_share_directory("auv_setup"),

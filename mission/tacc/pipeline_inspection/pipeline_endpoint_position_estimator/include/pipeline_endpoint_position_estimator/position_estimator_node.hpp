@@ -8,10 +8,10 @@
 #include <optional>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
-#include <vortex_msgs/msg/dvl_altitude.hpp>
 #include <string>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <vector>
+#include <vortex_msgs/msg/dvl_altitude.hpp>
 #include <vortex_msgs/msg/landmark_array.hpp>
 #include <vortex_msgs/msg/landmark_subtype.hpp>
 #include <vortex_msgs/msg/landmark_type.hpp>
@@ -26,8 +26,10 @@ class PositionEstimatorNode : public rclcpp::Node {
 
    private:
     // Callbacks
-    void endpoints_callback(const vortex_msgs::msg::Point2DArray::SharedPtr msg);
-    void camera_info_callback(const sensor_msgs::msg::CameraInfo::SharedPtr msg);
+    void endpoints_callback(
+        const vortex_msgs::msg::Point2DArray::SharedPtr msg);
+    void camera_info_callback(
+        const sensor_msgs::msg::CameraInfo::SharedPtr msg);
     void dvl_callback(const vortex_msgs::msg::DVLAltitude::SharedPtr msg);
 
     // Helper methods
@@ -40,7 +42,8 @@ class PositionEstimatorNode : public rclcpp::Node {
         const std::vector<cv::Point3d>& endpoints_3d);
 
     // ROS interfaces
-    rclcpp::Subscription<vortex_msgs::msg::Point2DArray>::SharedPtr endpoints_sub_;
+    rclcpp::Subscription<vortex_msgs::msg::Point2DArray>::SharedPtr
+        endpoints_sub_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr caminfo_sub_;
     rclcpp::Subscription<vortex_msgs::msg::DVLAltitude>::SharedPtr dvl_sub_;
     rclcpp::Publisher<vortex_msgs::msg::LandmarkArray>::SharedPtr landmark_pub_;

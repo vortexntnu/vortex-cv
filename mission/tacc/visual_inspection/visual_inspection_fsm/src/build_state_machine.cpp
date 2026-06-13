@@ -58,14 +58,13 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
     // Correct drone Z so the gripper tip will be at the valve handle height.
     // No further polling — the depth reading from LANDMARK_POLLING_2 is the
     // best estimate available.
-    sm->add_state(
-        "ALIGN_HEIGHT",
-        std::make_shared<AlignHeightState>(
-            config.waypoint_manager_action_server, standoff_goal,
-            tcp_offset_goal, config.tcp_base_frame, config.tcp_tip_frame,
-            config.depth_camera_frame, config.valve_z_offset,
-            config.arm_z_correction),
-        {{SUCCEED, "CONVERGE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
+    sm->add_state("ALIGN_HEIGHT",
+                  std::make_shared<AlignHeightState>(
+                      config.waypoint_manager_action_server, standoff_goal,
+                      tcp_offset_goal, config.tcp_base_frame,
+                      config.tcp_tip_frame, config.depth_camera_frame,
+                      config.valve_z_offset, config.arm_z_correction),
+                  {{SUCCEED, "CONVERGE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
 
     sm->add_state(
         "CONVERGE",

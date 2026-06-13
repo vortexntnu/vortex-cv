@@ -24,41 +24,50 @@ DetectorNode::DetectorNode(const rclcpp::NodeOptions& options)
     } else if (method_str == "lowest_pixel") {
         detection_method_ = DetectionMethod::LOWEST_PIXEL;
     } else {
-        RCLCPP_WARN(get_logger(), "Unknown detection_method '%s', using 'furthest_points'",
+        RCLCPP_WARN(get_logger(),
+                    "Unknown detection_method '%s', using 'furthest_points'",
                     method_str.c_str());
         detection_method_ = DetectionMethod::FURTHEST_POINTS;
     }
 
     // Subscriptions
     mask_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-        input_topic, qos, std::bind(&DetectorNode::mask_callback, this, std::placeholders::_1));
+        input_topic, qos,
+        std::bind(&DetectorNode::mask_callback, this, std::placeholders::_1));
 
     // Publishers
-    endpoints_pub_ = this->create_publisher<vortex_msgs::msg::Point2DArray>(output_topic, qos);
+    endpoints_pub_ = this->create_publisher<vortex_msgs::msg::Point2DArray>(
+        output_topic, qos);
 
     if (debug_) {
-        debug_pub_ = this->create_publisher<sensor_msgs::msg::Image>(debug_topic, qos);
+        debug_pub_ =
+            this->create_publisher<sensor_msgs::msg::Image>(debug_topic, qos);
     }
 
     RCLCPP_INFO(this->get_logger(), "Pipeline image endpoints node started");
     RCLCPP_INFO(this->get_logger(), "  Input topic: %s", input_topic.c_str());
     RCLCPP_INFO(this->get_logger(), "  Output topic: %s", output_topic.c_str());
-    RCLCPP_INFO(this->get_logger(), "  Detection method: %s", method_str.c_str());
-    RCLCPP_INFO(this->get_logger(), "  Debug visualization: %s", debug_ ? "enabled" : "disabled");
+    RCLCPP_INFO(this->get_logger(), "  Detection method: %s",
+                method_str.c_str());
+    RCLCPP_INFO(this->get_logger(), "  Debug visualization: %s",
+                debug_ ? "enabled" : "disabled");
     if (debug_) {
-        RCLCPP_INFO(this->get_logger(), "  Debug topic: %s", debug_topic.c_str());
+        RCLCPP_INFO(this->get_logger(), "  Debug topic: %s",
+                    debug_topic.c_str());
     }
 }
 
 void DetectorNode::mask_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
-    RCLCPP_DEBUG(this->get_logger(), "Received mask image: %dx%d", msg->width, msg->height);
+    RCLCPP_DEBUG(this->get_logger(), "Received mask image: %dx%d", msg->width,
+                 msg->height);
 
     try {
         auto cv_ptr = cv_bridge::toCvShare(msg, "mono8");
 
         cv::Mat debug_vis;
         auto endpoints = PipelineDetector::find_pipeline_endpoints(
-            cv_ptr->image, detection_method_, kernel_size_, debug_ ? &debug_vis : nullptr);
+            cv_ptr->image, detection_method_, kernel_size_,
+            debug_ ? &debug_vis : nullptr);
 
         if (!endpoints) {
             RCLCPP_WARN(this->get_logger(), "No endpoints detected");
@@ -66,12 +75,13 @@ void DetectorNode::mask_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
         }
 
         if (endpoints->endpoint2.has_value()) {
-            RCLCPP_DEBUG(this->get_logger(), "Found endpoints: (%d,%d) and (%d,%d)",
-                         endpoints->endpoint1.x, endpoints->endpoint1.y, endpoints->endpoint2->x,
-                         endpoints->endpoint2->y);
+            RCLCPP_DEBUG(this->get_logger(),
+                         "Found endpoints: (%d,%d) and (%d,%d)",
+                         endpoints->endpoint1.x, endpoints->endpoint1.y,
+                         endpoints->endpoint2->x, endpoints->endpoint2->y);
         } else {
-            RCLCPP_DEBUG(this->get_logger(), "Found endpoint: (%d,%d)", endpoints->endpoint1.x,
-                         endpoints->endpoint1.y);
+            RCLCPP_DEBUG(this->get_logger(), "Found endpoint: (%d,%d)",
+                         endpoints->endpoint1.x, endpoints->endpoint1.y);
         }
 
         vortex_msgs::msg::Point2DArray endpoints_msg;
@@ -93,7 +103,8 @@ void DetectorNode::mask_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
         endpoints_pub_->publish(endpoints_msg);
 
         if (debug_ && !debug_vis.empty()) {
-            auto debug_msg = cv_bridge::CvImage(msg->header, "bgr8", debug_vis).toImageMsg();
+            auto debug_msg =
+                cv_bridge::CvImage(msg->header, "bgr8", debug_vis).toImageMsg();
             debug_pub_->publish(*debug_msg);
         }
     } catch (const cv_bridge::Exception& e) {
