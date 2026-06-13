@@ -241,8 +241,8 @@ class LineFilteringNode : public rclcpp::Node {
     std::vector<JunctionVote> junction_votes_;
     static constexpr int kJunctionConfirmHits = 2;
 
-    int current_line_id_;
-    int current_line_id_counter_;
+    int current_line_id_ = -1;
+    int current_line_id_counter_ = 0;
     double next_line_yaw_;
     int termination_counter_;
     bool junction_in_progress_ =
@@ -251,8 +251,8 @@ class LineFilteringNode : public rclcpp::Node {
     double junction_wp_y_ = 0.0;  ///< Camera-adjusted junction Y sent to DP
     double pre_junction_yaw_ =
         0.0;  ///< Vehicle yaw captured just before the junction turn
-    int no_track_ticks_ =
-        0;  ///< Consecutive ticks with no track found post-junction
+    int junction_hold_ticks_ =
+        0;  ///< Consecutive ticks spent waiting to reach junction WP
 
     bool debug_visualization_ = true;
 

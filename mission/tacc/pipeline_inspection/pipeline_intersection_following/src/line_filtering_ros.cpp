@@ -28,7 +28,7 @@ LineFilteringNode::LineFilteringNode() : Node("line_filtering_node") {
     declare_parameter<double>("connected_lines_threshold", 0.5);
     declare_parameter<double>("crossing_min_angle", 0.5236);
     declare_parameter<int>("termination_counter_threshold", 30);
-    declare_parameter<int>("recovery_no_track_ticks", 25);
+
     declare_parameter<double>("lookahead_distance", 2.0);
 
     // N/M track confirmation / deletion windows.
@@ -204,6 +204,7 @@ void LineFilteringNode::start_following_callback(
         used_line_intersections_.clear();
         junction_votes_.clear();
         termination_counter_ = 0;
+        current_line_id_ = -1;
         current_line_id_counter_ = 0;
         next_line_yaw_ = 0.0;
         have_prev_wp_ = false;
@@ -220,7 +221,9 @@ void LineFilteringNode::start_following_callback(
 void LineFilteringNode::camera_info_callback(
     const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
     K_ = cv::Mat(3, 3, CV_64F, const_cast<double*>(msg->k.data())).clone();
-    RCLCPP_INFO(this->get_logger(), "Camera Intrinsic Matrix initialized.");
+    dlog("CAM_INFO: K initialized fx=%.1f fy=%.1f cx=%.1f cy=%.1f",
+         K_.at<double>(0, 0), K_.at<double>(1, 1),
+         K_.at<double>(0, 2), K_.at<double>(1, 2));
     camera_info_received_ = true;
     camera_info_sub_.reset();
 }
@@ -387,6 +390,17 @@ void LineFilteringNode::enqueue_waypoint(const vortex_msgs::msg::Waypoint& wp,
                                          bool overwrite_prior,
                                          bool take_priority,
                                          double switching_threshold) {
+    {
+        tf2::Quaternion q(wp.pose.orientation.x, wp.pose.orientation.y,
+                          wp.pose.orientation.z, wp.pose.orientation.w);
+        double r, p, wp_yaw;
+        tf2::Matrix3x3(q).getRPY(r, p, wp_yaw);
+        dlog("ENQUEUE_WP: x=%.2f y=%.2f yaw=%.1fdeg mode=%d overwrite=%d priority=%d thresh=%.2f queue_size=%zu",
+             wp.pose.position.x, wp.pose.position.y, wp_yaw * 180.0 / M_PI,
+             wp.waypoint_mode.mode,
+             overwrite_prior ? 1 : 0, take_priority ? 1 : 0,
+             switching_threshold, request_queue_.size());
+    }
     request_queue_.push_back(
         {wp, overwrite_prior, take_priority, switching_threshold});
     try_send_next_request();
@@ -412,6 +426,12 @@ void LineFilteringNode::try_send_next_request() {
     req->take_priority = item.take_priority;
     req->switching_threshold = item.switching_threshold;
 
+    dlog("SEND_WP: x=%.2f y=%.2f mode=%d overwrite=%d priority=%d remaining_queue=%zu",
+         item.wp.pose.position.x, item.wp.pose.position.y,
+         item.wp.waypoint_mode.mode,
+         item.overwrite_prior ? 1 : 0, item.take_priority ? 1 : 0,
+         request_queue_.size());
+
     waypoint_client_->async_send_request(
         req,
         [this](rclcpp::Client<vortex_msgs::srv::SendWaypoints>::SharedFuture
@@ -419,10 +439,9 @@ void LineFilteringNode::try_send_next_request() {
             request_in_flight_ = false;
             try {
                 auto resp = future.get();
-                RCLCPP_INFO(this->get_logger(), "Waypoint sent. success=%d",
-                            resp->success);
+                dlog("SEND_WP_RESP: success=%d", resp->success ? 1 : 0);
             } catch (...) {
-                RCLCPP_WARN(this->get_logger(), "Waypoint send failed.");
+                dlog("SEND_WP_RESP: FAILED (exception)");
             }
             request_delay_timer_ = this->create_wall_timer(
                 std::chrono::milliseconds(200), [this]() {
@@ -451,6 +470,12 @@ void LineFilteringNode::timer_callback() {
     double initial_existence_probability =
         get_parameter("initial_existence_probability").as_double();
 
+    // Snapshot track state before update so we can log changes.
+    struct TrackSnap { int id; bool confirmed; };
+    std::vector<TrackSnap> pre_snap;
+    for (const auto& t : line_tracker_.get_tracks())
+        pre_snap.push_back({t.id, t.confirmed});
+
     // Update line tracks
     line_tracker_.update_line_tracks(
         measurements_, line_params_, update_interval, confirmation_threshold,
@@ -461,8 +486,34 @@ void LineFilteringNode::timer_callback() {
     measurements_.resize(2, 0);
     line_params_.resize(2, 0);
 
+    // Log newly created or newly confirmed tracks.
+    for (const auto& t : line_tracker_.get_tracks()) {
+        auto it = std::find_if(pre_snap.begin(), pre_snap.end(),
+                               [&](const TrackSnap& s){ return s.id == t.id; });
+        if (it == pre_snap.end()) {
+            double ang = std::atan2(t.line_points(1,1) - t.line_points(1,0),
+                                    t.line_points(0,1) - t.line_points(0,0));
+            dlog("TRACK_NEW: id=%d p0=(%.2f,%.2f) p1=(%.2f,%.2f) ang=%.1fdeg",
+                 t.id, t.line_points(0,0), t.line_points(1,0),
+                 t.line_points(0,1), t.line_points(1,1), ang * 180.0 / M_PI);
+        } else if (!it->confirmed && t.confirmed) {
+            dlog("TRACK_CONF: id=%d p0=(%.2f,%.2f) p1=(%.2f,%.2f)",
+                 t.id, t.line_points(0,0), t.line_points(1,0),
+                 t.line_points(0,1), t.line_points(1,1));
+        }
+    }
+
     // delete tracks
     line_tracker_.delete_tracks();
+
+    // Log deletions.
+    const auto& post_tracks = line_tracker_.get_tracks();
+    for (const auto& s : pre_snap) {
+        bool still_alive = std::any_of(post_tracks.begin(), post_tracks.end(),
+                                       [&](const Track& t){ return t.id == s.id; });
+        if (!still_alive)
+            dlog("TRACK_DEL: id=%d (was confirmed=%d)", s.id, s.confirmed ? 1 : 0);
+    }
 
     // Update junction vote counters (replaces second IPDA tracker)
     find_new_line_intersections();
@@ -550,7 +601,7 @@ void LineFilteringNode::publish_intersection() {
 
         set_next_line(vote);
 
-        // Capture vehicle yaw before the turn for potential recovery.
+        // Capture vehicle yaw before the turn (used for logging).
         {
             tf2::Quaternion q_v(
                 orca_pose_.orientation.x, orca_pose_.orientation.y,
@@ -558,7 +609,6 @@ void LineFilteringNode::publish_intersection() {
             double r, p;
             tf2::Matrix3x3(q_v).getRPY(r, p, pre_junction_yaw_);
         }
-        no_track_ticks_ = 0;
 
         const double ix = vote.pos(0);
         const double iy = vote.pos(1);
@@ -604,8 +654,10 @@ void LineFilteringNode::publish_intersection() {
                          /*take_priority=*/true, switching_threshold_);
 
         junction_in_progress_ = true;
+        junction_hold_ticks_ = 0;
         junction_wp_x_ = jx;
         junction_wp_y_ = jy;
+        current_line_id_ = -1;  // Release sticky lock; yaw search selects outgoing track
 
         // Consume all votes — used_line_intersections_ position check prevents
         // the same corner being re-detected on the next cycle.
@@ -926,7 +978,7 @@ bool LineFilteringNode::follow_toward(double target_x,
          target_y, pipe_yaw * 180.0 / M_PI);
     auto wp = make_waypoint(target_x, target_y, pipe_yaw,
                             vortex_msgs::msg::WaypointMode::XY_AND_YAW);
-    enqueue_waypoint(wp, /*overwrite_prior=*/true, /*take_priority=*/false,
+    enqueue_waypoint(wp, /*overwrite_prior=*/true, /*take_priority=*/true,
                      switching_threshold_);
     prev_wp_x_ = target_x;
     prev_wp_y_ = target_y;
@@ -1111,40 +1163,12 @@ void LineFilteringNode::publish_waypoint() {
 
     if (next_line.id == -1) {
         if (junction_in_progress_) {
-            // Mid-turn: junction WP not yet reached, don't count toward
-            // recovery.
-            dlog(
-                "PUB_WP: no track (mid-turn, junction in progress) -> holding");
+            dlog("PUB_WP: no track (mid-turn, junction in progress) -> holding");
         } else {
-            no_track_ticks_++;
-            int recovery_ticks =
-                this->get_parameter("recovery_no_track_ticks").as_int();
-            if (no_track_ticks_ >= recovery_ticks &&
-                !used_line_intersections_.empty()) {
-                dlog(
-                    "PUB_WP: no track for %d ticks post-turn -> RECOVERY: "
-                    "rotate back to "
-                    "pre_junction_yaw=%.1fdeg and allow re-detection",
-                    no_track_ticks_, pre_junction_yaw_ * 180.0 / M_PI);
-                used_line_intersections_.pop_back();
-                next_line_yaw_ = pre_junction_yaw_;
-                no_track_ticks_ = 0;
-                auto wp =
-                    make_waypoint(orca_pose_.position.x, orca_pose_.position.y,
-                                  pre_junction_yaw_,
-                                  vortex_msgs::msg::WaypointMode::XY_AND_YAW);
-                enqueue_waypoint(wp, /*overwrite_prior=*/true,
-                                 /*take_priority=*/true, switching_threshold_);
-            } else {
-                dlog(
-                    "PUB_WP: no confirmed track found by yaw -> holding (%d/%d "
-                    "ticks)",
-                    no_track_ticks_, recovery_ticks);
-            }
+            dlog("PUB_WP: no confirmed track found by yaw -> holding");
         }
         return;
     }
-    no_track_ticks_ = 0;
 
     // If the junction waypoint hasn't been reached yet, hold the follow
     // waypoint so the DP controller can first position the camera over the
@@ -1154,15 +1178,18 @@ void LineFilteringNode::publish_waypoint() {
             std::hypot(orca_pose_.position.x - junction_wp_x_,
                        orca_pose_.position.y - junction_wp_y_);
         if (dist_to_junc > switching_threshold_) {
+            junction_hold_ticks_++;
             dlog(
                 "PUB_WP: holding follow WP — %.2fm from junction WP "
-                "(%.2f,%.2f)",
-                dist_to_junc, junction_wp_x_, junction_wp_y_);
+                "(%.2f,%.2f) hold_tick=%d",
+                dist_to_junc, junction_wp_x_, junction_wp_y_,
+                junction_hold_ticks_);
             return;
         }
-        dlog("PUB_WP: reached junction WP (%.2fm), releasing follow WP",
-             dist_to_junc);
+        dlog("PUB_WP: reached junction WP (%.2fm) after %d ticks, releasing",
+             dist_to_junc, junction_hold_ticks_);
         junction_in_progress_ = false;
+        junction_hold_ticks_ = 0;
     }
 
     if (current_line_id_ == next_line.id) {
@@ -1290,6 +1317,28 @@ void LineFilteringNode::get_track_by_yaw(Track& line_track) {
         return std::atan2(far(1) - near(1), far(0) - near(0));
     };
 
+    // Sticky: once we have committed to a confirmed track, keep following it
+    // rather than re-evaluating every tick. This prevents spurious switches when
+    // a secondary track (e.g. a visual artefact near the pipe endpoint) appears
+    // with an angle closer to next_line_yaw_ than the real pipe. The lock is
+    // cleared when a junction fires (current_line_id_ reset to -1 in
+    // publish_intersection), so the outgoing arm is still selected by yaw.
+    if (current_line_id_ != -1 && !junction_in_progress_) {
+        Track sticky{};
+        if (get_track_by_id(sticky, current_line_id_) == 0 && sticky.confirmed) {
+            double angle = directed_angle(sticky);
+            // Keep next_line_yaw_ in sync with the actual pipe direction so
+            // the next junction's set_next_line() uses an accurate ref_yaw.
+            next_line_yaw_ = angle;
+            dlog("GET_TRACK_YAW: sticky id=%d ang=%.1fdeg", sticky.id,
+                 angle * 180.0 / M_PI);
+            line_track = sticky;
+            return;
+        }
+        dlog("GET_TRACK_YAW: sticky id=%d gone/unconfirmed -> yaw search",
+             current_line_id_);
+    }
+
     auto best_by_yaw = [&](bool confirmed_only) -> std::pair<double, Track> {
         double min_diff = std::numeric_limits<double>::max();
         Track best{};
@@ -1313,6 +1362,8 @@ void LineFilteringNode::get_track_by_yaw(Track& line_track) {
     // stays confirmed for several cycles after the junction).
     auto [cdiff, cbest] = best_by_yaw(true);
     if (cdiff <= kMaxYawDiff) {
+        dlog("GET_TRACK_YAW: confirmed id=%d diff=%.1fdeg ref_yaw=%.1fdeg",
+             cbest.id, cdiff * 180.0 / M_PI, ref_yaw * 180.0 / M_PI);
         line_track = cbest;
         return;
     }

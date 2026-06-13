@@ -18,7 +18,7 @@ line_filtering_node:
     switching_threshold: 0.3
     # Resend throttling: don't re-issue a waypoint (which wipes the manager queue
     # and resets the reference filter) unless the target moved/rotated enough.
-    min_wp_dist: 1.0      # metres
+    min_wp_dist: 0.3      # metres
     min_wp_yaw: 0.1       # rad
     max_resend_skips: 75  # force a resend after this many skipped cycles
     # If the bearing to the outgoing line exceeds this (rad), rotate in place
@@ -52,17 +52,12 @@ line_filtering_node:
     # Lookahead: project this far beyond the visible pipe endpoint when sending
     # follow waypoints. Robot never "arrives" so DP drives at full speed.
     # Set to 0 to disable (target exactly the visible endpoint).
-    lookahead_distance: 0.5  # metres
-
-    # Recovery: if no matching track is found for this many consecutive ticks
-    # after a junction, rotate back to pre_junction_yaw and allow re-detection.
-    # At 200ms/tick: 25 ticks = 5s. Increase if the AUV is slow to rotate.
-    recovery_no_track_ticks: 250
+    lookahead_distance: 0.0  # metres
 
     # N/M track management: confirm after confirm_n hits in the last confirm_m
     # steps; delete after delete_n misses in the last delete_m steps.
     nm:
       confirm_n: 2
       confirm_m: 4
-      delete_n: 40   # all 40 must miss (ratio=1) to delete a track
-      delete_m: 40   # 40 x 200ms = 8s of zero detections before deletion
+      delete_n: 8    # all 8 must miss (ratio=1) to delete a track
+      delete_m: 8    # 8 x 200ms = 1.6s of zero detections before deletion
