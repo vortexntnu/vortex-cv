@@ -11,30 +11,26 @@ find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(vortex_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(Armadillo REQUIRED)
 find_package(cv_bridge REQUIRED)
 
 include_directories(include)
-include_directories(${OpenCV_INCLUDE_DIRS} ${ARMADILLO_INCLUDE_DIRS})
+include_directories(${OpenCV_INCLUDE_DIRS})
 
 set(LIB_NAME "${PROJECT_NAME}_component")
 
 add_library(${LIB_NAME} SHARED
   src/pipeline_line_fitting_ros.cpp
-  src/randsac.cpp
   src/linedetectorPipe.cpp
 )
 
 target_link_libraries(${LIB_NAME} PUBLIC
   ${OpenCV_LIBS}
-  ${ARMADILLO_LIBRARIES}
 )
 
 target_include_directories(${LIB_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
   ${OpenCV_INCLUDE_DIRS}
-  ${ARMADILLO_INCLUDE_DIRS}
 )
 
 ament_target_dependencies(${LIB_NAME} PUBLIC

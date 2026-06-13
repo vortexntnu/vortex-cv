@@ -1,6 +1,3 @@
-#include <cv_bridge/cv_bridge.h>
-#include <chrono>
-#include <iostream>
 #include <opencv2/opencv.hpp>
 #include <opencv2/ximgproc.hpp>
 #include <pipeline_line_fitting/linedetectorPipe.hpp>
@@ -44,17 +41,29 @@ void LinedetectorPipe::preprocess(cv::Mat& img, bool dist) {
     // Skeletonize the image using Zhang-Suen thinning algorithm
     cv::ximgproc::thinning(img, img, cv::ximgproc::THINNING_ZHANGSUEN);
 
-    // Drop skeleton connected components smaller than the threshold — these are
-    // noise blobs that survived thinning and would seed bad RANSAC lines.
-    if (min_skeleton_component_size_ > 0) {
+    // Keep only the two largest skeleton components. The pipeline is always the
+    // dominant structure; any third+ component is noise regardless of size.
+    // Keeping two allows junctions where the arms thin into separate components.
+    {
         cv::Mat labels, stats, centroids;
         int n_labels =
             cv::connectedComponentsWithStats(img, labels, stats, centroids);
+
+        std::vector<std::pair<int, int>> areas;  // (area, label)
         for (int lbl = 1; lbl < n_labels; ++lbl) {
-            if (stats.at<int>(lbl, cv::CC_STAT_AREA) <
-                min_skeleton_component_size_) {
+            int area = stats.at<int>(lbl, cv::CC_STAT_AREA);
+            if (area >= min_skeleton_component_size_)
+                areas.push_back({area, lbl});
+        }
+        std::sort(areas.rbegin(), areas.rend());
+
+        std::set<int> keep;
+        for (int i = 0; i < std::min(2, (int)areas.size()); ++i)
+            keep.insert(areas[i].second);
+
+        for (int lbl = 1; lbl < n_labels; ++lbl) {
+            if (keep.find(lbl) == keep.end())
                 img.setTo(0, labels == lbl);
-            }
         }
     }
 
@@ -63,39 +72,6 @@ void LinedetectorPipe::preprocess(cv::Mat& img, bool dist) {
 
 LinedetectorPipe::LinedetectorPipe() {};
 LinedetectorPipe::~LinedetectorPipe() {};
-
-void LinedetectorPipe::postprocess() {}
-
-int LinedetectorPipe::detectSingleLine(const arma::mat& points,
-                                       const arma::mat& values,
-                                       const std::vector<Line>& lines,
-                                       const int i,
-                                       bool flipped) {
-    // Extract columns and reshape
-    if (points.n_rows < 5) {
-        return 1;
-    }
-
-    arma::mat X = points.col(1);
-    X.reshape(points.n_rows, 1);
-    arma::mat y = points.col(0);
-    y.reshape(points.n_rows, 1);
-
-    // Set the d parameter for RANSAC
-    int d = points.n_elem * fracOfPoints_;
-    randsac_.d = d;
-
-    // Fit the RANSAC model
-    randsac_.fit(X, y, values, lines, flipped);
-
-    // Check the best_fit and bestValue conditions
-    if (randsac_.bestFit.params.size() == 0 ||
-        randsac_.bestScore < finalScorethresh_) {
-        return 1;
-    }
-
-    return 0;
-}
 
 void LinedetectorPipe::getEndPoints(Line& line, bool swap) {
     int minX = -1;
@@ -146,104 +122,90 @@ std::vector<Line> LinedetectorPipe::detect(const cv::Mat& img,
     processedImg_ = img.clone();
     preprocess(processedImg_);
 
-    // Find points where img > 0
-    std::vector<cv::Point> pointList;
-    cv::findNonZero(processedImg_, pointList);
+    // Hough line detection on thinned skeleton.
+    std::vector<cv::Vec2f> raw_lines;
+    cv::HoughLines(processedImg_, raw_lines, 1, CV_PI / 180.0, hough_threshold_);
 
-    // Convert points to arma::mat
-    arma::mat points(pointList.size(), 2);
-    for (size_t i = 0; i < pointList.size(); ++i) {
-        points(i, 0) = pointList[i].y;
-        points(i, 1) = pointList[i].x;
+    if (raw_lines.empty()) return {};
+
+    // Cluster by angle: lines within minTurnAngle_ rad are the same pipe arm.
+    // raw_lines is sorted by vote count so the first entry per cluster is the
+    // best representative.
+    struct Cluster {
+        float rho, theta;
+        int count = 1;
+    };
+    std::vector<Cluster> clusters;
+
+    for (const auto& hl : raw_lines) {
+        float rho = hl[0], theta = hl[1];
+        bool merged = false;
+        for (auto& c : clusters) {
+            double dtheta = std::fmod(std::abs(theta - c.theta), CV_PI);
+            if (dtheta > CV_PI / 2.0) dtheta = CV_PI - dtheta;
+            if (dtheta < minTurnAngle_) {
+                c.count++;
+                merged = true;
+                break;
+            }
+        }
+        if (!merged) clusters.push_back({rho, theta, 1});
     }
 
-    // Extract values from the image at the points
-    arma::mat values(pointList.size(), 1);
-    for (size_t i = 0; i < pointList.size(); ++i) {
-        values(i, 0) = processedImg_.at<uchar>(pointList[i].y, pointList[i].x);
-    }
+    std::sort(clusters.begin(), clusters.end(),
+              [](const Cluster& a, const Cluster& b) {
+                  return a.count > b.count;
+              });
 
     std::vector<Line> lines;
 
-    // Returns true if `candidate` intersects all lines in `lines` within the
-    // image frame. Two segments of the same pipe are parallel/collinear and
-    // their intersection lies far outside the image. A genuine junction arm
-    // meets the pipe at the junction point which must be visible in frame.
+    // Reject a second line whose infinite extension doesn't intersect the first
+    // inside the image frame — means they're parallel (same pipe, not a corner).
     auto intersects_in_frame = [&](const Line& candidate) -> bool {
         for (const auto& prev : lines) {
             double ax = prev.start.x * scaleX_, ay = prev.start.y * scaleY_;
-            double bx = prev.end.x * scaleX_, by = prev.end.y * scaleY_;
-            double cx = candidate.start.x * scaleX_,
-                   cy = candidate.start.y * scaleY_;
-            double ex = candidate.end.x * scaleX_,
-                   ey = candidate.end.y * scaleY_;
-            // General form ax+by+c=0 for each line.
+            double bx = prev.end.x * scaleX_,   by = prev.end.y * scaleY_;
+            double cx = candidate.start.x * scaleX_, cy = candidate.start.y * scaleY_;
+            double ex = candidate.end.x * scaleX_,   ey = candidate.end.y * scaleY_;
             double p1 = -(by - ay), q1 = bx - ax,
                    r1 = (by - ay) * ax - (bx - ax) * ay;
             double p2 = -(ey - cy), q2 = ex - cx,
                    r2 = (ey - cy) * cx - (ex - cx) * cy;
             double det = p1 * q2 - p2 * q1;
-            if (std::abs(det) < 1e-6)
-                return false;  // parallel → same pipe
+            if (std::abs(det) < 1e-6) return false;
             double xi = (-r1 * q2 + r2 * q1) / det;
             double yi = (-r2 * p1 + r1 * p2) / det;
-            if (xi < 0.0 || xi > size_ || yi < 0.0 || yi > size_)
-                return false;
+            if (xi < 0.0 || xi > size_ || yi < 0.0 || yi > size_) return false;
         }
         return true;
     };
 
-    for (int i = 0; i < maxLines; ++i) {
-        int returnCode = detectSingleLine(points, values, lines, i);
+    for (const auto& c : clusters) {
+        if ((int)lines.size() >= maxLines) break;
+
+        // Convert Hough (rho, theta) to slope/intercept.
+        // Normal form: col*cos(theta) + row*sin(theta) = rho
+        // -> row = slope*col + intercept  when sin(theta) is not near zero
+        // -> col = slope*row + intercept  (swap=true) for near-vertical lines
         Line line;
+        bool swapped = false;
 
-        if (returnCode) {
-            // rotate points and retry
-            arma::mat newPoints(points.n_cols, points.n_rows);
-            for (size_t j = 0; j < points.n_rows; ++j) {
-                newPoints(0, j) = points(j, 1);
-                newPoints(1, j) = points(j, 0);
-            }
-
-            newPoints = newPoints.t();
-
-            returnCode = detectSingleLine(newPoints, values, lines, i, true);
-
-            if (returnCode) {
-                continue;
-            }
-
-            line = Line{randsac_.bestFit.params[1], randsac_.bestFit.params[0],
-                        randsac_.bestScore};
-            // use a rotated image to get end points also
-            getEndPoints(line, true);
-
+        if (std::abs(std::sin(c.theta)) > 0.1) {
+            line.slope     = -std::cos(c.theta) / std::sin(c.theta);
+            line.intercept =  c.rho / std::sin(c.theta);
         } else {
-            line = Line{randsac_.bestFit.params[1], randsac_.bestFit.params[0],
-                        randsac_.bestScore};
-            getEndPoints(line);
+            line.slope     = -std::sin(c.theta) / std::cos(c.theta);
+            line.intercept =  c.rho / std::cos(c.theta);
+            swapped = true;
         }
+        line.score = c.count;
 
-        // For second+ lines: reject if intersection with previous lines is
-        // outside the image frame (same pipe with segmentation gap, not a
-        // genuine junction arm).
-        if (i > 0 && !intersects_in_frame(line)) {
-            continue;
-        }
+        getEndPoints(line, swapped);
 
-        // Remove points for next iteration
-        arma::mat newPoints;
-        arma::mat newValues;
-        for (size_t j = 0; j < points.n_rows; ++j) {
-            if (std::find(randsac_.rempointids.begin(),
-                          randsac_.rempointids.end(),
-                          j) == randsac_.rempointids.end()) {
-                newPoints.insert_rows(newPoints.n_rows, points.row(j));
-                newValues.insert_rows(newValues.n_rows, values.row(j));
-            }
-        }
-        points = newPoints;
-        values = newValues;
+        if (line.start.x < 0 || line.start.y < 0 ||
+            line.end.x < 0   || line.end.y < 0) continue;
+
+        if (!lines.empty() && !intersects_in_frame(line)) continue;
 
         lines.push_back(line);
     }

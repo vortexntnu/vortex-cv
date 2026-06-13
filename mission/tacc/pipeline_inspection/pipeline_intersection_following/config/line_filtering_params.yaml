@@ -15,29 +15,21 @@ line_filtering_node:
 
     # --- Waypoint behaviour ---
     target_altitude: 0.5
-    switching_threshold: 0.3
+    switching_threshold: 0.1
     # Resend throttling: don't re-issue a waypoint (which wipes the manager queue
     # and resets the reference filter) unless the target moved/rotated enough.
     min_wp_dist: 0.3      # metres
-    min_wp_yaw: 0.1       # rad
-    max_resend_skips: 75  # force a resend after this many skipped cycles
+    min_wp_yaw: 0.2       # rad
+    max_resend_skips: 100  # force a resend after this many skipped cycles (~20s)
     # If the bearing to the outgoing line exceeds this (rad), rotate in place
     # (ONLY_ORIENTATION) to face it before driving FORWARD_HEADING.
-    realign_yaw_threshold: 0.35 # ~20 degrees
+    realign_yaw_threshold: 0.175 # ~10 degrees
 
     debug_visualization: true
 
-    # --- Tracking (PDAF/IPDA + N/M) ---
-    clutter_rate: 0.001
-    probability_of_detection: 0.6
-    probability_of_survival: 0.98
-    gate_threshold: 2.5
-    min_gate_threshold: 1.0
-    max_gate_threshold: 3.0
-    confirmation_threshold: 0.8
-    initial_existence_probability: 0.25
-    std_dynmod: 0.3
-    std_sensor: 0.3
+    # --- Tracking (nearest-neighbour + N/M) ---
+    min_gate_threshold: 0.2   # metres — always associate within this distance (skip orientation check)
+    max_gate_threshold: 3.0   # metres — gate ceiling
     update_interval_ms: 200
 
     connected_lines_threshold: 0.5
@@ -47,7 +39,7 @@ line_filtering_node:
     # the current track (their midpoints can be <0.6 m apart). >= pi/2 disables.
     orientation_gate_threshold: 0.5236 # 30 degrees
 
-    termination_counter_threshold: 30
+    termination_counter_threshold: 150
 
     # Lookahead: project this far beyond the visible pipe endpoint when sending
     # follow waypoints. Robot never "arrives" so DP drives at full speed.
@@ -58,6 +50,6 @@ line_filtering_node:
     # steps; delete after delete_n misses in the last delete_m steps.
     nm:
       confirm_n: 2
-      confirm_m: 4
-      delete_n: 8    # all 8 must miss (ratio=1) to delete a track
-      delete_m: 8    # 8 x 200ms = 1.6s of zero detections before deletion
+      confirm_m: 6    # 2 detections in last 6 received frames to confirm
+      delete_n: 10    # 10 consecutive missed frames to delete
+      delete_m: 10

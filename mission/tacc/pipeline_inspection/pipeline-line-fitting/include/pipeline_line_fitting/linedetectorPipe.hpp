@@ -1,76 +1,51 @@
 #ifndef LINDETECTORPIPE_HPP
 #define LINDETECTORPIPE_HPP
 
-#include <armadillo>
-#include <iostream>
-#include <pipeline_line_fitting/randsac.hpp>
+#include <opencv2/opencv.hpp>
 
-struct RandsacParams {
-    int n;
-    int k;
-    float t;
-    float fracOfPoints;
-    float removeT;
-    float finalScorethresh;
+struct Line {
+    double slope;
+    double intercept;
+    double score;
+    cv::Point start = {0, 0};
+    cv::Point end = {0, 0};
+};
+
+struct HoughParams {
     float minTurnAngle;
     int size;
     int morph_close_size;
     float dist_thresh;
     int min_skeleton_component_size;
+    int hough_threshold;
 };
 
 class LinedetectorPipe {
-    int n_;
-    int k_;
-    float t_;
-    float fracOfPoints_;
-    float removeT_;
-    float finalScorethresh_;
     float minTurnAngle_;
     int size_;
-    cv::Mat orgImg_;  // Original image
-    double scaleX_;   // Scaling factor for x-axis
-    double scaleY_;   // Scaling factor for y-axis
+    cv::Mat orgImg_;
+    double scaleX_;
+    double scaleY_;
     int morph_close_size_;
     float dist_thresh_;
     int min_skeleton_component_size_;
-
-    RANDSAC randsac_;
+    int hough_threshold_;
     cv::Mat processedImg_;
 
-    // quick summary of the pipeline
    public:
     void preprocess(cv::Mat& img, bool dist = true);
-    int detectSingleLine(const arma::mat& points,
-                         const arma::mat& values,
-                         const std::vector<Line>& lines,
-                         const int i,
-                         bool flipped = false);
-    void postprocess();
     void getEndPoints(Line& line, bool swap = false);
-
-   public:
-    ~LinedetectorPipe();
-    // call operator is the entry point for the pipeline
     std::vector<Line> detect(const cv::Mat& img, const int maxLines);
 
     LinedetectorPipe();
-    LinedetectorPipe(RandsacParams params) {
-        // A line detector using RANSAC to find to lines in a bitmask image
-        n_ = params.n;
-        k_ = params.k;
-        t_ = params.t;
-        fracOfPoints_ = params.fracOfPoints;
-        removeT_ = params.removeT;
-        finalScorethresh_ = params.finalScorethresh;
+    ~LinedetectorPipe();
+    LinedetectorPipe(HoughParams params) {
         minTurnAngle_ = params.minTurnAngle;
         size_ = params.size;
         morph_close_size_ = params.morph_close_size;
         dist_thresh_ = params.dist_thresh;
         min_skeleton_component_size_ = params.min_skeleton_component_size;
-
-        randsac_ =
-            RANDSAC(n_, k_, t_, 2, removeT_, finalScorethresh_, minTurnAngle_);
+        hough_threshold_ = params.hough_threshold;
     }
 };
 

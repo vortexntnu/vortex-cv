@@ -10,7 +10,6 @@
   <depend>sensor_msgs</depend>
   <depend>vortex_msgs</depend>
   <depend>cv_bridge</depend>
-  <depend>armadillo</depend>
 
 
   <export>

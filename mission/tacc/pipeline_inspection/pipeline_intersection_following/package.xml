@@ -9,7 +9,6 @@
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  <depend>vortex_filtering</depend>
   <depend>eigen</depend>
   <depend>rclcpp</depend>
   <depend>tf2</depend>

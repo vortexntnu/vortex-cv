@@ -14,17 +14,9 @@ geometry_msgs::msg::Quaternion quat_from_yaw(double yaw) {
 }  // namespace
 
 LineFilteringNode::LineFilteringNode() : Node("line_filtering_node") {
-    declare_parameter<double>("clutter_rate", 0.001);
-    declare_parameter<double>("probability_of_detection", 0.7);
-    declare_parameter<double>("probability_of_survival", 0.99);
-    declare_parameter<double>("gate_threshold", 2.5);
     declare_parameter<double>("min_gate_threshold", 1.0);
     declare_parameter<double>("max_gate_threshold", 10.0);
-    declare_parameter<double>("confirmation_threshold", 0.9);
-    declare_parameter<double>("initial_existence_probability", 0.4);
     declare_parameter<int>("update_interval_ms", 500);
-    declare_parameter<double>("std_dynmod", 0.2);
-    declare_parameter<double>("std_sensor", 0.5);
     declare_parameter<double>("connected_lines_threshold", 0.5);
     declare_parameter<double>("crossing_min_angle", 0.5236);
     declare_parameter<int>("termination_counter_threshold", 30);
@@ -67,7 +59,7 @@ LineFilteringNode::LineFilteringNode() : Node("line_filtering_node") {
     switching_threshold_ =
         this->declare_parameter<double>("switching_threshold", 0.3);
     realign_yaw_threshold_ =
-        this->declare_parameter<double>("realign_yaw_threshold", 0.35);
+        this->declare_parameter<double>("realign_yaw_threshold", 0.175);
     min_wp_dist_ = this->declare_parameter<double>("min_wp_dist", 0.2);
     min_wp_yaw_ = this->declare_parameter<double>("min_wp_yaw", 0.1);
     max_resend_skips_ = this->declare_parameter<int>("max_resend_skips", 20);
@@ -165,9 +157,6 @@ LineFilteringNode::LineFilteringNode() : Node("line_filtering_node") {
 
     // --- Track managers
     // -------------------------------------------------------
-    double std_dynmod = get_parameter("std_dynmod").as_double();
-    double std_sensor = get_parameter("std_sensor").as_double();
-
     NMConfig nm_config;
     nm_config.confirm_n = get_parameter("nm.confirm_n").as_int();
     nm_config.confirm_m = get_parameter("nm.confirm_m").as_int();
@@ -180,8 +169,6 @@ LineFilteringNode::LineFilteringNode() : Node("line_filtering_node") {
         "orientation_gate_threshold", 0.5236);  // 30 deg
 
     line_tracker_ = TrackManager();
-    line_tracker_.set_dyn_model(std_dynmod);
-    line_tracker_.set_sensor_model(std_sensor);
     line_tracker_.set_nm_config(nm_config);
     line_tracker_.set_orientation_gate(orientation_gate);
 
@@ -205,7 +192,6 @@ void LineFilteringNode::start_following_callback(
         junction_votes_.clear();
         termination_counter_ = 0;
         current_line_id_ = -1;
-        current_line_id_counter_ = 0;
         next_line_yaw_ = 0.0;
         have_prev_wp_ = false;
         wp_skip_count_ = 0;
@@ -255,7 +241,7 @@ void LineFilteringNode::line_callback(
     const double depth = altitude_;
 
     // Flatten the line endpoints into a single list of pixel points, two per
-    // line segment (p0, p1), matching the measurements_/line_params_ layout.
+    // line segment (p0, p1) into measurements_ (2 columns per line).
     std::vector<std::pair<double, double>> pixels;
     pixels.reserve(msg->lines.size() * 2);
     for (const auto& line : msg->lines) {
@@ -274,7 +260,6 @@ void LineFilteringNode::line_callback(
 
         const size_t size = pixels.size();
         measurements_ = Eigen::Array<double, 2, Eigen::Dynamic>(2, size);
-        line_params_ = Eigen::Array<double, 2, Eigen::Dynamic>(2, size / 2);
 
         size_t i = 0;
         for (const auto& [u, v] : pixels) {
@@ -296,10 +281,6 @@ void LineFilteringNode::line_callback(
                 point;
 
             measurements_.col(i) << transformed.x(), transformed.y();
-            if (i % 2 == 1) {
-                line_params_.col((i - 1) / 2) =
-                    (measurements_.col(i - 1) + measurements_.col(i)) / 2.0;
-            }
 
             if (debug_visualization_) {
                 geometry_msgs::msg::PoseStamped pose_msg;
@@ -329,28 +310,29 @@ void LineFilteringNode::line_callback(
 
             i++;
         }
+        const Eigen::Index n_lines = static_cast<Eigen::Index>(size / 2);
         dlog("LINE_CB: transformed %zu endpoints (%zu line midpoints) to %s",
              size, size / 2, target_frame_.c_str());
-        // Log each line's world-frame midpoint and orientation, plus pairwise
-        // midpoint separation -- to see whether two detections are distinct
-        // lines and how far apart their midpoints are (vs the gate thresholds).
-        const Eigen::Index ncols = line_params_.cols();
-        for (Eigen::Index c = 0; c < ncols; ++c) {
+        for (Eigen::Index c = 0; c < n_lines; ++c) {
             const Eigen::Index e0 = 2 * c, e1 = 2 * c + 1;
+            const double mid_x = (measurements_(0, e0) + measurements_(0, e1)) / 2.0;
+            const double mid_y = (measurements_(1, e0) + measurements_(1, e1)) / 2.0;
             const double ang =
                 std::atan2(measurements_(1, e1) - measurements_(1, e0),
                            measurements_(0, e1) - measurements_(0, e0));
             dlog(
                 "  MEAS line %ld: mid=(%.2f,%.2f) ang=%.1fdeg "
                 "p0=(%.2f,%.2f) p1=(%.2f,%.2f)",
-                (long)c, line_params_(0, c), line_params_(1, c),
-                ang * 180.0 / M_PI, measurements_(0, e0), measurements_(1, e0),
+                (long)c, mid_x, mid_y, ang * 180.0 / M_PI,
+                measurements_(0, e0), measurements_(1, e0),
                 measurements_(0, e1), measurements_(1, e1));
         }
-        if (ncols == 2) {
-            const double sep =
-                std::hypot(line_params_(0, 0) - line_params_(0, 1),
-                           line_params_(1, 0) - line_params_(1, 1));
+        if (n_lines == 2) {
+            const double mid0_x = (measurements_(0, 0) + measurements_(0, 1)) / 2.0;
+            const double mid0_y = (measurements_(1, 0) + measurements_(1, 1)) / 2.0;
+            const double mid1_x = (measurements_(0, 2) + measurements_(0, 3)) / 2.0;
+            const double mid1_y = (measurements_(1, 2) + measurements_(1, 3)) / 2.0;
+            const double sep = std::hypot(mid1_x - mid0_x, mid1_y - mid0_y);
             dlog(
                 "  MEAS midpoint separation = %.2f m (min_gate=%.2f, "
                 "max_gate=%.2f)",
@@ -362,6 +344,50 @@ void LineFilteringNode::line_callback(
         dlog("LINE_CB: TRANSFORM FAILED %s -> %s : %s",
              msg->header.frame_id.c_str(), target_frame_.c_str(), ex.what());
     }
+
+    if (!is_executing_action_ || measurements_.cols() == 0) {
+        return;
+    }
+
+    const double min_gate = get_parameter("min_gate_threshold").as_double();
+    const double max_gate = get_parameter("max_gate_threshold").as_double();
+
+    struct TrackSnap { int id; bool confirmed; };
+    std::vector<TrackSnap> pre_snap;
+    for (const auto& t : line_tracker_.get_tracks())
+        pre_snap.push_back({t.id, t.confirmed});
+
+    line_tracker_.update_line_tracks(measurements_, min_gate, max_gate);
+
+    measurements_.resize(2, 0);
+
+    for (const auto& t : line_tracker_.get_tracks()) {
+        auto it = std::find_if(pre_snap.begin(), pre_snap.end(),
+                               [&](const TrackSnap& s){ return s.id == t.id; });
+        if (it == pre_snap.end()) {
+            double ang = std::atan2(t.line_points(1,1) - t.line_points(1,0),
+                                    t.line_points(0,1) - t.line_points(0,0));
+            dlog("TRACK_NEW: id=%d p0=(%.2f,%.2f) p1=(%.2f,%.2f) ang=%.1fdeg",
+                 t.id, t.line_points(0,0), t.line_points(1,0),
+                 t.line_points(0,1), t.line_points(1,1), ang * 180.0 / M_PI);
+        } else if (!it->confirmed && t.confirmed) {
+            dlog("TRACK_CONF: id=%d p0=(%.2f,%.2f) p1=(%.2f,%.2f)",
+                 t.id, t.line_points(0,0), t.line_points(1,0),
+                 t.line_points(0,1), t.line_points(1,1));
+        }
+    }
+
+    line_tracker_.delete_tracks();
+
+    const auto& post_tracks = line_tracker_.get_tracks();
+    for (const auto& s : pre_snap) {
+        bool still_alive = std::any_of(post_tracks.begin(), post_tracks.end(),
+                                       [&](const Track& t){ return t.id == s.id; });
+        if (!still_alive)
+            dlog("TRACK_DEL: id=%d (was confirmed=%d)", s.id, s.confirmed ? 1 : 0);
+    }
+
+    find_new_line_intersections();
 }
 
 // --- Waypoint sending --------------------------------------------------------
@@ -456,77 +482,16 @@ void LineFilteringNode::timer_callback() {
         return;
     }
 
-    int update_interval = get_parameter("update_interval_ms").as_int();
-    double confirmation_threshold =
-        get_parameter("confirmation_threshold").as_double();
-    double gate_threshold = get_parameter("gate_threshold").as_double();
-    double min_gate_threshold = get_parameter("min_gate_threshold").as_double();
-    double max_gate_threshold = get_parameter("max_gate_threshold").as_double();
-    double prob_of_detection =
-        get_parameter("probability_of_detection").as_double();
-    double prob_of_survival =
-        get_parameter("probability_of_survival").as_double();
-    double clutter_intensity = get_parameter("clutter_rate").as_double();
-    double initial_existence_probability =
-        get_parameter("initial_existence_probability").as_double();
-
-    // Snapshot track state before update so we can log changes.
-    struct TrackSnap { int id; bool confirmed; };
-    std::vector<TrackSnap> pre_snap;
-    for (const auto& t : line_tracker_.get_tracks())
-        pre_snap.push_back({t.id, t.confirmed});
-
-    // Update line tracks
-    line_tracker_.update_line_tracks(
-        measurements_, line_params_, update_interval, confirmation_threshold,
-        gate_threshold, min_gate_threshold, max_gate_threshold,
-        prob_of_detection, prob_of_survival, clutter_intensity,
-        initial_existence_probability);
-
-    measurements_.resize(2, 0);
-    line_params_.resize(2, 0);
-
-    // Log newly created or newly confirmed tracks.
-    for (const auto& t : line_tracker_.get_tracks()) {
-        auto it = std::find_if(pre_snap.begin(), pre_snap.end(),
-                               [&](const TrackSnap& s){ return s.id == t.id; });
-        if (it == pre_snap.end()) {
-            double ang = std::atan2(t.line_points(1,1) - t.line_points(1,0),
-                                    t.line_points(0,1) - t.line_points(0,0));
-            dlog("TRACK_NEW: id=%d p0=(%.2f,%.2f) p1=(%.2f,%.2f) ang=%.1fdeg",
-                 t.id, t.line_points(0,0), t.line_points(1,0),
-                 t.line_points(0,1), t.line_points(1,1), ang * 180.0 / M_PI);
-        } else if (!it->confirmed && t.confirmed) {
-            dlog("TRACK_CONF: id=%d p0=(%.2f,%.2f) p1=(%.2f,%.2f)",
-                 t.id, t.line_points(0,0), t.line_points(1,0),
-                 t.line_points(0,1), t.line_points(1,1));
-        }
-    }
-
-    // delete tracks
-    line_tracker_.delete_tracks();
-
-    // Log deletions.
-    const auto& post_tracks = line_tracker_.get_tracks();
-    for (const auto& s : pre_snap) {
-        bool still_alive = std::any_of(post_tracks.begin(), post_tracks.end(),
-                                       [&](const Track& t){ return t.id == s.id; });
-        if (!still_alive)
-            dlog("TRACK_DEL: id=%d (was confirmed=%d)", s.id, s.confirmed ? 1 : 0);
-    }
-
-    // Update junction vote counters (replaces second IPDA tracker)
-    find_new_line_intersections();
+    const double max_gate_threshold = get_parameter("max_gate_threshold").as_double();
 
     if (debug_visualization_) {
         auto scene_update_line = visualize_track_gates(
             line_tracker_.get_tracks(), this->now(), target_frame_,
-            gate_threshold, min_gate_threshold, max_gate_threshold, true,
-            orca_pose_.position.z, altitude_);
+            max_gate_threshold, true, orca_pose_.position.z, altitude_);
         scene_update_line_pub_->publish(scene_update_line);
 
         auto scene_update_intersection = visualize_track_gates(
-            {}, this->now(), target_frame_, gate_threshold, min_gate_threshold,
+            {}, this->now(), target_frame_,
             max_gate_threshold, false, orca_pose_.position.z, altitude_);
 
         auto marker_array = visualize_line_tracks(
@@ -554,11 +519,10 @@ void LineFilteringNode::timer_callback() {
         dlog(
             "TICK: pose=(%.2f,%.2f) yaw=%.1fdeg alt=%.2f | "
             "line_tracks=%zu(conf=%d) "
-            "votes=%zu(ready=%d) used_junctions=%zu cur_line=%d cnt=%d",
+            "votes=%zu(ready=%d) used_junctions=%zu cur_line=%d",
             orca_pose_.position.x, orca_pose_.position.y, yaw * 180.0 / M_PI,
             altitude_, ltracks.size(), lconf, junction_votes_.size(),
-            ready_votes, used_line_intersections_.size(), current_line_id_,
-            current_line_id_counter_);
+            ready_votes, used_line_intersections_.size(), current_line_id_);
 
         for (const auto& t : ltracks) {
             dlog("  LINE id=%d conf=%d hits=%d p0=(%.2f,%.2f) p1=(%.2f,%.2f)",
@@ -569,6 +533,14 @@ void LineFilteringNode::timer_callback() {
             dlog("  VOTE pair=(%d,%d) hits=%d/%d at=(%.2f,%.2f)", v.id1, v.id2,
                  v.hits, kJunctionConfirmHits, v.pos(0), v.pos(1));
         }
+    }
+
+    // Hard block: while junction is executing, do nothing except wait for
+    // the robot to reach position + yaw. No other waypoints go out.
+    if (junction_in_progress_) {
+        dlog("BRANCH: junction_in_progress -> check_junction_convergence");
+        check_junction_convergence();
+        return;
     }
 
     if (new_intersection_available()) {
@@ -594,6 +566,37 @@ void LineFilteringNode::timer_callback() {
     }
 }
 
+void LineFilteringNode::check_junction_convergence() {
+    const double dist_to_junc =
+        std::hypot(orca_pose_.position.x - junction_wp_x_,
+                   orca_pose_.position.y - junction_wp_y_);
+
+    tf2::Quaternion q_v(orca_pose_.orientation.x, orca_pose_.orientation.y,
+                        orca_pose_.orientation.z, orca_pose_.orientation.w);
+    double roll, pitch, cur_yaw;
+    tf2::Matrix3x3(q_v).getRPY(roll, pitch, cur_yaw);
+    const double yaw_err = std::fabs(std::atan2(
+        std::sin(next_line_yaw_ - cur_yaw),
+        std::cos(next_line_yaw_ - cur_yaw)));
+
+    if (dist_to_junc > switching_threshold_ || yaw_err > realign_yaw_threshold_) {
+        junction_hold_ticks_++;
+        dlog(
+            "JUNCTION: holding — %.2fm from (%.2f,%.2f) yaw_err=%.1fdeg "
+            "hold_tick=%d",
+            dist_to_junc, junction_wp_x_, junction_wp_y_,
+            yaw_err * 180.0 / M_PI, junction_hold_ticks_);
+        return;
+    }
+
+    dlog(
+        "JUNCTION: converged (%.2fm yaw_err=%.1fdeg) after %d ticks, "
+        "releasing",
+        dist_to_junc, yaw_err * 180.0 / M_PI, junction_hold_ticks_);
+    junction_in_progress_ = false;
+    junction_hold_ticks_ = 0;
+}
+
 void LineFilteringNode::publish_intersection() {
     for (const auto& vote : junction_votes_) {
         if (vote.hits < kJunctionConfirmHits)
@@ -601,51 +604,22 @@ void LineFilteringNode::publish_intersection() {
 
         set_next_line(vote);
 
-        // Capture vehicle yaw before the turn (used for logging).
-        {
-            tf2::Quaternion q_v(
-                orca_pose_.orientation.x, orca_pose_.orientation.y,
-                orca_pose_.orientation.z, orca_pose_.orientation.w);
-            double r, p;
-            tf2::Matrix3x3(q_v).getRPY(r, p, pre_junction_yaw_);
-        }
-
         const double ix = vote.pos(0);
         const double iy = vote.pos(1);
 
         dlog(
             "PUBLISH_INT: junction pair=(%d,%d) at (%.2f,%.2f) hits=%d -> "
-            "next_yaw=%.1fdeg pre_junction_yaw=%.1fdeg (cur_line=%d cnt=%d)",
+            "next_yaw=%.1fdeg (cur_line=%d)",
             vote.id1, vote.id2, ix, iy, vote.hits,
-            next_line_yaw_ * 180.0 / M_PI, pre_junction_yaw_ * 180.0 / M_PI,
-            current_line_id_, current_line_id_counter_);
+            next_line_yaw_ * 180.0 / M_PI, current_line_id_);
 
         used_line_intersections_.push_back(
             LineIntersection{ix, iy, vote.id1, vote.id2, vote.line_points});
 
-        // Shift the junction target so the camera — not baselink — ends up
-        // centred over the corner, matching the correction in
-        // publish_waypoint().
+        // Send baselink directly to the junction point so the DP controller
+        // rotates about the corner (baselink = center of rotation).
         double jx = ix, jy = iy;
-        try {
-            geometry_msgs::msg::TransformStamped cam_tf =
-                tf2_buffer_->lookupTransform(target_frame_, camera_frame_,
-                                             tf2::TimePointZero);
-            double cam_offset_x =
-                cam_tf.transform.translation.x - orca_pose_.position.x;
-            double cam_offset_y =
-                cam_tf.transform.translation.y - orca_pose_.position.y;
-            jx = ix - cam_offset_x;
-            jy = iy - cam_offset_y;
-            dlog(
-                "PUBLISH_INT: cam offset (%.3f,%.3f) -> adjusted junction "
-                "(%.2f,%.2f)",
-                cam_offset_x, cam_offset_y, jx, jy);
-        } catch (const tf2::TransformException& ex) {
-            dlog(
-                "PUBLISH_INT: camera TF lookup failed (%s), using raw junction",
-                ex.what());
-        }
+        dlog("PUBLISH_INT: junction WP = (%.2f, %.2f)", jx, jy);
 
         auto wp_junction = make_waypoint(
             jx, jy, next_line_yaw_, vortex_msgs::msg::WaypointMode::XY_AND_YAW);
@@ -1106,12 +1080,7 @@ void LineFilteringNode::find_and_publish_initial_waypoint() {
         }
     }
 
-    if (current_line_id_ == chosen_track.id) {
-        current_line_id_counter_++;
-    } else {
-        current_line_id_ = chosen_track.id;
-        current_line_id_counter_ = 0;
-    }
+    current_line_id_ = chosen_track.id;
 
     // Pipe direction: from A→B or B→A, whichever points toward chosen endpoint.
     double dir_x = bx - ax;
@@ -1170,34 +1139,8 @@ void LineFilteringNode::publish_waypoint() {
         return;
     }
 
-    // If the junction waypoint hasn't been reached yet, hold the follow
-    // waypoint so the DP controller can first position the camera over the
-    // corner.
-    if (junction_in_progress_) {
-        double dist_to_junc =
-            std::hypot(orca_pose_.position.x - junction_wp_x_,
-                       orca_pose_.position.y - junction_wp_y_);
-        if (dist_to_junc > switching_threshold_) {
-            junction_hold_ticks_++;
-            dlog(
-                "PUB_WP: holding follow WP — %.2fm from junction WP "
-                "(%.2f,%.2f) hold_tick=%d",
-                dist_to_junc, junction_wp_x_, junction_wp_y_,
-                junction_hold_ticks_);
-            return;
-        }
-        dlog("PUB_WP: reached junction WP (%.2fm) after %d ticks, releasing",
-             dist_to_junc, junction_hold_ticks_);
-        junction_in_progress_ = false;
-        junction_hold_ticks_ = 0;
-    }
 
-    if (current_line_id_ == next_line.id) {
-        current_line_id_counter_++;
-    } else {
-        current_line_id_ = next_line.id;
-        current_line_id_counter_ = 0;
-    }
+    current_line_id_ = next_line.id;
 
     Eigen::Vector2d next_line_p1 = next_line.line_points.col(0);
     Eigen::Vector2d next_line_p2 = next_line.line_points.col(1);
@@ -1327,16 +1270,26 @@ void LineFilteringNode::get_track_by_yaw(Track& line_track) {
         Track sticky{};
         if (get_track_by_id(sticky, current_line_id_) == 0 && sticky.confirmed) {
             double angle = directed_angle(sticky);
-            // Keep next_line_yaw_ in sync with the actual pipe direction so
-            // the next junction's set_next_line() uses an accurate ref_yaw.
-            next_line_yaw_ = angle;
-            dlog("GET_TRACK_YAW: sticky id=%d ang=%.1fdeg", sticky.id,
-                 angle * 180.0 / M_PI);
-            line_track = sticky;
-            return;
+            double drift = std::fabs(std::atan2(std::sin(angle - next_line_yaw_),
+                                                std::cos(angle - next_line_yaw_)));
+            if (drift > get_parameter("orientation_gate_threshold").as_double()) {
+                dlog("GET_TRACK_YAW: sticky id=%d rejected — ang=%.1fdeg "
+                     "drifted %.1fdeg from expected %.1fdeg -> yaw search",
+                     sticky.id, angle * 180.0 / M_PI, drift * 180.0 / M_PI,
+                     next_line_yaw_ * 180.0 / M_PI);
+            } else {
+                // Keep next_line_yaw_ in sync with the actual pipe direction so
+                // the next junction's set_next_line() uses an accurate ref_yaw.
+                next_line_yaw_ = angle;
+                dlog("GET_TRACK_YAW: sticky id=%d ang=%.1fdeg", sticky.id,
+                     angle * 180.0 / M_PI);
+                line_track = sticky;
+                return;
+            }
+        } else {
+            dlog("GET_TRACK_YAW: sticky id=%d gone/unconfirmed -> yaw search",
+                 current_line_id_);
         }
-        dlog("GET_TRACK_YAW: sticky id=%d gone/unconfirmed -> yaw search",
-             current_line_id_);
     }
 
     auto best_by_yaw = [&](bool confirmed_only) -> std::pair<double, Track> {
@@ -1452,21 +1405,3 @@ void LineFilteringNode::termination_check() {
     }
 }
 
-void LineFilteringNode::update_timer(int update_interval) {
-    timer_->cancel();
-    timer_ = this->create_wall_timer(
-        std::chrono::milliseconds(update_interval),
-        std::bind(&LineFilteringNode::timer_callback, this));
-    RCLCPP_INFO(this->get_logger(), "Updated timer with %d ms update interval",
-                update_interval);
-}
-
-void LineFilteringNode::update_dyn_model(double std_dynmod) {
-    line_tracker_.set_dyn_model(std_dynmod);
-    RCLCPP_INFO(this->get_logger(), "Updated dynamic model");
-}
-
-void LineFilteringNode::update_sensor_model(double std_measurement) {
-    line_tracker_.set_sensor_model(std_measurement);
-    RCLCPP_INFO(this->get_logger(), "Updated sensor model");
-}

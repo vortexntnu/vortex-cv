@@ -1,36 +1,24 @@
 #include <pipeline_line_fitting/pipeline_line_fitting_ros.hpp>
 
 #include <vortex_msgs/msg/line_segment2_d.hpp>
-#include <vortex_msgs/msg/point2_d.hpp>
 
 using std::placeholders::_1;
 
-RandsacParams PipelineLineFittingNode::fetchParams() {
-    this->declare_parameter("n", 5);
-    this->declare_parameter("k", 500);
-    this->declare_parameter("t", 50.0);
-    this->declare_parameter("fracOfPoints", 0.001);
-    this->declare_parameter("removeT", 1000.0);
-    this->declare_parameter("finalScorethresh", 65.0);
+HoughParams PipelineLineFittingNode::fetchParams() {
     this->declare_parameter("minTurnAngle", 1.5);
     this->declare_parameter("size", 200);
     this->declare_parameter("morph_close_size", 10);
     this->declare_parameter("dist_thresh", 0.2);
     this->declare_parameter("min_skeleton_component_size", 0);
-    RandsacParams params;
-    params.n = this->get_parameter("n").as_int();
-    params.k = this->get_parameter("k").as_int();
-    params.t = this->get_parameter("t").as_double();
-    params.fracOfPoints = this->get_parameter("fracOfPoints").as_double();
-    params.removeT = this->get_parameter("removeT").as_double();
-    params.finalScorethresh =
-        this->get_parameter("finalScorethresh").as_double();
+    this->declare_parameter("hough_threshold", 30);
+    HoughParams params;
     params.minTurnAngle = this->get_parameter("minTurnAngle").as_double();
     params.size = this->get_parameter("size").as_int();
     params.morph_close_size = this->get_parameter("morph_close_size").as_int();
     params.dist_thresh = this->get_parameter("dist_thresh").as_double();
     params.min_skeleton_component_size =
         this->get_parameter("min_skeleton_component_size").as_int();
+    params.hough_threshold = this->get_parameter("hough_threshold").as_int();
     return params;
 }
 
@@ -65,9 +53,6 @@ PipelineLineFittingNode::PipelineLineFittingNode(
         lines_pub_topic, qos_profile);
 
     pipeline_ = LinedetectorPipe(fetchParams());
-
-    log_file_.open("/tmp/ransac_tune.csv", std::ios::out | std::ios::trunc);
-    log_file_ << "timestamp_ns,line_index,inlier_count\n";
 }
 
 void PipelineLineFittingNode::imageCallback(
@@ -81,33 +66,6 @@ void PipelineLineFittingNode::imageCallback(
     }
 
     std::vector<Line> lines = pipeline_.detect(img, 2);
-
-    uint64_t ts =
-        msg->header.stamp.sec * 1000000000ULL + msg->header.stamp.nanosec;
-    for (size_t i = 0; i < lines.size(); i++) {
-        log_file_ << ts << "," << i << "," << static_cast<int>(lines[i].score)
-                  << "\n";
-    }
-    log_file_.flush();
-
-    for (const auto& l : lines) {
-        if (static_cast<int>(l.score) < 50) {
-            auto dbg = drawLines(img, lines);
-            for (size_t i = 0; i < lines.size(); i++) {
-                int mx =
-                    static_cast<int>((lines[i].start.x + lines[i].end.x) / 2.0);
-                int my =
-                    static_cast<int>((lines[i].start.y + lines[i].end.y) / 2.0);
-                cv::putText(dbg,
-                            std::to_string(static_cast<int>(lines[i].score)),
-                            cv::Point(mx, my), cv::FONT_HERSHEY_SIMPLEX, 0.4,
-                            cv::Scalar(0, 255, 0), 1);
-            }
-            cv::imwrite("/tmp/ransac_debug_" + std::to_string(ts) + ".png",
-                        dbg);
-            break;
-        }
-    }
 
     // Remove near-duplicate lines (same pipe fitted twice by RANSAC).
     // Keeps the first (highest-scoring) line when midpoint distance and angle

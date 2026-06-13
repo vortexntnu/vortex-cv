@@ -4,8 +4,6 @@ visualization_msgs::msg::MarkerArray visualize_track_gates(
     const std::vector<Track>& tracks,
     const rclcpp::Time& timestamp,
     const std::string& frame_id,
-    double gate_threshold,
-    double gate_min_threshold,
     double gate_max_threshold,
     bool red,
     double orca_depth,
@@ -14,27 +12,8 @@ visualization_msgs::msg::MarkerArray visualize_track_gates(
 
     int id = 0;
     for (const auto& track : tracks) {
-        // Compute the midpoint of the track segment.
-        Eigen::Vector2d position = track.state.mean();
-
-        Eigen::Matrix2d position_covariance = track.state.cov();
-
-        vortex::prob::Gauss2d gauss(position, position_covariance);
-
-        vortex::utils::Ellipse cov_ellipse =
-            vortex::plotting::gauss_to_ellipse(gauss, gate_threshold);
-
-        double major_axis = cov_ellipse.major_axis();
-        major_axis =
-            (major_axis < gate_min_threshold) ? gate_min_threshold : major_axis;
-        major_axis =
-            (major_axis > gate_max_threshold) ? gate_max_threshold : major_axis;
-
-        double minor_axis = cov_ellipse.minor_axis();
-        minor_axis =
-            (minor_axis < gate_min_threshold) ? gate_min_threshold : minor_axis;
-        minor_axis =
-            (minor_axis > gate_max_threshold) ? gate_max_threshold : minor_axis;
+        const Eigen::Vector2d position = track.midpoint();
+        const double radius = gate_max_threshold;
 
         // Create a cylinder marker for the track gate
         visualization_msgs::msg::Marker marker;
@@ -53,8 +32,8 @@ visualization_msgs::msg::MarkerArray visualize_track_gates(
         marker.pose.orientation.y = 0.0;
         marker.pose.orientation.z = 0.0;
         marker.pose.orientation.w = 1.0;
-        marker.scale.x = major_axis;
-        marker.scale.y = minor_axis;
+        marker.scale.x = radius;
+        marker.scale.y = radius;
         marker.scale.z = 2.0;
         if (red) {
             marker.color.r = 1.0;

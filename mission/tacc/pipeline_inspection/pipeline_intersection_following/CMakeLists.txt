@@ -16,7 +16,6 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(Eigen3 3.4.0 REQUIRED)
-find_package(vortex_filtering REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -48,7 +47,6 @@ ament_target_dependencies(line_filtering_node
   std_msgs
   std_srvs
   geometry_msgs
-  vortex_filtering
   visualization_msgs
   vortex_msgs
 )

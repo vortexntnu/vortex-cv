@@ -9,15 +9,13 @@
 #include <string>
 
 #include <cv_bridge/cv_bridge.h>
+#include <std_msgs/msg/int32.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <opencv2/opencv.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
-#include <std_msgs/msg/bool.hpp>
-#include <std_msgs/msg/header.hpp>
-#include <std_msgs/msg/int32.hpp>
 #include <std_srvs/srv/trigger.hpp>
 
 #include <vortex_msgs/msg/dvl_altitude.hpp>
@@ -31,9 +29,6 @@
 #include <tf2_ros/transform_listener.h>
 #include <pipeline_intersection_following/track_manager.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
-#include <vortex_filtering/filters/pdaf.hpp>
-#include <vortex_filtering/vortex_filtering.hpp>
-
 #include <pipeline_intersection_following/line_filtering_visualization.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
@@ -56,12 +51,10 @@ struct LineIntersection {
     int id2;
     Eigen::Matrix<double, 2, 2> line_points;
 
-    // Compares both by ids and distance
+    // Compares by position only — same track IDs can appear at different corners
     bool operator==(const LineIntersection& other) const {
-        return (id1 == other.id1 && id2 == other.id2) ||
-               (id1 == other.id2 && id2 == other.id1) ||
-               ((Eigen::Vector2d(x, y) - Eigen::Vector2d(other.x, other.y))
-                    .norm() < 0.5);
+        return (Eigen::Vector2d(x, y) - Eigen::Vector2d(other.x, other.y))
+                   .norm() < 0.5;
     }
 };
 
@@ -70,22 +63,6 @@ class LineFilteringNode : public rclcpp::Node {
     LineFilteringNode();
 
    private:
-    /**
-     * @brief Updates the dynamic model with the given velocity standard
-     * deviation.
-     */
-    void update_dyn_model(double std_dynmod);
-
-    /**
-     * @brief Updates the sensor model with the given sensor standard deviation.
-     */
-    void update_sensor_model(double std_sensor);
-
-    /**
-     * @brief Updates the update interval for the target tracking.
-     */
-    void update_timer(int update_interval);
-
     /**
      * @brief Timer callback function.
      */
@@ -168,6 +145,7 @@ class LineFilteringNode : public rclcpp::Node {
                            double min_angle);
     bool new_intersection_available();
     void publish_intersection();
+    void check_junction_convergence();
     int get_track_by_id(Track& line_track, int id);
     void set_next_line(const JunctionVote& vote);
     void find_and_publish_initial_waypoint();
@@ -213,7 +191,7 @@ class LineFilteringNode : public rclcpp::Node {
     double target_altitude_ = 0.5;      ///< Desired following altitude
     double switching_threshold_ = 0.3;  ///< Default waypoint switching radius
     double realign_yaw_threshold_ =
-        0.35;  ///< Rotate-first if bearing error exceeds this (rad)
+        0.175;  ///< Rotate-first if bearing error exceeds this (rad)
 
     // Resend throttling: avoid re-issuing a waypoint (which wipes the queue and
     // resets the reference filter) unless the target moved/rotated
@@ -235,22 +213,18 @@ class LineFilteringNode : public rclcpp::Node {
     std::vector<LineIntersection> used_line_intersections_;
 
     Eigen::Array<double, 2, Eigen::Dynamic> measurements_;
-    Eigen::Array<double, 2, Eigen::Dynamic> line_params_;
 
-    /// Vote accumulator replacing the second IPDA tracker.
+    /// Vote accumulator for junction detection.
     std::vector<JunctionVote> junction_votes_;
-    static constexpr int kJunctionConfirmHits = 2;
+    static constexpr int kJunctionConfirmHits = 3;
 
     int current_line_id_ = -1;
-    int current_line_id_counter_ = 0;
+    int termination_counter_ = 0;
     double next_line_yaw_;
-    int termination_counter_;
     bool junction_in_progress_ =
         false;  ///< True from junction fire until robot reaches junction WP
     double junction_wp_x_ = 0.0;  ///< Camera-adjusted junction X sent to DP
     double junction_wp_y_ = 0.0;  ///< Camera-adjusted junction Y sent to DP
-    double pre_junction_yaw_ =
-        0.0;  ///< Vehicle yaw captured just before the junction turn
     int junction_hold_ticks_ =
         0;  ///< Consecutive ticks spent waiting to reach junction WP
 
