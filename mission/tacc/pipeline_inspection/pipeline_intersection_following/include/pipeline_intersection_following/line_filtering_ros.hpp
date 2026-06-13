@@ -37,6 +37,16 @@
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <pipeline_intersection_following/line_filtering_visualization.hpp>
 
+/// One candidate corner: two confirmed line tracks that keep crossing at the
+/// same world point for kJunctionConfirmHits consecutive ticks.
+struct JunctionVote {
+    int id1 = -1, id2 = -1;
+    int hits = 0;
+    Eigen::Vector2d pos = Eigen::Vector2d::Zero();
+    /// Far endpoints of each arm (away from the crossing), used for arm selection.
+    Eigen::Matrix<double, 2, 2> line_points = Eigen::Matrix<double, 2, 2>::Zero();
+};
+
 struct LineIntersection {
     double x;
     double y;
@@ -146,7 +156,7 @@ class LineFilteringNode : public rclcpp::Node {
     bool new_intersection_available();
     void publish_intersection();
     int get_track_by_id(Track& line_track, int id);
-    void set_next_line(const Track& int_track);
+    void set_next_line(const JunctionVote& vote);
     void find_and_publish_initial_waypoint();
     void publish_waypoint();
     /**
@@ -200,20 +210,24 @@ class LineFilteringNode : public rclcpp::Node {
     int wp_skip_count_ = 0;
 
     TrackManager line_tracker_;
-    TrackManager line_intersection_tracker_;
     std::vector<LineIntersection> used_line_intersections_;
 
     Eigen::Array<double, 2, Eigen::Dynamic> measurements_;
     Eigen::Array<double, 2, Eigen::Dynamic> line_params_;
-    Eigen::Array<double, 2, Eigen::Dynamic> current_line_intersections_;
-    Eigen::Array<double, 2, Eigen::Dynamic> current_line_intersection_points_;
-    Eigen::Array<int, 2, Eigen::Dynamic> current_intersection_ids_;
+
+    /// Vote accumulator replacing the second IPDA tracker.
+    std::vector<JunctionVote> junction_votes_;
+    static constexpr int kJunctionConfirmHits = 2;
 
     int current_line_id_;
     int current_line_id_counter_;
-    int next_line_id_;
     double next_line_yaw_;
     int termination_counter_;
+    bool junction_in_progress_ = false; ///< True from junction fire until robot reaches junction WP
+    double junction_wp_x_ = 0.0;       ///< Camera-adjusted junction X sent to DP
+    double junction_wp_y_ = 0.0;       ///< Camera-adjusted junction Y sent to DP
+    double pre_junction_yaw_ = 0.0;    ///< Vehicle yaw captured just before the junction turn
+    int no_track_ticks_ = 0;           ///< Consecutive ticks with no track found post-junction
 
     bool debug_visualization_ = true;
 
