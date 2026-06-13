@@ -2,6 +2,7 @@
 #define PIPELINE_LINE_FITTING_ROS_HPP
 
 #include <cv_bridge/cv_bridge.h>
+#include <fstream>
 #include <opencv2/opencv.hpp>
 #include <pipeline_line_fitting/linedetectorPipe.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -22,6 +23,9 @@ class PipelineLineFittingNode : public rclcpp::Node {
 
     LinedetectorPipe pipeline_;
     bool publishVisualization_;
+    double dedup_dist_thresh_;
+    double dedup_angle_thresh_;
+    std::ofstream log_file_;
 
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr msg);
     RandsacParams fetchParams();

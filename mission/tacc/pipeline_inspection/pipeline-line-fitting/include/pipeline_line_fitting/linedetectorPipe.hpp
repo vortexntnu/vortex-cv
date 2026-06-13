@@ -16,6 +16,7 @@ struct RandsacParams {
     int size;
     int morph_close_size;
     float dist_thresh;
+    int min_skeleton_component_size;
 };
 
 class LinedetectorPipe {
@@ -32,6 +33,7 @@ class LinedetectorPipe {
     double scaleY_;   // Scaling factor for y-axis
     int morph_close_size_;
     float dist_thresh_;
+    int min_skeleton_component_size_;
 
     RANDSAC randsac_;
     cv::Mat processedImg_;
@@ -65,6 +67,7 @@ class LinedetectorPipe {
         size_ = params.size;
         morph_close_size_ = params.morph_close_size;
         dist_thresh_ = params.dist_thresh;
+        min_skeleton_component_size_ = params.min_skeleton_component_size;
 
         randsac_ =
             RANDSAC(n_, k_, t_, 2, removeT_, finalScorethresh_, minTurnAngle_);

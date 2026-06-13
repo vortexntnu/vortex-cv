@@ -44,6 +44,18 @@ void LinedetectorPipe::preprocess(cv::Mat& img, bool dist) {
     // Skeletonize the image using Zhang-Suen thinning algorithm
     cv::ximgproc::thinning(img, img, cv::ximgproc::THINNING_ZHANGSUEN);
 
+    // Drop skeleton connected components smaller than the threshold — these are
+    // noise blobs that survived thinning and would seed bad RANSAC lines.
+    if (min_skeleton_component_size_ > 0) {
+        cv::Mat labels, stats, centroids;
+        int n_labels = cv::connectedComponentsWithStats(img, labels, stats, centroids);
+        for (int lbl = 1; lbl < n_labels; ++lbl) {
+            if (stats.at<int>(lbl, cv::CC_STAT_AREA) < min_skeleton_component_size_) {
+                img.setTo(0, labels == lbl);
+            }
+        }
+    }
+
     removeBorderArtifacts(img);
 }
 
