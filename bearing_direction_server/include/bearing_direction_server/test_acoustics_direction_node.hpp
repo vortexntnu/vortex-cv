@@ -36,7 +36,7 @@ class TestAcousticsDirectionNode : public rclcpp::Node {
     double noise_std_deg_;
 
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
-    rclcpp::Publisher<vortex_msgs::msg::BearingMeasurementArray>::SharedPtr
+    rclcpp::Publisher<vortex_msgs::msg::BearingMeasurement>::SharedPtr
         bearing_pub_;
     rclcpp::TimerBase::SharedPtr timer_;
 

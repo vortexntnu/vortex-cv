@@ -8,7 +8,7 @@ namespace bearing_direction_server {
 AcousticsBearingNode::AcousticsBearingNode(const rclcpp::NodeOptions& options)
     : BearingDirectionBase("acoustics_bearing_server", options) {
     declare_parameter<std::string>("topics.bearing_measurements",
-                                   "acoustics/bearing_measurements");
+                                   "acoustics/bearingmeasurement");
     declare_parameter<std::string>("frame_override", "");
 
     bearing_sub_ = create_subscription<vortex_msgs::msg::BearingMeasurement>(

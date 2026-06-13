@@ -15,7 +15,7 @@ TestAcousticsDirectionNode::TestAcousticsDirectionNode(
     declare_parameter<double>("noise_std_deg", 3.0);
     declare_parameter<std::string>("topics.odom", "/nautilus/odom");
     declare_parameter<std::string>("topics.bearing_measurements",
-                                   "acoustics/bearing_measurements");
+                                   "acoustics/bearingmeasurement");
     declare_parameter<double>("publish_rate_hz", 10.0);
 
     target_pos_ = {
@@ -35,7 +35,7 @@ TestAcousticsDirectionNode::TestAcousticsDirectionNode(
             odom_callback(msg);
         });
 
-    bearing_pub_ = create_publisher<vortex_msgs::msg::BearingMeasurementArray>(
+    bearing_pub_ = create_publisher<vortex_msgs::msg::BearingMeasurement>(
         get_parameter("topics.bearing_measurements").as_string(), 10);
 
     const double period_s = 1.0 / get_parameter("publish_rate_hz").as_double();
@@ -101,21 +101,21 @@ void TestAcousticsDirectionNode::publish_bearing() {
 
     const auto stamp = now();
 
-    vortex_msgs::msg::BearingMeasurementArray msg;
-    msg.header.stamp = stamp;
-    msg.header.frame_id = "nautilus/odom";
+    vortex_msgs::msg::BearingMeasurement msg;
+    msg.bearing.header.stamp = stamp;
+    msg.bearing.header.frame_id = "nautilus/odom";
+    msg.bearing.vector.x = dir_noisy.x();
+    msg.bearing.vector.y = dir_noisy.y();
+    msg.bearing.vector.z = dir_noisy.z();
+    msg.weight = 1.0;
+    msg.target_id = 0;
 
-    vortex_msgs::msg::BearingMeasurement meas;
-    meas.bearing.header.stamp = stamp;
-    meas.bearing.header.frame_id = "nautilus/odom";
-    meas.bearing.vector.x = dir_noisy.x();
-    meas.bearing.vector.y = dir_noisy.y();
-    meas.bearing.vector.z = dir_noisy.z();
-    meas.weight = 1.0;
-    meas.target_id = 0;
-
-    msg.bearings.push_back(meas);
     bearing_pub_->publish(msg);
+    spdlog::info(
+        "TestAcousticsDirectionNode: published bearing [{:.3f},{:.3f},{:.3f}] "
+        "on '{}'",
+        dir_noisy.x(), dir_noisy.y(), dir_noisy.z(),
+        get_parameter("topics.bearing_measurements").as_string());
 }
 
 }  // namespace bearing_direction_server

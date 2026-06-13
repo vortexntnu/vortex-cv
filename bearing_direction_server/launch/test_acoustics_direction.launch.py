@@ -27,7 +27,7 @@ def launch_setup(context, *args, **kwargs):
                     # Angular noise std — tune to match real acoustic sensor
                     "noise_std_deg": 3.0,
                     "topics.odom": f"/{namespace}/odom",
-                    "topics.bearing_measurements": "acoustics/bearing_measurements",
+                    "topics.bearing_measurements": f"/{namespace}/acoustics/bearing_measurement",
                     "publish_rate_hz": 10.0,
                 }
             ],
