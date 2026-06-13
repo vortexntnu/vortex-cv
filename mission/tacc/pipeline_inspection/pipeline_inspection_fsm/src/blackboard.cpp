@@ -60,6 +60,8 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         node->declare_parameter<bool>("start_in_camera_range", false);
     config.start_above_pipe =
         node->declare_parameter<bool>("start_above_pipe", false);
+    config.enable_end_detection =
+        node->declare_parameter<bool>("enable_end_detection", true);
 
     return config;
 }

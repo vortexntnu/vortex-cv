@@ -82,7 +82,7 @@ PANE_A2=$(tmux split-window -h -t "$PANE_A1" -P -F '#{pane_id}')
 tmux send-keys -t "$PANE_A2" "source install/setup.bash && ros2 launch landmark_server landmark_server.launch.py" Enter
 
 PANE_A3=$(tmux split-window -v -t "$PANE_A1" -P -F '#{pane_id}')
-tmux send-keys -t "$PANE_A3" "source install/setup.bash && ros2 launch perception_setup pipeline_inspection_fsm.launch.py start_above_pipe:=false" Enter
+tmux send-keys -t "$PANE_A3" "source install/setup.bash && ros2 launch perception_setup pipeline_inspection_fsm.launch.py start_above_pipe:=false enable_end_detection:=true" Enter
 
 PANE_A4=$(tmux split-window -v -t "$PANE_A2" -P -F '#{pane_id}')
 tmux send-keys -t "$PANE_A4" "source install/setup.bash" Enter
@@ -95,7 +95,7 @@ tmux select-layout -t "$SESSION:auto" tiled
 tmux new-window -t "$SESSION" -n "misc"
 
 PANE_M1=$(tmux list-panes -t "$SESSION:misc" -F '#{pane_id}')
-tmux send-keys -t "$PANE_M1" "source install/setup.bash" Enter
+tmux send-keys -t "$PANE_M1" "source install/setup.bash && python3 src/vortex-cv/perception_setup/scripts/pipeline_tune_logger.py" Enter
 
 PANE_M2=$(tmux split-window -h -t "$PANE_M1" -P -F '#{pane_id}')
 tmux send-keys -t "$PANE_M2" "source install/setup.bash" Enter

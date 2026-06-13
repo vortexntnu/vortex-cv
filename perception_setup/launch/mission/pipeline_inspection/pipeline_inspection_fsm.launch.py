@@ -15,6 +15,7 @@ def launch_setup(context, *args, **kwargs):
     drone, namespace = resolve_drone_and_namespace(context)
     start_in_camera_range = LaunchConfiguration('start_in_camera_range').perform(context).lower() == 'true'
     start_above_pipe = LaunchConfiguration('start_above_pipe').perform(context).lower() == 'true'
+    enable_end_detection = LaunchConfiguration('enable_end_detection').perform(context).lower() == 'true'
 
     drone_config = os.path.join(
         get_package_share_directory("auv_setup"),
@@ -56,6 +57,7 @@ def launch_setup(context, *args, **kwargs):
                 "services.irls_line_detected": "/pipeline_inspection_fsm/irls_line_detected",
                 "start_in_camera_range": start_in_camera_range,
                 "start_above_pipe": start_above_pipe,
+                "enable_end_detection": enable_end_detection,
             },
         ],
         output="screen",
@@ -98,6 +100,15 @@ def generate_launch_description():
                 description=(
                     'Skip search and convergence entirely and go straight to pipeline following. '
                     'Use when the vehicle is already positioned directly above the pipeline.'
+                ),
+            ),
+            DeclareLaunchArgument(
+                'enable_end_detection',
+                default_value='true',
+                choices=['true', 'false'],
+                description=(
+                    'Enable end-of-pipeline detection and termination. '
+                    'Set to false to follow the pipeline indefinitely (useful for testing).'
                 ),
             ),
             OpaqueFunction(function=launch_setup),

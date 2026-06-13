@@ -65,6 +65,7 @@ struct StateMachineConfig {
     double bearing_waypoint_altitude{1.0};
     bool start_in_camera_range{false};
     bool start_above_pipe{false};
+    bool enable_end_detection{true};
 };
 
 /**

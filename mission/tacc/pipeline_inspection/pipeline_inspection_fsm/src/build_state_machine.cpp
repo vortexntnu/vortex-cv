@@ -226,11 +226,20 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                       {{SUCCEED, "START_END_DETECTION_TRG"}, {ABORT, ABORT}});
     }
 
-    sm->add_state("START_END_DETECTION_TRG", start_end_detection_trg,
-                  {{SUCCEED, "PIPELINE_FOLLOWING"}, {ABORT, ABORT}});
+    if (config.enable_end_detection) {
+        sm->add_state("START_END_DETECTION_TRG", start_end_detection_trg,
+                      {{SUCCEED, "PIPELINE_FOLLOWING"}, {ABORT, ABORT}});
+    } else {
+        sm->add_state("START_END_DETECTION_TRG",
+                      yasmin::CbState::make_shared(
+                          yasmin::Outcomes{SUCCEED},
+                          [](auto) { return SUCCEED; }),
+                      {{SUCCEED, "PIPELINE_FOLLOWING"}});
+    }
 
-    auto pipeline_following =
-        std::make_shared<vortex_yasmin_utils::FirstWinsConcurrence>(
+    std::shared_ptr<yasmin::State> pipeline_following;
+    if (config.enable_end_detection) {
+        pipeline_following = std::make_shared<vortex_yasmin_utils::FirstWinsConcurrence>(
             yasmin::StateMap{
                 {"PERSISTENT_WM",
                  std::make_shared<vortex_yasmin_utils::PersistentWaypointManagerState>(
@@ -244,6 +253,17 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                 {"WAIT_FOR_END_OF_PIPELINE",
                  {{SUCCEED, SUCCEED}, {CANCEL, CANCEL}}}},
             std::unordered_set<std::string>{"WAIT_FOR_END_OF_PIPELINE"});
+    } else {
+        pipeline_following = std::make_shared<vortex_yasmin_utils::FirstWinsConcurrence>(
+            yasmin::StateMap{
+                {"PERSISTENT_WM",
+                 std::make_shared<vortex_yasmin_utils::PersistentWaypointManagerState>(
+                     config.waypoint_manager_action_server)}},
+            ABORT,
+            vortex_yasmin_utils::FirstWinsOutcomeMap{
+                {"PERSISTENT_WM", {{SUCCEED, ABORT}, {ABORT, ABORT}}}},
+            std::unordered_set<std::string>{});
+    }
 
     vortex::utils::waypoints::WaypointGoal origin_wp;
     origin_wp.mode = vortex::utils::waypoints::WaypointMode::ONLY_POSITION;
@@ -253,8 +273,13 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
         config.waypoint_manager_action_server,
         std::vector<vortex::utils::waypoints::WaypointGoal>{origin_wp});
 
-    sm->add_state("PIPELINE_FOLLOWING", pipeline_following,
-                  {{SUCCEED, "RETURN_TO_ORIGIN"}, {CANCEL, ABORT}, {ABORT, ABORT}});
+    if (config.enable_end_detection) {
+        sm->add_state("PIPELINE_FOLLOWING", pipeline_following,
+                      {{SUCCEED, "RETURN_TO_ORIGIN"}, {CANCEL, ABORT}, {ABORT, ABORT}});
+    } else {
+        sm->add_state("PIPELINE_FOLLOWING", pipeline_following,
+                      {{CANCEL, ABORT}, {ABORT, ABORT}});
+    }
 
     sm->add_state("RETURN_TO_ORIGIN", return_to_origin,
                   {{SUCCEED, "DONE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
