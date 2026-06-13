@@ -52,7 +52,7 @@ line_filtering_node:
     # Lookahead: project this far beyond the visible pipe endpoint when sending
     # follow waypoints. Robot never "arrives" so DP drives at full speed.
     # Set to 0 to disable (target exactly the visible endpoint).
-    lookahead_distance: 1.0  # metres
+    lookahead_distance: 0.5  # metres
 
     # Recovery: if no matching track is found for this many consecutive ticks
     # after a junction, rotate back to pre_junction_yaw and allow re-detection.
