@@ -279,8 +279,10 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
     }
 
     vortex::utils::waypoints::WaypointGoal origin_wp;
-    origin_wp.mode = vortex::utils::waypoints::WaypointMode::ONLY_POSITION;
+    origin_wp.mode = vortex::utils::waypoints::WaypointMode::FORWARD_HEADING;
     origin_wp.convergence_threshold = 0.5;
+    origin_wp.keep_altitude = true;
+    origin_wp.desired_altitude = config.return_to_origin_altitude;
 
     auto return_to_origin = std::make_shared<SearchWaypointGoalState>(
         config.waypoint_manager_action_server,

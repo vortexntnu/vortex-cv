@@ -23,10 +23,13 @@ SearchWaypointGoalState::create_goal(yasmin::Blackboard::SharedPtr blackboard) {
     // Use the snapshotted start pose when available (set by STORE_ORIGIN
     // state).
     if (blackboard->contains("origin_pose")) {
+        const auto& proto = waypoints_.front();
         vortex_msgs::msg::Waypoint wp;
         wp.pose = blackboard->get<geometry_msgs::msg::Pose>("origin_pose");
-        wp.waypoint_mode.mode = static_cast<uint8_t>(
-            vortex::utils::waypoints::WaypointMode::ONLY_POSITION);
+        wp.waypoint_mode.mode = static_cast<uint8_t>(proto.mode);
+        wp.keep_altitude = proto.keep_altitude;
+        wp.desired_altitude = proto.desired_altitude;
+        wp.require_altitude_convergence = proto.require_altitude_convergence;
         goal.waypoints = {wp};
         return goal;
     }

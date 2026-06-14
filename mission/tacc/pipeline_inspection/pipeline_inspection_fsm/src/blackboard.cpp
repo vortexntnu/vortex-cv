@@ -47,6 +47,8 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
         "acoustic_bearing_waypoint_altitude", 2.0);
     config.bearing_waypoint_altitude =
         node->declare_parameter<double>("bearing_waypoint_altitude", 1.0);
+    config.return_to_origin_altitude =
+        node->declare_parameter<double>("return_to_origin_altitude", 2.0);
     config.start_mission_service =
         node->declare_parameter<std::string>("services.start_mission");
     config.start_pipeline_following_service =

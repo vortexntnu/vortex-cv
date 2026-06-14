@@ -22,6 +22,9 @@ def launch_setup(context, *args, **kwargs):
     enable_end_detection = (
         LaunchConfiguration('enable_end_detection').perform(context).lower() == 'true'
     )
+    return_to_origin_altitude = float(
+        LaunchConfiguration('return_to_origin_altitude').perform(context)
+    )
 
     drone_config = os.path.join(
         get_package_share_directory("auv_setup"),
@@ -57,6 +60,7 @@ def launch_setup(context, *args, **kwargs):
                 # Waypoint altitudes
                 "acoustic_bearing_waypoint_altitude": 0.8,
                 "bearing_waypoint_altitude": 0.8,
+                "return_to_origin_altitude": return_to_origin_altitude,
                 "services.start_pipeline_following": "pipeline_inspection_fsm/start_pipeline_following",
                 "services.start_end_pipeline_detection": "pipeline_end_detector/start_detection",
                 "services.end_of_pipeline": "pipeline_inspection_fsm/pipeline_finished",
@@ -115,6 +119,14 @@ def generate_launch_description():
                 description=(
                     'Enable end-of-pipeline detection and termination. '
                     'Set to false to follow the pipeline indefinitely (useful for testing).'
+                ),
+            ),
+            DeclareLaunchArgument(
+                'return_to_origin_altitude',
+                default_value='2.0',
+                description=(
+                    'Reference altitude (m) used when returning to the stored origin waypoint '
+                    'at the end of the mission.'
                 ),
             ),
             OpaqueFunction(function=launch_setup),

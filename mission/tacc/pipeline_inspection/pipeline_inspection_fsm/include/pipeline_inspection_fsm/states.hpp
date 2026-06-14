@@ -63,6 +63,7 @@ struct StateMachineConfig {
 
     double acoustic_bearing_waypoint_altitude{2.0};
     double bearing_waypoint_altitude{1.0};
+    double return_to_origin_altitude{2.0};
     bool start_in_camera_range{false};
     bool start_above_pipe{false};
     bool enable_end_detection{true};
