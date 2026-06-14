@@ -1217,28 +1217,8 @@ void LineFilteringNode::publish_waypoint() {
         next_line_p2(1), junction_wp_x_, junction_wp_y_, chosen_x, chosen_y,
         lookahead, target_x, target_y, pipe_yaw * 180.0 / M_PI);
 
-    // The target is in odom. The reference filter drives baselink, but the pipe
-    // is detected by the downward camera which has a horizontal offset from
-    // baselink. Shift the target so that the camera — not baselink — ends up
-    // centred above the pipe.
     double follow_x = target_x;
     double follow_y = target_y;
-    try {
-        geometry_msgs::msg::TransformStamped cam_tf =
-            tf2_buffer_->lookupTransform(target_frame_, camera_frame_,
-                                         tf2::TimePointZero);
-        double cam_offset_x =
-            cam_tf.transform.translation.x - orca_pose_.position.x;
-        double cam_offset_y =
-            cam_tf.transform.translation.y - orca_pose_.position.y;
-        follow_x = chosen_x - cam_offset_x;
-        follow_y = chosen_y - cam_offset_y;
-        dlog("PUB_WP: cam offset (%.3f, %.3f) -> adjusted target (%.2f, %.2f)",
-             cam_offset_x, cam_offset_y, follow_x, follow_y);
-    } catch (const tf2::TransformException& ex) {
-        dlog("PUB_WP: camera TF lookup failed (%s), using raw endpoint",
-             ex.what());
-    }
 
     // If the camera-corrected follow WP is already within switching_threshold
     // the camera is positioned over this track's endpoint — it's done. Find
@@ -1267,7 +1247,7 @@ void LineFilteringNode::publish_waypoint() {
                 double diff = std::fabs(std::atan2(
                     std::sin(angle - next_line_yaw_),
                     std::cos(angle - next_line_yaw_)));
-                if (diff > M_PI / 2.0)
+                if (diff >= M_PI / 2.0)
                     continue;
                 double far_dist =
                     std::hypot(far_ep(0) - jx_r, far_ep(1) - jy_r);
