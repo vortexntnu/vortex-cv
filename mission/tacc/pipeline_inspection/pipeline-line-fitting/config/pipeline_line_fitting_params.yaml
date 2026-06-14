@@ -16,6 +16,7 @@ pipeline_line_fitting_node:
     removeT: 400.0          # Strip radius after line 1 (sqrt(400)=20px, ~half pipe width at 0.5m alt)
     finalScorethresh: 35.0  # Minimum inlier count to accept a line
     min_skeleton_component_size: 60  # Drop skeleton components smaller than this (px) — removes noise blobs
+    min_inlier_ratio: 0.75          # Minimum score/pts_in for second+ RANSAC lines; kills phantom diagonals (ratio ~0.33-0.65) while keeping real pipe arms (ratio >0.85)
     minTurnAngle: 0.26      # 15 degrees: reject 2nd line if within 15deg of 1st (prevents same-pipe refitting)
     size: 200               # Size of the sample points
 

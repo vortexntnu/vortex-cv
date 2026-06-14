@@ -1,9 +1,25 @@
 #include <cv_bridge/cv_bridge.h>
 #include <chrono>
+#include <cstdio>
+#include <fstream>
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <opencv2/ximgproc.hpp>
 #include <pipeline_line_fitting/linedetectorPipe.hpp>
+
+static std::ofstream& ransac_log() {
+    static std::ofstream f("/tmp/ransac_debug.log", std::ios::app);
+    return f;
+}
+
+static std::string now_ms() {
+    auto tp = std::chrono::system_clock::now();
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                  tp.time_since_epoch()).count();
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "%lld", static_cast<long long>(ms));
+    return buf;
+}
 
 void removeBorderArtifacts(cv::Mat& img) {
     img.row(0).setTo(cv::Scalar(0));
@@ -165,6 +181,11 @@ std::vector<Line> LinedetectorPipe::detect(const cv::Mat& img,
 
     std::vector<Line> lines;
 
+    auto& rlog = ransac_log();
+    rlog << "FRAME t=" << now_ms()
+         << " skel_pts=" << points.n_rows
+         << " max_lines=" << maxLines << "\n";
+
     // Returns true if `candidate` intersects all lines in `lines` within the
     // image frame. Two segments of the same pipe are parallel/collinear and
     // their intersection lies far outside the image. A genuine junction arm
@@ -194,6 +215,7 @@ std::vector<Line> LinedetectorPipe::detect(const cv::Mat& img,
     };
 
     for (int i = 0; i < maxLines; ++i) {
+        const size_t pts_before = points.n_rows;
         int returnCode = detectSingleLine(points, values, lines, i);
         Line line;
 
@@ -210,6 +232,9 @@ std::vector<Line> LinedetectorPipe::detect(const cv::Mat& img,
             returnCode = detectSingleLine(newPoints, values, lines, i, true);
 
             if (returnCode) {
+                rlog << "  LINE[" << i << "] pts_in=" << pts_before
+                     << " -> REJECTED(no_fit)\n";
+                rlog.flush();
                 continue;
             }
 
@@ -228,6 +253,24 @@ std::vector<Line> LinedetectorPipe::detect(const cv::Mat& img,
         // outside the image frame (same pipe with segmentation gap, not a
         // genuine junction arm).
         if (i > 0 && !intersects_in_frame(line)) {
+            rlog << "  LINE[" << i << "] pts_in=" << pts_before
+                 << " score=" << randsac_.bestScore
+                 << " -> REJECTED(intersect_out_of_frame)\n";
+            rlog.flush();
+            continue;
+        }
+
+        // For second+ lines: reject phantom diagonals created when both arms
+        // are visible at a junction. A real pipe arm has nearly all skeleton
+        // pixels as inliers; a phantom diagonal crossing two perpendicular arms
+        // gets a fraction. Real arms are consistently >85%, phantoms are <35%.
+        if (i > 0 && pts_before > 0 &&
+            static_cast<double>(randsac_.bestScore) / static_cast<double>(pts_before) < min_inlier_ratio_) {
+            rlog << "  LINE[" << i << "] pts_in=" << pts_before
+                 << " score=" << randsac_.bestScore
+                 << " ratio=" << (randsac_.bestScore / pts_before)
+                 << " -> REJECTED(low_inlier_ratio<" << min_inlier_ratio_ << ")\n";
+            rlog.flush();
             continue;
         }
 
@@ -242,8 +285,20 @@ std::vector<Line> LinedetectorPipe::detect(const cv::Mat& img,
                 newValues.insert_rows(newValues.n_rows, values.row(j));
             }
         }
+        const size_t pts_stripped = pts_before - newPoints.n_rows;
         points = newPoints;
         values = newValues;
+
+        rlog << "  LINE[" << i << "] pts_in=" << pts_before
+             << " score=" << randsac_.bestScore
+             << " stripped=" << pts_stripped
+             << " pts_remain=" << points.n_rows
+             << " -> ACCEPTED"
+             << " slope=" << line.slope
+             << " start=(" << line.start.x << "," << line.start.y << ")"
+             << " end=(" << line.end.x << "," << line.end.y << ")"
+             << "\n";
+        rlog.flush();
 
         lines.push_back(line);
     }

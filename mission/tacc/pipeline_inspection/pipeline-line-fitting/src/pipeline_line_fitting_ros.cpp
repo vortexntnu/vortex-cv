@@ -15,8 +15,9 @@ RandsacParams PipelineLineFittingNode::fetchParams() {
     this->declare_parameter("minTurnAngle", 1.5);
     this->declare_parameter("size", 200);
     this->declare_parameter("morph_close_size", 10);
-    this->declare_parameter("dist_thresh", 0.2);
+    this->declare_parameter("dist_thresh", 0.1);
     this->declare_parameter("min_skeleton_component_size", 0);
+    this->declare_parameter("min_inlier_ratio", 0.0);
     RandsacParams params;
     params.n = this->get_parameter("n").as_int();
     params.k = this->get_parameter("k").as_int();
@@ -31,6 +32,8 @@ RandsacParams PipelineLineFittingNode::fetchParams() {
     params.dist_thresh = this->get_parameter("dist_thresh").as_double();
     params.min_skeleton_component_size =
         this->get_parameter("min_skeleton_component_size").as_int();
+    params.min_inlier_ratio =
+        this->get_parameter("min_inlier_ratio").as_double();
     return params;
 }
 
