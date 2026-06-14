@@ -29,16 +29,23 @@ line_filtering_node:
 
     # --- Tracking (PDAF/IPDA + N/M) ---
     clutter_rate: 0.001
-    probability_of_detection: 0.6
-    probability_of_survival: 0.98
+    # Timer at 500ms: camera ~1Hz normally means ~1 hit per 2 ticks (Pd=0.5),
+    # but near junctions ~0.1Hz means 1 hit per 20 ticks (Pd=0.05). Using 0.3
+    # as a conservative middle ground so IPDA doesn't punish silent ticks too hard.
+    # Ps=0.999: pipeline is static, existence should not decay from age alone.
+    # confirmation_threshold=0.6 + initial_existence_probability=0.5: reach
+    # confirmation in 2-3 hits rather than requiring sustained detection.
+    # std_dynmod=0.05: ConstantPosition on a static target, almost zero drift.
+    probability_of_detection: 0.3
+    probability_of_survival: 0.999
     gate_threshold: 2.5
     min_gate_threshold: 1.0
     max_gate_threshold: 3.0
-    confirmation_threshold: 0.8
-    initial_existence_probability: 0.25
-    std_dynmod: 0.3
+    confirmation_threshold: 0.6
+    initial_existence_probability: 0.5
+    std_dynmod: 0.05
     std_sensor: 0.3
-    update_interval_ms: 200
+    update_interval_ms: 500
 
     connected_lines_threshold: 0.5
     crossing_min_angle: 0.5236 # 30 degrees
@@ -54,10 +61,12 @@ line_filtering_node:
     # Set to 0 to disable (target exactly the visible endpoint).
     lookahead_distance: 0.0  # metres
 
-    # N/M track management: confirm after confirm_n hits in the last confirm_m
-    # steps; delete after delete_n misses in the last delete_m steps.
+    # N/M at 500ms timer:
+    # confirm: 2 hits in 6 ticks = 3s window, achievable at 1Hz camera.
+    # delete: 25/25 = all 25 ticks must miss = 12.5s of silence before deletion.
+    # This survives the ~10s gaps the camera produces near junctions at 0.1Hz.
     nm:
       confirm_n: 2
-      confirm_m: 4
-      delete_n: 8    # all 8 must miss (ratio=1) to delete a track
-      delete_m: 8    # 8 x 200ms = 1.6s of zero detections before deletion
+      confirm_m: 6
+      delete_n: 25
+      delete_m: 25

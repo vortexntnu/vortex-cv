@@ -623,29 +623,12 @@ void LineFilteringNode::publish_intersection() {
         used_line_intersections_.push_back(
             LineIntersection{ix, iy, vote.id1, vote.id2, vote.line_points});
 
-        // Shift the junction target so the camera — not baselink — ends up
-        // centred over the corner, matching the correction in
-        // publish_waypoint().
+        // Send baselink to the raw junction position. Camera offset is not
+        // applied here: the junction fires when the camera is already at the
+        // corner, so a camera-adjusted WP would land at the robot's current
+        // position and release instantly without any turn.
         double jx = ix, jy = iy;
-        try {
-            geometry_msgs::msg::TransformStamped cam_tf =
-                tf2_buffer_->lookupTransform(target_frame_, camera_frame_,
-                                             tf2::TimePointZero);
-            double cam_offset_x =
-                cam_tf.transform.translation.x - orca_pose_.position.x;
-            double cam_offset_y =
-                cam_tf.transform.translation.y - orca_pose_.position.y;
-            jx = ix - cam_offset_x;
-            jy = iy - cam_offset_y;
-            dlog(
-                "PUBLISH_INT: cam offset (%.3f,%.3f) -> adjusted junction "
-                "(%.2f,%.2f)",
-                cam_offset_x, cam_offset_y, jx, jy);
-        } catch (const tf2::TransformException& ex) {
-            dlog(
-                "PUBLISH_INT: camera TF lookup failed (%s), using raw junction",
-                ex.what());
-        }
+        dlog("PUBLISH_INT: junction wp at (%.2f,%.2f)", jx, jy);
 
         auto wp_junction = make_waypoint(
             jx, jy, next_line_yaw_, vortex_msgs::msg::WaypointMode::XY_AND_YAW);
@@ -1257,6 +1240,54 @@ void LineFilteringNode::publish_waypoint() {
              ex.what());
     }
 
+    // If the camera-corrected follow WP is already within switching_threshold
+    // the camera is positioned over this track's endpoint — it's done. Find
+    // the confirmed track that extends furthest from the junction in the
+    // outgoing half-space (excluding the current one) and steer next_line_yaw_
+    // toward it so the next tick's yaw search picks the real continuation.
+    if (!used_line_intersections_.empty()) {
+        const double rx = orca_pose_.position.x, ry = orca_pose_.position.y;
+        const double dist_follow = std::hypot(follow_x - rx, follow_y - ry);
+        if (dist_follow < switching_threshold_) {
+            const double jx_r = used_line_intersections_.back().x;
+            const double jy_r = used_line_intersections_.back().y;
+            double best_far_dist = 0.0;
+            double best_yaw = next_line_yaw_;
+            for (const auto& t : line_tracker_.get_tracks()) {
+                if (!t.confirmed || t.id == next_line.id)
+                    continue;
+                Eigen::Vector2d a = t.line_points.col(0);
+                Eigen::Vector2d b = t.line_points.col(1);
+                bool a_closer = (std::hypot(a(0) - jx_r, a(1) - jy_r) <
+                                 std::hypot(b(0) - jx_r, b(1) - jy_r));
+                Eigen::Vector2d near_ep = a_closer ? a : b;
+                Eigen::Vector2d far_ep = a_closer ? b : a;
+                double angle = std::atan2(far_ep(1) - near_ep(1),
+                                          far_ep(0) - near_ep(0));
+                double diff = std::fabs(std::atan2(
+                    std::sin(angle - next_line_yaw_),
+                    std::cos(angle - next_line_yaw_)));
+                if (diff > M_PI / 2.0)
+                    continue;
+                double far_dist =
+                    std::hypot(far_ep(0) - jx_r, far_ep(1) - jy_r);
+                if (far_dist > best_far_dist) {
+                    best_far_dist = far_dist;
+                    best_yaw = angle;
+                }
+            }
+            dlog(
+                "PUB_WP: id=%d endpoint reached (follow=%.2fm) -> "
+                "next_line_yaw_ %.1f->%.1fdeg (best_far=%.2fm), releasing "
+                "sticky",
+                next_line.id, dist_follow, next_line_yaw_ * 180.0 / M_PI,
+                best_yaw * 180.0 / M_PI, best_far_dist);
+            next_line_yaw_ = best_yaw;
+            current_line_id_ = -1;
+            return;
+        }
+    }
+
     follow_toward(follow_x, follow_y, pipe_yaw);
 
     geometry_msgs::msg::PointStamped line_point;
@@ -1325,7 +1356,7 @@ void LineFilteringNode::get_track_by_yaw(Track& line_track) {
     // publish_intersection), so the outgoing arm is still selected by yaw.
     if (current_line_id_ != -1 && !junction_in_progress_) {
         Track sticky{};
-        if (get_track_by_id(sticky, current_line_id_) == 0 && sticky.confirmed) {
+        if (get_track_by_id(sticky, current_line_id_) != -1 && sticky.confirmed) {
             double angle = directed_angle(sticky);
             // Keep next_line_yaw_ in sync with the actual pipe direction so
             // the next junction's set_next_line() uses an accurate ref_yaw.
