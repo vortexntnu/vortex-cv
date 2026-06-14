@@ -75,6 +75,7 @@ def _launch_setup(context, *args, **kwargs):
     destination_ip = LaunchConfiguration('destination_ip').perform(context)
     destination_port = int(LaunchConfiguration('destination_port').perform(context))
 
+    follower = LaunchConfiguration('follower').perform(context)
     backend = LaunchConfiguration('backend').perform(context)
     seg_model_file_path = LaunchConfiguration('seg_model_file_path').perform(context)
     classify_model_file_path = LaunchConfiguration('classify_model_file_path').perform(
@@ -253,32 +254,66 @@ def _launch_setup(context, *args, **kwargs):
         )
     )
 
-    actions.append(
-        Node(
-            package='pipeline_intersection_following',
-            executable='line_filtering_node',
-            name='line_filtering_node',
-            parameters=[
-                os.path.join(
-                    get_package_share_directory('pipeline_intersection_following'),
-                    'config',
-                    'line_filtering_params.yaml',
-                ),
-                {
-                    'lines_sub_topic': '/irls_line/lines',
-                    'camera_info_sub_topic': '/pipeline/down_camera/camera_info',
-                    'altitude_sub_topic': f'/{namespace}/{robot_topics["dvl_altitude"]}',
-                    'odom_sub_topic': f'/{namespace}/{robot_topics["odom"]}',
-                    'target_frame': f'{namespace}/odom',
-                    'waypoint_service': f'/{namespace}/waypoint_addition',
-                    'start_service': f'/{namespace}/pipeline_inspection_fsm/start_pipeline_following',
-                    'finished_service': f'/{namespace}/pipeline_inspection_fsm/pipeline_finished',
-                    'target_altitude': 0.8,
-                },
-            ],
-            output='screen',
+    # ── Pipeline follower — choose via follower:=polyline / intersection ────
+    # polyline  = new skeleton+DP arc-length follower (pipeline_polyline_follower)
+    # intersection = legacy IRLS tracker (pipeline_intersection_following)
+
+    if follower == 'intersection':
+        actions.append(
+            Node(
+                package='pipeline_intersection_following',
+                executable='line_filtering_node',
+                name='line_filtering_node',
+                parameters=[
+                    os.path.join(
+                        get_package_share_directory('pipeline_intersection_following'),
+                        'config',
+                        'line_filtering_params.yaml',
+                    ),
+                    {
+                        'lines_sub_topic': '/irls_line/lines',
+                        'camera_info_sub_topic': '/pipeline/down_camera/camera_info',
+                        'altitude_sub_topic': f'/{namespace}/{robot_topics["dvl_altitude"]}',
+                        'odom_sub_topic': f'/{namespace}/{robot_topics["odom"]}',
+                        'target_frame': f'{namespace}/odom',
+                        'waypoint_service': f'/{namespace}/waypoint_addition',
+                        'start_service': f'/{namespace}/pipeline_inspection_fsm/start_pipeline_following',
+                        'finished_service': f'/{namespace}/pipeline_inspection_fsm/pipeline_finished',
+                        'target_altitude': 0.8,
+                    },
+                ],
+                output='screen',
+            )
         )
-    )
+    else:
+        # polyline follower — reads mask directly, no irls_line dependency
+        actions.append(
+            Node(
+                package='pipeline_polyline_follower',
+                executable='pipeline_polyline_follower_node',
+                name='pipeline_polyline_follower_node',
+                parameters=[
+                    os.path.join(
+                        get_package_share_directory('pipeline_polyline_follower'),
+                        'config',
+                        'params.yaml',
+                    ),
+                    {
+                        'odom_frame': f'{namespace}/odom',
+                        'camera_frame': f'{namespace}/downwards_camera_optical',
+                        'mask_topic': '/pipeline/down_camera/segmentation_mask',
+                        'camera_info_topic': '/pipeline/down_camera/camera_info',
+                        'altitude_topic': f'/{namespace}/{robot_topics["dvl_altitude"]}',
+                        'odom_topic': f'/{namespace}/{robot_topics["odom"]}',
+                        'waypoint_service': f'/{namespace}/waypoint_addition',
+                        'start_service': f'/{namespace}/pipeline_inspection_fsm/start_pipeline_following',
+                        'stop_service': f'/{namespace}/pipeline_inspection_fsm/pipeline_finished',
+                        'target_altitude': 0.8,
+                    },
+                ],
+                output='screen',
+            )
+        )
 
     return actions
 
@@ -335,7 +370,9 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'seg_model_file_path',
-                default_value=os.path.join(pkg_dir, 'models', 'yellowsylinder-only-sim-down-1-m.pt'),
+                default_value=os.path.join(
+                    pkg_dir, 'models', 'yellowsylinder-only-sim-down-1-m.pt'
+                ),
                 description='Path to the YOLO segmentation model file.',
             ),
             DeclareLaunchArgument(
@@ -354,6 +391,15 @@ def generate_launch_description():
                 'visualize',
                 default_value='true',
                 description='Publish debug annotated images from YOLO seg.',
+            ),
+            DeclareLaunchArgument(
+                'follower',
+                default_value='polyline',
+                choices=['polyline', 'intersection'],
+                description=(
+                    'polyline = new skeleton+DP arc-length follower; '
+                    'intersection = legacy IRLS line_filtering_node'
+                ),
             ),
             OpaqueFunction(function=_launch_setup),
             IncludeLaunchDescription(

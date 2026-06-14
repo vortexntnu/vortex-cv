@@ -1,0 +1,58 @@
+pipeline_polyline_follower:
+  ros__parameters:
+    # Frames
+    odom_frame: "nautilus/odom"
+    camera_frame: "nautilus/downwards_camera_optical"
+
+    # Topics
+    mask_topic: "/pipeline/down_camera/segmentation_mask"
+    camera_info_topic: "/pipeline/down_camera/camera_info"
+    odom_topic: "/nautilus/odom"
+    altitude_topic: "/nautilus/dvl/altitude"
+
+    # Services
+    waypoint_service: "/nautilus/waypoint_addition"
+    start_service: "/nautilus/pipeline_inspection_fsm/start_pipeline_following"
+    stop_service:  "/nautilus/pipeline_inspection_fsm/pipeline_finished"
+
+    # Altitude control — matches existing pipeline_intersection_following
+    target_altitude: 0.8          # desired DVL altitude above pipe (m)
+
+    # Pure-pursuit look-ahead distance (m).
+    # Shorten for tight bends, lengthen for smoother straight runs.
+    lookahead_distance: 1.5
+
+    # Douglas-Peucker tolerance in pixels.
+    # Higher = fewer, coarser vertices; lower = finer polyline.
+    dp_epsilon_px: 3.0
+
+    # Minimum number of foreground pixels in a frame before processing.
+    # Avoids running the full pipeline on near-empty masks.
+    min_mask_fill: 200.0
+
+    # Distance threshold for the waypoint manager to advance to the next
+    # waypoint in the queue (m).
+    switching_threshold: 0.3
+
+    # ── Temporal smoothing ────────────────────────────────────────────────
+    # EMA alpha applied to look-ahead XY and yaw each frame.
+    # 1.0 = no smoothing (raw output every frame)
+    # 0.3 = heavy smoothing — slow to respond but ignores single bad frames
+    wp_smoothing_alpha: 0.4
+
+    # Reject a frame entirely if the nearest detected pipe point is farther
+    # than this from the vehicle in odom XY (m).  Catches wildly wrong
+    # projections from bad mask frames.
+    max_detection_dist: 4.0
+
+    # ── Rate limiting ─────────────────────────────────────────────────────
+    # Minimum look-ahead XY displacement (m) before a new waypoint is sent.
+    min_wp_dist: 0.1
+
+    # Minimum look-ahead yaw change (rad, ~3°) before a new waypoint is sent.
+    min_wp_yaw: 0.05
+
+    # ── Watchdog ──────────────────────────────────────────────────────────
+    # Warn if no valid mask frame has been processed for this many seconds
+    # while the node is active (camera dropout, topic death, etc.).
+    watchdog_timeout_s: 3.0
