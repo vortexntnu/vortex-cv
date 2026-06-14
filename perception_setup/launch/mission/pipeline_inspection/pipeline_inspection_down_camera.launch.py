@@ -341,7 +341,7 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 'classify_model_file_path',
                 default_value=os.path.join(
-                    pkg_dir, 'models', 'pipeline_end_detection_best_best.pt'
+                    pkg_dir, 'models', 'pipe-real-down-nyhavna-m-05-06.pt'
                 ),
                 description='Path to the YOLO classification model file.',
             ),
