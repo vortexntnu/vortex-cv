@@ -44,6 +44,10 @@
   <exec_depend>waypoint_manager</exec_depend>
   <exec_depend>landmark_server</exec_depend>
   <exec_depend>irls_line_trigger</exec_depend>
+  <exec_depend>docking_camera_yolo_direction_waypoint</exec_depend>
+  <exec_depend>docking_position_estimator</exec_depend>
+  <exec_depend>subsea_docking_fsm</exec_depend>
+  <exec_depend>line_detection_ransac</exec_depend>
   <export>
     <build_type>ament_cmake</build_type>
   </export>

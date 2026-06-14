@@ -74,6 +74,10 @@ install(TARGETS ${LIB_NAME}
   RUNTIME DESTINATION bin
 )
 
+install(TARGETS ${PROJECT_NAME}_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 install(
   DIRECTORY include/
   DESTINATION include

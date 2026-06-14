@@ -176,7 +176,6 @@ void DockingCameraYoloDirectionWaypointNode::publish_landmark(
                 x, y, z);
 }
 
-RCLCPP_COMPONENTS_REGISTER_NODE(vortex::docking_camera_yolo_direction_waypoint::
-                                    DockingCameraYoloDirectionWaypointNode)
+RCLCPP_COMPONENTS_REGISTER_NODE(vortex::docking_camera_yolo_direction_waypoint::DockingCameraYoloDirectionWaypointNode)
 
 }  // namespace vortex::docking_camera_yolo_direction_waypoint

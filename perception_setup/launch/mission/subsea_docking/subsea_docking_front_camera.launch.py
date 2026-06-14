@@ -292,7 +292,7 @@ def generate_launch_description():
                 default_value=os.path.join(
                     get_package_share_directory('perception_setup'),
                     'models',
-                    'dicking-pall-real-and-sim-1-l.pt',
+                    'dicking-pall-simulator-and-real-m-9.pt',
                 ),
                 description='Path to the YOLO BB model file.',
             ),
