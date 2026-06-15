@@ -106,7 +106,7 @@ def _launch_setup(context, *args, **kwargs):
                         'enable_color': True,
                         'rgb_camera.color_profile': color_profile,
                         'rgb_camera.color_format': pixel_format,
-                        'rgb_camera.enable_white_balance': False,
+                        'rgb_camera.enable_auto_white_balance': False,
                         'rgb_camera.white_balance': 4500.0,
                         'rgb_camera.enable_auto_exposure': True,
                         'enable_depth': enable_depth,
