@@ -1,10 +1,12 @@
 #!/bin/bash
 # Launch pipeline inspection stack in a tmux session
-# Usage: ./tmux_pipeline_inspection.sh [--sim | --real] [--gst | --no-gst]
-#   --sim     Pass sim:=true to all launch files (skip hardware, use simulator topics)
-#   --real    Pass sim:=false (default) — launch real cameras
-#   --gst     Enable GStreamer streaming for down camera (enable_gstreamer:=true)
-#   --no-gst  Disable GStreamer streaming (default)
+# Usage: ./tmux_pipeline_inspection.sh [--sim | --real] [--gst | --no-gst] [--sonar | --no-sonar]
+#   --sim      Pass sim:=true to all launch files (skip hardware, use simulator topics)
+#   --real     Pass sim:=false (default) — launch real cameras
+#   --gst      Enable GStreamer streaming for down camera (enable_gstreamer:=true)
+#   --no-gst   Disable GStreamer streaming (default)
+#   --sonar    Launch sonar.launch.py in the perception window
+#   --no-sonar Skip sonar launch (default)
 
 usage() {
     cat <<EOF
@@ -18,6 +20,8 @@ Options:
   --destination-ip <ip>    Value. Destination IP for GStreamer RTP stream. e.g. --destination-ip 10.0.0.50
   --hw-encoder             Flag. Use NVIDIA hardware H.265 encoder.
   --sw-encoder             Flag. Use software x265 encoder.
+  --sonar                  Flag. Launch sonar (sonar.launch.py) in the perception window.
+  --no-sonar               Flag. Skip sonar launch (default).
   -h, --help               Show this help message.
 
 Unspecified options use the defaults defined in the ROS 2 launch files.
@@ -28,6 +32,7 @@ SIM_ARG=""
 GST_ARG=""
 DESTINATION_IP=""
 NVIDIA_ENCODER=""
+SONAR_ARG=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --sim)            SIM_ARG="true"; shift ;;
@@ -37,17 +42,19 @@ while [[ $# -gt 0 ]]; do
         --destination-ip) DESTINATION_IP="$2"; shift 2 ;;
         --hw-encoder)     NVIDIA_ENCODER="true"; shift ;;
         --sw-encoder)     NVIDIA_ENCODER="false"; shift ;;
+        --sonar)          SONAR_ARG="true"; shift ;;
+        --no-sonar)       SONAR_ARG="false"; shift ;;
         -h|--help)        usage; exit 0 ;;
         *) echo "Unknown argument: $1"; usage; exit 1 ;;
     esac
 done
 
 # Only forward args that were explicitly set — unset args fall back to launch file defaults.
-FRONT_ARGS=""; DOWN_ARGS=""
+FRONT_ARGS=""; DOWN_ARGS=""; SONAR_ARGS=""
 [[ -n "$SIM_ARG" ]]        && FRONT_ARGS+=" sim:=$SIM_ARG"                      && DOWN_ARGS+=" sim:=$SIM_ARG"
-[[ -n "$GST_ARG" ]]        && FRONT_ARGS+=" enable_gstreamer:=$GST_ARG"          && DOWN_ARGS+=" enable_gstreamer:=$GST_ARG"
-[[ -n "$DESTINATION_IP" ]] && FRONT_ARGS+=" destination_ip:=$DESTINATION_IP"     && DOWN_ARGS+=" destination_ip:=$DESTINATION_IP"
-[[ -n "$NVIDIA_ENCODER" ]] && FRONT_ARGS+=" gst_nvidia_encoder:=$NVIDIA_ENCODER" && DOWN_ARGS+=" gst_nvidia_encoder:=$NVIDIA_ENCODER"
+[[ -n "$GST_ARG" ]]        && FRONT_ARGS+=" enable_gstreamer:=$GST_ARG"          && DOWN_ARGS+=" enable_gstreamer:=$GST_ARG"          && SONAR_ARGS+=" enable_gstreamer:=$GST_ARG"
+[[ -n "$DESTINATION_IP" ]] && FRONT_ARGS+=" destination_ip:=$DESTINATION_IP"     && DOWN_ARGS+=" destination_ip:=$DESTINATION_IP"     && SONAR_ARGS+=" destination_ip:=$DESTINATION_IP"
+[[ -n "$NVIDIA_ENCODER" ]] && FRONT_ARGS+=" gst_nvidia_encoder:=$NVIDIA_ENCODER" && DOWN_ARGS+=" gst_nvidia_encoder:=$NVIDIA_ENCODER" && SONAR_ARGS+=" gst_nvidia_encoder:=$NVIDIA_ENCODER"
 
 SESSION="pipeline_inspection"
 
@@ -65,8 +72,15 @@ tmux send-keys -t "$PANE_P1" "source install/setup.bash && ros2 launch perceptio
 PANE_P2=$(tmux split-window -h -t "$PANE_P1" -P -F '#{pane_id}')
 tmux send-keys -t "$PANE_P2" "source install/setup.bash && ros2 launch perception_setup pipeline_inspection_down_camera.launch.py$DOWN_ARGS" Enter
 
-PANE_P3=$(tmux split-window -v -t "$PANE_P2" -P -F '#{pane_id}')
-tmux send-keys -t "$PANE_P3" "source install/setup.bash" Enter
+PANE_P3=$(tmux split-window -v -t "$PANE_P1" -P -F '#{pane_id}')
+tmux send-keys -t "$PANE_P3" "source install/setup.bash && ros2 launch perception_setup bearing_localization.launch.py" Enter
+
+PANE_P4=$(tmux split-window -v -t "$PANE_P2" -P -F '#{pane_id}')
+if [[ "$SONAR_ARG" == "true" ]]; then
+    tmux send-keys -t "$PANE_P4" "source install/setup.bash && ros2 launch perception_setup cameras/sonar.launch.py$SONAR_ARGS" Enter
+else
+    tmux send-keys -t "$PANE_P4" "source install/setup.bash" Enter
+fi
 
 tmux select-layout -t "$SESSION:perception" tiled
 

@@ -75,11 +75,16 @@ def _launch_setup(context, *args, **kwargs):
     visualize = LaunchConfiguration('visualize').perform(context)
     model_file_path = LaunchConfiguration('model_file_path').perform(context)
     waypoint_distance = LaunchConfiguration('waypoint_distance').perform(context)
+    resolution = LaunchConfiguration('resolution').perform(context)
 
     installed_launch_dir = os.path.join(pkg_dir, 'launch')
     aruco_params = _TAC_ARUCO if target == 'tac' else _VORTEX_ARUCO
 
     color_image_topic = f'/{namespace}/front_camera/image_color'
+    camera_info_topic = f'/{namespace}/front_camera/camera_info'
+    cropped_image_topic = f'/{namespace}/front_camera/image_color_cropped'
+    cropped_camera_info_topic = f'/{namespace}/front_camera/camera_info_cropped'
+    img_height = int(resolution.split('x')[1])
 
     container_nodes = [
         ComposableNode(
@@ -87,26 +92,41 @@ def _launch_setup(context, *args, **kwargs):
             plugin='ArucoDetectorNode',
             name='front_aruco_detector',
             namespace=namespace,
-            parameters=[
-                {
-                    'subs.image_topic': f'/{namespace}/front_camera/image_color',
-                    'subs.camera_info_topic': f'/{namespace}/front_camera/camera_info',
-                    'pubs.aruco_image': '/aruco_detector/image_front',
-                    'pubs.aruco_poses': '/aruco_detector/markers_front',
-                    'pubs.board_pose': '/aruco_detector/board_front',
-                    'pubs.landmarks': f'/{namespace}/{robot_topics["landmarks"]}',
-                    'logger_service_name': '/toggle_marker_logger',
-                    'detect_board': True,
-                    'visualize': True,
-                    'log_markers': False,
-                    'publish_detections': True,
-                    'publish_landmarks': True,
-                    'aruco.dictionary': 'DICT_ARUCO_ORIGINAL',
-                    'enu_ned_rotation': True,
-                    'out_tf_frame': f'{namespace}/front_camera_optical',
-                    **aruco_params,
-                }
-            ],
+            parameters=[{
+                'subs.image_topic': color_image_topic,
+                'subs.camera_info_topic': camera_info_topic,
+                'pubs.aruco_image': '/aruco_detector/image_front',
+                'pubs.aruco_poses': '/aruco_detector/markers_front',
+                'pubs.board_pose': '/aruco_detector/board_front',
+                'pubs.landmarks': f'/{namespace}/{robot_topics["landmarks"]}',
+                'logger_service_name': '/toggle_marker_logger',
+                'detect_board': True,
+                'visualize': True,
+                'log_markers': False,
+                'publish_detections': True,
+                'publish_landmarks': True,
+                'aruco.dictionary': 'DICT_ARUCO_ORIGINAL',
+                'enu_ned_rotation': True,
+                'out_tf_frame': f'{namespace}/front_camera_optical',
+                **aruco_params,
+            }],
+            extra_arguments=[{'use_intra_process_comms': True}],
+        ),
+        ComposableNode(
+            package='vortex_cv_util_nodes',
+            plugin='vortex_cv_util_nodes::ImageRoiCrop',
+            name='front_camera_bottom_crop',
+            parameters=[{
+                'image_topic': color_image_topic,
+                'camera_info_topic': camera_info_topic,
+                'output_image_topic': cropped_image_topic,
+                'output_camera_info_topic': cropped_camera_info_topic,
+                'enable_crop': True,
+                'crop.x_offset': 0,
+                'crop.y_offset': 0,
+                'crop.width': 0,
+                'crop.height': img_height - 150,
+            }],
             extra_arguments=[{'use_intra_process_comms': True}],
         ),
     ]
@@ -191,7 +211,7 @@ def _launch_setup(context, *args, **kwargs):
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(bb_launch_file),
                 launch_arguments={
-                    'model_input_image_topic': color_image_topic,
+                    'model_input_image_topic': cropped_image_topic,
                     'model_file_path': model_file_path,
                     'detections_topic': '/yolo/docking_detections',
                     'annotated_image_topic': '/yolo/annotated_image',
@@ -205,15 +225,13 @@ def _launch_setup(context, *args, **kwargs):
                 package='docking_camera_yolo_direction_waypoint',
                 plugin='vortex::docking_camera_yolo_direction_waypoint::DockingCameraYoloDirectionWaypointNode',
                 name='docking_camera_yolo_direction_waypoint',
-                parameters=[
-                    {
-                        'detection_sub_topic': '/yolo/docking_detections',
-                        'camera_info_sub_topic': f'/{namespace}/front_camera/camera_info',
-                        'landmarks_pub_topic': f'/{namespace}/{robot_topics["landmarks"]}',
-                        'odom_frame': f'{namespace}/odom',
-                        'waypoint_distance': float(waypoint_distance),
-                    }
-                ],
+                parameters=[{
+                    'detection_sub_topic': '/yolo/docking_detections',
+                    'camera_info_sub_topic': cropped_camera_info_topic,
+                    'landmarks_pub_topic': f'/{namespace}/{robot_topics["landmarks"]}',
+                    'odom_frame': f'{namespace}/odom',
+                    'waypoint_distance': float(waypoint_distance),
+                }],
                 extra_arguments=[{'use_intra_process_comms': True}],
             )
         )
