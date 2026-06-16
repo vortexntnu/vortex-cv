@@ -380,8 +380,7 @@ vortex_msgs::msg::Waypoint LineFilteringNode::make_waypoint(
     // Hold altitude for translating waypoints, but not for orientation-only
     // ones
     // -- commanding altitude there can destabilise heading convergence.
-    wp.keep_altitude =
-        (mode != vortex_msgs::msg::WaypointMode::ONLY_ORIENTATION);
+    wp.keep_altitude = true;
     wp.desired_altitude = target_altitude_;
     return wp;
 }
@@ -841,7 +840,24 @@ void LineFilteringNode::find_new_line_intersections() {
         }
     }
 
-    // Expire votes whose track pair is no longer active this tick.
+    // When the old (incoming) line drops out before the vote reaches
+    // kJunctionConfirmHits, promote any partially-confirmed vote so it fires
+    // this tick rather than being silently expired. The last-known crossing
+    // position and arm directions are still valid for set_next_line().
+    for (auto& v : junction_votes_) {
+        bool alive = std::find(active_pairs.begin(), active_pairs.end(),
+                               std::make_pair(v.id1, v.id2)) !=
+                     active_pairs.end();
+        if (!alive && v.hits >= 1) {
+            dlog(
+                "  pair(%d,%d): pair inactive with hits=%d — promoting to "
+                "confirmed so junction fires on last-known crossing (%.2f,%.2f)",
+                v.id1, v.id2, v.hits, v.pos(0), v.pos(1));
+            v.hits = kJunctionConfirmHits;
+        }
+    }
+
+    // Expire votes whose track pair is no longer active (and were not promoted).
     junction_votes_.erase(
         std::remove_if(
             junction_votes_.begin(), junction_votes_.end(),
@@ -849,10 +865,10 @@ void LineFilteringNode::find_new_line_intersections() {
                 bool alive = std::find(active_pairs.begin(), active_pairs.end(),
                                        std::make_pair(v.id1, v.id2)) !=
                              active_pairs.end();
-                if (!alive)
+                if (!alive && v.hits < kJunctionConfirmHits)
                     dlog("  pair(%d,%d): vote expired (pair no longer active)",
                          v.id1, v.id2);
-                return !alive;
+                return !alive && v.hits < kJunctionConfirmHits;
             }),
         junction_votes_.end());
 }
