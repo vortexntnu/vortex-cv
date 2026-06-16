@@ -63,8 +63,6 @@ def launch_setup(context, *args, **kwargs):
                 "return_to_origin_altitude": return_to_origin_altitude,
                 "services.start_pipeline_following": "pipeline_inspection_fsm/start_pipeline_following",
                 "services.start_pipeline_following_trigger": "pipeline_inspection_fsm/start_pipeline_following_trigger",
-                "services.start_end_pipeline_detection": "pipeline_end_detector/start_detection",
-                "services.start_end_pipeline_detection_trigger": "pipeline_inspection_fsm/start_end_pipeline_detection_trigger",
                 "services.end_of_pipeline": "pipeline_inspection_fsm/pipeline_finished",
                 "services.irls_line_detected": "/pipeline_inspection_fsm/irls_line_detected",
                 "start_in_camera_range": start_in_camera_range,

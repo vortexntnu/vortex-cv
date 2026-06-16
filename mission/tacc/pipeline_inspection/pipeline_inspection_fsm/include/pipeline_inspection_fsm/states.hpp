@@ -40,8 +40,6 @@ struct StateMachineConfig {
     std::string start_mission_service;
     std::string start_pipeline_following_service;
     std::string start_pipeline_following_trigger_service;
-    std::string start_end_pipeline_detection_service;
-    std::string start_end_pipeline_detection_trigger_service;
     std::string end_of_pipeline_service;
     std::string irls_line_detected_service;
     std::string odom_topic;
