@@ -103,6 +103,14 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                       std::make_shared<vortex_yasmin_utils::WipeState>(),
                       {{SUCCEED, "WAIT_START_PIPELINE_FOLLOWING"}});
 
+    } else if (config.start_at_pipeline_start) {
+        // Already at the pipeline start: skip all localization (no landmark
+        // polling, no bearing collection, no converge). Go straight to the
+        // operator-triggered pipeline-following gate.
+        sm->add_state("WIPE",
+                      std::make_shared<vortex_yasmin_utils::WipeState>(),
+                      {{SUCCEED, "WAIT_START_PIPELINE_FOLLOWING"}});
+
     } else if (config.start_in_camera_range) {
         // Already in camera range: poll for pipeline endpoint landmarks,
         // collect pipeline bearing from the camera, then converge toward the

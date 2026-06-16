@@ -66,6 +66,7 @@ struct StateMachineConfig {
     double return_to_origin_altitude{2.0};
     bool start_in_camera_range{false};
     bool start_above_pipe{false};
+    bool start_at_pipeline_start{false};
     bool enable_end_detection{true};
 };
 
