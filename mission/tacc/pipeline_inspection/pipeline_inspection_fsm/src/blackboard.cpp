@@ -54,9 +54,15 @@ StateMachineConfig load_config(rclcpp::Node::SharedPtr node) {
     config.start_pipeline_following_service =
         node->declare_parameter<std::string>(
             "services.start_pipeline_following");
+    config.start_pipeline_following_trigger_service =
+        node->declare_parameter<std::string>(
+            "services.start_pipeline_following_trigger");
     config.start_end_pipeline_detection_service =
         node->declare_parameter<std::string>(
             "services.start_end_pipeline_detection");
+    config.start_end_pipeline_detection_trigger_service =
+        node->declare_parameter<std::string>(
+            "services.start_end_pipeline_detection_trigger");
     config.end_of_pipeline_service =
         node->declare_parameter<std::string>("services.end_of_pipeline");
     config.irls_line_detected_service =

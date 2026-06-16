@@ -52,6 +52,17 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                 pipeline_inspection_fsm::TriggerSrv::Request>();
         });
 
+    // Operator-triggered gates: localization hands off to these, and the
+    // actual service call to the downstream node only fires once we are
+    // told to proceed.
+    auto wait_start_pipeline_following =
+        std::make_shared<vortex_yasmin_utils::ServiceTriggerWaitState>(
+            config.start_pipeline_following_trigger_service);
+
+    auto wait_start_end_detection =
+        std::make_shared<vortex_yasmin_utils::ServiceTriggerWaitState>(
+            config.start_end_pipeline_detection_trigger_service);
+
     // Wraps a converge state in a race against the first IRLS line detection.
     auto make_converge_or_line =
         [&config](std::shared_ptr<yasmin::State> converge_state)
@@ -102,9 +113,7 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
     if (config.start_above_pipe) {
         sm->add_state("WIPE",
                       std::make_shared<vortex_yasmin_utils::WipeState>(),
-                      {{SUCCEED, "START_PIPELINE_TRG"}});
-        sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
-                      {{SUCCEED, "START_END_DETECTION_TRG"}, {ABORT, ABORT}});
+                      {{SUCCEED, "WAIT_START_PIPELINE_FOLLOWING"}});
 
     } else if (config.start_in_camera_range) {
         // Already in camera range: poll for pipeline endpoint landmarks,
@@ -137,11 +146,10 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
             {{"landmark_found", "COLLECT_PIPELINE_BEARING"}, {ABORT, ABORT}});
         sm->add_state("COLLECT_PIPELINE_BEARING", pipeline_collect,
                       {{SUCCEED, "CONVERGE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
-        sm->add_state(
-            "CONVERGE", make_converge_or_line(pipeline_bearing_waypoint),
-            {{SUCCEED, "START_PIPELINE_TRG"}, {ABORT, ABORT}, {CANCEL, ABORT}});
-        sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
-                      {{SUCCEED, "START_END_DETECTION_TRG"}, {ABORT, ABORT}});
+        sm->add_state("CONVERGE", make_converge_or_line(pipeline_bearing_waypoint),
+                      {{SUCCEED, "WAIT_START_PIPELINE_FOLLOWING"},
+                       {ABORT, ABORT},
+                       {CANCEL, ABORT}});
 
     } else {
         // Normal mode:
@@ -228,19 +236,39 @@ std::shared_ptr<yasmin::StateMachine> build_state_machine(
                        {CANCEL, ABORT}});
         sm->add_state("COLLECT_PIPELINE_BEARING", pipeline_collect,
                       {{SUCCEED, "CONVERGE"}, {ABORT, ABORT}, {CANCEL, ABORT}});
-        sm->add_state(
-            "CONVERGE", make_converge_or_line(pipeline_bearing_waypoint),
-            {{SUCCEED, "START_PIPELINE_TRG"}, {ABORT, ABORT}, {CANCEL, ABORT}});
-        sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
-                      {{SUCCEED, "START_END_DETECTION_TRG"}, {ABORT, ABORT}});
+        sm->add_state("CONVERGE", make_converge_or_line(pipeline_bearing_waypoint),
+                      {{SUCCEED, "WAIT_START_PIPELINE_FOLLOWING"},
+                       {ABORT, ABORT},
+                       {CANCEL, ABORT}});
     }
 
+    // Hold here until an operator calls the pipeline-following trigger
+    // service, then send the actual start service call to the pipeline
+    // following node.
+    sm->add_state(
+        "WAIT_START_PIPELINE_FOLLOWING", wait_start_pipeline_following,
+        {{SUCCEED, "WIPE_BEFORE_PIPELINE_FOLLOWING"}, {CANCEL, ABORT}});
+    sm->add_state("WIPE_BEFORE_PIPELINE_FOLLOWING",
+                  std::make_shared<vortex_yasmin_utils::WipeState>(),
+                  {{SUCCEED, "START_PIPELINE_TRG"}});
+    sm->add_state("START_PIPELINE_TRG", start_pipeline_trg,
+                  {{SUCCEED, "WAIT_START_END_DETECTION"}, {ABORT, ABORT}});
+
     if (config.enable_end_detection) {
+        // Hold here until an operator calls the end-detection trigger
+        // service, then send the actual start service call to the
+        // end-of-pipeline detector node.
+        sm->add_state(
+            "WAIT_START_END_DETECTION", wait_start_end_detection,
+            {{SUCCEED, "WIPE_BEFORE_END_DETECTION"}, {CANCEL, ABORT}});
+        sm->add_state("WIPE_BEFORE_END_DETECTION",
+                      std::make_shared<vortex_yasmin_utils::WipeState>(),
+                      {{SUCCEED, "START_END_DETECTION_TRG"}});
         sm->add_state("START_END_DETECTION_TRG", start_end_detection_trg,
                       {{SUCCEED, "PIPELINE_FOLLOWING"}, {ABORT, ABORT}});
     } else {
         sm->add_state(
-            "START_END_DETECTION_TRG",
+            "WAIT_START_END_DETECTION",
             yasmin::CbState::make_shared(yasmin::Outcomes{SUCCEED},
                                          [](auto) { return SUCCEED; }),
             {{SUCCEED, "PIPELINE_FOLLOWING"}});
