@@ -54,6 +54,10 @@ def _launch_setup(context, *args, **kwargs):
     resolution = LaunchConfiguration('resolution').perform(context)
     fps = LaunchConfiguration('fps').perform(context)
     pixel_format = LaunchConfiguration('pixel_format').perform(context)
+    enable_auto_white_balance = (
+        LaunchConfiguration('enable_auto_white_balance').perform(context).lower() == 'true'
+    )
+    white_balance = float(LaunchConfiguration('white_balance').perform(context))
 
     calib_files = {
         '896x504': 'color_realsense_d555_calib_downscale.yaml',
@@ -106,8 +110,8 @@ def _launch_setup(context, *args, **kwargs):
                         'enable_color': True,
                         'rgb_camera.color_profile': color_profile,
                         'rgb_camera.color_format': pixel_format,
-                        'rgb_camera.enable_auto_white_balance': False,
-                        'rgb_camera.white_balance': 4500.0,
+                        'rgb_camera.enable_auto_white_balance': enable_auto_white_balance,
+                        'rgb_camera.white_balance': white_balance,
                         'rgb_camera.enable_auto_exposure': True,
                         'enable_depth': enable_depth,
                         'depth_module.depth_profile': '896,504,15',
@@ -304,6 +308,16 @@ def generate_launch_description():
                 'enable_depth_crop',
                 default_value='true',
                 description='Crop the depth image to a centered ROI. Has no effect when enable_depth=false.',
+            ),
+            DeclareLaunchArgument(
+                'enable_auto_white_balance',
+                default_value='false',
+                description='Enable auto white balance on the color camera. When false, white_balance is used.',
+            ),
+            DeclareLaunchArgument(
+                'white_balance',
+                default_value='4500.0',
+                description='Manual white balance value (Kelvin). Only applied when enable_auto_white_balance=false.',
             ),
             OpaqueFunction(function=_launch_setup),
         ]
