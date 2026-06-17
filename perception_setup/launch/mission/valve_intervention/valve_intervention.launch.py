@@ -56,6 +56,10 @@ def _launch_setup(context, *args, **kwargs):
         LaunchConfiguration('enable_subtype_resolver').perform(context).lower()
         == 'true'
     )
+    enable_auto_white_balance = LaunchConfiguration(
+        'enable_auto_white_balance'
+    ).perform(context)
+    white_balance = LaunchConfiguration('white_balance').perform(context)
 
     # All downstream nodes subscribe to these drone-prefixed topics.
     # Real hardware: camera + undistort publish here.
@@ -234,6 +238,8 @@ def _launch_setup(context, *args, **kwargs):
                     'enable_gstreamer': 'false',
                     'standalone': 'false',
                     'container_name': container_name,
+                    'enable_auto_white_balance': enable_auto_white_balance,
+                    'white_balance': white_balance,
                 }.items(),
             )
         )
@@ -342,6 +348,16 @@ def generate_launch_description():
                 'destination_port',
                 default_value='5000',
                 description='Destination UDP port for GStreamer RTP stream.',
+            ),
+            DeclareLaunchArgument(
+                'enable_auto_white_balance',
+                default_value='false',
+                description='Enable auto white balance on the color camera. When false, white_balance is used.',
+            ),
+            DeclareLaunchArgument(
+                'white_balance',
+                default_value='4500.0',
+                description='Manual white balance value (Kelvin). Only applied when enable_auto_white_balance=false.',
             ),
             OpaqueFunction(function=_launch_setup),
         ]
