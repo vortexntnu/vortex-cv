@@ -264,6 +264,16 @@ def generate_launch_description():
                 default_value='true',
                 description='Publish debug annotated images from YOLO seg.',
             ),
+            DeclareLaunchArgument(
+                'enable_auto_white_balance',
+                default_value='false',
+                description='Enable auto white balance on the color camera. When false, white_balance is used.',
+            ),
+            DeclareLaunchArgument(
+                'white_balance',
+                default_value='4500.0',
+                description='Manual white balance value (Kelvin). Only applied when enable_auto_white_balance=false.',
+            ),
             OpaqueFunction(function=_launch_setup),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
@@ -281,6 +291,10 @@ def generate_launch_description():
                     'enable_gstreamer': 'false',
                     'standalone': 'false',
                     'container_name': 'front_camera_container',
+                    'enable_auto_white_balance': LaunchConfiguration(
+                        'enable_auto_white_balance'
+                    ),
+                    'white_balance': LaunchConfiguration('white_balance'),
                 }.items(),
                 condition=UnlessCondition(LaunchConfiguration('sim')),
             ),

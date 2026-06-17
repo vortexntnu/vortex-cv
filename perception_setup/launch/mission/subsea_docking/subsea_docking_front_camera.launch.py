@@ -59,7 +59,7 @@ def _launch_setup(context, *args, **kwargs):
     ) as f:
         robot_topics = yaml.safe_load(f)['/**']['ros__parameters']['topics']
 
-    sim = LaunchConfiguration('sim').perform(context).lower() == 'true'
+    sim = LaunchConfiguration('sim').perform(context).lower() == 'true'  # noqa: F841
     target = LaunchConfiguration('target').perform(context)
     enable_gstreamer = (
         LaunchConfiguration('enable_gstreamer').perform(context).lower() == 'true'
@@ -92,41 +92,45 @@ def _launch_setup(context, *args, **kwargs):
             plugin='ArucoDetectorNode',
             name='front_aruco_detector',
             namespace=namespace,
-            parameters=[{
-                'subs.image_topic': color_image_topic,
-                'subs.camera_info_topic': camera_info_topic,
-                'pubs.aruco_image': '/aruco_detector/image_front',
-                'pubs.aruco_poses': '/aruco_detector/markers_front',
-                'pubs.board_pose': '/aruco_detector/board_front',
-                'pubs.landmarks': f'/{namespace}/{robot_topics["landmarks"]}',
-                'logger_service_name': '/toggle_marker_logger',
-                'detect_board': True,
-                'visualize': True,
-                'log_markers': False,
-                'publish_detections': True,
-                'publish_landmarks': True,
-                'aruco.dictionary': 'DICT_ARUCO_ORIGINAL',
-                'enu_ned_rotation': True,
-                'out_tf_frame': f'{namespace}/front_camera_optical',
-                **aruco_params,
-            }],
+            parameters=[
+                {
+                    'subs.image_topic': color_image_topic,
+                    'subs.camera_info_topic': camera_info_topic,
+                    'pubs.aruco_image': '/aruco_detector/image_front',
+                    'pubs.aruco_poses': '/aruco_detector/markers_front',
+                    'pubs.board_pose': '/aruco_detector/board_front',
+                    'pubs.landmarks': f'/{namespace}/{robot_topics["landmarks"]}',
+                    'logger_service_name': '/toggle_marker_logger',
+                    'detect_board': True,
+                    'visualize': True,
+                    'log_markers': False,
+                    'publish_detections': True,
+                    'publish_landmarks': True,
+                    'aruco.dictionary': 'DICT_ARUCO_ORIGINAL',
+                    'enu_ned_rotation': True,
+                    'out_tf_frame': f'{namespace}/front_camera_optical',
+                    **aruco_params,
+                }
+            ],
             extra_arguments=[{'use_intra_process_comms': True}],
         ),
         ComposableNode(
             package='vortex_cv_util_nodes',
             plugin='vortex_cv_util_nodes::ImageRoiCrop',
             name='front_camera_bottom_crop',
-            parameters=[{
-                'image_topic': color_image_topic,
-                'camera_info_topic': camera_info_topic,
-                'output_image_topic': cropped_image_topic,
-                'output_camera_info_topic': cropped_camera_info_topic,
-                'enable_crop': True,
-                'crop.x_offset': 0,
-                'crop.y_offset': 0,
-                'crop.width': 0,
-                'crop.height': img_height - 150,
-            }],
+            parameters=[
+                {
+                    'image_topic': color_image_topic,
+                    'camera_info_topic': camera_info_topic,
+                    'output_image_topic': cropped_image_topic,
+                    'output_camera_info_topic': cropped_camera_info_topic,
+                    'enable_crop': True,
+                    'crop.x_offset': 0,
+                    'crop.y_offset': 0,
+                    'crop.width': 0,
+                    'crop.height': img_height - 150,
+                }
+            ],
             extra_arguments=[{'use_intra_process_comms': True}],
         ),
     ]
@@ -225,13 +229,15 @@ def _launch_setup(context, *args, **kwargs):
                 package='docking_camera_yolo_direction_waypoint',
                 plugin='vortex::docking_camera_yolo_direction_waypoint::DockingCameraYoloDirectionWaypointNode',
                 name='docking_camera_yolo_direction_waypoint',
-                parameters=[{
-                    'detection_sub_topic': '/yolo/docking_detections',
-                    'camera_info_sub_topic': cropped_camera_info_topic,
-                    'landmarks_pub_topic': f'/{namespace}/{robot_topics["landmarks"]}',
-                    'odom_frame': f'{namespace}/odom',
-                    'waypoint_distance': float(waypoint_distance),
-                }],
+                parameters=[
+                    {
+                        'detection_sub_topic': '/yolo/docking_detections',
+                        'camera_info_sub_topic': cropped_camera_info_topic,
+                        'landmarks_pub_topic': f'/{namespace}/{robot_topics["landmarks"]}',
+                        'odom_frame': f'{namespace}/odom',
+                        'waypoint_distance': float(waypoint_distance),
+                    }
+                ],
                 extra_arguments=[{'use_intra_process_comms': True}],
             )
         )
@@ -345,6 +351,16 @@ def generate_launch_description():
                 default_value='15',
                 description='RealSense camera frame rate.',
             ),
+            DeclareLaunchArgument(
+                'enable_auto_white_balance',
+                default_value='false',
+                description='Enable auto white balance on the color camera. When false, white_balance is used.',
+            ),
+            DeclareLaunchArgument(
+                'white_balance',
+                default_value='4500.0',
+                description='Manual white balance value (Kelvin). Only applied when enable_auto_white_balance=false.',
+            ),
             OpaqueFunction(function=_launch_setup),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
@@ -364,6 +380,10 @@ def generate_launch_description():
                     'enable_gstreamer': 'false',
                     'standalone': 'false',
                     'container_name': 'front_camera_container',
+                    'enable_auto_white_balance': LaunchConfiguration(
+                        'enable_auto_white_balance'
+                    ),
+                    'white_balance': LaunchConfiguration('white_balance'),
                 }.items(),
                 condition=UnlessCondition(LaunchConfiguration('sim')),
             ),
