@@ -1,0 +1,66 @@
+# 4 waypoints for the learning_period onboarding mission.
+#
+# Consumed by vortex::utils::waypoints::load_waypoint_goal_from_yaml() (see
+# vortex_utils/include/vortex/utils/waypoint_utils.hpp) — one WaypointGoal
+# struct per top-level key. Loaded in src/blackboard.cpp and handed to
+# vortex_yasmin_utils::WaypointGoalState instances in
+# src/build_state_machine.cpp.
+#
+# Frame: {namespace}/odom. WaypointManager goals carry an unstamped
+# geometry_msgs/Pose (no frame_id field) — every other FSM in this repo sends
+# goals in the odom frame by convention (see e.g.
+# mission/tacc/subsea_docking/pool_exploration/config/pool_exploration.yaml),
+# and that convention is assumed here too. See README "Open questions" if
+# this needs confirming against the actual sim/robot setup.
+#
+# The 4 poses below form a flat 3x3 m square patrol loop at -2.0 m depth,
+# turning 90 degrees at each corner. Adjust if this doesn't fit your sim
+# world's spawn point / bounds.
+
+waypoint_1:
+  mode: full_pose
+  position:
+    x: 3.0
+    y: 0.0
+    z: -2.0
+  orientation:
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0 # facing +x
+  convergence_threshold: 0.3
+
+waypoint_2:
+  mode: full_pose
+  position:
+    x: 3.0
+    y: 3.0
+    z: -2.0
+  orientation:
+    roll: 0.0
+    pitch: 0.0
+    yaw: 1.5708 # 90 deg, facing +y
+  convergence_threshold: 0.3
+
+waypoint_3:
+  mode: full_pose
+  position:
+    x: 0.0
+    y: 3.0
+    z: -2.0
+  orientation:
+    roll: 0.0
+    pitch: 0.0
+    yaw: 3.14159 # 180 deg, facing -x
+  convergence_threshold: 0.3
+
+waypoint_4:
+  mode: full_pose
+  position:
+    x: 0.0
+    y: 0.0
+    z: -2.0
+  orientation:
+    roll: 0.0
+    pitch: 0.0
+    yaw: -1.5708 # -90 deg, facing -y
+  convergence_threshold: 0.3

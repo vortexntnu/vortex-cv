@@ -16,6 +16,16 @@ find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 
+# TODO(member): src/hello_state.cpp is not listed below yet. A .cpp file
+# that isn't passed to add_library()/add_executable() never gets compiled —
+# its symbols simply won't exist, no matter how correct the header is. Add
+# "src/hello_state.cpp" to the list below (alphabetical, like its
+# neighbors) once you've written HelloState::execute(). If you forget this
+# step, building learning_period_fsm later will fail at the *link* stage
+# with something like:
+#   undefined reference to `vortex_yasmin_utils::HelloState::HelloState()'
+# — that error means "the symbol was declared but never compiled in", which
+# is exactly the situation this TODO prevents.
 add_library(vortex_yasmin_utils
   src/bearing_waypoint_state.cpp
   src/collect_bearing_direction_state.cpp
