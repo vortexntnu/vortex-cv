@@ -10,7 +10,7 @@ logic already exists as a reusable state (`WaypointGoalState`) in our
 blocks, plus write one tiny state of your own.
 
 If you've never touched ROS 2 or YASMIN before, that's the point — read
-[Concepts](#concepts) before you start if any of this is unfamiliar.
+[Concepts](#6-concepts) before you start if any of this is unfamiliar.
 
 ## 1. What you're building
 
@@ -62,7 +62,7 @@ git checkout -b learning-period-<your-name>
 
 Commit as you go with plain, scoped messages (`git commit -m "wire HELLO and WP1 transitions"`,
 not one giant commit at the end). When you're done (see the
-[checklist](#done-when) below), push and open a PR **against
+[checklist](#9-done-when) below), push and open a PR **against
 `autonomy-learning-period`**, not `main`:
 
 ```shell
@@ -129,7 +129,7 @@ window, one pane per process. It opens 2 windows:
      hasn't been tested and mission stacks elsewhere always start it.
   3. `ros2 launch learning_period learning_period_fsm.launch.py` — your FSM.
   4. `ros2 run yasmin_viewer yasmin_viewer_node` — the web viewer (see
-     [Inspecting the running FSM](#inspecting-the-running-fsm)).
+     [Inspecting the running FSM](#7-inspecting-the-running-fsm)).
 - **`misc`** — 4 empty, sourced panes for whatever else you need
   (`ros2 topic echo`, `rqt`, etc.).
 
@@ -146,21 +146,38 @@ existing `learning_period` session first. Useful flags:
 Work through these in order. Each step names the file and the
 `// TODO(member)` marker to look for.
 
-1. **Add your `HelloState` body.**
+1. **Write `HelloState`.**
    File: [`mission/vortex_yasmin_utils/src/hello_state.cpp`](../vortex_yasmin_utils/src/hello_state.cpp).
-   The class already compiles and returns `SUCCEED` — you're filling in the
-   log line. Signature you're implementing:
+   That file is deliberately close to empty: it has the right includes, the
+   right namespace, and a TODO block. **Everything else you write yourself.**
+
+   The header, [`hello_state.hpp`](../vortex_yasmin_utils/include/vortex_yasmin_utils/hello_state.hpp),
+   is your spec — don't change it. It declares exactly two things you must
+   define:
    ```cpp
-   std::string HelloState::execute(yasmin::Blackboard::SharedPtr blackboard) override;
+   HelloState();
+   std::string execute(yasmin::Blackboard::SharedPtr blackboard) override;
    ```
-   One line is enough:
-   ```cpp
-   YASMIN_LOG_INFO("Hello from the learning period FSM!");
-   ```
-   **Verify:** `colcon build --packages-select vortex_yasmin_utils` succeeds.
-   (This will succeed even before step 2 below — the file isn't part of the
-   build yet, so nothing actually compiles it. That's expected; step 2 is
-   what turns it on.)
+   What you need to work out for yourself:
+   - **The constructor.** Every `yasmin::State` must declare, up front, the
+     complete set of outcome strings it is allowed to return. That set is
+     passed to the `yasmin::State` base constructor. `HelloState` only ever
+     succeeds, so its set has one element. Where does the `SUCCEED` string
+     come from? `yasmin_ros::basic_outcomes` — use the constant, never a
+     raw `"SUCCEED"` literal, so a typo is a compile error rather than a
+     state machine that silently never transitions.
+   - **`execute()`.** Log something with `YASMIN_LOG_INFO(...)` (from
+     `<yasmin_ros/ros_logs.hpp>`) and return an outcome. Returning an
+     outcome you didn't declare in the constructor is a runtime error.
+
+   If you get stuck on the *shape* of it, read
+   [`wipe_state.cpp`](../vortex_yasmin_utils/src/wipe_state.cpp) in the same
+   directory — the simplest finished state in the repo. Yours is smaller:
+   no publisher, no node handle, just a log line.
+
+   **Verify:** nothing yet. `colcon build --packages-select vortex_yasmin_utils`
+   will succeed *even if this file is complete nonsense*, because the file
+   isn't part of the build until step 2. That's the point of step 2.
 
 2. **Wire `hello_state.cpp` into the build.**
    File: [`mission/vortex_yasmin_utils/CMakeLists.txt`](../vortex_yasmin_utils/CMakeLists.txt),
@@ -174,26 +191,63 @@ Work through these in order. Each step names the file and the
    already depends on. You only need to add a `<depend>` line when a state
    uses a ROS package that isn't declared yet (e.g. if you'd used
    `nav_msgs`, you'd add `<depend>nav_msgs</depend>` there too).
-   **Verify:** `colcon build --packages-select vortex_yasmin_utils` still
-   succeeds — this step has no visible effect yet on its own. It matters for
-   step 4 below: skip it, and linking `learning_period_fsm` will fail with
+   **Verify:** `colcon build --packages-select vortex_yasmin_utils` — this is
+   the first time your step-1 code is actually compiled, so this is where
+   typos in it show up. Fix them before moving on. Skipping this step
+   entirely instead makes step 4 fail at link time with
    `undefined reference to vortex_yasmin_utils::HelloState::HelloState()`.
 
 3. **Construct the 5 states.**
-   File: [`src/build_state_machine.cpp`](src/build_state_machine.cpp), `TODO(member) 1 of 3` and
-   `TODO(member) 2 of 3`. Construct one `HelloState` and four
-   `WaypointGoalState`s, pulling each `WaypointGoal` off the blackboard by
-   key (`"waypoint_1_goal"` .. `"waypoint_4_goal"` — already loaded for you,
-   see `src/blackboard.cpp`). For a real example of this exact
-   pull-off-blackboard-and-construct pattern, read
-   [`subsea_docking_fsm/src/build_state_machine.cpp`](../tacc/subsea_docking/subsea_docking_fsm/src/build_state_machine.cpp)
-   (search for `dock_config_waypoint_goal`).
-   **Verify:** it compiles (you'll have unused-variable warnings until step 4 — that's expected).
+   File: [`src/build_state_machine.cpp`](src/build_state_machine.cpp),
+   `TODO(member) 1 of 3` and `TODO(member) 2 of 3`. Construct one
+   `HelloState` and four `WaypointGoalState`s.
+
+   **Read the reference first:**
+   [`visual_inspection_fsm/src/build_state_machine.cpp`](../tacc/visual_inspection/visual_inspection_fsm/src/build_state_machine.cpp).
+   It is a real mission FSM built exactly the way yours will be, and it
+   demonstrates every piece you need:
+   - it pulls `WaypointGoal`s off the blackboard by key at the top of the
+     function (`blackboard->get<vortex::utils::waypoints::WaypointGoal>("standoff_goal")`)
+     — you do the same with `"waypoint_1_goal"` .. `"waypoint_4_goal"`;
+   - it constructs an argument-less state (`WipeState`) — same shape as your
+     `HelloState`;
+   - it passes `config.waypoint_manager_action_server` into every state that
+     talks to the waypoint manager — yours needs it too.
+
+   Check [`waypoint_goal_state.hpp`](../vortex_yasmin_utils/include/vortex_yasmin_utils/waypoint_goal_state.hpp)
+   for the exact constructor arguments rather than guessing.
+   **Verify:** it compiles (expect unused-variable warnings until step 4).
 
 4. **Wire the transition table.**
-   Same file, `TODO(member) 3 of 3`. Use `sm->add_state(name, state, {outcomes})`
-   to build the chain shown in the diagram above. Remember: the state named
-   in your *first* `add_state()` call becomes the machine's entry point.
+   Same file, `TODO(member) 3 of 3`. This is the actual state machine: a set
+   of `sm->add_state(name, state, transitions)` calls, where `transitions`
+   maps **every outcome that state can return** to the name of the next
+   state.
+
+   The same reference file shows the finished pattern —
+   [`visual_inspection_fsm/src/build_state_machine.cpp`](../tacc/visual_inspection/visual_inspection_fsm/src/build_state_machine.cpp)
+   chains 7 states this way, including a final `"DONE"` built inline with
+   `yasmin::CbState::make_shared(...)` that just logs and returns `SUCCEED`.
+   Build your `DONE` the same way.
+
+   Four rules that decide whether it works:
+   - **The first `add_state()` call is the entry point.** So `HELLO` must be
+     added first — order matters here and nowhere else.
+   - **A state's transition map must cover every outcome it declared.**
+     `HelloState` declares only `SUCCEED`. `WaypointGoalState` is an
+     `ActionState`, so it declares `SUCCEED`, `ABORT` *and* `CANCEL`. Miss
+     one and yasmin throws while building the machine.
+   - **A transition target is either a state name or a terminal outcome.**
+     `{SUCCEED, "WP2"}` moves to another state; `{ABORT, ABORT}` ends the
+     whole machine with the terminal `ABORT` outcome (the set passed to the
+     `StateMachine` constructor at the top of the function). Notice
+     `{{SUCCEED, SUCCEED}}` on the `DONE` state in the reference — that's
+     the terminal-outcome form, not a self-loop.
+   - **Names are resolved at build time**, so a typo'd target fails loudly
+     at startup instead of halfway through a mission.
+
+   For this exercise send both `ABORT` and `CANCEL` straight to the terminal
+   `ABORT` outcome — no mid-sequence recovery (that's stretch goal 3).
    Delete the `"PLACEHOLDER"` state once your real states are wired in.
    **Verify:** `colcon build --packages-select learning_period` succeeds with
    no warnings about unused `hello`/`wp1`../`wp4` variables, and no
@@ -205,7 +259,69 @@ Work through these in order. Each step names the file and the
    launch your FSM and confirm it visits all 4 waypoints and ends on
    `SUCCEED`. Watch it in the viewer at http://localhost:5000/.
 
-## 5. Concepts
+6. **Play with the config.** Change numbers in
+   [`config/waypoints.yaml`](config/waypoints.yaml) and re-run — no C++
+   edits. See [Why the waypoints live in YAML](#5-why-the-waypoints-live-in-yaml)
+   below for what to try.
+
+## 5. Why the waypoints live in YAML
+
+Notice what `build_state_machine.cpp` does *not* contain: any coordinates.
+The chain is
+
+```
+config/waypoints.yaml
+  -> launch/learning_period_fsm.launch.py   (passes the file path as the
+                                             `waypoint_config` ROS parameter)
+  -> load_config()          in src/blackboard.cpp  (reads that parameter)
+  -> initialize_blackboard() in src/blackboard.cpp (parses YAML into 4
+                                             WaypointGoal structs, puts them
+                                             on the blackboard)
+  -> build_state_machine()  (pulls them off by key, hands them to states)
+```
+
+Why bother, when four hardcoded poses would be shorter?
+
+- **Tuning without rebuilding.** Editing YAML and relaunching takes seconds;
+  editing C++ means `colcon build` every time. On the pool deck, where the
+  useful numbers are found by trial and error, that difference is the whole
+  workday.
+- **The same binary runs different missions.** The action server name and
+  the config path are both ROS parameters, so the launch file — not the code
+  — decides which robot, namespace and waypoint set you're driving. That's
+  how every other mission in this repo works too.
+- **Non-programmers can change behaviour.** Anyone who can edit a text file
+  can move a waypoint. Nobody has to read C++ to know where the drone will
+  go.
+- **The code stays about *logic*, not *data*.** `build_state_machine.cpp`
+  reads as "hello, then four waypoints, then done" — the order and the
+  failure handling, which is the part worth reviewing.
+
+**Go break it on purpose.** Each of these is one YAML edit plus a relaunch
+(the file is installed by `colcon build`, so re-run
+`colcon build --packages-select learning_period` — or edit the installed
+copy under `install/learning_period/share/learning_period/config/` for a
+faster loop):
+
+- Change a `position` — move `waypoint_2` from a 3×3 m square to 6×6 m and
+  watch the patrol get bigger.
+- Change `convergence_threshold` from `0.3` to `2.0`. The waypoint now
+  "succeeds" as soon as the drone is within 2 m, so it cuts corners and the
+  run finishes much faster. Drop it to `0.05` instead and watch it fuss at
+  each corner — or never converge at all, because the controller can't hold
+  that tightly. This is the single most useful number to develop intuition
+  for.
+- Change a `yaw` and see which way the drone points on arrival. Do this
+  first if you want to settle the radians-vs-degrees question in
+  [Open questions](#open-questions) empirically.
+- Change `mode` from `full_pose` and see what the loader accepts — read
+  `vortex/utils/waypoint_utils.hpp` for the valid values.
+- Delete the `waypoint_3` block entirely. You get a startup failure from
+  `load_waypoint_goal_from_yaml()`, not a silent wrong mission. Note where
+  that error surfaces (node startup, before any state runs) — that's the
+  behaviour you want from config loading.
+
+## 6. Concepts
 
 If you're new to ROS 2 / YASMIN, here's the minimum vocabulary you need:
 
@@ -234,7 +350,7 @@ If you're new to ROS 2 / YASMIN, here's the minimum vocabulary you need:
   point of this exercise is composition: you decide *which* waypoints to
   visit and *in what order*, not *how* to talk to the action server.
 
-## 6. Inspecting the running FSM
+## 7. Inspecting the running FSM
 
 The **YASMIN viewer** shows your state machine's graph and current state
 live in a browser:
@@ -265,7 +381,7 @@ ros2 topic hz /<namespace>/nucleus/odom
 ros2 topic echo /<namespace>/nucleus/odom --once
 ```
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 - **Goal rejected immediately.** Check `ros2 action list` — if
   `/<namespace>/waypoint_manager` isn't listed, the waypoint manager node
@@ -296,7 +412,7 @@ ros2 topic echo /<namespace>/nucleus/odom --once
   workspace's `src/` actually has them checked out and built, not just this
   repo.
 
-## 8. Done when
+## 9. Done when
 
 - [ ] `colcon build` succeeds with no errors or new warnings.
 - [ ] `src/hello_state.cpp` is listed in `vortex_yasmin_utils/CMakeLists.txt`'s
@@ -318,7 +434,7 @@ ros2 topic echo /<namespace>/nucleus/odom --once
 3. Instead of sending every `ABORT`/`CANCEL` straight to the terminal
    `ABORT` outcome, retry the failed waypoint exactly once before giving up.
 
-## 9. Links
+## 10. Links
 
 - YASMIN repo: <https://github.com/uleroboticsgroup/yasmin>
 - YASMIN docs (viewer, states, demos): <https://uleroboticsgroup.github.io/yasmin/>
