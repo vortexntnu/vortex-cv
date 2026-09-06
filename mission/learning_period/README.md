@@ -311,9 +311,9 @@ faster loop):
   each corner — or never converge at all, because the controller can't hold
   that tightly. This is the single most useful number to develop intuition
   for.
-- Change a `yaw` and see which way the drone points on arrival. Do this
-  first if you want to settle the radians-vs-degrees question in
-  [Open questions](#open-questions) empirically.
+- Change a `yaw` and see which way the drone points on arrival. Values are
+  in **degrees** (see [Open questions](#open-questions)) — `config/waypoints.yaml`
+  uses `0` / `90` / `180` / `-90`.
 - Change `mode` from `full_pose` and see what the loader accepts — read
   `vortex/utils/waypoint_utils.hpp` for the valid values.
 - Delete the `waypoint_3` block entirely. You get a startup failure from
@@ -374,7 +374,7 @@ ros2 action info /<namespace>/waypoint_manager
 # Watch goals/results/feedback going to the action server directly
 ros2 action send_goal /<namespace>/waypoint_manager \
   vortex_msgs/action/WaypointManager \
-  "{waypoints: [{pose: {position: {x: 1.0, y: 0.0, z: -2.0}}}], convergence_threshold: 0.3, persistent: false}"
+  "{waypoints: [{pose: {position: {x: 1.0, y: 0.0, z: 2.0}}}], convergence_threshold: 0.3, persistent: false}"
 
 # Is odometry actually flowing? (WaypointManager can't converge without it)
 ros2 topic hz /<namespace>/nucleus/odom
@@ -392,8 +392,9 @@ ros2 topic echo /<namespace>/nucleus/odom --once
   the action to complete if the vehicle never reaches the goal. Confirm
   odometry is publishing (`ros2 topic hz .../odom`) and that your waypoint
   poses in `config/waypoints.yaml` are actually reachable from the sim's
-  spawn point — the 4 defaults here form a 3×3 m square at -2.0 m depth
-  around the origin, which may not match your sim world.
+  spawn point — the 4 defaults here form a 3×3 m square at 2.0 m depth
+  (NED: z positive = down) around the origin, which may not match your sim
+  world.
 - **State machine ends immediately with no waypoints visited.** You
   probably still have the `"PLACEHOLDER"` state in
   `build_state_machine.cpp` — it logs a warning and immediately returns
@@ -463,15 +464,17 @@ the group channel or update this section once you know:
   goals in the `{namespace}/odom` frame by convention (poses are an
   unstamped `geometry_msgs/Pose`, so the frame isn't in the message itself
   — it's enforced by the receiving node). `config/waypoints.yaml` assumes
-  this; confirm against the actual `waypoint_manager` node if goals land in
-  unexpected places.
-- **Orientation units (`roll`/`pitch`/`yaw`) in the waypoint YAML.** The
-  `vortex_utils` loader docstring's own example uses what look like radians
-  (`yaw: 3.14159`), which is what `config/waypoints.yaml` assumes here — but
-  a comment in `visual_inspection_fsm/config/landmark_convergence.yaml`
-  claims the loader treats yaw as **degrees**. These two sources disagree.
-  Confirm empirically (send one waypoint, check which way the drone turns)
-  before trusting the exact headings in `config/waypoints.yaml`.
+  this frame **with the NED convention** (x North, y East, z Down, so depth
+  is positive z); confirm against the actual `waypoint_manager` node if
+  goals land in unexpected places (in particular, if the sim publishes odom
+  z-up, flip the sign of every `position.z`).
+- ~~**Orientation units (`roll`/`pitch`/`yaw`) in the waypoint YAML.**~~
+  Resolved: **degrees**. `load_pose_for_mode()` in
+  `vortex_utils/src/waypoint_utils.cpp` multiplies each of roll/pitch/yaw by
+  `M_PI / 180.0` before building the quaternion, so the YAML must hold plain
+  degrees. The loader docstring's `yaw: 3.14159` example is misleading — it
+  would be read as 3.14°, not π rad. `config/waypoints.yaml` now uses
+  degrees.
 - **Whether anything needs to "enable" DP/autonomous mode before
   `WaypointManager` goals are accepted.** No such service call appears
   anywhere in this repo's mission code — either none is needed, or it's

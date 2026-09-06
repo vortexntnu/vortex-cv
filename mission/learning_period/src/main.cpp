@@ -1,5 +1,7 @@
 #include "learning_period/states.hpp"
 
+#include <memory>
+
 #include <yasmin_ros/ros_logs.hpp>
 #include <yasmin_viewer/yasmin_viewer_pub.hpp>
 
@@ -17,7 +19,13 @@ int main(int argc, char** argv) {
     auto blackboard = initialize_blackboard(config);
     auto sm = build_state_machine(config, blackboard);
 
-    yasmin_viewer::YasminViewerPub viewer(sm, "LEARNING_PERIOD_FSM");
+    // Heap-allocated so it can be torn down explicitly (joining its background
+    // publisher thread) while the ROS context is still valid — before the
+    // rclcpp::shutdown() below. A stack local would be destroyed at return,
+    // after shutdown, and its thread would segfault publishing on a dead
+    // context.
+    auto viewer = std::make_unique<yasmin_viewer::YasminViewerPub>(
+        sm, "LEARNING_PERIOD_FSM");
 
     rclcpp::on_shutdown([sm]() {
         if (sm->is_running())
@@ -32,6 +40,8 @@ int main(int argc, char** argv) {
         YASMIN_LOG_WARN(e.what());
         rcutils_reset_error();
     }
+
+    viewer.reset();
 
     if (rclcpp::ok()) {
         sm.reset();

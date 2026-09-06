@@ -6,14 +6,18 @@
 # vortex_yasmin_utils::WaypointGoalState instances in
 # src/build_state_machine.cpp.
 #
-# Frame: {namespace}/odom. WaypointManager goals carry an unstamped
-# geometry_msgs/Pose (no frame_id field) — every other FSM in this repo sends
-# goals in the odom frame by convention (see e.g.
-# mission/tacc/subsea_docking/pool_exploration/config/pool_exploration.yaml),
-# and that convention is assumed here too. See README "Open questions" if
-# this needs confirming against the actual sim/robot setup.
+# Units: roll/pitch/yaw are in DEGREES. The loader (load_pose_for_mode in
+# waypoint_utils.cpp) multiplies each by pi/180 before converting to a
+# quaternion, so put plain degrees here — do not pre-convert to radians.
 #
-# The 4 poses below form a flat 3x3 m square patrol loop at -2.0 m depth,
+# Frame: {namespace}/odom, NED convention — x = North, y = East, z = Down.
+# Depth is therefore POSITIVE z. Yaw is measured from North (x) toward
+# East (y). WaypointManager goals carry an unstamped geometry_msgs/Pose
+# (no frame_id); every other FSM in this repo sends goals in the odom frame
+# by convention. See README "Open questions" if this needs confirming
+# against the actual sim/robot setup.
+#
+# The 4 poses below form a flat 3x3 m square patrol loop at 2.0 m depth,
 # turning 90 degrees at each corner. Adjust if this doesn't fit your sim
 # world's spawn point / bounds.
 
@@ -22,11 +26,11 @@ waypoint_1:
   position:
     x: 3.0
     y: 0.0
-    z: -2.0
+    z: 2.0
   orientation:
     roll: 0.0
     pitch: 0.0
-    yaw: 0.0 # facing +x
+    yaw: 0.0 # facing North (+x)
   convergence_threshold: 0.3
 
 waypoint_2:
@@ -34,11 +38,11 @@ waypoint_2:
   position:
     x: 3.0
     y: 3.0
-    z: -2.0
+    z: 2.0
   orientation:
     roll: 0.0
     pitch: 0.0
-    yaw: 1.5708 # 90 deg, facing +y
+    yaw: 90.0 # facing East (+y)
   convergence_threshold: 0.3
 
 waypoint_3:
@@ -46,11 +50,11 @@ waypoint_3:
   position:
     x: 0.0
     y: 3.0
-    z: -2.0
+    z: 2.0
   orientation:
     roll: 0.0
     pitch: 0.0
-    yaw: 3.14159 # 180 deg, facing -x
+    yaw: 180.0 # facing South (-x)
   convergence_threshold: 0.3
 
 waypoint_4:
@@ -58,9 +62,9 @@ waypoint_4:
   position:
     x: 0.0
     y: 0.0
-    z: -2.0
+    z: 2.0
   orientation:
     roll: 0.0
     pitch: 0.0
-    yaw: -1.5708 # -90 deg, facing -y
+    yaw: -90.0 # facing West (-y)
   convergence_threshold: 0.3
