@@ -75,8 +75,20 @@ Then open a PR in GitHub with base branch `autonomy-learning-period`.
 
 This assumes you already have the full Vortex NTNU ROS 2 workspace checked
 out and built (this repo alone does not contain `auv_setup`, `waypoint_manager`,
-or the simulator itself — see [Open questions](#open-questions)). From your
-workspace root:
+or the simulator itself — see [Open questions](#open-questions)).
+
+**Before building, put `vortex-msgs` on its `development` branch.** The
+`WaypointManager` action definition this exercise depends on lives there, not
+on `main` — building against `main` fails with unknown-type errors for
+`vortex_msgs/action/WaypointManager`:
+
+```shell
+cd src/vortex-msgs
+git checkout development && git pull
+cd ../..
+```
+
+Then, from your workspace root:
 
 ```shell
 colcon build --packages-up-to learning_period vortex_yasmin_utils
@@ -412,6 +424,9 @@ ros2 topic echo /<namespace>/nucleus/odom --once
   [`dependencies.repos`](../../dependencies.repos) — make sure your
   workspace's `src/` actually has them checked out and built, not just this
   repo.
+- **Unknown type `vortex_msgs/action/WaypointManager` (or missing
+  `waypoint_manager.hpp`).** `vortex-msgs` is on `main`. Check it out on
+  `development` and rebuild — see [Environment setup](#3-environment-setup).
 
 ## 9. Done when
 
