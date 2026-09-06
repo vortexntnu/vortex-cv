@@ -77,10 +77,12 @@ This assumes you already have the full Vortex NTNU ROS 2 workspace checked
 out and built (this repo alone does not contain `auv_setup`, `waypoint_manager`,
 or the simulator itself — see [Open questions](#open-questions)).
 
-**Before building, put `vortex-msgs` on its `development` branch.** The
-`WaypointManager` action definition this exercise depends on lives there, not
-on `main` — building against `main` fails with unknown-type errors for
-`vortex_msgs/action/WaypointManager`:
+**Before building, put `vortex-msgs` on its `development` branch.**
+`vortex_yasmin_utils` builds all its states as one library, and one of them
+(`collect_bearing_direction_state`, unrelated to this exercise) needs
+`vortex_msgs/action/CollectBearingDirection`, which only exists on
+`development`. Building against `main` fails with an unknown-type error for
+that action.
 
 ```shell
 cd src/vortex-msgs
@@ -424,9 +426,10 @@ ros2 topic echo /<namespace>/nucleus/odom --once
   [`dependencies.repos`](../../dependencies.repos) — make sure your
   workspace's `src/` actually has them checked out and built, not just this
   repo.
-- **Unknown type `vortex_msgs/action/WaypointManager` (or missing
-  `waypoint_manager.hpp`).** `vortex-msgs` is on `main`. Check it out on
-  `development` and rebuild — see [Environment setup](#3-environment-setup).
+- **Unknown type `vortex_msgs/action/CollectBearingDirection` (or missing
+  `collect_bearing_direction.hpp`) while building `vortex_yasmin_utils`.**
+  `vortex-msgs` is on `main`. Check it out on `development` and rebuild — see
+  [Environment setup](#3-environment-setup).
 
 ## 9. Done when
 
