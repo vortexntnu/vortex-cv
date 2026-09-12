@@ -1,0 +1,22 @@
+/**:
+  ros__parameters:
+    # Empty string = fresh random draw each run (printed to the log so you can
+    # reproduce it). Pass the same value as vortex-stonefish-sim's
+    # robosub_icon_seed to make role-dependent landmarks (gate, bin) agree
+    # with what the sim actually rendered.
+    seed: ""
+
+    # Which course elements to publish dummy landmarks for.
+    tasks: ["gate", "slalom", "torpedo_board", "bin"]
+
+    rate: 2.0
+
+    # Must be resolvable (directly, or via tf) to landmark_server's
+    # target_frame. Set this to that same frame to skip tf entirely.
+    frame_id: "world"
+
+    # Metres of Gaussian jitter added to every publish, to emulate an
+    # imperfect detector. 0.0 = perfect, noiseless ground truth.
+    position_noise_std: 0.0
+
+    topic: "landmarks"
