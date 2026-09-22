@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>slalom_pole_finder</name>
+  <version>0.1.0</version>
+  <description>Estimate 3D slalom pole positions from 2D detections and odometry.</description>
+
+  <maintainer email="you@example.com">You</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>rclcpp</depend>
+  <depend>tf2</depend>
+  <depend>vision_msgs</depend>
+
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
