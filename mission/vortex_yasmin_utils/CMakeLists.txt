@@ -21,7 +21,6 @@ add_library(vortex_yasmin_utils
   src/collect_bearing_direction_state.cpp
   src/first_wins_concurrence.cpp
   src/gripper_state.cpp
-  src/landmark_converge_state.cpp
   src/landmark_polling_state.cpp
   src/landmark_waypoint_state.cpp
   src/service_trigger_wait_state.cpp
