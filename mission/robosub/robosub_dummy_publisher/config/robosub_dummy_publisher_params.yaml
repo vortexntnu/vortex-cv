@@ -1,0 +1,32 @@
+/**:
+  ros__parameters:
+    # Empty string = fresh random draw each run (printed to the log so you can
+    # reproduce it). Pass the same value as vortex-stonefish-sim's
+    # robosub_icon_seed to make role-dependent landmarks (gate, bin) agree
+    # with what the sim actually rendered.
+    seed: ""
+
+    # Which course elements to publish dummy landmarks for.
+    tasks: ["gate", "slalom", "torpedo_board", "bin"]
+
+    rate: 2.0
+
+    # Must be resolvable (directly, or via tf) to landmark_server's
+    # target_frame. Set this to that same frame to skip tf entirely.
+    frame_id: "world"
+
+    # Metres of Gaussian jitter added to every publish, to emulate an
+    # imperfect detector. 0.0 = perfect, noiseless ground truth.
+    position_noise_std: 0.0
+
+    topic: "landmarks"
+
+    # Publish only what the cameras could see from the vehicle pose on
+    # odom_topic (front: range and half field of view; down: radius below the
+    # vehicle). Positions are then assumed to be in the frame of that odom.
+    use_field_of_view: false
+    odom_topic: "odom"
+    front_range_m: 8.0
+    front_half_fov_deg: 45.0
+    down_radius_m: 1.5
+    down_max_altitude_m: 3.0
