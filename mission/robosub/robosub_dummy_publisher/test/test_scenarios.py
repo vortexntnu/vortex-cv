@@ -99,10 +99,6 @@ def run_scenario(
                     DUMMY_SHARE, "config", "robosub_dummy_publisher_params.yaml"
                 ),
                 "-p",
-                f"frame_id:={ODOM_FRAME}",
-                "-p",
-                "rate:=10.0",
-                "-p",
                 f"tasks:=[{','.join(tasks)}]",
                 "-p",
                 f"seed:='{seed}'",

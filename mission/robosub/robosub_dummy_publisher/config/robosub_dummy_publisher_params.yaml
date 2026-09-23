@@ -9,11 +9,14 @@
     # Which course elements to publish dummy landmarks for.
     tasks: ["gate", "slalom", "torpedo_board", "bin"]
 
-    rate: 2.0
+    # Detectors run at 10 Hz or more. landmark_server confirms a track after
+    # 3 hits in 5 ticks of 200 ms, so a slower publisher never shows up in the map.
+    rate: 10.0
 
     # Must be resolvable (directly, or via tf) to landmark_server's
-    # target_frame. Set this to that same frame to skip tf entirely.
-    frame_id: "world"
+    # target_frame. The default is landmark_server's target_frame, so no tf is
+    # needed; the positions are then odom positions (the simulator's world).
+    frame_id: "nautilus/odom"
 
     # Metres of Gaussian jitter added to every publish, to emulate an
     # imperfect detector. 0.0 = perfect, noiseless ground truth.

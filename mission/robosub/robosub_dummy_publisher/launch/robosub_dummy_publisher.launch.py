@@ -64,7 +64,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 "rate",
-                default_value="2.0",
+                default_value="10.0",
                 description="Publish rate in Hz.",
             ),
             OpaqueFunction(function=launch_setup),

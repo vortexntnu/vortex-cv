@@ -109,7 +109,7 @@ ros2 launch robosub_dummy_publisher robosub_dummy_publisher.launch.py \
   (default: all four) -- e.g. bring up only `torpedo_board` while testing the
   torpedo mission state, or only `slalom` while tuning line-up guidance.
 - `seed`: see above.
-- `rate`: publish rate in Hz (default 2.0).
+- `rate`: publish rate in Hz (default 10.0; landmark_server needs a detector-like rate to confirm tracks).
 - `frame_id` / `position_noise_std` / `topic`: set in
   `config/robosub_dummy_publisher_params.yaml` -- `frame_id` must be
   resolvable (directly, or via tf) to `landmark_server`'s `target_frame`; set
