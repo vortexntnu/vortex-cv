@@ -30,6 +30,7 @@ then assumed to be in the frame of that odometry.
 
 - `test/test_course_layout.py`: the layout is consistent with landmark_server's rules
 - `test/test_end_to_end_map.py`: dummy -> landmark_server -> `object_map` (gate yaw, openings within 5 cm, bin roles, pipes)
+- `test/test_unstable_map.py`: the same chain with unstable detections (`profile:=unstable`); the map must stay stable
 - `test/test_scenarios.py`: gate, torpedo and bin scenarios of `landmark_targets` against the whole chain with a kinematic fake vehicle
 
 ## Known issue: slalom layout
@@ -114,6 +115,30 @@ ros2 launch robosub_dummy_publisher robosub_dummy_publisher.launch.py \
   `config/robosub_dummy_publisher_params.yaml` -- `frame_id` must be
   resolvable (directly, or via tf) to `landmark_server`'s `target_frame`; set
   it to that same frame to skip tf entirely.
+- `profile`: an extra parameter file `config/robosub_dummy_publisher_<profile>.yaml`
+  on top of the defaults. `profile:=unstable` gives a detector that is noisy
+  and drops out (see below).
+
+### Unstable detections
+
+To test how robust the map is, the publisher can behave like a bad detector.
+All of it is off by default; `profile:=unstable` turns on a moderate set.
+
+| Parameter | Unstable profile | What it does |
+|---|---|---|
+| `position_noise_std` | 0.05 | Gaussian position noise [m] |
+| `detection_probability` | 0.7 | chance a landmark is detected in a frame |
+| `frame_drop_probability` | 0.05 | chance the whole message is lost |
+| `dropout_rate_per_sec` / `dropout_duration_sec` | 0.05 / [1, 6] | occlusions: a landmark is gone for 1-6 s about every 20 s |
+| `outlier_probability` / `outlier_std_m` | 0.02 / 1.5 | a detection far off its landmark |
+| `false_positive_rate` / `false_positive_radius_m` | 0.1 / 2.0 | spurious detections per frame, a copy of a real class within the radius (id >= 1000) |
+| `noise_seed` | -1 | seed for all of the above; -1 draws a new one each run |
+
+`test/test_unstable_map.py` runs this profile against `landmark_server` for a
+minute and checks the map against the true layout (ids kept, no duplicates,
+no tracks from clutter, positions within 0.5 m, no gaps while occluded). Run it
+with `-s` to see a table per class, and with `UNSTABLE_PARAMS_FILE=<yaml>` to
+try other settings.
 
 ## Landmark types
 

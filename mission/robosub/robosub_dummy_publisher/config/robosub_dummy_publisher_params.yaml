@@ -33,3 +33,15 @@
     front_half_fov_deg: 45.0
     down_radius_m: 1.5
     down_max_altitude_m: 3.0
+
+    # Unstable detections, to test the robustness of the map. All off here;
+    # launch with profile:=unstable for config/robosub_dummy_publisher_unstable.yaml.
+    detection_probability: 1.0     # per landmark and frame
+    frame_drop_probability: 0.0    # the whole message is lost
+    dropout_rate_per_sec: 0.0      # new occlusions per landmark [1/s]
+    dropout_duration_sec: [1.0, 5.0]
+    outlier_probability: 0.0       # detection far off (std outlier_std_m)
+    outlier_std_m: 1.0
+    false_positive_rate: 0.0       # spurious detections per frame (expected)
+    false_positive_radius_m: 2.0   # ... within this radius of a real landmark
+    noise_seed: -1                 # -1 = a fresh draw each run

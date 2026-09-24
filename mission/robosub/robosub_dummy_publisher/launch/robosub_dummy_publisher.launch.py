@@ -24,6 +24,16 @@ def launch_setup(context, *args, **kwargs):
         "seed": LaunchConfiguration("seed").perform(context),
         "rate": float(LaunchConfiguration("rate").perform(context)),
     }
+    params = [default_config]
+    profile = LaunchConfiguration("profile").perform(context)
+    if profile:
+        params.append(
+            os.path.join(
+                get_package_share_directory("robosub_dummy_publisher"),
+                "config",
+                f"robosub_dummy_publisher_{profile}.yaml",
+            )
+        )
     tasks = LaunchConfiguration("tasks").perform(context)
     if tasks:
         overrides["tasks"] = [t.strip() for t in tasks.split(",") if t.strip()]
@@ -34,7 +44,7 @@ def launch_setup(context, *args, **kwargs):
             executable="robosub_dummy_publisher_node",
             name="robosub_dummy_publisher_node",
             namespace=namespace,
-            parameters=[default_config, overrides],
+            parameters=[*params, overrides],
             output="screen",
         )
     ]
@@ -60,6 +70,15 @@ def generate_launch_description():
                 description=(
                     "Comma-separated course elements to publish dummy landmarks "
                     "for (gate, slalom, torpedo_board, bin). Empty means all."
+                ),
+            ),
+            DeclareLaunchArgument(
+                "profile",
+                default_value="",
+                description=(
+                    "Extra parameter file config/robosub_dummy_publisher_<profile>.yaml "
+                    "on top of the defaults, e.g. 'unstable' for noisy detections "
+                    "that drop out."
                 ),
             ),
             DeclareLaunchArgument(

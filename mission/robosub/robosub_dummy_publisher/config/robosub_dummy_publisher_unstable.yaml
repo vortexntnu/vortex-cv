@@ -1,0 +1,14 @@
+# Loaded on top of robosub_dummy_publisher_params.yaml with profile:=unstable.
+# A detector that is noisy and drops out, to check that the map stays stable:
+# ids kept, positions near the truth, no duplicates or tracks from clutter.
+/**:
+  ros__parameters:
+    position_noise_std: 0.05       # [m]
+    detection_probability: 0.7     # 30 % of the detections are missed
+    frame_drop_probability: 0.05   # 5 % of the frames are lost
+    dropout_rate_per_sec: 0.05     # each landmark is occluded every ~20 s ...
+    dropout_duration_sec: [1.0, 6.0]  # ... for 1-6 s
+    outlier_probability: 0.02      # 2 % far off ...
+    outlier_std_m: 1.5             # ... by 1.5 m (std)
+    false_positive_rate: 0.1       # one spurious detection every 10 frames
+    false_positive_radius_m: 2.0
