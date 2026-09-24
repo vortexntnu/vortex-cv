@@ -124,6 +124,30 @@ def _gate_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
         role = role_picks.get(slot)
         subtype = _GATE_ROLE_SUBTYPE.get(role, LandmarkSubtype.GATE_SEARCH_RESCUE)
         landmarks.append(Landmark(slot, LandmarkType.GATE, subtype, offset))
+    # The posts, from the vertical clusters of gate__white/red/black.obj
+    # (world): outer uprights at Y -1.569 and 1.529 spanning Z 2.07-3.43, and
+    # the short post between the openings at Y -0.019 hanging from the top bar,
+    # Z 2.16-2.76. Positions are the centre of each post.
+    landmarks += [
+        Landmark(
+            "gate_pole_left",
+            LandmarkType.GATE,
+            LandmarkSubtype.GATE_POLE_EDGE,
+            (0.0, -1.552, 0.032),
+        ),
+        Landmark(
+            "gate_pole_right",
+            LandmarkType.GATE,
+            LandmarkSubtype.GATE_POLE_EDGE,
+            (0.0, 1.546, 0.032),
+        ),
+        Landmark(
+            "gate_pole_middle",
+            LandmarkType.GATE,
+            LandmarkSubtype.GATE_POLE_MIDDLE,
+            (-0.015, -0.002, -0.258),
+        ),
+    ]
     return tuple(landmarks)
 
 

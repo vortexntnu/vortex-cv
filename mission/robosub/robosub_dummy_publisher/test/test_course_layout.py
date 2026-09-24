@@ -26,24 +26,46 @@ def _by_subtype(landmarks):
     return {lm.landmark_subtype: lm for lm in landmarks}
 
 
+_GATE_PANELS = (LandmarkSubtype.GATE_SEARCH_RESCUE, LandmarkSubtype.GATE_SURVEY_REPAIR)
+
+
 def test_gate_has_whole_gate_and_two_panels():
     landmarks = _landmarks("gate")
     whole = [
         lm for lm in landmarks if lm.landmark_subtype == LandmarkSubtype.GATE_WHOLE
     ]
-    panels = [
-        lm for lm in landmarks if lm.landmark_subtype != LandmarkSubtype.GATE_WHOLE
-    ]
+    panels = [lm for lm in landmarks if lm.landmark_subtype in _GATE_PANELS]
     assert len(whole) == 1
     assert len(panels) == 2
 
 
-def test_gate_whole_is_the_midpoint_of_the_panels_in_y():
-    panels = [
+def test_gate_posts_bound_the_two_openings():
+    landmarks = _landmarks("gate")
+    edges = sorted(
+        (
+            lm
+            for lm in landmarks
+            if lm.landmark_subtype == LandmarkSubtype.GATE_POLE_EDGE
+        ),
+        key=lambda lm: lm.offset[1],
+    )
+    middle = [
         lm
-        for lm in _landmarks("gate")
-        if lm.landmark_subtype != LandmarkSubtype.GATE_WHOLE
+        for lm in landmarks
+        if lm.landmark_subtype == LandmarkSubtype.GATE_POLE_MIDDLE
     ]
+    assert len(edges) == 2
+    assert len(middle) == 1
+    # Each panel (role image) is in the opening between the middle post and
+    # one outer upright.
+    for panel in (lm for lm in landmarks if lm.landmark_subtype in _GATE_PANELS):
+        edge = edges[0] if panel.offset[1] < middle[0].offset[1] else edges[1]
+        centre = 0.5 * (edge.offset[1] + middle[0].offset[1])
+        assert abs(panel.offset[1] - centre) < 0.05
+
+
+def test_gate_whole_is_the_midpoint_of_the_panels_in_y():
+    panels = [lm for lm in _landmarks("gate") if lm.landmark_subtype in _GATE_PANELS]
     assert len(panels) == 2
     mid_y = sum(p.offset[1] for p in panels) / 2
     whole = next(

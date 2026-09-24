@@ -12,7 +12,7 @@ a simulator.
 
 | Task | Published | Derived by landmark_server |
 |---|---|---|
-| gate | `GATE_WHOLE` and the two panels (`GATE_SURVEY_REPAIR`, `GATE_SEARCH_RESCUE`) | gate yaw (locked), synthetic gate, course frame |
+| gate | `GATE_WHOLE`, the two panels (`GATE_SURVEY_REPAIR`, `GATE_SEARCH_RESCUE`) and the three posts (`GATE_POLE_EDGE` x2, `GATE_POLE_MIDDLE`) | gate yaw (locked), synthetic gate, course frame |
 | slalom | `SLALOM_PIPE_WHITE` / `_RED` | (map limits, memory) |
 | torpedo_board | `TORPEDO_BOARD_WHOLE` and the four **icons** (`TORPEDO_ICON_*`) | board yaw, version, `TORPEDO_TARGET_*` openings |
 | bin | `BIN_UNCLASSIFIED` (front camera) and the role bins (`BIN_*` role, down camera) | roleless duplicate hidden |

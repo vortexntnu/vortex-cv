@@ -239,11 +239,25 @@ def _yaw(pose):
 
 def test_gate_scenario_reaches_the_target_and_drives_through():
     # The vehicle starts 4 m before the gate (x = 4): the scenario approaches
-    # 2.5 m in front of it (x = 1.5) and drives 5 m through.
-    exit_code, final = run_scenario(["gate"], (0.0, 0.0, 2.0), "gate")
+    # 2.5 m in front of the opening of the chosen role (x = 1.5) and drives
+    # 5 m through it, clear of the middle post at y ~ 0.
+    from robosub_dummy_publisher.course_layout import TASKS, draw_role_picks
+    from vortex_msgs.msg import LandmarkSubtype
+
+    seed = "7"
+    gate = TASKS["gate"]
+    picks, _ = draw_role_picks(seed)
+    (panel,) = [
+        lm
+        for lm in gate.build_landmarks(picks)
+        if lm.landmark_subtype == LandmarkSubtype.GATE_SURVEY_REPAIR
+    ]
+    opening_y = gate.base_pose[1] + panel.offset[1]
+    exit_code, final = run_scenario(["gate"], (0.0, 0.0, 2.0), "gate", seed=seed)
     assert exit_code == 0, f"scenario did not succeed (exit code {exit_code})"
     assert final[0] == pytest.approx(6.5, abs=0.5)
-    assert abs(final[1]) < 0.5
+    assert final[1] == pytest.approx(opening_y, abs=0.3)
+    assert abs(final[1]) > 0.4
     assert abs(_yaw(final)) < math.radians(15.0)
 
 
