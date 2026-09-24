@@ -69,7 +69,7 @@ def generate_launch_description():
                 default_value="",
                 description=(
                     "Comma-separated course elements to publish dummy landmarks "
-                    "for (gate, slalom, torpedo_board, bin). Empty means all."
+                    "for (gate, slalom, torpedo_board, bin, octagon, table). Empty means all."
                 ),
             ),
             DeclareLaunchArgument(

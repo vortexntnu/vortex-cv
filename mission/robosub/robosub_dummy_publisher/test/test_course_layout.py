@@ -12,6 +12,7 @@ from robosub_dummy_publisher.course_layout import (
     _TORPEDO_ICON_TO_HOLE,
     _TORPEDO_ROLE_BY_VERSION,
     TASKS,
+    draw_role_picks,
 )
 from vortex_msgs.msg import LandmarkSubtype, LandmarkType
 
@@ -164,8 +165,43 @@ def test_all_landmark_types_are_known():
         LandmarkType.SLALOM_PIPE,
         LandmarkType.TORPEDO_BOARD,
         LandmarkType.BIN,
+        LandmarkType.OCTAGON,
+        LandmarkType.TABLE,
     }
     for task in TASKS.values():
         for lm in task.landmarks({}):
             assert lm.landmark_type in known
             assert not math.isnan(lm.offset[0])
+
+
+def test_octagon_has_four_different_images_that_follow_the_seed():
+    picks_a, _ = draw_role_picks(7)
+    picks_b, _ = draw_role_picks(8)
+    images = {
+        seed: {
+            lm.label: lm.landmark_subtype
+            for lm in TASKS["octagon"].landmarks(picks)
+            if lm.landmark_subtype != LandmarkSubtype.OCTAGON_WHOLE
+        }
+        for seed, picks in ((7, picks_a), (8, picks_b))
+    }
+    for per_slot in images.values():
+        assert len(per_slot) == 4
+        assert len(set(per_slot.values())) == 4  # a permutation
+    # The images move between the plates from seed to seed; the plates do not.
+    if picks_a:  # only when stonefish_sim's manifest is installed
+        assert images[7] != images[8]
+
+
+def test_table_items_are_loose_and_baskets_are_not():
+    table = TASKS["table"].landmarks({})
+    items = [
+        lm
+        for lm in table
+        if lm.label.startswith("restore_jar")
+        or lm.label.startswith("restore_container")
+    ]
+    assert len(items) == 4
+    assert all(lm.movable and lm.camera == "down" for lm in items)
+    assert not any(lm.movable for lm in table if lm not in items)
+    assert len({lm.landmark_subtype for lm in items}) == 4

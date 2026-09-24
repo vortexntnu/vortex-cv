@@ -16,6 +16,8 @@ a simulator.
 | slalom | `SLALOM_PIPE_WHITE` / `_RED` | (map limits, memory) |
 | torpedo_board | `TORPEDO_BOARD_WHOLE` and the four **icons** (`TORPEDO_ICON_*`) | board yaw, version, `TORPEDO_TARGET_*` openings |
 | bin | `BIN_UNCLASSIFIED` (front camera) and the role bins (`BIN_*` role, down camera) | roleless duplicate hidden |
+| octagon | `OCTAGON_WHOLE` (surface) and the four plate images (`OCTAGON_IMAGE_REPAIR/RESCUE/SEARCH/SURVEY`, drawn per run over the plates) | octagon at the surface |
+| table | `TABLE_WHOLE` (table top, 0.7 m above the floor), the two baskets (`TABLE_BASKET_*`, down camera) and the four items (`TABLE_ITEM_*` on the jars/containers, down camera) | (memory) |
 
 The icon positions are the openings minus `_TORPEDO_ICON_TO_HOLE`, the same
 numbers as `rules.torpedo_targets_from_icons` in landmark_server's config
@@ -31,6 +33,7 @@ then assumed to be in the frame of that odometry.
 - `test/test_course_layout.py`: the layout is consistent with landmark_server's rules
 - `test/test_end_to_end_map.py`: dummy -> landmark_server -> `object_map` (gate yaw, openings within 5 cm, bin roles, pipes)
 - `test/test_unstable_map.py`: the same chain with unstable detections (`profile:=unstable`); the map must stay stable
+- `test/test_moving_items.py`: the jars and containers are moved during the run; the map must follow each move with the same id
 - `test/test_scenarios.py`: gate, torpedo and bin scenarios of `landmark_targets` against the whole chain with a kinematic fake vehicle
 
 ## Known issue: slalom layout
@@ -106,8 +109,8 @@ ros2 launch robosub_dummy_publisher robosub_dummy_publisher.launch.py \
   drone:=orca tasks:=torpedo_board,bin seed:=12345
 ```
 
-- `tasks`: comma-separated subset of `gate`, `slalom`, `torpedo_board`, `bin`
-  (default: all four) -- e.g. bring up only `torpedo_board` while testing the
+- `tasks`: comma-separated subset of `gate`, `slalom`, `torpedo_board`, `bin`,
+  `octagon`, `table` (default: all) -- e.g. bring up only `torpedo_board` while testing the
   torpedo mission state, or only `slalom` while tuning line-up guidance.
 - `seed`: see above.
 - `rate`: publish rate in Hz (default 10.0; landmark_server needs a detector-like rate to confirm tracks).
@@ -134,6 +137,11 @@ All of it is off by default; `profile:=unstable` turns on a moderate set.
 | `false_positive_rate` / `false_positive_radius_m` | 0.1 / 2.0 | spurious detections per frame, a copy of a real class within the radius (id >= 1000) |
 | `noise_seed` | -1 | seed for all of the above; -1 draws a new one each run |
 
+**Moving objects**: the jars and containers on the table are loose (dynamic
+bodies in the sim) and get moved during a run. `movable_move_interval_sec`
+(0 = off) moves each of them to a random spot within `movable_move_radius_m`
+of where it started, on average that often; each move is logged.
+
 `test/test_unstable_map.py` runs this profile against `landmark_server` for a
 minute and checks the map against the true layout (ids kept, no duplicates,
 no tracks from clutter, positions within 0.5 m, no gaps while occluded). Run it
@@ -150,8 +158,7 @@ combined size+role per opening. See `vortex-msgs/msg/LandmarkType.msg` and
 
 ## Not yet covered
 
-Task 5 (octagon / return): there is no table/octagon geometry in the sim data,
-and no dummy for it. Task 5 isn't implemented -- `robosub_icons.json` already
-has its role groups (`octagon_plates`, `basket_floors`, `table_items`) so
-extending `course_layout.py` with an `octagon` task follows the same pattern
-as `bin`.
+Task 5: the octagon and table are published, but the path markers, the
+pinger and the octagon's surfacing area are not. The basket images are paired
+with the roles as red cross = Search & Rescue and warning = Survey & Repair
+(like the bins); check that against the handbook.

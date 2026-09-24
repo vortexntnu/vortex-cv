@@ -81,6 +81,7 @@ class Landmark:
     landmark_subtype: int
     offset: Vec3  # metres, in the task's (unrotated) world axes
     camera: str = "front"  # "front" (stereo) or "down" (mono, sees the floor)
+    movable: bool = False  # loose object that can be moved during a run
 
 
 @dataclass(frozen=True)
@@ -102,6 +103,25 @@ class Task:
 _GATE_ROLE_SUBTYPE = {
     "Task1_SearchRescue.png": LandmarkSubtype.GATE_SEARCH_RESCUE,
     "Task1_SurveyRepair.png": LandmarkSubtype.GATE_SURVEY_REPAIR,
+}
+_OCTAGON_IMAGE_SUBTYPE = {
+    "Task5_Repair.png": LandmarkSubtype.OCTAGON_IMAGE_REPAIR,
+    "Task5_Rescue.png": LandmarkSubtype.OCTAGON_IMAGE_RESCUE,
+    "Task5_Search.png": LandmarkSubtype.OCTAGON_IMAGE_SEARCH,
+    "Task5_Survey.png": LandmarkSubtype.OCTAGON_IMAGE_SURVEY,
+}
+# Basket floors: the red cross marks the Search & Rescue basket and the
+# warning sign the Survey & Repair one (same pairing as the bins: blood for
+# Search & Rescue, fire for Survey & Repair).
+_TABLE_BASKET_SUBTYPE = {
+    "Task5_RedCross.png": LandmarkSubtype.TABLE_BASKET_SEARCH_RESCUE,
+    "Task5_Warning.png": LandmarkSubtype.TABLE_BASKET_SURVEY_REPAIR,
+}
+_TABLE_ITEM_SUBTYPE = {
+    "Task5_BandAid.png": LandmarkSubtype.TABLE_ITEM_BANDAID,
+    "Task5_Electric.png": LandmarkSubtype.TABLE_ITEM_ELECTRIC,
+    "Task5_NutBolt.png": LandmarkSubtype.TABLE_ITEM_NUTBOLT,
+    "Task5_Pill.png": LandmarkSubtype.TABLE_ITEM_PILL,
 }
 _BIN_ROLE_SUBTYPE = {
     "Task3_Blood.png": LandmarkSubtype.BIN_SEARCH_RESCUE,
@@ -362,6 +382,75 @@ def _bin_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
     return tuple(landmarks)
 
 
+def _octagon_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
+    # base_pose is the centre of octagon__pvc_white.obj (the floating frame,
+    # at the surface). The four image plates hang 0.24 m under it; offsets are
+    # the centres of octagon__icon_octagon_<n>.obj. Which image is on which
+    # plate is drawn per run (manifest group octagon_plates); the plates
+    # themselves do not move.
+    slots = {
+        "octagon_1": (1.296, -0.001, 0.243),
+        "octagon_2": (-0.917, 0.916, 0.243),
+        "octagon_3": (0.000, -1.297, 0.243),
+        "octagon_4": (0.917, 0.916, 0.243),
+    }
+    landmarks = [
+        Landmark(
+            "octagon",
+            LandmarkType.OCTAGON,
+            LandmarkSubtype.OCTAGON_WHOLE,
+            (0.0, 0.0, 0.0),
+        )
+    ]
+    for i, (slot, offset) in enumerate(slots.items()):
+        subtype = _OCTAGON_IMAGE_SUBTYPE.get(
+            role_picks.get(slot), LandmarkSubtype.OCTAGON_IMAGE_REPAIR + i
+        )
+        landmarks.append(Landmark(slot, LandmarkType.OCTAGON, subtype, offset))
+    return tuple(landmarks)
+
+
+def _table_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
+    # base_pose is the centre of the table top (restore_table__white.obj),
+    # 0.7 m above the pool floor, straight under the octagon. The baskets
+    # (restore_table__icon_restore_table_<n>) and the loose items on top
+    # (restore_jar_<n>, restore_container_<n>, dynamic bodies in the sim) are
+    # seen by the down camera. Which image is where is drawn per run; the
+    # items can also be moved during a run (see movable_* parameters).
+    baskets = {
+        "restore_table_1": (0.010, 0.393, 0.027),
+        "restore_table_2": (0.011, -0.395, 0.027),
+    }
+    items = {
+        "restore_jar_1": (-0.120, -0.120, -0.089),
+        "restore_jar_2": (-0.120, 0.120, -0.089),
+        "restore_container_1": (0.120, -0.120, -0.077),
+        "restore_container_2": (0.120, 0.120, -0.077),
+    }
+    landmarks = [
+        Landmark(
+            "table", LandmarkType.TABLE, LandmarkSubtype.TABLE_WHOLE, (0.0, 0.0, 0.0)
+        )
+    ]
+    for i, (slot, offset) in enumerate(baskets.items()):
+        subtype = _TABLE_BASKET_SUBTYPE.get(
+            role_picks.get(slot), LandmarkSubtype.TABLE_BASKET_SURVEY_REPAIR + i
+        )
+        landmarks.append(
+            Landmark(slot, LandmarkType.TABLE, subtype, offset, camera="down")
+        )
+    for i, (slot, offset) in enumerate(items.items()):
+        subtype = _TABLE_ITEM_SUBTYPE.get(
+            role_picks.get(slot), LandmarkSubtype.TABLE_ITEM_NUTBOLT + i
+        )
+        landmarks.append(
+            Landmark(
+                slot, LandmarkType.TABLE, subtype, offset, camera="down", movable=True
+            )
+        )
+    return tuple(landmarks)
+
+
 TASKS: dict[str, Task] = {
     "gate": Task("gate", "3.2.2", (4.0, -0.017, 2.718), _gate_landmarks),
     # Centroid of the three slalom gates' red poles (see _slalom_landmarks).
@@ -370,6 +459,8 @@ TASKS: dict[str, Task] = {
         "torpedo_board", "3.2.5", (16.82, -5.204, 2.825), _torpedo_board_landmarks
     ),
     "bin": Task("bin", "3.2.4", (16.544, 4.206, 3.152), _bin_landmarks),
+    "octagon": Task("octagon", "3.2.6", (19.254, 0.114, 0.0), _octagon_landmarks),
+    "table": Task("table", "3.2.6", (19.254, 0.113, 2.717), _table_landmarks),
 }
 
 

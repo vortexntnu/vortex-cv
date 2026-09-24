@@ -56,6 +56,11 @@ class RobosubDummyPublisherNode(Node):
         # class of a random landmark, within the radius of it (clutter).
         self.declare_parameter("false_positive_rate", 0.0)
         self.declare_parameter("false_positive_radius_m", 2.0)
+        # Loose objects (the jars and containers on the table) are moved to a
+        # new spot within the radius of where they started, on average every
+        # interval seconds each. 0 = they stay put.
+        self.declare_parameter("movable_move_interval_sec", 0.0)
+        self.declare_parameter("movable_move_radius_m", 0.5)
         # Seed for the noise and the instability. -1 = a fresh draw each run.
         self.declare_parameter("noise_seed", -1)
 
@@ -81,6 +86,8 @@ class RobosubDummyPublisherNode(Node):
         self._outlier_std = self.get_parameter("outlier_std_m").value
         self._fp_rate = self.get_parameter("false_positive_rate").value
         self._fp_radius = self.get_parameter("false_positive_radius_m").value
+        self._move_interval = self.get_parameter("movable_move_interval_sec").value
+        self._move_radius = self.get_parameter("movable_move_radius_m").value
         noise_seed = self.get_parameter("noise_seed").value
         self._rng = random.Random(None if noise_seed < 0 else noise_seed)
         self._period = 1.0 / rate
@@ -127,6 +134,13 @@ class RobosubDummyPublisherNode(Node):
                 )
 
         self._occluded_until = [0.0] * len(self._landmarks)
+        self._home = [pos for _, pos in self._landmarks]
+        if self._move_interval > 0.0:
+            n = sum(1 for lm, _ in self._landmarks if lm.movable)
+            self.get_logger().info(
+                f"{n} loose object(s) move every ~{self._move_interval} s "
+                f"within {self._move_radius} m"
+            )
         if self._unstable():
             self.get_logger().info(
                 f"unstable detections: detect p={self._p_detect}, "
@@ -192,6 +206,7 @@ class RobosubDummyPublisherNode(Node):
         now_time = self.get_clock().now()
         now = now_time.nanoseconds * 1e-9
         stamp = now_time.to_msg()
+        self._move_loose_objects()
         # Advance the occlusions even when the frame is lost.
         detected = [self._detected(i, now) for i in range(len(self._landmarks))]
         if self._rng.random() < self._p_frame_drop:
@@ -221,6 +236,23 @@ class RobosubDummyPublisherNode(Node):
             msg.landmarks.append(self._entry(stamp, 1000 + k, landmark, x, y, z))
 
         self._publisher.publish(msg)
+
+    def _move_loose_objects(self):
+        if self._move_interval <= 0.0:
+            return
+        for i, (landmark, _) in enumerate(self._landmarks):
+            if not landmark.movable:
+                continue
+            if self._rng.random() >= self._period / self._move_interval:
+                continue
+            hx, hy, hz = self._home[i]
+            r = self._move_radius * math.sqrt(self._rng.random())
+            a = self._rng.uniform(-math.pi, math.pi)
+            new = (hx + r * math.cos(a), hy + r * math.sin(a), hz)
+            self._landmarks[i] = (landmark, new)
+            self.get_logger().info(
+                f"moved {landmark.label} to ({new[0]:.2f}, {new[1]:.2f}, {new[2]:.2f})"
+            )
 
     def _perturb(self, x, y, z):
         std = self._noise_std

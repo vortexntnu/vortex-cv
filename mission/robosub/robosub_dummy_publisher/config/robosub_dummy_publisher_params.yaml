@@ -7,7 +7,7 @@
     seed: ""
 
     # Which course elements to publish dummy landmarks for.
-    tasks: ["gate", "slalom", "torpedo_board", "bin"]
+    tasks: ["gate", "slalom", "torpedo_board", "bin", "octagon", "table"]
 
     # Detectors run at 10 Hz or more. landmark_server confirms a track after
     # 3 hits in 5 ticks of 200 ms, so a slower publisher never shows up in the map.
@@ -45,3 +45,7 @@
     false_positive_rate: 0.0       # spurious detections per frame (expected)
     false_positive_radius_m: 2.0   # ... within this radius of a real landmark
     noise_seed: -1                 # -1 = a fresh draw each run
+    # The jars and containers on the table: moved within the radius of where
+    # they started, on average every interval seconds each. 0 = they stay put.
+    movable_move_interval_sec: 0.0
+    movable_move_radius_m: 0.5
