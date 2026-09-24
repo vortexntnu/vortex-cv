@@ -15,7 +15,7 @@ a simulator.
 | gate | `GATE_WHOLE`, the two panels (`GATE_SURVEY_REPAIR`, `GATE_SEARCH_RESCUE`) and the three posts (`GATE_POLE_EDGE` x2, `GATE_POLE_MIDDLE`) | gate yaw (locked), synthetic gate, course frame |
 | slalom | `SLALOM_PIPE_WHITE` / `_RED` | (map limits, memory) |
 | torpedo_board | `TORPEDO_BOARD_WHOLE` and the four **icons** (`TORPEDO_ICON_*`) | board yaw, version, `TORPEDO_TARGET_*` openings |
-| bin | `BIN_UNCLASSIFIED` (front camera) and the role bins (`BIN_*` role, down camera) | roleless duplicate hidden |
+| bin | `BIN_STRUCTURE` (the rig), `BIN_UNCLASSIFIED` (front camera) and the role bins (`BIN_*` role, down camera) | roleless duplicate hidden |
 | octagon | `OCTAGON_WHOLE` (surface) and the four plate images (`OCTAGON_IMAGE_REPAIR/RESCUE/SEARCH/SURVEY`, drawn per run over the plates) | octagon at the surface |
 | table | `TABLE_WHOLE` (table top, 0.7 m above the floor), the two baskets (`TABLE_BASKET_*`, down camera) and the four items (`TABLE_ITEM_*` on the jars/containers, down camera) | (memory) |
 

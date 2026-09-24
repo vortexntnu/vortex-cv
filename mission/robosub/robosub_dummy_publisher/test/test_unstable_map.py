@@ -89,6 +89,9 @@ def _truth():
             ]
         )
     ]
+    # The bin rig is locked to the pool floor (rules.z_lock).
+    rig = (LandmarkType.BIN, LandmarkSubtype.BIN_STRUCTURE)
+    truth[rig] = [(x, y, 3.432) for x, y, _ in truth[rig]]
     return truth
 
 

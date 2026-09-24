@@ -362,7 +362,13 @@ def _bin_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
         "bin_3": (0.016, 0.531, -0.148),
         "bin_4": (-0.496, 0.015, -0.115),
     }
-    landmarks = []
+    # The rig the bins sit on (bins_pipeline__white.obj): its centre is the
+    # task's base_pose.
+    landmarks = [
+        Landmark(
+            "bin_rig", LandmarkType.BIN, LandmarkSubtype.BIN_STRUCTURE, (0.0, 0.0, 0.0)
+        )
+    ]
     for slot, offset in slots.items():
         role = role_picks.get(slot)
         subtype = _BIN_ROLE_SUBTYPE.get(role, LandmarkSubtype.BIN_SEARCH_RESCUE)

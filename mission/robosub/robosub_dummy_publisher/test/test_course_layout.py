@@ -145,7 +145,11 @@ def test_openings_are_recovered_from_the_icons(version):
 
 
 def test_each_bin_has_a_front_detection_and_a_down_camera_role():
-    bins = _landmarks("bin")
+    bins = [
+        lm
+        for lm in _landmarks("bin")
+        if lm.landmark_subtype != LandmarkSubtype.BIN_STRUCTURE
+    ]
     front = [lm for lm in bins if lm.camera == "front"]
     down = [lm for lm in bins if lm.camera == "down"]
     assert len(front) == len(down) == 4
@@ -205,3 +209,13 @@ def test_table_items_are_loose_and_baskets_are_not():
     assert all(lm.movable and lm.camera == "down" for lm in items)
     assert not any(lm.movable for lm in table if lm not in items)
     assert len({lm.landmark_subtype for lm in items}) == 4
+
+
+def test_bin_rig_is_under_the_bins():
+    landmarks = _landmarks("bin")
+    (rig,) = [
+        lm for lm in landmarks if lm.landmark_subtype == LandmarkSubtype.BIN_STRUCTURE
+    ]
+    bins = [lm for lm in landmarks if lm is not rig]
+    # z down: every bin is above the rig centre.
+    assert all(lm.offset[2] < rig.offset[2] for lm in bins)
