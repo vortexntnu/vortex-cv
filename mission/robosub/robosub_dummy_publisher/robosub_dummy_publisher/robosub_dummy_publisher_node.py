@@ -11,6 +11,7 @@ import random
 import rclpy
 from geometry_msgs.msg import PoseWithCovariance
 from nav_msgs.msg import Odometry
+from rcl_interfaces.msg import ParameterDescriptor
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from vortex_msgs.msg import Landmark, LandmarkArray
@@ -22,7 +23,8 @@ class RobosubDummyPublisherNode(Node):
     def __init__(self):
         super().__init__("robosub_dummy_publisher_node")
 
-        self.declare_parameter("seed", "")
+        # A number or a string; "-p seed:=7" gives an integer.
+        self.declare_parameter("seed", "", ParameterDescriptor(dynamic_typing=True))
         self.declare_parameter("tasks", list(TASKS.keys()))
         self.declare_parameter("rate", 2.0)
         self.declare_parameter("frame_id", "world")
