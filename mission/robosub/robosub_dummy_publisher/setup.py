@@ -30,6 +30,8 @@ setup(
         'console_scripts': [
             'robosub_dummy_publisher_node = '
             'robosub_dummy_publisher.robosub_dummy_publisher_node:main',
+            'detections_markers_node = '
+            'robosub_dummy_publisher.detections_markers_node:main',
         ],
     },
 )

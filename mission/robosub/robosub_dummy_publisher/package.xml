@@ -13,6 +13,8 @@
   <depend>geometry_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>builtin_interfaces</depend>
+  <depend>visualization_msgs</depend>
   <exec_depend>auv_setup</exec_depend>
 
   <test_depend>landmark_server</test_depend>

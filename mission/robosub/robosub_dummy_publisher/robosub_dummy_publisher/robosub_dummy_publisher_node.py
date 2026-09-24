@@ -59,8 +59,10 @@ class RobosubDummyPublisherNode(Node):
         # Loose objects (the jars and containers on the table) are moved to a
         # new spot within the radius of where they started, on average every
         # interval seconds each. 0 = they stay put.
-        self.declare_parameter("movable_move_interval_sec", 0.0)
-        self.declare_parameter("movable_move_radius_m", 0.5)
+        # Integers are accepted too ("-p movable_move_interval_sec:=10").
+        number = ParameterDescriptor(dynamic_typing=True)
+        self.declare_parameter("movable_move_interval_sec", 0.0, number)
+        self.declare_parameter("movable_move_radius_m", 0.5, number)
         # Seed for the noise and the instability. -1 = a fresh draw each run.
         self.declare_parameter("noise_seed", -1)
 
@@ -86,8 +88,10 @@ class RobosubDummyPublisherNode(Node):
         self._outlier_std = self.get_parameter("outlier_std_m").value
         self._fp_rate = self.get_parameter("false_positive_rate").value
         self._fp_radius = self.get_parameter("false_positive_radius_m").value
-        self._move_interval = self.get_parameter("movable_move_interval_sec").value
-        self._move_radius = self.get_parameter("movable_move_radius_m").value
+        self._move_interval = float(
+            self.get_parameter("movable_move_interval_sec").value
+        )
+        self._move_radius = float(self.get_parameter("movable_move_radius_m").value)
         noise_seed = self.get_parameter("noise_seed").value
         self._rng = random.Random(None if noise_seed < 0 else noise_seed)
         self._period = 1.0 / rate
