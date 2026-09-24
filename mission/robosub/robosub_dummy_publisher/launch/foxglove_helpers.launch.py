@@ -6,11 +6,6 @@
   starts at the world origin), and no node publishes transforms between them,
   so identity transforms let one 3D panel show the vehicle, its goal and the
   map together. Do not use on the real vehicle.
-- A view frame `<drone>/odom_zup` for the display frame: Foxglove's 3D panel
-  always draws +Z up, so a NED frame (Z down) looks upside down and mirrored.
-  This is the map frame turned 180 deg about X: X still forward along the
-  course, Y left, Z up. Only for viewing; nothing uses it. Also published on
-  the real vehicle (it is a child of the map frame and changes nothing).
 - detections_markers_node: the raw detections on `landmarks` as small markers
   that live 0.3 s, next to the steady map from landmark_server.
 """
@@ -32,19 +27,6 @@ def launch_setup(context, *args, **kwargs):
     sim_frames = IfCondition(LaunchConfiguration("sim_frames"))
 
     return [
-        Node(
-            package="tf2_ros",
-            executable="static_transform_publisher",
-            name="odom_zup_view",
-            arguments=[
-                "--frame-id",
-                map_frame,
-                "--child-frame-id",
-                f"{drone}/odom_zup",
-                "--roll",
-                "3.141592653589793",
-            ],
-        ),
         Node(
             package="tf2_ros",
             executable="static_transform_publisher",

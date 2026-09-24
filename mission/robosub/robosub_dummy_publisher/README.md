@@ -162,12 +162,3 @@ Task 5: the octagon and table are published, but the path markers, the
 pinger and the octagon's surfacing area are not. The basket images are paired
 with the roles as red cross = Search & Rescue and warning = Survey & Repair
 (like the bins); check that against the handbook.
-
-## Viewing in Foxglove
-
-`ros2 launch robosub_dummy_publisher foxglove_helpers.launch.py` publishes the
-simulator frames and the detection markers. Use `nautilus/odom_zup` as the
-display frame of the 3D panel: Foxglove always draws +Z up, so the NED frames
-(`world_ned`, `nautilus/odom`, Z down) look upside down and mirrored.
-`odom_zup` is the map frame turned 180 deg about X (X forward, Y left, Z up)
-and is only for viewing.
