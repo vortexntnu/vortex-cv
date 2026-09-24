@@ -64,7 +64,11 @@ def _truth():
     truth = collections.defaultdict(list)
     for task in TASKS.values():
         for lm in task.landmarks(picks):
-            if lm.camera == "front" and lm.landmark_type == LandmarkType.BIN:
+            if (
+                lm.camera == "front"
+                and lm.landmark_type == LandmarkType.BIN
+                and lm.landmark_subtype != LandmarkSubtype.BIN_STRUCTURE
+            ):
                 continue  # front-camera bins become role bins in the map
             pos = tuple(task.base_pose[i] + lm.offset[i] for i in range(3))
             truth[(lm.landmark_type, lm.landmark_subtype)].append(pos)

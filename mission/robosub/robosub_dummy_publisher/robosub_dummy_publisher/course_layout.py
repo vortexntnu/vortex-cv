@@ -177,21 +177,23 @@ def _slalom_landmarks(_role_picks: dict) -> tuple[Landmark, ...]:
     # one white pole in a row). slalom__pvc_white.obj / slalom__red.obj merge
     # every pole into one mesh per colour, so getting individual pole
     # positions took clustering their vertices by (X, Y) and matching each
-    # white pair to its nearest red pole. Real world positions found this way
-    # (pole height confirmed ~0.9 m, matching the handbook spec):
-    #   gate 1: white (8.712, -1.569, 2.791) / red (10.224, -1.612, 2.624)
-    #           / white (11.808, -1.569, 2.791)
-    #   gate 2: white (8.117,  0.434, 2.791) / red ( 9.628,  0.391, 2.624)
-    #           / white (11.212, 0.434, 2.791)
-    #   gate 3: white (9.117,  2.437, 2.791) / red (10.628,  2.394, 2.624)
-    #           / white (12.212, 2.437, 2.791)
-    # The three gates are spread mainly across Y (a lateral weave) with only
-    # a small down-course (X) stagger between them -- this is a sideways
-    # slalom, not a straight run past markers spaced along X.
+    # white pair to its nearest red pole. The simulator turns the slalom 90 deg
+    # to the left about its centroid (POSE_OVERRIDE in
+    # vortex-stonefish-sim tools/import_robosub_course.py), so each set lies
+    # across the course and the sets follow each other along X. Real world
+    # positions (pole height ~0.9 m, matching the handbook spec):
+    #   gate 1: white (8.145, -1.239, 2.791) / red (8.102, 0.345, 2.624)
+    #           / white (8.145, 1.857, 2.791)
+    #   gate 2: white (10.148, -0.643, 2.791) / red (10.105, 0.941, 2.624)
+    #           / white (10.148, 2.452, 2.791)
+    #   gate 3: white (12.151, -1.643, 2.791) / red (12.108, -0.059, 2.624)
+    #           / white (12.151, 1.452, 2.791)
+    # The vehicle passes the sets one after another along X; they weave a
+    # little sideways (Y) from set to set. Left = smaller Y (Y is right).
     gates = (
-        ((-1.448, -1.960, 0.167), (0.064, -2.003, 0.0), (1.648, -1.960, 0.167)),
-        ((-2.043, 0.043, 0.167), (-0.532, 0.0, 0.0), (1.052, 0.043, 0.167)),
-        ((-1.043, 2.046, 0.167), (0.468, 2.003, 0.0), (2.052, 2.046, 0.167)),
+        ((-1.96, -1.648, 0.167), (-2.003, -0.064, 0.0), (-1.96, 1.448, 0.167)),
+        ((0.043, -1.052, 0.167), (0.0, 0.532, 0.0), (0.043, 2.043, 0.167)),
+        ((2.046, -2.052, 0.167), (2.003, -0.468, 0.0), (2.046, 1.043, 0.167)),
     )
     landmarks = []
     for i, (white_left, red, white_right) in enumerate(gates):
@@ -460,7 +462,7 @@ def _table_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
 TASKS: dict[str, Task] = {
     "gate": Task("gate", "3.2.2", (4.0, -0.017, 2.718), _gate_landmarks),
     # Centroid of the three slalom gates' red poles (see _slalom_landmarks).
-    "slalom": Task("slalom", "3.2.3", (10.16, 0.391, 2.624), _slalom_landmarks),
+    "slalom": Task("slalom", "3.2.3", (10.105, 0.409, 2.624), _slalom_landmarks),
     "torpedo_board": Task(
         "torpedo_board", "3.2.5", (16.82, -5.204, 2.825), _torpedo_board_landmarks
     ),
