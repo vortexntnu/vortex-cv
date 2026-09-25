@@ -68,6 +68,7 @@ def object_map():
     landmark_config = os.path.join(
         LANDMARK_SHARE, "config", "landmark_server_config.yaml"
     )
+    sim_config = os.path.join(LANDMARK_SHARE, "config", "sim.yaml")
     drone_config = os.path.join(AUV_SHARE, "config", "robots", "nautilus.yaml")
     dummy_config = os.path.join(
         DUMMY_SHARE, "config", "robosub_dummy_publisher_params.yaml"
@@ -84,6 +85,8 @@ def object_map():
                 f"__ns:=/{NAMESPACE}",
                 "--params-file",
                 landmark_config,
+                "--params-file",
+                sim_config,
                 "--params-file",
                 drone_config,
             ],

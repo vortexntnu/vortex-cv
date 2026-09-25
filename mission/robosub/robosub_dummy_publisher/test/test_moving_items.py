@@ -58,6 +58,8 @@ def run():
             "--params-file",
             os.path.join(LANDMARK_SHARE, "config", "landmark_server_config.yaml"),
             "--params-file",
+            os.path.join(LANDMARK_SHARE, "config", "sim.yaml"),
+            "--params-file",
             os.path.join(AUV_SHARE, "config", "robots", "nautilus.yaml"),
         ],
         env=env,

@@ -83,6 +83,8 @@ def run_scenario(
                 "--params-file",
                 os.path.join(LANDMARK_SHARE, "config", "landmark_server_config.yaml"),
                 "--params-file",
+                os.path.join(LANDMARK_SHARE, "config", "sim.yaml"),
+                "--params-file",
                 drone_config,
             ],
             env,
