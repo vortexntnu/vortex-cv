@@ -1,0 +1,39 @@
+# perception_setup/config/mission/robosub/mission.yaml   (startverdier; tall for banen måles på stedet)
+run_time_s: 900                     # 15 min prestasjonstid
+startup_delay_s: 30
+max_depth_m: 2.0
+coin_flip_offset_deg: 0             # 0 | 90 | -90 | 180, settes før runet
+preferred_role: survey_repair       # eller search_rescue
+default_gate_side: right            # hvis porten passeres blindt
+
+travel_depth: 0.6
+gate_depth: 1.0
+slalom_depth: 1.5                   # midt på rørene: bunn minus 0,45 m
+bins_search_depth: 1.0
+torpedo_depth: 1.25
+fire_distance_m: 0.5                # fra launcher, over «farther» 0,46 m
+style_yaw_turns: 0                  # 4 = én runde; av til porten er pålitelig
+octagon_items_enabled: false
+
+# områder i banens frame (x gjennom porten, y til venstre), fra banekartet på stedet
+bins_area_x: 12.0
+bins_area_y: 2.0
+torpedo_area_x: 15.0
+torpedo_area_y: -5.0
+octagon_area_x: 20.0
+octagon_area_y: 0.0
+lane_left_m: 6.0
+lane_right_m: 6.0
+
+# tidsbudsjett og reserve (s)
+gate_budget_s: 120
+slalom_budget_s: 150
+bins_budget_s: 150
+torpedo_budget_s: 150
+octagon_budget_s: 180
+return_budget_s: 150
+reserve_after_gate_s: 330           # oktagon + Return Home
+reserve_after_slalom_s: 330
+reserve_after_bins_s: 330
+reserve_after_torpedo_s: 330
+reserve_after_octagon_s: 150        # Return Home

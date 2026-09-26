@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<!-- RoboSub task subtree, included by ../main.xml. Plan section: torpedo. -->
+<root BTCPP_format="4">
+  <BehaviorTree ID="Torpedo">
+    <Sequence>
+      <ForceSuccess>
+        <Timeout msec="60000">
+          <GoToCourse x="{torpedo_area_x}" y="{torpedo_area_y}" z="{travel_depth}" position_tolerance="0.5"/>
+        </Timeout>
+      </ForceSuccess>
+      <Timeout msec="20000">
+        <SetDepth z="{torpedo_depth}" position_tolerance="0.2" hold_s="1.0"/>
+      </Timeout>
+      <ReactiveFallback name="FindBoard">
+        <LandmarkKnown type="TORPEDO_BOARD" subtype="TORPEDO_BOARD_WHOLE" max_age_s="3.0" id="{board_id}"/>
+        <Timeout msec="45000">
+          <Search pattern="SCAN_ARC" arc_deg="90" pause_s="1.0" rounds="2"/>
+        </Timeout>
+      </ReactiveFallback>
+      <Timeout msec="40000">
+        <ApproachLandmark id="{board_id}" frame="LANDMARK" x="2.0" yaw_deg="180"
+                          position_tolerance="0.15" orientation_tolerance_deg="10" hold_s="2.0"
+                          track_loss_timeout_s="10"/>
+      </Timeout>
+      <Timeout msec="15000">
+        <CommitEstimate id="{board_id}" samples="8" position_std_m="0.05" yaw_std_deg="3"/>
+      </Timeout>
+      <ForceSuccess>
+        <SubTree ID="FireAtOpening" board_id="{board_id}"
+                 target_subtype="{torpedo_large_subtype}" fallback_subtype="{torpedo_large_other_subtype}"
+                 tool_frame="torpedo_left_link" side="left" fire_distance_m="{fire_distance_m}"
+                 opening_id="{large_opening_id}"/>
+      </ForceSuccess>
+      <ForceSuccess>
+        <SubTree ID="FireAtOpening" board_id="{board_id}"
+                 target_subtype="{torpedo_small_subtype}" fallback_subtype="{torpedo_small_other_subtype}"
+                 tool_frame="torpedo_right_link" side="right" fire_distance_m="{fire_distance_m}"
+                 opening_id="{small_opening_id}"/>
+      </ForceSuccess>
+    </Sequence>
+  </BehaviorTree>
+
+  <BehaviorTree ID="FireAtOpening">
+    <Sequence>
+      <Fallback name="PickOpening">
+        <LandmarkKnown type="TORPEDO_BOARD" subtype="{target_subtype}" max_age_s="30" id="{opening_id}"/>
+        <LandmarkKnown type="TORPEDO_BOARD" subtype="{fallback_subtype}" max_age_s="30" id="{opening_id}"/>
+        <Script code="opening_id := board_id"/>          <!-- sikt på brettet -->
+      </Fallback>
+      <Timeout msec="25000">
+        <ApproachLandmark id="{opening_id}" frame="LANDMARK" x="{fire_distance_m}" yaw_deg="180"
+                          tool_frame="{tool_frame}" freeze="true"
+                          position_tolerance="0.10" orientation_tolerance_deg="6" hold_s="2.0"/>
+      </Timeout>
+      <RetryUntilSuccessful num_attempts="2">
+        <FireTorpedo side="{side}"/>
+      </RetryUntilSuccessful>
+      <Wait seconds="2"/>
+    </Sequence>
+  </BehaviorTree>
+</root>
