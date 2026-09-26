@@ -1,19 +1,27 @@
 #!/bin/bash
-# Launch the simulator with the landmark/navigation chain in a tmux session:
-# Stonefish, the DP controller with the reference filter, landmark_server,
-# waypoint_manager, the dummy perception (robosub_dummy_publisher) and the
-# Foxglove bridge. When the vehicle is up it turns on autonomous mode and sets
-# the course frame, so goals and landmark_targets scenarios can be sent.
-# Usage: ./launch_sim_autonomy.sh [OPTIONS]   (see --help)
+# Start the RoboSub perception and mission chain in simulation, in a tmux
+# session: landmark_server, waypoint_manager, the dummy perception
+# (robosub_dummy_publisher) with its Foxglove frames, and the check of the map
+# against the true course. When the vehicle is up it turns on autonomous mode
+# and sets the course frame, so goals and landmark_targets scenarios can be
+# sent.
+#
+# The simulator, the controller and the Foxglove bridge are not started here:
+# start them first with vortex-auv's launch_drone_sim.sh, e.g.
+#   src/vortex-auv/utility_scripts/launch_drone_sim.sh --scenario robosub --low-res --detach
+# Usage: ./tmux_robosub_sim.sh [OPTIONS]   (see --help)
 
 usage() {
     cat <<EOF
 Usage: $(basename "$0") [OPTIONS]
 
+Start the simulator first (vortex-auv):
+  src/vortex-auv/utility_scripts/launch_drone_sim.sh --scenario robosub --low-res --detach
+  src/vortex-auv/utility_scripts/launch_drone_sim.sh --headless --detach    (light, no images)
+
 Options:
-  --scenario <name>     Stonefish scenario (default: robosub)
-  --seed <n>            Seed for the course roles, used by both the sim and
-                        the dummy perception so they agree (default: 7)
+  --seed <n>            Seed for the course roles of the dummy perception;
+                        the same as the simulator's --seed (default: 7)
   --domain-id <id>      ROS_DOMAIN_ID to use (default: 0)
   --fov                 Dummy perception only publishes what the cameras can
                         see from the vehicle pose (default: everything)
@@ -23,15 +31,7 @@ Options:
                         every <sec> seconds each (default: 0, they stay put)
   --tasks <list>        Comma-separated course elements for the dummy
                         perception, e.g. gate,slalom (default: all)
-  --full-res            Render the sim at 1920x1080 high quality (default:
-                        960x540 low; the full course can run out of memory)
-  --mem-limit <GB>      Memory limit for the simulator, 0 for none (default: 5)
-  --keyboard-joy <bool> Drive with the keyboard (keyboard_joy) next to the
-                        joystick interface, which always runs (default: true)
   --no-autonomy         Do not turn on autonomous mode or set the course frame
-  --headless            No rendering and no course geometry (scenario
-                        nautilus_no_gpu): light, for testing the landmark
-                        chain with the dummy perception. No camera images
   --drift <deg/m>       Odometry that drifts <deg/m> of yaw per metre, and
                         camera noise on the detections (drift_injector.py).
                         landmark_server runs on the drifting odometry, a
@@ -41,44 +41,34 @@ Options:
   --detach              Start the session without attaching to it
   -h, --help            Show this help message
 
-Windows: sim (simulator, controller, landmark_server, waypoint_manager),
-perception (dummy perception, detection markers and frames), check
-(graph_eval: the map against the true course; with --drift also the drift
-injector and the server without graph), tools (Foxglove bridge, commands).
+Windows: mission (landmark_server, waypoint_manager), perception (dummy
+perception, detection markers and frames), check (graph_eval: the map
+against the true course; with --drift also the drift injector and the server
+without graph), tools (commands).
 Foxglove layout: src/vortex-auv/mission/landmark_server/foxglove/landmark_graph.json.
 Detach with Ctrl-b d; stop everything with
-  tmux kill-session -t sim_autonomy
+  tmux kill-session -t robosub_sim
 EOF
 }
 
-SCENARIO="robosub"
 SEED="7"
 DOMAIN_ID="0"
 FOV="false"
 UNSTABLE="false"
 MOVING="0.0"
 TASKS=""
-FULL_RES="false"
-MEM_LIMIT="5"
 AUTONOMY="true"
-KEYBOARD_JOY="true"
-HEADLESS="false"
 DRIFT=""
 DETACH="false"
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --scenario)    SCENARIO="$2";  shift 2 ;;
         --seed)        SEED="$2";      shift 2 ;;
         --domain-id)   DOMAIN_ID="$2"; shift 2 ;;
         --fov)         FOV="true";     shift ;;
         --unstable)    UNSTABLE="true"; shift ;;
         --moving)      MOVING="$2";    shift 2 ;;
         --tasks)       TASKS="$2";     shift 2 ;;
-        --full-res)    FULL_RES="true"; shift ;;
-        --mem-limit)   MEM_LIMIT="$2"; shift 2 ;;
         --no-autonomy) AUTONOMY="false"; shift ;;
-        --keyboard-joy) KEYBOARD_JOY="$2"; shift 2 ;;
-        --headless)    HEADLESS="true"; shift ;;
         --drift)       DRIFT="$2"; FOV="true"; shift 2 ;;
         --detach)      DETACH="true"; shift ;;
         -h|--help)     usage; exit 0 ;;
@@ -98,7 +88,7 @@ if [[ ! -f "$WS/install/setup.bash" ]]; then
     exit 1
 fi
 
-SESSION="sim_autonomy"
+SESSION="robosub_sim"
 S="cd $WS && source install/setup.bash && export ROS_DOMAIN_ID=$DOMAIN_ID"
 DUMMY_CONFIG="install/robosub_dummy_publisher/share/robosub_dummy_publisher/config"
 
@@ -108,20 +98,6 @@ if [[ -n "$DRIFT" ]] && ! [[ "$DRIFT" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
 fi
 if [[ "$DRIFT" =~ ^[0-9]+$ ]]; then
     DRIFT="$DRIFT.0"
-fi
-
-# Simulator: low resolution and a memory limit unless asked otherwise.
-if [[ "$HEADLESS" == "true" ]]; then
-    SIM_ARGS="keyboard_joy:=false rendering:=false scenario:=nautilus_no_gpu"
-else
-    SIM_ARGS="keyboard_joy:=$KEYBOARD_JOY scenario:=$SCENARIO robosub_icon_seed:=$SEED"
-    if [[ "$FULL_RES" != "true" ]]; then
-        SIM_ARGS="$SIM_ARGS window_res_x:=960 window_res_y:=540 rendering_quality:=low"
-    fi
-fi
-SIM_CMD="ros2 launch stonefish_sim vortex_sim_launch.py $SIM_ARGS"
-if [[ "$MEM_LIMIT" != "0" ]] && command -v systemd-run &>/dev/null; then
-    SIM_CMD="systemd-run --user --scope -p MemoryMax=${MEM_LIMIT}G -p MemorySwapMax=0 $SIM_CMD"
 fi
 
 # Dummy perception: the unstable profile goes on top of the defaults, the
@@ -171,29 +147,16 @@ HELP_CMD="clear && echo 'Turn on autonomous mode yourself:' && echo \"  ros2 ser
 # Kill existing session if it exists
 tmux kill-session -t "$SESSION" 2>/dev/null
 
-# Launch Foxglove Studio only if not already running
-if ! pgrep -f foxglove-studio &>/dev/null && command -v foxglove-studio &>/dev/null; then
-    foxglove-studio &>/dev/null &
-fi
-
 # =============================================
-# Window 1: sim (4 panes)
+# Window 1: mission (2 panes)
 # =============================================
-tmux new-session -d -s "$SESSION" -n "sim"
+tmux new-session -d -s "$SESSION" -n "mission"
 
-PANE_SIM=$(tmux list-panes -t "$SESSION:sim" -F '#{pane_id}')
-tmux send-keys -t "$PANE_SIM" "clear && $S && $SIM_CMD" Enter
-
-PANE_CTRL=$(tmux split-window -h -t "$PANE_SIM" -P -F '#{pane_id}')
-tmux send-keys -t "$PANE_CTRL" "clear && $S && ros2 launch auv_setup dp_quat.launch.py" Enter
-
-PANE_MAP=$(tmux split-window -v -t "$PANE_SIM" -P -F '#{pane_id}')
+PANE_MAP=$(tmux list-panes -t "$SESSION:mission" -F '#{pane_id}')
 tmux send-keys -t "$PANE_MAP" "clear && $S && $LS_CMD" Enter
 
-PANE_WM=$(tmux split-window -v -t "$PANE_CTRL" -P -F '#{pane_id}')
+PANE_WM=$(tmux split-window -h -t "$PANE_MAP" -P -F '#{pane_id}')
 tmux send-keys -t "$PANE_WM" "clear && $S && ros2 launch waypoint_manager waypoint_manager.launch.py" Enter
-
-tmux select-layout -t "$SESSION:sim" tiled
 
 # =============================================
 # Window 2: perception (2 panes)
@@ -221,14 +184,11 @@ if [[ -n "$DRIFT" ]]; then
 fi
 
 # =============================================
-# Window 4: tools (2 panes)
+# Window 4: tools (commands)
 # =============================================
 tmux new-window -t "$SESSION" -n "tools"
 
-PANE_FOX=$(tmux list-panes -t "$SESSION:tools" -F '#{pane_id}')
-tmux send-keys -t "$PANE_FOX" "clear && $S && ros2 launch foxglove_bridge foxglove_bridge_launch.xml" Enter
-
-PANE_CMD=$(tmux split-window -v -t "$PANE_FOX" -P -F '#{pane_id}')
+PANE_CMD=$(tmux list-panes -t "$SESSION:tools" -F '#{pane_id}')
 if [[ "$AUTONOMY" == "true" ]]; then
     tmux send-keys -t "$PANE_CMD" "clear && $S && $AUTONOMY_CMD" Enter
 else
