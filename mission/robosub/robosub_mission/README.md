@@ -36,10 +36,50 @@ course tree plan (section 8).
 | `actuators` | M4 | DropMarker, FireTorpedo, SetGripper, MarkUsed |
 | `mission` | M5 | VehicleHealthy, LoadMissionConfig, Wait, SetOperationMode, ResetWorld, LogError, SavePose, GoToSavedPose, StartRun, MissionClock, TaskSlot, RecordBag, ResolveRole, VerifyInside |
 
-Code shared by several areas (for example a base class for nodes that send
-goals to `waypoint_manager`, used by motion, approach and Search) goes in
-`include/robosub_mission/common/` and `src/common/`; agree on it before two
-areas write their own.
+Code shared by several areas goes in `include/robosub_mission/common/` and
+`src/common/`; agree on it before two areas write their own.
+
+## Shared base class for motion nodes (M1, first)
+
+Every node that moves the vehicle does the same thing: send a
+`WaypointManager` goal, wait for the result, and cancel the goal if the tree
+halts the node. That is written once, in a base class in `common/`, by M1
+before the motion nodes:
+
+```cpp
+// include/robosub_mission/common/nav_action.hpp
+class NavAction : public BT::StatefulActionNode {
+   protected:
+    // The one thing each node writes: the waypoint(s) for this tick's goal,
+    // from its input ports. nullopt -> FAILURE (e.g. a missing port).
+    virtual std::optional<vortex_msgs::action::WaypointManager::Goal> make_goal() = 0;
+
+   private:
+    BT::NodeStatus onStart() override;    // make_goal(), send it       -> RUNNING
+    BT::NodeStatus onRunning() override;  // result: SUCCEEDED/other    -> SUCCESS/FAILURE
+    void onHalted() override;             // cancel the goal (Timeout, ReactiveSequence)
+};
+```
+
+Shared ports on the base: `position_tolerance`, `orientation_tolerance_deg`,
+`hold_s`. Depth, yaw and positions are not controlled here: waypoint_manager
+and the reference filter already do that (`WaypointMode::ONLY_Z` for depth,
+`POSITION_AND_YAW`, `FULL_POSE`, ..., tolerances and hold time per waypoint).
+
+| Node | `make_goal()` fills in |
+|---|---|
+| `SetDepth` | One waypoint, mode `ONLY_Z`, `z` from the port |
+| `Surface` | As `SetDepth`, with a small `z` (for example 0.2) |
+| `Turn` | Mode `ONLY_ORIENTATION`, yaw = current + `relative_deg` |
+| `GoTo` | The `pose` port, with its `mode` |
+| `MoveRelative` | Offset, `frame` `BODY_RELATIVE` or `WORLD_RELATIVE` |
+| `GoToCourse`, `MoveCourse` | Course frame point converted to odom |
+| `HoldPosition` | The current pose, `hold_s` |
+
+The other areas build on it too: `Search` (M2) sends its pattern as goals,
+`ApproachLandmark` and `LookAtLandmark` (M3) send the goals `landmark_targets`
+computes. Until `NavAction` exists, they can be written against its interface
+above.
 
 ## Adding a node
 

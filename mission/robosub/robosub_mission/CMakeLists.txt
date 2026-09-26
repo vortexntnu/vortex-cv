@@ -18,9 +18,9 @@ find_package(fmt REQUIRED)
 
 include_directories(include)
 
-# Every .cpp under src/nodes is picked up, so adding a node needs no change
+# Every .cpp under src/nodes and src/common is picked up, so adding a node needs no change
 # here (re-run colcon build; CONFIGURE_DEPENDS notices new files).
-file(GLOB_RECURSE NODE_SOURCES CONFIGURE_DEPENDS src/nodes/*.cpp)
+file(GLOB_RECURSE NODE_SOURCES CONFIGURE_DEPENDS src/nodes/*.cpp src/common/*.cpp)
 
 add_executable(robosub_mission
   ${NODE_SOURCES}
