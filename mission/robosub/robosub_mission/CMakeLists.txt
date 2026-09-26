@@ -13,20 +13,12 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(behaviortree_cpp REQUIRED)
+find_package(vortex_bt_nodes REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
 
-include_directories(include)
-
-# Every .cpp under src/nodes and src/common is picked up, so adding a node needs no change
-# here (re-run colcon build; CONFIGURE_DEPENDS notices new files).
-file(GLOB_RECURSE NODE_SOURCES CONFIGURE_DEPENDS src/nodes/*.cpp src/common/*.cpp)
-
-add_executable(robosub_mission
-  ${NODE_SOURCES}
-  src/register_nodes.cpp
-  src/main.cpp
-)
+# The nodes live in vortex_bt_nodes; this package is the runner and the trees.
+add_executable(robosub_mission src/main.cpp)
 
 ament_target_dependencies(robosub_mission
   ament_index_cpp
@@ -35,6 +27,7 @@ ament_target_dependencies(robosub_mission
 )
 
 target_link_libraries(robosub_mission
+  vortex_bt_nodes::vortex_bt_nodes
   spdlog::spdlog
   fmt::fmt
 )
@@ -42,11 +35,6 @@ target_link_libraries(robosub_mission
 install(TARGETS
   robosub_mission
   DESTINATION lib/${PROJECT_NAME}
-)
-
-install(
-  DIRECTORY include/
-  DESTINATION include
 )
 
 install(

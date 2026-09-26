@@ -6,7 +6,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <string>
 #include <thread>
-#include "robosub_mission/register_nodes.hpp"
+#include <vortex_bt_nodes/register_nodes.hpp>
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
         node->declare_parameter<double>("tick_rate_hz", 10.0);
 
     BT::BehaviorTreeFactory factory;
-    robosub_mission::register_nodes(factory, node);
+    vortex_bt_nodes::register_nodes(factory, node);
 
     spdlog::info("Starting RoboSub mission tree from {}", tree_file);
     BT::Tree tree;
