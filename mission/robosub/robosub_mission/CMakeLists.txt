@@ -18,7 +18,12 @@ find_package(fmt REQUIRED)
 
 include_directories(include)
 
+# Every .cpp under src/nodes is picked up, so adding a node needs no change
+# here (re-run colcon build; CONFIGURE_DEPENDS notices new files).
+file(GLOB_RECURSE NODE_SOURCES CONFIGURE_DEPENDS src/nodes/*.cpp)
+
 add_executable(robosub_mission
+  ${NODE_SOURCES}
   src/register_nodes.cpp
   src/main.cpp
 )
@@ -45,7 +50,7 @@ install(
 )
 
 install(
-  DIRECTORY behavior_trees
+  DIRECTORY trees
   DESTINATION share/${PROJECT_NAME}
 )
 

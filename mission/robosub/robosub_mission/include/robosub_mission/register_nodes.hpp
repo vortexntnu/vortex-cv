@@ -7,9 +7,8 @@
 namespace robosub_mission {
 
 /**
- * @brief Register the mission's custom nodes (conditions and actions) with
- * the factory, before the trees are loaded. Nodes that talk to ROS get
- * @p node.
+ * @brief Register all custom nodes with the factory, before the trees are
+ * loaded. Calls each area's register_nodes (nodes/<area>/register.hpp).
  */
 void register_nodes(BT::BehaviorTreeFactory& factory,
                     const rclcpp::Node::SharedPtr& node);

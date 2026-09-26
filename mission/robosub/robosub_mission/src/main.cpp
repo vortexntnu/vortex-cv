@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
 
     const std::string default_tree =
         ament_index_cpp::get_package_share_directory("robosub_mission") +
-        "/behavior_trees/main.xml";
+        "/trees/root.xml";
     const std::string tree_file =
         node->declare_parameter<std::string>("tree_file", default_tree);
     const double tick_rate_hz =
@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
     spdlog::info("Starting RoboSub mission tree from {}", tree_file);
     BT::Tree tree;
     try {
-        // main.xml includes the task files relative to itself.
+        // root.xml includes the task files relative to itself.
         tree = factory.createTreeFromFile(tree_file);
     } catch (const std::exception& e) {
         spdlog::error("Could not load the tree: {}", e.what());

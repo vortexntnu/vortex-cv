@@ -30,8 +30,8 @@ def launch_setup(context, *args, **kwargs):
 
     tree_file = os.path.join(
         get_package_share_directory("robosub_mission"),
-        "behavior_trees",
-        "main.xml",
+        "trees",
+        "root.xml",
     )
 
     node = Node(
