@@ -9,7 +9,7 @@ namespace vortex_bt_nodes::mission {
 /**
  * @brief Register the mission nodes (mission flow and safety).
  *
- * Planned: VehicleHealthy, LoadMissionConfig, Wait, SetOperationMode,
+ * Planned: LoadMissionConfig, Wait, SetOperationMode,
  * ResetWorld, LogError, SavePose, GoToSavedPose, StartRun, MissionClock,
  * TaskSlot, RecordBag, ResolveRole, VerifyInside.
  */

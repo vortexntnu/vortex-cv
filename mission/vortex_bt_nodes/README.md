@@ -51,7 +51,7 @@ do, when it is done) are in the
 | Person | Task | Nodes, in order |
 |---|---|---|
 | Johannes | Torpedo | LogError, TaskSlot, SelectGatePanel, CommitEstimate, ApproachLandmark |
-| André | Slalom | VehicleHealthy, Search, MatchPipes, RecordLayer, AvoidSlalom |
+| André | Slalom | Search, MatchPipes, RecordLayer, AvoidSlalom |
 | Ashish | Octagon | PoseFeeder, MapFeeder, CourseFrameFeeder, SavePose, GoToSavedPose, VerifyInside, GoToCourse, MoveCourse, LookAtLandmark, RecordBag |
 | Karol | Bins | Wait, SetOperationMode, LoadMissionConfig, MissionClock, ResetWorld, StartRun, LandmarkKnown, SelectLandmark, ResolveRole, FollowPoses |
 | Amélie | Gate | SetDepth, Surface, GoTo, MoveRelative, Turn, HoldPosition, SetGripper, DropMarker, FireTorpedo, MarkUsed |
@@ -107,29 +107,24 @@ Then: `trees/torpedo.xml`.
 
 ### André · task: Slalom
 
-1. **VehicleHealthy** (mission, condition)
-   - In: `pose` ({pose}), `max_depth_m`.
-   - FAILURE (and `spdlog::error` once) when `pose.position.z > max_depth_m`; otherwise SUCCESS.
-   - Test: shallow → SUCCESS; too deep → FAILURE; missing pose → FAILURE.
-
-2. **Search** (map, NavAction)
+1. **Search** (map, NavAction)
    - In: `pose`, `pattern` (ROTATE_STEPS, SCAN_ARC, LAWNMOWER, EXPANDING_SQUARE) and its numbers: `step_deg`, `arc_deg`, `rounds`, `legs`, `leg_m`, `spacing_m`, `pause_s`.
    - Builds the whole pattern as waypoints around the pose at start (yaw steps for ROTATE_STEPS / SCAN_ARC, a lawnmower or square in the horizontal plane), with `hold_time_sec = pause_s` on each. SUCCESS when the pattern is done.
    - It does not look at the map: the XML stops it (`ReactiveFallback` with `LandmarkKnown` first).
    - Test: waypoint count and positions for each pattern; unknown pattern → FAILURE; halt cancels the goal.
 
-3. **MatchPipes** (map, sync, uses `landmark_targets::match_pipes`)
+2. **MatchPipes** (map, sync, uses `landmark_targets::match_pipes`)
    - In: `map`, `pose`, `gate_side`, `exclude` (IdList, {passed_red_ids}), `offset` (bidirectional), `min_forward_m`, `collinearity_m`, `min_separation_m`, `inward_deg`.
    - Out: `gap_pose` (Pose, {gap_pose}), `red_id` (int).
    - Splits the confirmed SLALOM_PIPE tracks into red and white, calls the library, writes the gap pose (x, y at the gap, z = current slalom depth, yaw = layer heading). FAILURE when no layer can be matched.
    - Test: full layer → gap on the `gate_side` side of red; red + one white → mirrored gap; excluded red → next layer; no pipes → FAILURE. See `~/slalom_guide.md`.
 
-4. **RecordLayer** (map, sync)
+3. **RecordLayer** (map, sync)
    - In: `pose`, `red_id`, `layers` (bidirectional, own type), `passed` (IdList, bidirectional, {passed_red_ids}).
    - Appends `red_id` to `passed` and the layer (red id, pose when passed) to `layers`. SUCCESS.
    - Test: ids accumulate over three calls; missing `red_id` → FAILURE.
 
-5. **AvoidSlalom** (map, sync, uses `landmark_targets::avoid_slalom_waypoints`)
+4. **AvoidSlalom** (map, sync, uses `landmark_targets::avoid_slalom_waypoints`)
    - In: `map`, `course_frame`, `layers` ({slalom_layers}), `side` ("left"/"right"), `clearance_m`.
    - Out: `path` (PoseList, {avoid_path}).
    - Poses that go around the whole slalom on `side` with `clearance_m` to the outermost pipe, for Return Home. FAILURE with no pipes and no layers.
