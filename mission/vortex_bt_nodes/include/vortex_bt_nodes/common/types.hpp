@@ -37,7 +37,8 @@
  * Landmark ids (ports id, gate_id, red_id) are int, the track id in {map}.
  * Landmark types and subtypes are written by name, as in LandmarkType.msg and
  * LandmarkSubtype.msg: type="SLALOM_PIPE" subtype="SLALOM_PIPE_RED"; subtype
- * "ANY" matches every subtype.
+ * "ANY" matches every subtype. Waypoint modes (port mode) are written the
+ * same way, as in WaypointMode.msg: mode="POSITION_AND_YAW".
  *
  * Poses are in odom (x forward, y right, z down) unless a port says
  * otherwise. In XML a Pose is "x;y;z" or "x;y;z;yaw_deg", e.g.
@@ -91,6 +92,12 @@ std::optional<std::uint16_t> landmark_type_from_string(std::string_view name);
  * "ANY", or nullopt for an unknown name.
  */
 std::optional<int> landmark_subtype_from_string(std::string_view name);
+
+/**
+ * @brief WaypointMode value for a name ("POSITION_AND_YAW"), as in
+ * WaypointMode.msg, or nullopt.
+ */
+std::optional<std::uint8_t> waypoint_mode_from_string(std::string_view name);
 
 /** @brief True if the track has this type and subtype (-1 = any subtype). */
 inline bool matches(const LandmarkTrack& track,

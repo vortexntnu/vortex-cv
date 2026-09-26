@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <vortex_msgs/msg/waypoint_mode.hpp>
+
 #include "vortex_bt_nodes/common/types.hpp"
 
 namespace vbn = vortex_bt_nodes;
@@ -29,6 +31,14 @@ TEST(TypesTest, LandmarkNames) {
     EXPECT_EQ(vbn::landmark_subtype_from_string("ANY"), -1);
     EXPECT_FALSE(vbn::landmark_type_from_string("NOPE"));
     EXPECT_FALSE(vbn::landmark_subtype_from_string("NOPE"));
+}
+
+TEST(TypesTest, WaypointModeNames) {
+    EXPECT_EQ(vbn::waypoint_mode_from_string("POSITION_AND_YAW"),
+              vortex_msgs::msg::WaypointMode::POSITION_AND_YAW);
+    EXPECT_EQ(vbn::waypoint_mode_from_string("ONLY_Z"),
+              vortex_msgs::msg::WaypointMode::ONLY_Z);
+    EXPECT_FALSE(vbn::waypoint_mode_from_string("NOPE"));
 }
 
 TEST(TypesTest, Matches) {

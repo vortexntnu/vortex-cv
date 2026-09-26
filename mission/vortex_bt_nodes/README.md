@@ -208,3 +208,6 @@ colcon test --packages-select vortex_bt_nodes && colcon test-result --verbose
   `LandmarkSubtype.msg`: `type="SLALOM_PIPE" subtype="SLALOM_PIPE_RED"`,
   `subtype="ANY"`. `landmark_type_from_string` and
   `landmark_subtype_from_string` in `types.hpp` convert them.
+- Waypoint modes by name, as in `WaypointMode.msg`: `mode="POSITION_AND_YAW"`.
+  `waypoint_mode_from_string` in `types.hpp` converts it; a `mode` port
+  should use it rather than its own table.
