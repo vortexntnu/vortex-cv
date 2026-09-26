@@ -7,7 +7,6 @@ install(DIRECTORY
   launch
   config
   models
-  behavior_trees
   DESTINATION share/${PROJECT_NAME}
 )
 

@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<!--
+  RoboSub mission, BehaviorTree.CPP v4. Main tree and task order.
+  Each task is a subtree in tasks/<task>.xml, included below and called from
+  Mission as <SubTree ID="<Task>" _autoremap="true"/>. No tasks are written
+  yet; the reference design is the RoboSub course tree plan.
+-->
+<root BTCPP_format="4" main_tree_to_execute="Main">
+  <!-- <include path="tasks/gate.xml"/> -->
+
+  <BehaviorTree ID="Main">
+    <Fallback name="RunOrSafeStop">
+      <Sequence name="Run">
+        <!-- Safety checks (pose, map, health) go here, before the mission. -->
+        <SubTree ID="Mission" _autoremap="true"/>
+      </Sequence>
+      <SubTree ID="SafeStop" _autoremap="true"/>
+    </Fallback>
+  </BehaviorTree>
+
+  <BehaviorTree ID="Mission">
+    <Sequence>
+      <!-- One SubTree per task, in course order:
+           <SubTree ID="Gate" _autoremap="true"/> -->
+      <AlwaysSuccess name="NoTasksYet"/>
+    </Sequence>
+  </BehaviorTree>
+
+  <BehaviorTree ID="SafeStop">
+    <AlwaysFailure name="HoldPosition"/>
+  </BehaviorTree>
+</root>
