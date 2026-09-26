@@ -10,6 +10,7 @@
 #include <string_view>
 #include <vector>
 #include <vortex_msgs/msg/landmark_track_array.hpp>
+#include <vortex_msgs/msg/waypoint_mode.hpp>
 
 /**
  * The types that go between nodes written by different people. A node reads
@@ -94,10 +95,12 @@ std::optional<std::uint16_t> landmark_type_from_string(std::string_view name);
 std::optional<int> landmark_subtype_from_string(std::string_view name);
 
 /**
- * @brief WaypointMode value for a name ("POSITION_AND_YAW"), as in
- * WaypointMode.msg, or nullopt.
+ * @brief WaypointMode for a name ("POSITION_AND_YAW" or "position_and_yaw"),
+ * or nullopt. Wraps vortex_utils' string_to_waypoint_mode, without the
+ * exception, so a bad port fails the node instead of the tree.
  */
-std::optional<std::uint8_t> waypoint_mode_from_string(std::string_view name);
+std::optional<vortex_msgs::msg::WaypointMode> waypoint_mode_from_string(
+    const std::string& name);
 
 /** @brief True if the track has this type and subtype (-1 = any subtype). */
 inline bool matches(const LandmarkTrack& track,

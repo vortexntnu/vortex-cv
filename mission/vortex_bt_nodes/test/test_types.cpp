@@ -34,9 +34,9 @@ TEST(TypesTest, LandmarkNames) {
 }
 
 TEST(TypesTest, WaypointModeNames) {
-    EXPECT_EQ(vbn::waypoint_mode_from_string("POSITION_AND_YAW"),
+    EXPECT_EQ(vbn::waypoint_mode_from_string("POSITION_AND_YAW")->mode,
               vortex_msgs::msg::WaypointMode::POSITION_AND_YAW);
-    EXPECT_EQ(vbn::waypoint_mode_from_string("ONLY_Z"),
+    EXPECT_EQ(vbn::waypoint_mode_from_string("only_z")->mode,
               vortex_msgs::msg::WaypointMode::ONLY_Z);
     EXPECT_FALSE(vbn::waypoint_mode_from_string("NOPE"));
 }

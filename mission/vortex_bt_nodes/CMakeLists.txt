@@ -9,6 +9,8 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(behaviortree_cpp REQUIRED)
 find_package(vortex_msgs REQUIRED)
+find_package(vortex_utils REQUIRED)
+find_package(vortex_utils_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
@@ -28,6 +30,8 @@ ament_target_dependencies(vortex_bt_nodes PUBLIC
   rclcpp_action
   behaviortree_cpp
   vortex_msgs
+  vortex_utils
+  vortex_utils_ros
   geometry_msgs
 )
 target_link_libraries(vortex_bt_nodes PUBLIC spdlog::spdlog fmt::fmt)
@@ -51,6 +55,8 @@ ament_export_dependencies(
   rclcpp_action
   behaviortree_cpp
   vortex_msgs
+  vortex_utils
+  vortex_utils_ros
   geometry_msgs
   spdlog
   fmt

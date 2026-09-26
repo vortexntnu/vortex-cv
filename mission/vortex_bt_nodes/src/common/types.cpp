@@ -1,16 +1,17 @@
 #include "vortex_bt_nodes/common/types.hpp"
 
+#include <stdexcept>
 #include <utility>
+#include <vortex/utils/ros/waypoint_ros_conversions.hpp>
+#include <vortex/utils/waypoint_utils.hpp>
 #include <vortex_msgs/msg/landmark_subtype.hpp>
 #include <vortex_msgs/msg/landmark_type.hpp>
-#include <vortex_msgs/msg/waypoint_mode.hpp>
 
 namespace vortex_bt_nodes {
 
 namespace {
 using vortex_msgs::msg::LandmarkSubtype;
 using vortex_msgs::msg::LandmarkType;
-using vortex_msgs::msg::WaypointMode;
 
 // Keep in step with LandmarkType.msg and LandmarkSubtype.msg.
 using NameValue = std::pair<std::string_view, std::uint16_t>;
@@ -79,20 +80,6 @@ constexpr NameValue kSubtypes[] = {
     {"PINGER_DEPLOY", LandmarkSubtype::PINGER_DEPLOY},
     {"PINGER_RESTORE", LandmarkSubtype::PINGER_RESTORE},
 };
-
-// Keep in step with WaypointMode.msg.
-constexpr std::pair<std::string_view, std::uint8_t> kModes[] = {
-    {"FULL_POSE", WaypointMode::FULL_POSE},
-    {"ONLY_POSITION", WaypointMode::ONLY_POSITION},
-    {"FORWARD_HEADING", WaypointMode::FORWARD_HEADING},
-    {"ONLY_ORIENTATION", WaypointMode::ONLY_ORIENTATION},
-    {"POSITION_AND_YAW", WaypointMode::POSITION_AND_YAW},
-    {"XY_AND_YAW", WaypointMode::XY_AND_YAW},
-    {"XY_FORWARD_DIR", WaypointMode::XY_FORWARD_DIR},
-    {"LEVEL_ORIENTATION", WaypointMode::LEVEL_ORIENTATION},
-    {"ONLY_Z", WaypointMode::ONLY_Z},
-    {"POS_Z_LEVEL_ORIENTATION", WaypointMode::POS_Z_LEVEL_ORIENTATION},
-};
 }  // namespace
 
 std::optional<std::uint16_t> landmark_type_from_string(std::string_view name) {
@@ -116,13 +103,14 @@ std::optional<int> landmark_subtype_from_string(std::string_view name) {
     return std::nullopt;
 }
 
-std::optional<std::uint8_t> waypoint_mode_from_string(std::string_view name) {
-    for (const auto& [key, value] : kModes) {
-        if (key == name) {
-            return value;
-        }
+std::optional<vortex_msgs::msg::WaypointMode> waypoint_mode_from_string(
+    const std::string& name) {
+    try {
+        return vortex::utils::waypoints::waypoint_mode_to_ros(
+            vortex::utils::waypoints::string_to_waypoint_mode(name));
+    } catch (const std::runtime_error&) {
+        return std::nullopt;
     }
-    return std::nullopt;
 }
 
 }  // namespace vortex_bt_nodes
