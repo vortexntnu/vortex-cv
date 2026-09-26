@@ -7,7 +7,7 @@
 namespace robosub_mission::nodes::approach {
 
 /**
- * @brief Register the approach nodes (M3: approaching landmarks with
+ * @brief Register the approach nodes (approaching landmarks with
  * landmark_targets).
  *
  * Planned: ApproachLandmark, CommitEstimate, LookAtLandmark.

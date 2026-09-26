@@ -24,27 +24,44 @@ perception_setup/config/mission/robosub/mission.yaml
 
 ## Node areas
 
-One folder per area, one owner per area, so members work in their own folder
-and only touch their own `register.cpp`. Node names are from the RoboSub
+The folders group the nodes by what they do. Names are from the RoboSub
 course tree plan (section 8).
 
-| Area | Owner | Nodes |
+| Area | What it holds | Nodes |
 |---|---|---|
-| `motion` | M1 | SetDepth, Surface, Turn, HoldPosition, GoTo, MoveRelative, GoToCourse, MoveCourse, FollowPoses, SelectGatePanel |
-| `map` | M2 | PoseFeeder, MapFeeder, CourseFrameFeeder, LandmarkKnown, SelectLandmark, Search, MatchPipes, RecordLayer, AvoidSlalom |
-| `approach` | M3 | ApproachLandmark, CommitEstimate, LookAtLandmark |
-| `actuators` | M4 | DropMarker, FireTorpedo, SetGripper, MarkUsed |
-| `mission` | M5 | VehicleHealthy, LoadMissionConfig, Wait, SetOperationMode, ResetWorld, LogError, SavePose, GoToSavedPose, StartRun, MissionClock, TaskSlot, RecordBag, ResolveRole, VerifyInside |
+| `motion` | Moving the vehicle through `waypoint_manager` | SetDepth, Surface, Turn, HoldPosition, GoTo, MoveRelative, GoToCourse, MoveCourse, FollowPoses, SelectGatePanel |
+| `map` | Reading `landmark_server` and searching | PoseFeeder, MapFeeder, CourseFrameFeeder, LandmarkKnown, SelectLandmark, Search, MatchPipes, RecordLayer, AvoidSlalom |
+| `approach` | Moving relative to landmarks with `landmark_targets` | ApproachLandmark, CommitEstimate, LookAtLandmark |
+| `actuators` | Markers, torpedoes, gripper | DropMarker, FireTorpedo, SetGripper, MarkUsed |
+| `mission` | Mission flow, time and safety | VehicleHealthy, LoadMissionConfig, Wait, SetOperationMode, ResetWorld, LogError, SavePose, GoToSavedPose, StartRun, MissionClock, TaskSlot, RecordBag, ResolveRole, VerifyInside |
+
+## Who writes what
+
+Everyone writes nodes in several areas. Each node goes in its area's folder
+and is registered in that area's `register.cpp`.
+
+| Person | Nodes (area) |
+|---|---|
+| Johannes | `NavAction` (common, first), ApproachLandmark, CommitEstimate (approach), TaskSlot, LogError (mission), SelectGatePanel (motion) |
+| André | Search, MatchPipes, RecordLayer, AvoidSlalom (map), VehicleHealthy (mission) |
+| Ashish | PoseFeeder, MapFeeder, CourseFrameFeeder (map), GoToCourse, MoveCourse (motion), LookAtLandmark (approach), VerifyInside, RecordBag, SavePose, GoToSavedPose (mission) |
+| Karol | LandmarkKnown, SelectLandmark (map), MissionClock, LoadMissionConfig, StartRun, ResetWorld, ResolveRole, Wait, SetOperationMode (mission), FollowPoses (motion) |
+| Amélie | SetDepth, Surface, Turn, HoldPosition, GoTo, MoveRelative (motion), DropMarker, FireTorpedo, SetGripper, MarkUsed (actuators) |
+
+Order: `NavAction` comes first, since the motion nodes, `Search`,
+`ApproachLandmark` and `LookAtLandmark` build on it. The feeders
+(`PoseFeeder`, `MapFeeder`, `CourseFrameFeeder`) come early too: most nodes
+read `{pose}` and `{map}` from the blackboard.
 
 Code shared by several areas goes in `include/robosub_mission/common/` and
-`src/common/`; agree on it before two areas write their own.
+`src/common/`; agree on it before two people write their own.
 
-## Shared base class for motion nodes (M1, first)
+## Shared base class for motion nodes
 
 Every node that moves the vehicle does the same thing: send a
 `WaypointManager` goal, wait for the result, and cancel the goal if the tree
-halts the node. That is written once, in a base class in `common/`, by M1
-before the motion nodes:
+halts the node. That is written once, in a base class in `common/`, before
+the motion nodes:
 
 ```cpp
 // include/robosub_mission/common/nav_action.hpp
@@ -76,8 +93,8 @@ and the reference filter already do that (`WaypointMode::ONLY_Z` for depth,
 | `GoToCourse`, `MoveCourse` | Course frame point converted to odom |
 | `HoldPosition` | The current pose, `hold_s` |
 
-The other areas build on it too: `Search` (M2) sends its pattern as goals,
-`ApproachLandmark` and `LookAtLandmark` (M3) send the goals `landmark_targets`
+The other areas build on it too: `Search` sends its pattern as goals,
+`ApproachLandmark` and `LookAtLandmark` send the goals `landmark_targets`
 computes. Until `NavAction` exists, they can be written against its interface
 above.
 

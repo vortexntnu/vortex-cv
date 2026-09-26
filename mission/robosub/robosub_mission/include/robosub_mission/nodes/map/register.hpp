@@ -7,7 +7,7 @@
 namespace robosub_mission::nodes::map {
 
 /**
- * @brief Register the map nodes (M2: map and search, reading landmark_server).
+ * @brief Register the map nodes (map and search, reading landmark_server).
  *
  * Planned: PoseFeeder, MapFeeder, CourseFrameFeeder, LandmarkKnown,
  * SelectLandmark, Search, MatchPipes, RecordLayer, AvoidSlalom.

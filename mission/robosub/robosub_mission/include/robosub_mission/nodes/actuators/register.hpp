@@ -7,7 +7,7 @@
 namespace robosub_mission::nodes::actuators {
 
 /**
- * @brief Register the actuators nodes (M4: actuators).
+ * @brief Register the actuators nodes (actuators).
  *
  * Planned: DropMarker, FireTorpedo, SetGripper, MarkUsed.
  */

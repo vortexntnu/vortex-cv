@@ -7,7 +7,7 @@
 namespace robosub_mission::nodes::mission {
 
 /**
- * @brief Register the mission nodes (M5: mission flow and safety).
+ * @brief Register the mission nodes (mission flow and safety).
  *
  * Planned: VehicleHealthy, LoadMissionConfig, Wait, SetOperationMode,
  * ResetWorld, LogError, SavePose, GoToSavedPose, StartRun, MissionClock,

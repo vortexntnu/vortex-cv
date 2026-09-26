@@ -7,7 +7,7 @@
 namespace robosub_mission::nodes::motion {
 
 /**
- * @brief Register the motion nodes (M1: motion through waypoint_manager).
+ * @brief Register the motion nodes (motion through waypoint_manager).
  *
  * Planned: SetDepth, Surface, Turn, HoldPosition, GoTo, MoveRelative,
  * GoToCourse, MoveCourse, FollowPoses, SelectGatePanel.
