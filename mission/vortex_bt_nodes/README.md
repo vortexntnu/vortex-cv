@@ -50,11 +50,11 @@ do, when it is done) are in the
 
 | Person | Task | Nodes, in order |
 |---|---|---|
-| Johannes | Torpedo | LogError, TaskSlot, SelectGatePanel, CommitEstimate, ApproachLandmark |
-| André | Slalom | Search, MatchPipes, RecordLayer, AvoidSlalom |
-| Ashish | Octagon | PoseFeeder, MapFeeder, CourseFrameFeeder, SavePose, GoToSavedPose, VerifyInside, GoToCourse, MoveCourse, LookAtLandmark, RecordBag |
-| Karol | Bins | Wait, SetOperationMode, LoadMissionConfig, MissionClock, ResetWorld, StartRun, LandmarkKnown, SelectLandmark, ResolveRole, FollowPoses |
-| Amélie | Gate | SetDepth, Surface, GoTo, MoveRelative, Turn, HoldPosition, SetGripper, DropMarker, FireTorpedo, MarkUsed |
+| Johannes | Torpedo | LogError, TaskSlot, LookAtLandmark, SelectGatePanel, CommitEstimate, RecordBag, ApproachLandmark |
+| André | Slalom | SelectLandmark, LandmarkKnown, FollowPoses, Search, RecordLayer, MatchPipes, AvoidSlalom |
+| Ashish | Octagon | PoseFeeder, MapFeeder, CourseFrameFeeder, SavePose, GoToSavedPose, VerifyInside, GoToCourse, MoveCourse |
+| Karol | Bins | Wait, MissionClock, SetOperationMode, ResetWorld, StartRun, LoadMissionConfig, ResolveRole, DropMarker |
+| Amélie | Gate | SetDepth, Surface, GoTo, MoveRelative, Turn, HoldPosition, FireTorpedo, SetGripper, MarkUsed |
 
 **Order:** nodes first, top to bottom, then the task tree. A tree uses other
 people's nodes, so write it against the names and ports below; it runs once
@@ -84,19 +84,29 @@ Kinds: *sync* = `BT::SyncActionNode` (answers in one tick), *stateful* =
    - Always returns SUCCESS when done; logs the outcome (SUCCESS, FAILURE, timeout, skipped) and the time used.
    - Test: child succeeds → SUCCESS; child fails → SUCCESS; child never finishes → halted after `budget_s`, SUCCESS; too little time left → child never ticked. Use a clock with a start in the past to fake elapsed time.
 
-3. **SelectGatePanel** (motion, stateful)
+3. **LookAtLandmark** (approach, NavAction)
+   - In: `map`, `pose`, `id`, plus the NavAction ports.
+   - Mode ONLY_ORIENTATION, yaw = `atan2(dy, dx)` from the vehicle to the landmark, roll = pitch = 0.
+   - Test: landmark ahead, left, behind → yaw 0, 90°, 180°; unknown id → FAILURE.
+
+4. **SelectGatePanel** (motion, stateful)
    - In: `map` ({map}), `gate_id` (int), `preferred_role` ("survey_repair" / "search_rescue").
    - Out: `panel_id` (int), `role` ({role}), `gate_side` ({gate_side}: "left"/"right").
    - Looks for the gate's two role panels (GATE subtypes GATE_SURVEY_REPAIR / GATE_SEARCH_RESCUE) near `gate_id` in the map. Picks the panel with our role; its side of the gate centre (seen from the approach) is `gate_side`.
    - Only one panel seen: take it, set `role` to its role. None seen yet: RUNNING (the XML puts a Timeout around it).
    - Test: both panels → ours, correct side for each role; only the other panel → that one and its role; no panels → RUNNING; unknown `gate_id` → FAILURE.
 
-4. **CommitEstimate** (approach, stateful)
+5. **CommitEstimate** (approach, stateful)
    - In: `map`, `id`, `samples` (int), `position_std_m`, `yaw_std_deg`.
    - Each tick, store the map pose of `id` if the map message is new. SUCCESS once the last `samples` poses have a standard deviation below `position_std_m` (x, y, z) and `yaw_std_deg`. RUNNING before that. FAILURE if `id` is not in the map.
    - Test: steady poses → SUCCESS after `samples` ticks; noisy poses → RUNNING; noisy then steady → SUCCESS; unknown id → FAILURE.
 
-5. **ApproachLandmark** (approach, NavAction, uses `landmark_targets`)
+6. **RecordBag** (mission, decorator)
+   - In: `profile` (e.g. "all"), `directory` (default `~/bags`).
+   - Starts `ros2 bag record` for the profile's topics when the child starts; stops it (SIGINT) when the child finishes or is halted. Returns the child's status. A failed start logs a warning and still runs the child.
+   - Test: child status is passed through; the process is started and stopped (check the directory exists afterwards).
+
+7. **ApproachLandmark** (approach, NavAction, uses `landmark_targets`)
    - In: `map`, `pose`, `id` (or `type`/`subtype`: nearest confirmed match), `frame` (LANDMARK / LANDMARK_ODOM_AXES), `x`, `y`, `z`, `yaw_deg` (offset in that frame), `mode`, `tool_frame` (optional), `freeze` (bool), `dead_reckoning_m`, `track_loss_timeout_s`, plus the NavAction ports.
    - Computes the goal pose from the landmark's map pose and the offset with `landmark_targets` (with `tool_frame`, the tool is put at the target, not the vehicle).
    - While running: re-send the goal when the landmark moves more than a few cm in the map, unless `freeze` or the vehicle is within `dead_reckoning_m`. FAILURE when the landmark has not been updated for `track_loss_timeout_s`.
@@ -107,24 +117,38 @@ Then: `trees/torpedo.xml`.
 
 ### André · task: Slalom
 
-1. **Search** (map, NavAction)
+1. **SelectLandmark** (map, sync)
+   - In: `map`, `pose`, `type`, `subtype`, `exclude`, `sort` (NEAREST, LEFTMOST, RIGHTMOST). Out: `id`.
+   - Among the confirmed tracks that match type/subtype and are not in `exclude`, picks one by `sort` (nearest to the vehicle, or leftmost/rightmost relative to its heading) and writes its id. FAILURE if none.
+   - Test: each sort order; exclude; none → FAILURE.
+
+2. **LandmarkKnown** (map, condition)
+   - In: `map`, `pose`, `type`, `subtype`, `max_age_s`, `min_forward_m`, `max_forward_m`, `exclude` (IdList). Out: `id`.
+   - SUCCESS if a confirmed track matches type/subtype, is not excluded, was measured within `max_age_s`, and lies between `min_forward_m` and `max_forward_m` ahead of the vehicle (along its heading). Writes the nearest such id.
+   - Test: each filter alone (type, subtype, ANY, age, forward window, exclude); unconfirmed ignored; unknown names → FAILURE.
+
+3. **FollowPoses** (motion, NavAction)
+   - In: `poses` (PoseList), `mode`, plus the NavAction ports. One goal with one waypoint per pose. FAILURE on an empty list.
+   - Test: count, order and mode of the waypoints; empty → no goal.
+
+4. **Search** (map, NavAction)
    - In: `pose`, `pattern` (ROTATE_STEPS, SCAN_ARC, LAWNMOWER, EXPANDING_SQUARE) and its numbers: `step_deg`, `arc_deg`, `rounds`, `legs`, `leg_m`, `spacing_m`, `pause_s`.
    - Builds the whole pattern as waypoints around the pose at start (yaw steps for ROTATE_STEPS / SCAN_ARC, a lawnmower or square in the horizontal plane), with `hold_time_sec = pause_s` on each. SUCCESS when the pattern is done.
    - It does not look at the map: the XML stops it (`ReactiveFallback` with `LandmarkKnown` first).
    - Test: waypoint count and positions for each pattern; unknown pattern → FAILURE; halt cancels the goal.
 
-2. **MatchPipes** (map, sync, uses `landmark_targets::match_pipes`)
+5. **RecordLayer** (map, sync)
+   - In: `pose`, `red_id`, `layers` (bidirectional, own type), `passed` (IdList, bidirectional, {passed_red_ids}).
+   - Appends `red_id` to `passed` and the layer (red id, pose when passed) to `layers`. SUCCESS.
+   - Test: ids accumulate over three calls; missing `red_id` → FAILURE.
+
+6. **MatchPipes** (map, sync, uses `landmark_targets::match_pipes`)
    - In: `map`, `pose`, `gate_side`, `exclude` (IdList, {passed_red_ids}), `offset` (bidirectional), `min_forward_m`, `collinearity_m`, `min_separation_m`, `inward_deg`.
    - Out: `gap_pose` (Pose, {gap_pose}), `red_id` (int).
    - Splits the confirmed SLALOM_PIPE tracks into red and white, calls the library, writes the gap pose (x, y at the gap, z = current slalom depth, yaw = layer heading). FAILURE when no layer can be matched.
    - Test: full layer → gap on the `gate_side` side of red; red + one white → mirrored gap; excluded red → next layer; no pipes → FAILURE. See `~/slalom_guide.md`.
 
-3. **RecordLayer** (map, sync)
-   - In: `pose`, `red_id`, `layers` (bidirectional, own type), `passed` (IdList, bidirectional, {passed_red_ids}).
-   - Appends `red_id` to `passed` and the layer (red id, pose when passed) to `layers`. SUCCESS.
-   - Test: ids accumulate over three calls; missing `red_id` → FAILURE.
-
-4. **AvoidSlalom** (map, sync, uses `landmark_targets::avoid_slalom_waypoints`)
+7. **AvoidSlalom** (map, sync, uses `landmark_targets::avoid_slalom_waypoints`)
    - In: `map`, `course_frame`, `layers` ({slalom_layers}), `side` ("left"/"right"), `clearance_m`.
    - Out: `path` (PoseList, {avoid_path}).
    - Poses that go around the whole slalom on `side` with `clearance_m` to the outermost pipe, for Return Home. FAILURE with no pipes and no layers.
@@ -174,16 +198,6 @@ Then: `trees/slalom.xml`.
    - Goal = current pose + (dx, dy) along the course axes, yaw along the course x axis.
    - Test: rotated course frame → offset in the right direction; `z` given and not given.
 
-9. **LookAtLandmark** (approach, NavAction)
-   - In: `map`, `pose`, `id`, plus the NavAction ports.
-   - Mode ONLY_ORIENTATION, yaw = `atan2(dy, dx)` from the vehicle to the landmark, roll = pitch = 0.
-   - Test: landmark ahead, left, behind → yaw 0, 90°, 180°; unknown id → FAILURE.
-
-10. **RecordBag** (mission, decorator)
-    - In: `profile` (e.g. "all"), `directory` (default `~/bags`).
-    - Starts `ros2 bag record` for the profile's topics when the child starts; stops it (SIGINT) when the child finishes or is halted. Returns the child's status. A failed start logs a warning and still runs the child.
-    - Test: child status is passed through; the process is started and stopped (check the directory exists afterwards).
-
 Then: `trees/octagon.xml`.
 
 ### Karol · task: Bins
@@ -192,45 +206,35 @@ Then: `trees/octagon.xml`.
    - In: `seconds`. RUNNING until `seconds` have passed on the node clock, then SUCCESS. Halt resets it.
    - Test: RUNNING before, SUCCESS after; 0 → SUCCESS at once.
 
-2. **SetOperationMode** (mission, stateful)
+2. **MissionClock** (mission, sync)
+   - In: `run_time_s`. Out: `clock` ({mission_clock}, `MissionClock{now, run_time_s}`). SUCCESS.
+   - Test: start ≈ now, `run_time_s` set.
+
+3. **SetOperationMode** (mission, stateful)
    - In: `mode` ("autonomous", "manual", ...). Calls `set_operation_mode` (`vortex_msgs/srv/SetOperationMode`) asynchronously; RUNNING until the response; SUCCESS if accepted. FAILURE on unknown mode, a missing service after 2 s, or a rejection.
    - Test: fake service accepts → SUCCESS with the right request; rejects → FAILURE; no service → FAILURE.
 
-3. **LoadMissionConfig** (mission, sync)
+4. **ResetWorld** (mission, stateful)
+   - Publishes `std_msgs/Empty` on `mission/wipe` and calls `landmark_server/clear` (`std_srvs/srv/Empty`). SUCCESS on the response, FAILURE if the service is missing after 2 s.
+   - Test: fake service called and wipe received → SUCCESS; no service → FAILURE.
+
+5. **StartRun** (mission, stateful)
+   - In: `start_pose`, `heading_offset_deg`. Calls `landmark_server/set_course_frame` (`vortex_msgs/srv/SetCourseFrame`) with them. SUCCESS on the response.
+   - Test: request contains the pose and the offset in radians; no service → FAILURE.
+
+6. **LoadMissionConfig** (mission, sync)
    - In: `path` (default: the ROS parameter `mission_config`).
    - Reads the yaml (yaml-cpp) and writes every top-level key to the blackboard: numbers as double, the rest as string. FAILURE (with the reason) if the file cannot be read.
    - Test: a small yaml in the test → keys and types on the blackboard; missing file → FAILURE.
 
-4. **MissionClock** (mission, sync)
-   - In: `run_time_s`. Out: `clock` ({mission_clock}, `MissionClock{now, run_time_s}`). SUCCESS.
-   - Test: start ≈ now, `run_time_s` set.
-
-5. **ResetWorld** (mission, stateful)
-   - Publishes `std_msgs/Empty` on `mission/wipe` and calls `landmark_server/clear` (`std_srvs/srv/Empty`). SUCCESS on the response, FAILURE if the service is missing after 2 s.
-   - Test: fake service called and wipe received → SUCCESS; no service → FAILURE.
-
-6. **StartRun** (mission, stateful)
-   - In: `start_pose`, `heading_offset_deg`. Calls `landmark_server/set_course_frame` (`vortex_msgs/srv/SetCourseFrame`) with them. SUCCESS on the response.
-   - Test: request contains the pose and the offset in radians; no service → FAILURE.
-
-7. **LandmarkKnown** (map, condition)
-   - In: `map`, `pose`, `type`, `subtype`, `max_age_s`, `min_forward_m`, `max_forward_m`, `exclude` (IdList). Out: `id`.
-   - SUCCESS if a confirmed track matches type/subtype, is not excluded, was measured within `max_age_s`, and lies between `min_forward_m` and `max_forward_m` ahead of the vehicle (along its heading). Writes the nearest such id.
-   - Test: each filter alone (type, subtype, ANY, age, forward window, exclude); unconfirmed ignored; unknown names → FAILURE.
-
-8. **SelectLandmark** (map, sync)
-   - In: `map`, `pose`, `type`, `subtype`, `exclude`, `sort` (NEAREST, LEFTMOST, RIGHTMOST). Out: `id`.
-   - Like LandmarkKnown without age and window, choosing by `sort` (left/right relative to the vehicle heading). FAILURE if none.
-   - Test: each sort order; exclude; none → FAILURE.
-
-9. **ResolveRole** (mission, sync)
+7. **ResolveRole** (mission, sync)
    - In: `role`. Out: `bin_subtype`, `torpedo_large`, `torpedo_large_other`, `torpedo_small`, `torpedo_small_other`, `octagon_image` (subtype names).
    - survey_repair → BIN_SURVEY_REPAIR, TORPEDO_TARGET_LARGE_SURVEY_REPAIR, ..._SEARCH_RESCUE as "other", OCTAGON_IMAGE_SURVEY; search_rescue the other way round. FAILURE on an unknown role.
    - Test: both roles give every output; unknown → FAILURE.
 
-10. **FollowPoses** (motion, NavAction)
-    - In: `poses` (PoseList), `mode`, plus the NavAction ports. One goal with one waypoint per pose. FAILURE on an empty list.
-    - Test: count, order and mode of the waypoints; empty → no goal.
+8. **DropMarker** (actuators, stateful)
+   - In: `index` (0 or 1), `topic` (default "actuators/marker_dropper"). Publishes `std_msgs/Int8` with the index, waits `settle_s` (default 1.0), SUCCESS. FAILURE on an index outside 0–1.
+   - Test: the message arrives with the index; bad index → FAILURE.
 
 Then: `trees/bins.xml`.
 
@@ -260,21 +264,17 @@ Then: `trees/bins.xml`.
    - In: `pose`, `seconds`. The current pose, mode FULL_POSE, `hold_time_sec = seconds`. `seconds` < 0: hold until halted (`goal.persistent = true`).
    - Test: hold time set; negative → persistent.
 
-7. **SetGripper** (actuators, stateful)
+7. **FireTorpedo** (actuators, stateful)
+   - In: `side` ("left" / "right"), `topic` (default "actuators/torpedo"). Publishes `std_msgs/Int8` (0 = left, 1 = right), waits `settle_s` (default 1.0), SUCCESS. FAILURE on an unknown side.
+   - Test: the message arrives with the right value for each side; unknown side → FAILURE.
+
+8. **SetGripper** (actuators, stateful)
    - In: `state` ("open" / "closed"). Sends a `GripperReferenceFilterWaypoint` goal (see `vortex_yasmin_utils/gripper_state`). SUCCESS on the result; FAILURE on an unknown state or a missing server.
    - Test: with a fake gripper server, as in `bt_test_utils.hpp`.
 
-8. **DropMarker** (actuators, stateful)
-   - In: `index` (0 or 1), `topic` (default "actuators/marker_dropper"). Publishes `std_msgs/Int8` with the index, waits `settle_s` (default 1.0), SUCCESS. FAILURE on an index outside 0–1.
-   - Test: the message arrives with the index; bad index → FAILURE.
-
-9. **FireTorpedo** (actuators, stateful)
-   - In: `side` ("left" / "right"), `topic` (default "actuators/torpedo"). As DropMarker (0 = left, 1 = right).
-   - Test: as DropMarker.
-
-10. **MarkUsed** (actuators, sync)
-    - In: `id`, `list` (IdList, bidirectional). Appends `id` if not already there. SUCCESS.
-    - Test: appends; no duplicates; empty list created.
+9. **MarkUsed** (actuators, sync)
+   - In: `id`, `list` (IdList, bidirectional). Appends `id` if not already there. SUCCESS.
+   - Test: appends; no duplicates; empty list created.
 
 Then: `trees/gate.xml`.
 
