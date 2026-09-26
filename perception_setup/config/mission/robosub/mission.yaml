@@ -18,9 +18,13 @@ gate_depth: 1.0
 slalom_depth: 1.5          # between the pipe ends
 bins_search_depth: 1.0
 torpedo_depth: 1.25
+octagon_search_depth: 0.9
 fire_distance_m: 0.5       # from the launcher; bonus from 0.46 m
 
 bins_area_x: 12.0
 bins_area_y: 2.0
 torpedo_area_x: 15.0
 torpedo_area_y: -5.0
+octagon_area_x: 20.0
+octagon_area_y: 0.0
+octagon_items_enabled: false   # table items, a stretch goal

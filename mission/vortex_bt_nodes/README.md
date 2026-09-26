@@ -43,7 +43,7 @@ landmark_server, searching), `approach` (moving relative to landmarks),
 
 ## Who makes what
 
-Everyone writes nodes in several areas, and four people also own a task
+Everyone writes nodes in several areas, and everyone also owns a task
 tree in `robosub_mission/trees/`. The task specs (goal, what the tree must
 do, when it is done) are in the
 [robosub_mission README](../robosub/robosub_mission/README.md#tasks).
@@ -52,7 +52,7 @@ do, when it is done) are in the
 |---|---|---|
 | Johannes | Torpedo | LogError, TaskSlot, SelectGatePanel, CommitEstimate, ApproachLandmark |
 | André | Slalom | VehicleHealthy, Search, MatchPipes, RecordLayer, AvoidSlalom |
-| Ashish | – | PoseFeeder, MapFeeder, CourseFrameFeeder, SavePose, GoToSavedPose, VerifyInside, GoToCourse, MoveCourse, LookAtLandmark, RecordBag |
+| Ashish | Octagon | PoseFeeder, MapFeeder, CourseFrameFeeder, SavePose, GoToSavedPose, VerifyInside, GoToCourse, MoveCourse, LookAtLandmark, RecordBag |
 | Karol | Bins | Wait, SetOperationMode, LoadMissionConfig, MissionClock, ResetWorld, StartRun, LandmarkKnown, SelectLandmark, ResolveRole, FollowPoses |
 | Amélie | Gate | SetDepth, Surface, GoTo, MoveRelative, Turn, HoldPosition, SetGripper, DropMarker, FireTorpedo, MarkUsed |
 
@@ -137,7 +137,7 @@ Then: `trees/torpedo.xml`.
 
 Then: `trees/slalom.xml`.
 
-### Ashish
+### Ashish · task: Octagon
 
 1. **PoseFeeder** (map, sync)
    - In: `topic` (default "pose"), `max_age_s`. Out: `pose` ({pose}).
@@ -188,6 +188,8 @@ Then: `trees/slalom.xml`.
     - In: `profile` (e.g. "all"), `directory` (default `~/bags`).
     - Starts `ros2 bag record` for the profile's topics when the child starts; stops it (SIGINT) when the child finishes or is halted. Returns the child's status. A failed start logs a warning and still runs the child.
     - Test: child status is passed through; the process is started and stopped (check the directory exists afterwards).
+
+Then: `trees/octagon.xml`.
 
 ### Karol · task: Bins
 

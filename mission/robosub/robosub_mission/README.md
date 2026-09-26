@@ -48,6 +48,7 @@ Rules for every task tree:
 | Slalom | André | `trees/slalom.xml` |
 | Bins | Karol | `trees/bins.xml` |
 | Torpedo | Johannes | `trees/torpedo.xml` |
+| Octagon | Ashish | `trees/octagon.xml` |
 
 ### Gate (Amélie)
 
@@ -148,6 +149,40 @@ Reads: `{torpedo_large_subtype}`, `{torpedo_small_subtype}` and their
 `_other` variants (from `ResolveRole`).
 Yaml: `torpedo_area_x`, `torpedo_area_y`, `torpedo_depth`,
 `fire_distance_m`.
+
+### Octagon (Ashish)
+
+**Goal:** surface fully inside the octagon (needed for the time bonus),
+facing the image with our role.
+
+The tree must:
+1. `GoToCourse` to `{octagon_area_x}`, `{octagon_area_y}` at
+   `{travel_depth}` (`ForceSuccess`), `SetDepth` to `{octagon_search_depth}`.
+2. Find it: `LandmarkKnown type="TABLE" subtype="TABLE_WHOLE"`, else
+   `LandmarkKnown type="OCTAGON" subtype="OCTAGON_WHOLE"`, else `Search
+   pattern="EXPANDING_SQUARE"`.
+3. Centre and surface, retried once (`RetryUntilSuccessful`):
+   - `ApproachLandmark type="OCTAGON"` with `mode="XY_AND_YAW"` (keeps the
+     depth while centring);
+   - fine centring over the table with `tool_frame="downwards_camera_link"`,
+     in a `ForceSuccess`;
+   - `VerifyInside type="OCTAGON" radius_m="1.35" margin_m="0.3"`: if it
+     fails, the vehicle does not go up, and the retry centres again;
+   - `Surface`.
+4. Face the image (`ForceSuccess`): `LandmarkKnown type="OCTAGON"
+   subtype="{octagon_image_subtype}"` → `{image_id}`, else `Search
+   pattern="ROTATE_STEPS"`; then `LookAtLandmark id="{image_id}"`.
+5. Items on the table (a stretch goal): an `OctagonItems` subtree skipped
+   while `{octagon_items_enabled}` is false (`SelectLandmark`,
+   `ApproachLandmark` with `tool_frame="gripper_link"`, `SetGripper`).
+6. `SetDepth` back down to `{travel_depth}` for Return Home.
+
+Must handle: table not seen (the octagon ring is enough), centring failing
+(VerifyInside decides), not inside (no surfacing, one more try), the image
+not found (stay surfaced without the image points).
+Reads: `{octagon_image_subtype}` (from `ResolveRole`).
+Yaml: `octagon_area_x`, `octagon_area_y`, `octagon_search_depth`,
+`octagon_items_enabled`.
 
 ## Adding a task
 
