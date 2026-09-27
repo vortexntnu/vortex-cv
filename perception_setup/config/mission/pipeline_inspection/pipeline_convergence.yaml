@@ -1,0 +1,15 @@
+pipeline_start_convergence:
+  position:
+    x: 0.0
+    y: 0.0
+    z: -1.0
+  orientation:
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+  mode: FORWARD_HEADING
+  keep_altitude: true
+  desired_altitude: 1.2
+  require_altitude_convergence: false
+  convergence_threshold: 0.2
+

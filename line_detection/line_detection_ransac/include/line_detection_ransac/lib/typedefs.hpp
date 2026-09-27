@@ -22,6 +22,9 @@ struct BoundaryConfig {
                      // boundaries (degrees).
     bool edge_detection{true};  // Detection mode. True if edge detection. False
                                 // if threshold detection
+    float min_dist_from_origin{0.0f};  // Minimum pixel distance from the sonar
+                                       // origin a boundary point must have to
+                                       // be considered valid.
 };
 
 struct RansacConfig {

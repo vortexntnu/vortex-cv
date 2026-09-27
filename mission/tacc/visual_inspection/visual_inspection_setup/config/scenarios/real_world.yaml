@@ -1,0 +1,5 @@
+# Visual inspection - Real world scenario
+# All scenario-specific parameters in one place.
+
+scenario:
+  name: real_world

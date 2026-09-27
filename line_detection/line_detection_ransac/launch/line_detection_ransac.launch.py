@@ -19,6 +19,7 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 'config',
                 default_value='real',
+                choices=['sim', 'real'],
                 description='Configuration file to use (sim or real)',
             ),
             Node(

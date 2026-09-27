@@ -1,0 +1,5 @@
+# Visual inspection - Simulation scenario
+# All scenario-specific parameters in one place.
+
+scenario:
+  name: sim

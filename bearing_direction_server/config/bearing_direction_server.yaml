@@ -1,0 +1,7 @@
+/**:
+  ros__parameters:
+    target_frame: nautilus/odom
+    topics:
+      odom: /nautilus/odom
+    action_name: collect_bearing_direction  # overridden per node in launch
+    outlier_threshold_deg: 30.0             # reject vectors > 30° from mean

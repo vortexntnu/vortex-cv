@@ -30,6 +30,7 @@ void LineDetectionRansacNode::declare_parameters() {
     this->declare_parameter<int>("boundary_detection.angle");
     this->declare_parameter<int>("boundary_detection.num_rays");
     this->declare_parameter<bool>("boundary_detection.edge_detection");
+    this->declare_parameter<float>("boundary_detection.min_dist_from_origin");
 
     this->declare_parameter<int>("ransac.points_checked");
     this->declare_parameter<float>("ransac.inlier_threshold");
@@ -89,6 +90,9 @@ void LineDetectionRansacNode::set_detector() {
         this->get_parameter("boundary_detection.num_rays").as_int();
     boundary_config.edge_detection =
         this->get_parameter("boundary_detection.edge_detection").as_bool();
+    boundary_config.min_dist_from_origin =
+        this->get_parameter("boundary_detection.min_dist_from_origin")
+            .as_double();
 
     RansacConfig ransac_config;
     ransac_config.points_checked =

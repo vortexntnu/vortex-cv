@@ -1,0 +1,21 @@
+depth_level_waypoint:  # Sent after wipe to establish altitude and level orientation before mission start.
+  mode: pos_z_level_orientation
+  convergence_threshold: 0.15
+  keep_altitude: true
+  desired_altitude: 0.75
+  require_altitude_convergence: true
+
+dock_config_waypoint:  # Navigated to when wall detection times out or is disabled.
+  mode: forward_heading
+  position:
+    x: 0.0
+    y: 7.5
+    z: 1.0
+  orientation:
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+  convergence_threshold: 0.3
+  keep_altitude: true
+  desired_altitude: 0.75
+  require_altitude_convergence: false

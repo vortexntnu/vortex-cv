@@ -11,14 +11,17 @@ PipelineEndDetectorNode::PipelineEndDetectorNode(
 
     detection_threshold_ =
         static_cast<int>(get_parameter("detection_threshold").as_int());
+    activation_delay_sec_ = get_parameter("activation_delay_sec").as_double();
+    debug_ = get_parameter("debug").as_bool();
 
     setup_pubsub();
 
     RCLCPP_INFO(
         get_logger(),
-        "PipelineEndDetectorNode started. threshold=%d, awaiting activation on "
-        "'%s'",
-        detection_threshold_,
+        "PipelineEndDetectorNode started. threshold=%d, "
+        "activation_delay=%.1fs, "
+        "awaiting activation on '%s'",
+        detection_threshold_, activation_delay_sec_,
         get_parameter("topics.start_detection_service").as_string().c_str());
 }
 
@@ -27,6 +30,10 @@ void PipelineEndDetectorNode::declare_parameters() {
     declare_parameter<std::string>("topics.end_of_pipeline_service");
     declare_parameter<std::string>("topics.start_detection_service");
     declare_parameter<int>("detection_threshold");
+    declare_parameter<double>("activation_delay_sec", 0.0);
+    declare_parameter<bool>("debug", true);
+    declare_parameter<std::string>("topics.debug_counter",
+                                   "pipeline_end_detector/debug_counter");
 }
 
 void PipelineEndDetectorNode::setup_pubsub() {
@@ -41,17 +48,48 @@ void PipelineEndDetectorNode::setup_pubsub() {
 
     start_detection_server_ = create_service<std_srvs::srv::Trigger>(
         get_parameter("topics.start_detection_service").as_string(),
-        std::bind(&PipelineEndDetectorNode::start_detection_callback, this,
-                  std::placeholders::_1, std::placeholders::_2));
+        std::bind(
+            &PipelineEndDetectorNode::start_end_pipeline_detection_callback,
+            this, std::placeholders::_1, std::placeholders::_2));
+
+    if (debug_) {
+        const auto debug_topic =
+            get_parameter("topics.debug_counter").as_string();
+        debug_counter_pub_ =
+            create_publisher<std_msgs::msg::Int32>(debug_topic, sensor_qos);
+        RCLCPP_INFO(get_logger(), "Debug counter publishing on '%s'.",
+                    debug_topic.c_str());
+    }
 }
 
-void PipelineEndDetectorNode::start_detection_callback(
+void PipelineEndDetectorNode::start_end_pipeline_detection_callback(
     const std_srvs::srv::Trigger::Request::SharedPtr /*request*/,
     std_srvs::srv::Trigger::Response::SharedPtr response) {
-    detection_active_ = true;
     response->success = true;
-    response->message = "Pipeline end detection activated.";
-    RCLCPP_INFO(get_logger(), "Pipeline following started — detection active.");
+
+    if (activation_delay_sec_ <= 0.0) {
+        activate_detection();
+        response->message = "Pipeline end detection activated.";
+        return;
+    }
+
+    // Acknowledge immediately so the FSM can proceed straight into pipeline
+    // following; arm a one-shot timer that activates detection after the delay.
+    response->message = "Pipeline end detection scheduled.";
+    RCLCPP_INFO(
+        get_logger(),
+        "Pipeline following started — detection will activate in %.1fs.",
+        activation_delay_sec_);
+    activation_timer_ = create_wall_timer(
+        std::chrono::duration<double>(activation_delay_sec_), [this]() {
+            activation_timer_->cancel();  // one-shot
+            activate_detection();
+        });
+}
+
+void PipelineEndDetectorNode::activate_detection() {
+    detection_active_ = true;
+    RCLCPP_INFO(get_logger(), "Pipeline end detection active.");
 }
 
 void PipelineEndDetectorNode::detection_callback(
@@ -62,14 +100,18 @@ void PipelineEndDetectorNode::detection_callback(
 
     if (msg->data > 0) {
         ++consecutive_detections_;
-        RCLCPP_DEBUG(get_logger(), "Consecutive detections: %d / %d",
+        RCLCPP_DEBUG(get_logger(), "Detection counter: %d / %d",
                      consecutive_detections_, detection_threshold_);
-    } else {
-        if (consecutive_detections_ > 0) {
-            RCLCPP_DEBUG(get_logger(),
-                         "Detection streak broken, resetting counter.");
-        }
-        consecutive_detections_ = 0;
+    } else if (consecutive_detections_ > 0) {
+        --consecutive_detections_;
+        RCLCPP_DEBUG(get_logger(), "No detection, decaying counter to %d.",
+                     consecutive_detections_);
+    }
+
+    if (debug_counter_pub_) {
+        std_msgs::msg::Int32 counter_msg;
+        counter_msg.data = consecutive_detections_;
+        debug_counter_pub_->publish(counter_msg);
     }
 
     if (consecutive_detections_ >= detection_threshold_) {

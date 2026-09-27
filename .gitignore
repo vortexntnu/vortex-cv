@@ -1,5 +1,5 @@
 # VSCode
-.vscode/*
+.vscode/
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
@@ -255,3 +255,8 @@ qtcreator-*
 
 # Catkin custom files
 CATKIN_IGNORE
+.vscode/
+
+# Model files
+*.pt
+*.onnx
