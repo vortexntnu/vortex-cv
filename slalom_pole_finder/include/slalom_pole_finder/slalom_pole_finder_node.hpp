@@ -9,7 +9,11 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <vision_msgs/msg/detection2_d_array.hpp>
-#include <vision_msgs/msg/detection3_d_array.hpp>
+
+#include <vortex_msgs/msg/landmark_array.hpp>
+#include <vortex_msgs/msg/landmark_subtype.hpp>
+#include <vortex_msgs/msg/landmark_type.hpp>
+#include <vortex_msgs/msg/landmark.hpp>
 
 namespace slalom_pole_finder
 {
@@ -23,13 +27,13 @@ private:
   struct TrackedPole
   {
     geometry_msgs::msg::Point position;
-    std::string id;
+    std::int32_t id;
   };
 
   void detectionCallback(vision_msgs::msg::Detection2DArray::ConstSharedPtr msg);
   void odomCallback(nav_msgs::msg::Odometry::ConstSharedPtr msg);
-  bool touchesTopEdge(const vision_msgs::msg::Detection2D & detection) const;
-  std::string assignId(
+  bool touchesImageEdge(const vision_msgs::msg::Detection2D & detection) const;
+  std::int32_t assignId(
     const geometry_msgs::msg::Point & position,
     std::unordered_set<std::size_t> & matched_tracks);
 
@@ -45,18 +49,20 @@ private:
   double cam_qy_;
   double cam_qz_;
   double cam_qw_;
-  double top_margin_px_;
+  double edge_margin_px_;
+  int image_width_;
+  int image_height_;
   double match_distance_m_;
 
   std::vector<TrackedPole> tracked_poles_;
   std::string tracking_frame_;
-  std::uint64_t next_id_{1};
+  std::int32_t next_id_{1};
 
   nav_msgs::msg::Odometry::ConstSharedPtr latest_odom_;
   rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr detection_sub_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pose_pub_;
-  rclcpp::Publisher<vision_msgs::msg::Detection3DArray>::SharedPtr tracked_pose_pub_;
+  rclcpp::Publisher<vortex_msgs::msg::LandmarkArray>::SharedPtr landmark_pub_;
 };
 
 }  // namespace slalom_pole_finder

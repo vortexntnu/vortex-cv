@@ -14,6 +14,7 @@
   <depend>rclcpp</depend>
   <depend>tf2</depend>
   <depend>vision_msgs</depend>
+  <depend>vortex_msgs</depend>
 
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>launch</exec_depend>
