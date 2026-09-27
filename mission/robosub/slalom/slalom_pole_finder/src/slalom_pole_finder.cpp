@@ -1,12 +1,28 @@
 #include "slalom_pole_finder/slalom_pole_finder_node.hpp"
 
+#include <spdlog/spdlog.h>
+
+#include <chrono>
 #include <cmath>
 #include <stdexcept>
 
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Vector3.h>
+#include <tf2/exceptions.h>
 
 namespace slalom_pole_finder {
+
+namespace {
+// spdlog has no throttle; warn at most once per 2 s.
+void warn_throttled(const std::string& text) {
+    static auto last = std::chrono::steady_clock::time_point{};
+    const auto now = std::chrono::steady_clock::now();
+    if (now - last > std::chrono::seconds(2)) {
+        last = now;
+        spdlog::warn("[slalom_pole_finder] {}", text);
+    }
+}
+}  // namespace
 
 SlalomPoleFinderNode::SlalomPoleFinderNode() : Node("slalom_pole_finder") {
     fx_ = declare_parameter<double>("fx", 1396.8086675);
@@ -14,24 +30,16 @@ SlalomPoleFinderNode::SlalomPoleFinderNode() : Node("slalom_pole_finder") {
     cx_ = declare_parameter<double>("cx", 960.0);
     cy_ = declare_parameter<double>("cy", 540.0);
     object_height_ = declare_parameter<double>("object_height", 0.9);
-
-    // Camera optical frame: x right, y down, z forward.
-    // Default assumes a forward-facing camera and a drone body frame with
-    // x forward, y right, z down (FRD): (x, y, z)_camera -> (z, x, y)_body.
-    // Replace these values with the measured camera extrinsics if the mount
-    // differs.
-
-    cam_tx_ = declare_parameter<double>("camera.tx", 0.37477);
-    cam_ty_ = declare_parameter<double>("camera.ty", 0.0115);
-    cam_tz_ = declare_parameter<double>("camera.tz", -0.037895);
-    cam_qx_ = declare_parameter<double>("camera.qx", 0.5);
-    cam_qy_ = declare_parameter<double>("camera.qy", 0.5);
-    cam_qz_ = declare_parameter<double>("camera.qz", 0.5);
-    cam_qw_ = declare_parameter<double>("camera.qw", 0.5);
     edge_margin_px_ = declare_parameter<double>("edge_margin_px", 20.0);
     image_width_ = declare_parameter<int>("image_width", 1920);
     image_height_ = declare_parameter<int>("image_height", 1080);
     match_distance_m_ = declare_parameter<double>("match_distance_m", 0.75);
+    // Used when the detections have no frame_id. The camera's pose comes
+    // from TF, so the mount is set in the URDF, not here.
+    camera_frame_ = declare_parameter<std::string>(
+        "camera_frame", "nautilus/front_camera_color_optical");
+    odom_frame_ = declare_parameter<std::string>("odom_frame", "nautilus/odom");
+    tf_timeout_s_ = declare_parameter<double>("tf_timeout_s", 0.1);
 
     if (fx_ <= 0.0 || fy_ <= 0.0 || object_height_ <= 0.0 ||
         !std::isfinite(fx_) || !std::isfinite(fy_) || !std::isfinite(cx_) ||
@@ -50,34 +58,28 @@ SlalomPoleFinderNode::SlalomPoleFinderNode() : Node("slalom_pole_finder") {
 
     const std::string detections_topic = declare_parameter<std::string>(
         "detections_topic", "/yolo_object_detection/detections");
-    const std::string odom_topic =
-        declare_parameter<std::string>("odom_topic", "/nautilus/odom");
     const std::string positions_topic = declare_parameter<std::string>(
         "positions_topic", "/slalom_pole_finder/poles_3d");
     const std::string landmarks_topic = declare_parameter<std::string>(
         "landmarks_topic", "/nautilus/landmarks");
+
+    tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
+    // Spins on its own thread, so waiting for a transform in the callback
+    // does not block TF updates.
+    tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
     detection_sub_ = create_subscription<vision_msgs::msg::Detection2DArray>(
         detections_topic, 10,
         [this](vision_msgs::msg::Detection2DArray::ConstSharedPtr msg) {
             detectionCallback(msg);
         });
-    odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
-        odom_topic, 20, [this](nav_msgs::msg::Odometry::ConstSharedPtr msg) {
-            odomCallback(msg);
-        });
     pose_pub_ =
         create_publisher<geometry_msgs::msg::PoseArray>(positions_topic, 10);
     landmark_pub_ =
         create_publisher<vortex_msgs::msg::LandmarkArray>(landmarks_topic, 10);
 
-    RCLCPP_INFO(get_logger(), "Estimating 3D poles from '%s' and '%s'",
-                detections_topic.c_str(), odom_topic.c_str());
-}
-
-void SlalomPoleFinderNode::odomCallback(
-    nav_msgs::msg::Odometry::ConstSharedPtr msg) {
-    latest_odom_ = msg;
+    spdlog::info("[slalom_pole_finder] Estimating 3D poles from '{}'",
+                 detections_topic);
 }
 
 bool SlalomPoleFinderNode::touchesImageEdge(
@@ -132,57 +134,45 @@ std::int32_t SlalomPoleFinderNode::assignId(
 
 void SlalomPoleFinderNode::detectionCallback(
     vision_msgs::msg::Detection2DArray::ConstSharedPtr msg) {
-    // main.cpp uses a single-threaded executor, so the latest odometry pointer
-    // is never changed concurrently with this callback.
-    if (!latest_odom_) {
-        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                             "Waiting for odometry");
+    const std::string camera_frame =
+        msg->header.frame_id.empty() ? camera_frame_ : msg->header.frame_id;
+
+    // Camera pose in odom at the image time: gives the vertical direction
+    // for the tilt correction, and odom positions for the ids and the debug
+    // PoseArray.
+    geometry_msgs::msg::TransformStamped odom_camera;
+    try {
+        odom_camera = tf_buffer_->lookupTransform(
+            odom_frame_, camera_frame, msg->header.stamp,
+            rclcpp::Duration::from_seconds(tf_timeout_s_));
+    } catch (const tf2::TransformException& ex) {
+        warn_throttled("No transform " + odom_frame_ + " <- " + camera_frame +
+                       " at the image time: " + ex.what());
         return;
     }
 
-    const auto& odom = *latest_odom_;
-    if (odom.header.frame_id.empty()) {
-        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                             "Odometry has no reference frame");
+    const auto& r = odom_camera.transform.rotation;
+    tf2::Quaternion q_odom_camera(r.x, r.y, r.z, r.w);
+    if (q_odom_camera.length2() < 1e-12) {
+        warn_throttled("Camera rotation is invalid");
         return;
     }
+    q_odom_camera.normalize();
+    const auto& t = odom_camera.transform.translation;
+    const tf2::Vector3 t_odom_camera(t.x, t.y, t.z);
 
-    tf2::Quaternion q_base_camera(cam_qx_, cam_qy_, cam_qz_, cam_qw_);
-    tf2::Quaternion q_odom_base(
-        odom.pose.pose.orientation.x, odom.pose.pose.orientation.y,
-        odom.pose.pose.orientation.z, odom.pose.pose.orientation.w);
-    if (q_base_camera.length2() < 1e-12 || q_odom_base.length2() < 1e-12) {
-        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                             "Camera or odometry rotation is invalid");
-        return;
-    }
-    q_base_camera.normalize();
-    q_odom_base.normalize();
-
-    // Express the odometry frame's vertical pole axis in camera coordinates.
-    // Rotating the vertical unit vector into the body frame automatically
-    // removes yaw because yaw rotates around that same vertical axis. Only
-    // vehicle tilt (roll/pitch) and the camera mount affect projected length.
-    const tf2::Vector3 pole_axis_base =
-        tf2::quatRotate(q_odom_base.inverse(), tf2::Vector3(0.0, 0.0, 1.0));
+    // The odom frame's vertical pole axis in camera coordinates. Only the
+    // vehicle tilt and the camera mount affect the projected length.
     const tf2::Vector3 pole_axis_camera =
-        tf2::quatRotate(q_base_camera.inverse(), pole_axis_base);
-
-    const tf2::Vector3 t_base_camera(cam_tx_, cam_ty_, cam_tz_);
-    const tf2::Vector3 t_odom_base(odom.pose.pose.position.x,
-                                   odom.pose.pose.position.y,
-                                   odom.pose.pose.position.z);
+        tf2::quatRotate(q_odom_camera.inverse(), tf2::Vector3(0.0, 0.0, 1.0));
 
     geometry_msgs::msg::PoseArray output;
     output.header.stamp = msg->header.stamp;
-    output.header.frame_id = odom.header.frame_id;
+    output.header.frame_id = odom_frame_;
     vortex_msgs::msg::LandmarkArray landmark_output;
-    landmark_output.header = output.header;
+    landmark_output.header.stamp = msg->header.stamp;
+    landmark_output.header.frame_id = camera_frame;
 
-    if (tracking_frame_ != odom.header.frame_id) {
-        tracked_poles_.clear();
-        tracking_frame_ = odom.header.frame_id;
-    }
     std::unordered_set<std::size_t> matched_tracks;
 
     for (const auto& detection : msg->detections) {
@@ -210,14 +200,12 @@ void SlalomPoleFinderNode::detectionCallback(
             landmark_subtype =
                 vortex_msgs::msg::LandmarkSubtype::SLALOM_PIPE_WHITE;
         } else {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                 "Ignoring unsupported YOLO class ID: %s",
-                                 class_id.c_str());
+            warn_throttled("Ignoring unsupported YOLO class ID: " + class_id);
             continue;
         }
 
-        // The diagonal approximates the projected length of a narrow pole even
-        // when roll rotates it in the image. The projection scale below
+        // The diagonal approximates the projected length of a narrow pole
+        // even when roll rotates it in the image. The projection scale below
         // corrects for pitch and for an off-axis pole.
         const double observed_length_px = std::hypot(w_px, h_px);
         const double normalized_x = (u - cx_) / fx_;
@@ -232,10 +220,9 @@ void SlalomPoleFinderNode::detectionCallback(
             continue;
         }
 
-        // Solve the perspective projection of a pole centered on the detection
-        // ray. The quadratic term matters when the pole axis has a component in
-        // the camera-forward direction (for example, while the drone is
-        // pitched).
+        // Solve the perspective projection of a pole centered on the
+        // detection ray. The quadratic term matters when the pole axis has a
+        // component in the camera-forward direction (the drone is pitched).
         const double half_depth_extent =
             0.5 * object_height_ * pole_axis_camera.z();
         const double scaled_height = object_height_ * projection_scale_px;
@@ -251,30 +238,27 @@ void SlalomPoleFinderNode::detectionCallback(
 
         const tf2::Vector3 p_camera(normalized_x * depth, normalized_y * depth,
                                     depth);
-        // With the default optical->FRD rotation, p_base.z() is the object's
-        // downward offset from the drone. The odometry rotation accounts for
-        // vehicle roll and pitch before its position is added.
-        const tf2::Vector3 p_base =
-            tf2::quatRotate(q_base_camera, p_camera) + t_base_camera;
         const tf2::Vector3 p_odom =
-            tf2::quatRotate(q_odom_base, p_base) + t_odom_base;
+            tf2::quatRotate(q_odom_camera, p_camera) + t_odom_camera;
 
-        geometry_msgs::msg::Pose pose;
-        pose.position.x = p_odom.x();
-        pose.position.y = p_odom.y();
-        pose.position.z = p_odom.z();  // Down-positive when odometry is NED.
-        pose.orientation.w =
-            1.0;  // The bounding box does not provide orientation.
-        output.poses.push_back(pose);
+        geometry_msgs::msg::Pose odom_pose;
+        odom_pose.position.x = p_odom.x();
+        odom_pose.position.y = p_odom.y();
+        odom_pose.position.z = p_odom.z();
+        odom_pose.orientation.w = 1.0;
+        output.poses.push_back(odom_pose);
 
         vortex_msgs::msg::Landmark landmark;
         landmark.header = landmark_output.header;
-        landmark.id = assignId(pose.position, matched_tracks);
+        landmark.id = assignId(odom_pose.position, matched_tracks);
         landmark.type.value = vortex_msgs::msg::LandmarkType::SLALOM_PIPE;
         landmark.subtype.value = landmark_subtype;
-        landmark.pose.pose = pose;
-        // Position covariance not known yet: zeros let landmark_server use its
-        // own noise model. Large rotation variance = position only.
+        landmark.pose.pose.position.x = p_camera.x();
+        landmark.pose.pose.position.y = p_camera.y();
+        landmark.pose.pose.position.z = p_camera.z();
+        landmark.pose.pose.orientation.w = 1.0;
+        // Position covariance not known yet: zeros let landmark_server use
+        // its own noise model. Large rotation variance = position only.
         landmark.pose.covariance.fill(0.0);
         landmark.pose.covariance[21] = 1e6;
         landmark.pose.covariance[28] = 1e6;

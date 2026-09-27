@@ -1,7 +1,6 @@
 slalom_pole_finder:
   ros__parameters:
     detections_topic: "/yolo_object_detection/detections"
-    odom_topic: "/nautilus/odom"
     positions_topic: "/slalom_pole_finder/poles_3d"
     # LandmarkArray containing the tracked pole positions and IDs.
     landmarks_topic: "/nautilus/landmarks"
@@ -22,15 +21,9 @@ slalom_pole_finder:
     # orientations.
     object_height: 0.9
 
-    # Forward-facing camera optical frame -> drone FRD frame (x forward,
-    # y right, z down). This rotation maps camera (x right, y down, z forward)
-    # to drone (x forward, y right, z down). Calibrate for the real mount.
-    # The odometry frame must also use positive-down z (NED) for the published
-    # pole z to be positive below the starting position.
-    camera.tx: 0.0
-    camera.ty: 0.0
-    camera.tz: 0.0
-    camera.qx: 0.5
-    camera.qy: 0.5
-    camera.qz: 0.5
-    camera.qw: 0.5
+    # Detections are published in the camera frame with the image stamp;
+    # landmark_server transforms them with the pose at that time. camera_frame
+    # is used when the detections have no frame_id.
+    camera_frame: "nautilus/front_camera_color_optical"
+    odom_frame: "nautilus/odom"
+    tf_timeout_s: 0.1

@@ -11,9 +11,11 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(nav_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(spdlog REQUIRED)
+find_package(fmt REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(vortex_msgs REQUIRED)
 
@@ -28,12 +30,14 @@ target_include_directories(slalom_pole_finder_node PRIVATE
 
 ament_target_dependencies(slalom_pole_finder_node
   geometry_msgs
-  nav_msgs
   rclcpp
   tf2
+  tf2_ros
   vision_msgs
   vortex_msgs
 )
+
+target_link_libraries(slalom_pole_finder_node spdlog::spdlog fmt::fmt)
 
 install(TARGETS
   slalom_pole_finder_node
