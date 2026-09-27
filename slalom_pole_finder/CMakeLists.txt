@@ -15,6 +15,7 @@ find_package(nav_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(vision_msgs REQUIRED)
+find_package(vortex_msgs REQUIRED)
 
 add_executable(slalom_pole_finder_node
   src/slalom_pole_finder.cpp
@@ -31,6 +32,7 @@ ament_target_dependencies(slalom_pole_finder_node
   rclcpp
   tf2
   vision_msgs
+  vortex_msgs
 )
 
 install(TARGETS

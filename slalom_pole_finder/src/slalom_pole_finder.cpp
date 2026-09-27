@@ -30,7 +30,9 @@ SlalomPoleFinderNode::SlalomPoleFinderNode()
   cam_qy_ = declare_parameter<double>("camera.qy", 0.5);
   cam_qz_ = declare_parameter<double>("camera.qz", 0.5);
   cam_qw_ = declare_parameter<double>("camera.qw", 0.5);
-  top_margin_px_ = declare_parameter<double>("top_margin_px", 20.0);
+  edge_margin_px_ = declare_parameter<double>("edge_margin_px", 20.0);
+  image_width_ = declare_parameter<int>("image_width", 1920);
+  image_height_ = declare_parameter<int>("image_height", 1080);
   match_distance_m_ = declare_parameter<double>("match_distance_m", 0.75);
 
   if (fx_ <= 0.0 || fy_ <= 0.0 || object_height_ <= 0.0 ||
@@ -40,10 +42,12 @@ SlalomPoleFinderNode::SlalomPoleFinderNode()
   {
     throw std::invalid_argument("Camera intrinsics and object_height must be finite and positive");
   }
-  if (!std::isfinite(top_margin_px_) || top_margin_px_ < 0.0 ||
+  if (!std::isfinite(edge_margin_px_) || edge_margin_px_ < 0.0 ||
+    image_width_ <= 0 || image_height_ <= 0 ||
+    edge_margin_px_ * 2.0 >= image_width_ || edge_margin_px_ * 2.0 >= image_height_ ||
     !std::isfinite(match_distance_m_) || match_distance_m_ <= 0.0)
   {
-    throw std::invalid_argument("top_margin_px must be nonnegative and match_distance_m positive");
+    throw std::invalid_argument("Image size and edge/tracking parameters are invalid");
   }
 
   const std::string detections_topic = declare_parameter<std::string>(
@@ -51,8 +55,8 @@ SlalomPoleFinderNode::SlalomPoleFinderNode()
   const std::string odom_topic = declare_parameter<std::string>("odom_topic", "/nautilus/odom");
   const std::string positions_topic = declare_parameter<std::string>(
     "positions_topic", "/slalom_pole_finder/poles_3d");
-  const std::string tracked_positions_topic = declare_parameter<std::string>(
-    "tracked_positions_topic", "/slalom_pole_finder/tracked_poles_3d");
+  const std::string landmarks_topic = declare_parameter<std::string>(
+    "landmarks_topic", "/nautilus/landmarks");
 
   detection_sub_ = create_subscription<vision_msgs::msg::Detection2DArray>(
     detections_topic, 10,
@@ -65,8 +69,8 @@ SlalomPoleFinderNode::SlalomPoleFinderNode()
       odomCallback(msg);
     });
   pose_pub_ = create_publisher<geometry_msgs::msg::PoseArray>(positions_topic, 10);
-  tracked_pose_pub_ = create_publisher<vision_msgs::msg::Detection3DArray>(
-    tracked_positions_topic, 10);
+  landmark_pub_ = create_publisher<vortex_msgs::msg::LandmarkArray>(
+    landmarks_topic, 10);
 
   RCLCPP_INFO(get_logger(), "Estimating 3D poles from '%s' and '%s'",
     detections_topic.c_str(), odom_topic.c_str());
@@ -78,17 +82,23 @@ void SlalomPoleFinderNode::odomCallback(
   latest_odom_ = msg;
 }
 
-bool SlalomPoleFinderNode::touchesTopEdge(
+bool SlalomPoleFinderNode::touchesImageEdge(
   const vision_msgs::msg::Detection2D & detection) const
 {
-  // A box clipped by the image top has an unreliable pixel height, so the
-  // projected pole length and its resulting depth estimate must not be used.
-  const double top =
-    detection.bbox.center.position.y - detection.bbox.size_y / 2.0;
-  return top <= top_margin_px_;
+  // A box clipped by any image boundary has an unreliable projected length.
+  const double half_width = detection.bbox.size_x / 2.0;
+  const double half_height = detection.bbox.size_y / 2.0;
+  const double left = detection.bbox.center.position.x - half_width;
+  const double right = detection.bbox.center.position.x + half_width;
+  const double top = detection.bbox.center.position.y - half_height;
+  const double bottom = detection.bbox.center.position.y + half_height;
+
+  return left <= edge_margin_px_ || top <= edge_margin_px_ ||
+         right >= static_cast<double>(image_width_) - edge_margin_px_ ||
+         bottom >= static_cast<double>(image_height_) - edge_margin_px_;
 }
 
-std::string SlalomPoleFinderNode::assignId(
+std::int32_t SlalomPoleFinderNode::assignId(
   const geometry_msgs::msg::Point & position,
   std::unordered_set<std::size_t> & matched_tracks)
 {
@@ -112,7 +122,7 @@ std::string SlalomPoleFinderNode::assignId(
   }
 
   if (best_index == tracked_poles_.size()) {
-    const std::string id = std::to_string(next_id_++);
+    const std::int32_t id = next_id_++;
     tracked_poles_.push_back({position, id});
     matched_tracks.insert(tracked_poles_.size() - 1);
     return id;
@@ -170,8 +180,8 @@ void SlalomPoleFinderNode::detectionCallback(
   geometry_msgs::msg::PoseArray output;
   output.header.stamp = msg->header.stamp;
   output.header.frame_id = odom.header.frame_id;
-  vision_msgs::msg::Detection3DArray tracked_output;
-  tracked_output.header = output.header;
+  vortex_msgs::msg::LandmarkArray landmark_output;
+  landmark_output.header = output.header;
 
   if (tracking_frame_ != odom.header.frame_id) {
     tracked_poles_.clear();
@@ -186,8 +196,25 @@ void SlalomPoleFinderNode::detectionCallback(
     const double h_px = detection.bbox.size_y;
     if (!std::isfinite(u) || !std::isfinite(v) ||
       !std::isfinite(w_px) || !std::isfinite(h_px) ||
-      w_px <= 0.0 || h_px <= 1.0 || touchesTopEdge(detection))
+      w_px <= 0.0 || h_px <= 1.0 || touchesImageEdge(detection))
     {
+      continue;
+    }
+
+    if (detection.results.empty()) {
+      continue;
+    }
+
+    std::uint16_t landmark_subtype;
+    const std::string & class_id = detection.results.front().hypothesis.class_id;
+    if (class_id == "0") {
+      landmark_subtype = vortex_msgs::msg::LandmarkSubtype::SLALOM_PIPE_RED;
+    } else if (class_id == "1") {
+      landmark_subtype = vortex_msgs::msg::LandmarkSubtype::SLALOM_PIPE_WHITE;
+    } else {
+      RCLCPP_WARN_THROTTLE(
+        get_logger(), *get_clock(), 2000,
+        "Ignoring unsupported YOLO class ID: %s", class_id.c_str());
       continue;
     }
 
@@ -241,16 +268,18 @@ void SlalomPoleFinderNode::detectionCallback(
     pose.orientation.w = 1.0;  // The bounding box does not provide orientation.
     output.poses.push_back(pose);
 
-    vision_msgs::msg::Detection3D tracked_detection;
-    tracked_detection.header = tracked_output.header;
-    tracked_detection.id = assignId(pose.position, matched_tracks);
-    tracked_detection.bbox.center = pose;
-    // This is an estimated point, not a measured 3D bounding volume.
-    tracked_output.detections.push_back(tracked_detection);
+    vortex_msgs::msg::Landmark landmark;
+    landmark.header = landmark_output.header;
+    landmark.id = assignId(pose.position, matched_tracks);
+    landmark.type.value = vortex_msgs::msg::LandmarkType::SLALOM_PIPE;
+    landmark.subtype.value = landmark_subtype;
+    landmark.pose.pose = pose;
+    landmark.pose.covariance.fill(1.0);
+    landmark_output.landmarks.push_back(landmark);
   }
 
   pose_pub_->publish(output);
-  tracked_pose_pub_->publish(tracked_output);
+  landmark_pub_->publish(landmark_output);
 }
 
 }  // namespace slalom_pole_finder
