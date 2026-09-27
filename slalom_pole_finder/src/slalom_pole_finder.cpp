@@ -265,7 +265,7 @@ void SlalomPoleFinderNode::detectionCallback(
     pose.position.x = p_odom.x();
     pose.position.y = p_odom.y();
     pose.position.z = p_odom.z();  // Down-positive when odometry is NED.
-    pose.orientation.w = 1.0;  // The bounding box does not provide orientation.
+    // pose.orientation.w = 1.0;  // The bounding box does not provide orientation.
     output.poses.push_back(pose);
 
     vortex_msgs::msg::Landmark landmark;
@@ -274,7 +274,7 @@ void SlalomPoleFinderNode::detectionCallback(
     landmark.type.value = vortex_msgs::msg::LandmarkType::SLALOM_PIPE;
     landmark.subtype.value = landmark_subtype;
     landmark.pose.pose = pose;
-    landmark.pose.covariance.fill(1.0);
+    // landmark.pose.covariance.fill(1.0);
     landmark_output.landmarks.push_back(landmark);
   }
 

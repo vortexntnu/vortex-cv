@@ -48,17 +48,17 @@ def _launch_setup(context, *args, **kwargs):
 
     yolo_node = Node(
         package='yolo_object_detection',
-        executable='yolo_object_detection_node',
+        executable='yolo_object_detection_node.py',
         name=node_name,
         output='screen',
         parameters=[
             {
                 'device': device,
-                'model_path': model_file_path,
-                'confidence_threshold': confidence_threshold,
-                'input_topic': image_topic,
-                'output_detections_topic': detections_topic,
-                'output_annotated_topic': annotated_image_topic if visualize else '',
+                'yolo_model': model_file_path,
+                'model_conf': confidence_threshold,
+                'color_image_sub_topic': image_topic,
+                'yolo_detections_pub_topic': detections_topic,
+                'yolo_annotated_pub_topic': annotated_image_topic,
             }
         ],
     )
