@@ -17,9 +17,10 @@ slalom_pole_finder:
     fy: 1396.808667
     cx: 960.0
     cy: 540.0
-    # Actual pole height in meters. Depth is estimated from the bounding-box
-    # diagonal and corrected using the camera and drone orientations.
-    object_height: 0.938215
+    # Pole length in meters (red and white are both 0.9 m). Depth is estimated
+    # from the bounding-box diagonal and corrected using the camera and drone
+    # orientations.
+    object_height: 0.9
 
     # Forward-facing camera optical frame -> drone FRD frame (x forward,
     # y right, z down). This rotation maps camera (x right, y down, z forward)
