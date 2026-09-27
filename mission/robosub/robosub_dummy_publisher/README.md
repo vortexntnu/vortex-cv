@@ -28,14 +28,6 @@ could see from the pose on `odom_topic` (front: `front_range_m`,
 `front_half_fov_deg`; down: `down_radius_m` below the vehicle). Positions are
 then assumed to be in the frame of that odometry.
 
-## Tests
-
-- `test/test_course_layout.py`: the layout is consistent with landmark_server's rules
-- `test/test_end_to_end_map.py`: dummy -> landmark_server -> `object_map` (gate yaw, openings within 5 cm, bin roles, pipes)
-- `test/test_unstable_map.py`: the same chain with unstable detections (`profile:=unstable`); the map must stay stable
-- `test/test_moving_items.py`: the jars and containers are moved during the run; the map must follow each move with the same id
-- `test/test_scenarios.py`: gate, torpedo and bin scenarios of `landmark_targets` against the whole chain with a kinematic fake vehicle
-
 ## Known issue: slalom layout
 
 In `course_layout.py` the pipes of each set lie along X (the course direction)
@@ -141,12 +133,6 @@ All of it is off by default; `profile:=unstable` turns on a moderate set.
 bodies in the sim) and get moved during a run. `movable_move_interval_sec`
 (0 = off) moves each of them to a random spot within `movable_move_radius_m`
 of where it started, on average that often; each move is logged.
-
-`test/test_unstable_map.py` runs this profile against `landmark_server` for a
-minute and checks the map against the true layout (ids kept, no duplicates,
-no tracks from clutter, positions within 0.5 m, no gaps while occluded). Run it
-with `-s` to see a table per class, and with `UNSTABLE_PARAMS_FILE=<yaml>` to
-try other settings.
 
 ## Landmark types
 

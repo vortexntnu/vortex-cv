@@ -17,12 +17,6 @@
   <depend>visualization_msgs</depend>
   <exec_depend>auv_setup</exec_depend>
 
-  <test_depend>landmark_server</test_depend>
-  <test_depend>landmark_targets</test_depend>
-  <test_depend>waypoint_manager</test_depend>
-  <test_depend>reference_filter_dp_quat</test_depend>
-  <test_depend>python3-pytest</test_depend>
-
   <export>
     <build_type>ament_python</build_type>
   </export>
