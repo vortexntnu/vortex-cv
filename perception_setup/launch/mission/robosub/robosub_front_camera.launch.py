@@ -70,7 +70,10 @@ def _launch_setup(context, *args, **kwargs):
     enable_slalom = LaunchConfiguration('slalom').perform(context).lower() == 'true'
 
     color_image_topic = f'/{namespace}/front_camera/image_color'
-    landmarks_topic = f'/{namespace}/{robot_topics["landmarks"]}'
+    landmarks_topic = (
+        LaunchConfiguration('landmarks_topic').perform(context)
+        or f'/{namespace}/{robot_topics["landmarks"]}'
+    )
 
     container_nodes = []
     if enable_gstreamer and backend != 'none':
@@ -208,6 +211,14 @@ def generate_launch_description():
                 default_value='true',
                 choices=['true', 'false'],
                 description='Run slalom_pole_finder on the YOLO detections.',
+            ),
+            DeclareLaunchArgument(
+                'landmarks_topic',
+                default_value='',
+                description=(
+                    'Where the detectors publish. Empty = the landmarks topic '
+                    'in the drone config.'
+                ),
             ),
             DeclareLaunchArgument(
                 'enable_gstreamer',

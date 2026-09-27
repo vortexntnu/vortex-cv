@@ -35,7 +35,9 @@ Options:
   --front-camera        Also run the real front camera chain on the sim images
                         (robosub_front_camera.launch.py sim:=true: YOLO +
                         slalom_pole_finder). Leave its tasks out of --tasks
-                        so the dummy does not publish them too
+                        so the dummy does not publish them too. With
+                        --drift its detections also go through the drift
+                        injector
   --drift <deg/m>       Odometry that drifts <deg/m> of yaw per metre, and
                         camera noise on the detections (drift_injector.py).
                         landmark_server runs on the drifting odometry, a
@@ -178,7 +180,12 @@ tmux send-keys -t "$PANE_FRAMES" "clear && $S && $FRAMES_CMD" Enter
 
 if [[ "$FRONT_CAMERA" == "true" ]]; then
     PANE_FRONT=$(tmux split-window -h -t "$PANE_DUMMY" -P -F '#{pane_id}')
-    tmux send-keys -t "$PANE_FRONT" "clear && $S && ros2 launch perception_setup robosub_front_camera.launch.py sim:=true" Enter
+    FRONT_CMD="ros2 launch perception_setup robosub_front_camera.launch.py sim:=true"
+    if [[ -n "$DRIFT" ]]; then
+        # Through the drift injector, like the dummy's detections.
+        FRONT_CMD="$FRONT_CMD landmarks_topic:=/nautilus/landmarks_true"
+    fi
+    tmux send-keys -t "$PANE_FRONT" "clear && $S && $FRONT_CMD" Enter
 fi
 
 # =============================================
