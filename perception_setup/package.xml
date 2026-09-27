@@ -43,6 +43,7 @@
   <exec_depend>pipeline_inspection_fsm</exec_depend>
   <exec_depend>waypoint_manager</exec_depend>
   <exec_depend>landmark_server</exec_depend>
+  <exec_depend>slalom_pole_finder</exec_depend>
   <exec_depend>irls_line_trigger</exec_depend>
   <exec_depend>docking_camera_yolo_direction_waypoint</exec_depend>
   <exec_depend>docking_position_estimator</exec_depend>

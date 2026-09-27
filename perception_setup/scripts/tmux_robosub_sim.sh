@@ -32,6 +32,10 @@ Options:
   --tasks <list>        Comma-separated course elements for the dummy
                         perception, e.g. gate,slalom (default: all)
   --no-autonomy         Do not turn on autonomous mode or set the course frame
+  --front-camera        Also run the real front camera chain on the sim images
+                        (robosub_front_camera.launch.py sim:=true: YOLO +
+                        slalom_pole_finder). Leave its tasks out of --tasks
+                        so the dummy does not publish them too
   --drift <deg/m>       Odometry that drifts <deg/m> of yaw per metre, and
                         camera noise on the detections (drift_injector.py).
                         landmark_server runs on the drifting odometry, a
@@ -42,7 +46,8 @@ Options:
   -h, --help            Show this help message
 
 Windows: mission (landmark_server, waypoint_manager), perception (dummy
-perception, detection markers and frames), check (graph_eval: the map
+perception, detection markers and frames, and with --front-camera the front
+camera chain), check (graph_eval: the map
 against the true course; with --drift also the drift injector and the server
 without graph), tools (commands).
 Foxglove layout: src/vortex-auv/mission/landmark_server/foxglove/landmark_graph.json.
@@ -60,6 +65,7 @@ TASKS=""
 AUTONOMY="true"
 DRIFT=""
 DETACH="false"
+FRONT_CAMERA="false"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --seed)        SEED="$2";      shift 2 ;;
@@ -69,6 +75,7 @@ while [[ $# -gt 0 ]]; do
         --moving)      MOVING="$2";    shift 2 ;;
         --tasks)       TASKS="$2";     shift 2 ;;
         --no-autonomy) AUTONOMY="false"; shift ;;
+        --front-camera) FRONT_CAMERA="true"; shift ;;
         --drift)       DRIFT="$2"; FOV="true"; shift 2 ;;
         --detach)      DETACH="true"; shift ;;
         -h|--help)     usage; exit 0 ;;
@@ -168,6 +175,11 @@ tmux send-keys -t "$PANE_DUMMY" "clear && $S && $DUMMY_CMD" Enter
 
 PANE_FRAMES=$(tmux split-window -v -t "$PANE_DUMMY" -P -F '#{pane_id}')
 tmux send-keys -t "$PANE_FRAMES" "clear && $S && $FRAMES_CMD" Enter
+
+if [[ "$FRONT_CAMERA" == "true" ]]; then
+    PANE_FRONT=$(tmux split-window -h -t "$PANE_DUMMY" -P -F '#{pane_id}')
+    tmux send-keys -t "$PANE_FRONT" "clear && $S && ros2 launch perception_setup robosub_front_camera.launch.py sim:=true" Enter
+fi
 
 # =============================================
 # Window 3: check (the map against the true course)
