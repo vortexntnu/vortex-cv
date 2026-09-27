@@ -36,11 +36,11 @@ Write your nodes in the order listed, then your task tree (see the
 
 | Person | Task | Nodes |
 |---|---|---|
-| Johannes | Torpedo | LogError, TaskSlot, LookAtLandmark, SelectGatePanel, CommitEstimate, RecordBag, ApproachLandmark |
-| André | Slalom | SelectLandmark, LandmarkKnown, FollowPoses, Search, RecordLayer, MatchPipes, AvoidSlalom |
-| Ashish | Octagon | PoseFeeder, MapFeeder, CourseFrameFeeder, SavePose, GoToSavedPose, VerifyInside, GoToCourse, MoveCourse |
-| Karol | Bins | Wait, MissionClock, SetOperationMode, ResetWorld, StartRun, LoadMissionConfig, ResolveRole, DropMarker |
-| Amélie | Gate | SetDepth, Surface, GoTo, MoveRelative, Turn, HoldPosition, FireTorpedo, SetGripper, MarkUsed |
+| Johannes | Torpedo | FireTorpedo, CommitEstimate, TaskSlot, RecordBag, ApproachLandmark |
+| André | Slalom | LandmarkKnown, FollowPoses, Search, AvoidSlalom, and his own slalom nodes |
+| Ashish | Octagon | PoseFeeder, MapFeeder, CourseFrameFeeder, SavePose, GoToSavedPose, VerifyInside, GoToCourse, MoveCourse, LookAtLandmark |
+| Karol | Bins | Wait, MissionClock, SetOperationMode, ResetWorld, StartRun, LoadMissionConfig, ResolveRole, DropMarker, SelectLandmark, MarkUsed |
+| Amélie | Gate | LogError, SetDepth, Surface, GoTo, MoveRelative, Turn, HoldPosition, SetGripper, SelectGatePanel |
 
 Kind: sync = `SyncActionNode`, stateful = `StatefulActionNode` (never
 blocks), nav = derives from `NavAction`. `→` marks an output port.
@@ -49,11 +49,9 @@ blocks), nav = derives from `NavAction`. `→` marks an output port.
 
 | Node | Kind | Ports | Does |
 |---|---|---|---|
-| LogError | sync | `message` | `spdlog::error`, returns SUCCESS |
-| TaskSlot | decorator | `task`, `clock`, `budget_s`, `reserve_s` | Skips the child if less than `reserve_s` is left, halts it after `budget_s`. Always SUCCESS; logs the outcome |
-| LookAtLandmark | nav | `map`, `pose`, `id` | Mode ONLY_ORIENTATION, yaw towards the landmark. FAILURE on an unknown id |
-| SelectGatePanel | stateful | `map`, `gate_id`, `preferred_role` → `panel_id`, `role`, `gate_side` | Picks the gate panel with our role, or the only panel seen. RUNNING until a panel is in the map |
+| FireTorpedo | stateful | `side`, `topic` | Publishes `std_msgs/Int8` (0 left, 1 right). FAILURE on an unknown side |
 | CommitEstimate | stateful | `map`, `id`, `samples`, `position_std_m`, `yaw_std_deg` | SUCCESS once the last `samples` map poses are within the limits. FAILURE on an unknown id |
+| TaskSlot | decorator | `task`, `clock`, `budget_s`, `reserve_s` | Skips the child if less than `reserve_s` is left, halts it after `budget_s`. Always SUCCESS; logs the outcome |
 | RecordBag | decorator | `profile`, `directory` | Runs `ros2 bag record` while the child runs, then passes on the child's status |
 | ApproachLandmark | nav | `map`, `pose`, `id` or `type`/`subtype`, `frame`, `x y z yaw_deg`, `mode`, `tool_frame`, `freeze`, `dead_reckoning_m`, `track_loss_timeout_s` | Goes to an offset from a landmark (`landmark_targets`). Sends the goal again when the landmark moves, except with `freeze` or within `dead_reckoning_m`. FAILURE on track loss |
 
@@ -65,13 +63,15 @@ test.
 
 | Node | Kind | Ports | Does |
 |---|---|---|---|
-| SelectLandmark | sync | `map`, `pose`, `type`, `subtype`, `exclude`, `sort` → `id` | Picks a confirmed match by NEAREST / LEFTMOST / RIGHTMOST. FAILURE if none |
 | LandmarkKnown | condition | `map`, `pose`, `type`, `subtype`, `max_age_s`, `min_forward_m`, `max_forward_m`, `exclude` → `id` | SUCCESS if a confirmed, recent match is in the forward window |
 | FollowPoses | nav | `poses`, `mode` | One goal, one waypoint per pose. FAILURE on an empty list |
 | Search | nav | `pose`, `pattern`, pattern numbers | ROTATE_STEPS, SCAN_ARC, LAWNMOWER or EXPANDING_SQUARE around the start pose. The XML stops it when a landmark is found |
-| RecordLayer | sync | `pose`, `red_id`, `layers`, `passed` | Adds the passed layer to `layers` and `red_id` to `passed` |
-| MatchPipes | sync | `map`, `pose`, `gate_side`, `exclude`, `offset` → `gap_pose`, `red_id` | Next slalom layer and the gap on our side (`landmark_targets::match_pipes`). FAILURE if no layer. See `~/slalom_guide.md` |
 | AvoidSlalom | sync | `map`, `course_frame`, `layers`, `side`, `clearance_m` → `path` | Poses around the slalom for Return Home |
+
+How to get through the slalom is André's to design: the nodes, their ports
+and the geometry (in `landmark_targets/slalom.hpp`). The pipes are in `{map}`
+as `SLALOM_PIPE` / `SLALOM_PIPE_RED` and `SLALOM_PIPE_WHITE`. Add the
+blackboard keys his nodes share to `common/types.hpp`.
 
 ### Ashish
 
@@ -85,6 +85,7 @@ test.
 | VerifyInside | condition | `map`, `pose`, `type`, `subtype`, `radius_m`, `margin_m` | SUCCESS if horizontally within `radius_m − margin_m` of the landmark |
 | GoToCourse | nav | `course_frame`, `x y z yaw_deg`, `mode` | Point in the course frame, converted to odom |
 | MoveCourse | nav | `course_frame`, `pose`, `dx`, `dy`, `z` | Moves along the course axes from the current pose |
+| LookAtLandmark | nav | `map`, `pose`, `id` | Mode ONLY_ORIENTATION, yaw towards the landmark. FAILURE on an unknown id |
 
 ### Karol
 
@@ -98,20 +99,22 @@ test.
 | LoadMissionConfig | sync | `path` | Writes every key in the yaml to the blackboard. FAILURE if the file can't be read |
 | ResolveRole | sync | `role` → `bin_subtype`, `torpedo_*`, `octagon_image` | Role → the subtype names each task looks for |
 | DropMarker | stateful | `index`, `topic` | Publishes `std_msgs/Int8` and waits `settle_s`. FAILURE if the index is not 0 or 1 |
+| SelectLandmark | sync | `map`, `pose`, `type`, `subtype`, `exclude`, `sort` → `id` | Picks a confirmed match by NEAREST / LEFTMOST / RIGHTMOST. FAILURE if none |
+| MarkUsed | sync | `id`, `list` | Adds `id` to the list once |
 
 ### Amélie
 
 | Node | Kind | Ports | Does |
 |---|---|---|---|
+| LogError | sync | `message` | `spdlog::error`, returns SUCCESS |
 | SetDepth | nav | `z` | Mode ONLY_Z |
 | Surface | nav | `z` (0.2) | As SetDepth |
 | GoTo | nav | `pose`, `mode` | One waypoint in odom |
 | MoveRelative | nav | `x y z yaw_deg`, `frame`, `mode` | `goal.frame` BODY_RELATIVE or WORLD_RELATIVE |
 | Turn | nav | `pose`, `relative_deg` | Mode ONLY_ORIENTATION, yaw = current + `relative_deg` |
 | HoldPosition | nav | `pose`, `seconds` | Current pose with a hold time; negative = until halted |
-| FireTorpedo | stateful | `side`, `topic` | Publishes `std_msgs/Int8` (0 left, 1 right). FAILURE on an unknown side |
 | SetGripper | stateful | `state` | Gripper goal (see `vortex_yasmin_utils/gripper_state`) |
-| MarkUsed | sync | `id`, `list` | Adds `id` to the list once |
+| SelectGatePanel | stateful | `map`, `gate_id`, `preferred_role` → `panel_id`, `role`, `gate_side` | Picks the gate panel with our role, or the only panel seen. RUNNING until a panel is in the map |
 
 The marker and torpedo topics are placeholders until the drone has an
 interface for them.
@@ -123,66 +126,24 @@ bad input and the node fails. NavAction sends the goal, returns RUNNING,
 and cancels the goal when the node is halted. Every NavAction also has the
 ports `position_tolerance`, `orientation_tolerance_deg` and `hold_s`.
 
-```cpp
-class SetDepth : public NavAction {
-   public:
-    using NavAction::NavAction;
-    static BT::PortsList providedPorts() {
-        return providedBasicPorts({BT::InputPort<double>("z")});
-    }
+## Good to know
 
-   protected:
-    std::optional<Goal> make_goal() override {
-        const auto z = getInput<double>("z");
-        if (!z) {
-            return std::nullopt;
-        }
-        vortex_msgs::msg::Waypoint wp;
-        wp.pose.position.z = *z;
-        wp.waypoint_mode.mode = vortex_msgs::msg::WaypointMode::ONLY_Z;
-        Goal goal;
-        goal.waypoints.push_back(wp);
-        goal.convergence_threshold = 0.1;
-        return goal;
-    }
-};
-
-// src/motion/register.cpp
-factory.registerNodeType<SetDepth>("SetDepth", node);
-```
-
-## Tests
-
-```cpp
-class SetDepthTest : public test::BtNodeTest {
-   protected:
-    void SetUp() override {
-        BtNodeTest::SetUp();
-        factory_.registerNodeType<motion::SetDepth>("SetDepth", client_node_);
-    }
-};
-
-TEST_F(SetDepthTest, SendsTheDepth) {
-    start_server();                                  // fake waypoint_manager
-    blackboard()->set("pose", make_pose(0, 0, 0.5)); // keys other nodes write
-    auto tree = make_tree(R"(<SetDepth z="1.5"/>)");
-    EXPECT_EQ(run(tree), BT::NodeStatus::SUCCESS);
-    EXPECT_DOUBLE_EQ(server_->last_goal.waypoints[0].pose.position.z, 1.5);
-}
-```
-
-Nodes that don't move the vehicle don't need `start_server()`. To give a
-test a map, fill a `LandmarkMap` with `LandmarkTrack`s by hand. See
-`test/test_nav_action.cpp` for more examples.
-
-```bash
-colcon build --packages-select vortex_bt_nodes
-colcon test --packages-select vortex_bt_nodes && colcon test-result --verbose
-```
-
-## XML formats
-
-- Pose `"x;y;z;yaw_deg"`, PoseList `"1;0;1 | 2;0;1"`, IdList `"3;7"`.
-- Types, subtypes and modes by their msg names: `type="SLALOM_PIPE"`,
-  `subtype="SLALOM_PIPE_RED"` or `"ANY"`, `mode="POSITION_AND_YAW"`. Convert
-  them with the `*_from_string` functions in `types.hpp`.
+- XML formats (Pose, PoseList, IdList, type/subtype/mode names) are in the
+  comment at the top of `common/types.hpp`, with the converters.
+- Which area (folder) a node goes in: the `Planned:` list in each
+  `<area>/register.hpp`.
+- `test/test_nav_action.cpp` shows how a node is tested with the fake
+  waypoint_manager.
+- "Confirmed" and "age" of a landmark are `LandmarkTrack.confirmed` and
+  `now - last_measurement`.
+- BehaviorTree.CPP 4.10 checks port types: a blackboard entry written as
+  `double` can't be read by an `int` port (e.g. `Repeat num_cycles`). The tree
+  throws when it loads.
+- Interfaces (under `/nautilus`): pose `pose`, map
+  `landmark_server/object_map`, action `waypoint_manager`, services
+  `landmark_server/clear` and `landmark_server/set_course_frame`, TF
+  `nautilus/course`. The landmark_server README describes them.
+- `landmark_targets` (vortex-auv) already does the landmark geometry: offsets
+  from a landmark, tool frames, course frame. Use it instead of writing it
+  again.
+- Tool frames (`torpedo_*_link`, `dropper_link`) don't exist in TF yet.

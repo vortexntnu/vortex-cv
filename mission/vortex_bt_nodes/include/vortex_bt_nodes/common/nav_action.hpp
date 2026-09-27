@@ -35,7 +35,7 @@ namespace vortex_bt_nodes {
  *   public:
  *     using NavAction::NavAction;
  *     static BT::PortsList providedPorts() {
- *         return providedBasicPorts({BT::InputPort<double>("depth")});
+ *         return providedBasicPorts({BT::InputPort<double>("z")});
  *     }
  *   protected:
  *     std::optional<Goal> make_goal() override { ... }

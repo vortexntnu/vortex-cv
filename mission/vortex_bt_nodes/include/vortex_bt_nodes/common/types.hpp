@@ -28,14 +28,12 @@
  *                                               "search_rescue")
  *   {gate_side}                  std::string   SelectGatePanel ("left",
  *                                              "right")
- *   {gap_pose}                   Pose          MatchPipes
- *   {passed_red_ids}             IdList        RecordLayer
  *   {avoid_path}                 PoseList      AvoidSlalom
  *   {bin_subtype}, ...           std::string   ResolveRole (subtype names)
  *   every key in mission.yaml    double or     LoadMissionConfig
  *                                std::string
  *
- * Landmark ids (ports id, gate_id, red_id) are int, the track id in {map}.
+ * Landmark ids (ports id, gate_id) are int, the track id in {map}.
  * Landmark types and subtypes are written by name, as in LandmarkType.msg and
  * LandmarkSubtype.msg: type="SLALOM_PIPE" subtype="SLALOM_PIPE_RED"; subtype
  * "ANY" matches every subtype. Waypoint modes (port mode) are written the
