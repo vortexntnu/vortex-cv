@@ -40,11 +40,13 @@ Options:
                         injector
   --drift-profile <name>
                         Realistic drift of an IMU + DVL estimator instead of
-                        a fixed yaw per metre: stim300 (working as it should)
-                        or worst (worst realistic case: unestimated gyro bias,
-                        uncompensated Earth rate, 2 % DVL scale, 2 deg DVL
-                        misalignment). Like --drift otherwise; --drift on top
-                        adds its yaw per metre
+                        a fixed yaw per metre. Over 15 min / 270 m:
+                          stim300    best case         ~0.7 deg, ~1.3 %
+                          realistic  average           ~1.2 deg, ~2.7 %
+                          degraded   between           ~3.7 deg, ~5.8 %
+                          worst      worst realistic   ~5.6 deg, ~8.3 %
+                        (landmark_server/config/drift/). Like --drift
+                        otherwise; --drift on top adds its yaw per metre
   --drift <deg/m>       Odometry that drifts <deg/m> of yaw per metre, and
                         camera noise on the detections (drift_injector.py).
                         landmark_server runs on the drifting odometry, a
@@ -121,7 +123,7 @@ DRIFT_PARAMS=""
 if [[ -n "$DRIFT_PROFILE" ]]; then
     PROFILE_FILE="$WS/install/landmark_server/share/landmark_server/config/drift/$DRIFT_PROFILE.yaml"
     if [[ ! -f "$PROFILE_FILE" ]]; then
-        echo "No drift profile '$DRIFT_PROFILE' (stim300, worst); build landmark_server?"
+        echo "No drift profile '$DRIFT_PROFILE' (stim300, realistic, degraded, worst); build landmark_server?"
         exit 1
     fi
     DRIFT_PARAMS="--params-file $PROFILE_FILE"
