@@ -38,6 +38,13 @@ Options:
                         so the dummy does not publish them too. With
                         --drift its detections also go through the drift
                         injector
+  --drift-profile <name>
+                        Realistic drift of an IMU + DVL estimator instead of
+                        a fixed yaw per metre: stim300 (working as it should)
+                        or worst (worst realistic case: unestimated gyro bias,
+                        uncompensated Earth rate, 2 % DVL scale, 2 deg DVL
+                        misalignment). Like --drift otherwise; --drift on top
+                        adds its yaw per metre
   --drift <deg/m>       Odometry that drifts <deg/m> of yaw per metre, and
                         camera noise on the detections (drift_injector.py).
                         landmark_server runs on the drifting odometry, a
@@ -66,6 +73,7 @@ MOVING="0.0"
 TASKS=""
 AUTONOMY="true"
 DRIFT=""
+DRIFT_PROFILE=""
 DETACH="false"
 FRONT_CAMERA="false"
 while [[ $# -gt 0 ]]; do
@@ -79,6 +87,7 @@ while [[ $# -gt 0 ]]; do
         --no-autonomy) AUTONOMY="false"; shift ;;
         --front-camera) FRONT_CAMERA="true"; shift ;;
         --drift)       DRIFT="$2"; FOV="true"; shift 2 ;;
+        --drift-profile) DRIFT_PROFILE="$2"; FOV="true"; shift 2 ;;
         --detach)      DETACH="true"; shift ;;
         -h|--help)     usage; exit 0 ;;
         *) echo "Unknown argument: $1"; usage; exit 1 ;;
@@ -108,6 +117,16 @@ fi
 if [[ "$DRIFT" =~ ^[0-9]+$ ]]; then
     DRIFT="$DRIFT.0"
 fi
+DRIFT_PARAMS=""
+if [[ -n "$DRIFT_PROFILE" ]]; then
+    PROFILE_FILE="$WS/install/landmark_server/share/landmark_server/config/drift/$DRIFT_PROFILE.yaml"
+    if [[ ! -f "$PROFILE_FILE" ]]; then
+        echo "No drift profile '$DRIFT_PROFILE' (stim300, worst); build landmark_server?"
+        exit 1
+    fi
+    DRIFT_PARAMS="--params-file $PROFILE_FILE"
+    [[ -z "$DRIFT" ]] && DRIFT="0.0"
+fi
 
 # Dummy perception: the unstable profile goes on top of the defaults, the
 # command line parameters on top of both.
@@ -130,7 +149,7 @@ LS_CMD="ros2 launch landmark_server landmark_server.launch.py env:=sim"
 EVAL_CMD="ros2 run landmark_server graph_eval.py --ros-args -p truth_seed:=$SEED -p maps:=[/nautilus/landmark_server/object_map] -p labels:=[graph] -p csv:=/tmp/graph_eval.csv"
 if [[ -n "$DRIFT" ]]; then
     DUMMY_CMD="$DUMMY_CMD -p topic:=landmarks_true"
-    INJECT_CMD="ros2 run landmark_server drift_injector.py --ros-args -p drift_yaw_deg_per_m:=$DRIFT -p noise:=true -p landmarks_out:=/nautilus/landmarks"
+    INJECT_CMD="ros2 run landmark_server drift_injector.py --ros-args $DRIFT_PARAMS -p drift_yaw_deg_per_m:=$DRIFT -p noise:=true -p landmarks_out:=/nautilus/landmarks"
     LS_CMD="ros2 run landmark_server landmark_server_node --ros-args -r __ns:=/nautilus $LS_PARAMS -p topics.odom:=/nautilus/odom_drift"
     RAW_CMD="ros2 run landmark_server landmark_server_node --ros-args -r __ns:=/nautilus_raw $LS_PARAMS -p topics.odom:=/nautilus/odom_drift -p topics.landmarks:=/nautilus/landmarks -p graph.enable:=false -p course_frame.publish_tf:=false"
     EVAL_CMD="ros2 run landmark_server graph_eval.py --ros-args -p truth_seed:=$SEED -p maps:=[/nautilus/landmark_server/object_map,/nautilus_raw/landmark_server/object_map] -p labels:=[graph,raw] -p csv:=/tmp/graph_eval.csv"

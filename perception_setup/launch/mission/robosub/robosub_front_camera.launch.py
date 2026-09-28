@@ -188,7 +188,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'model_file_path',
-                default_value=os.path.join(pkg_dir, 'models', 'robosub_front.pt'),
+                default_value=os.path.join(pkg_dir, 'models', 'best_slalom.pt'),
                 description='Path to the YOLO BB model file.',
             ),
             DeclareLaunchArgument(
