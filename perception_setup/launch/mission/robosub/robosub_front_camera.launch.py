@@ -68,6 +68,7 @@ def _launch_setup(context, *args, **kwargs):
     visualize = LaunchConfiguration('visualize').perform(context)
     confidence_threshold = LaunchConfiguration('confidence_threshold').perform(context)
     enable_slalom = LaunchConfiguration('slalom').perform(context).lower() == 'true'
+    sim = LaunchConfiguration('sim').perform(context).lower() == 'true'
 
     color_image_topic = f'/{namespace}/front_camera/image_color'
     landmarks_topic = (
@@ -158,6 +159,8 @@ def _launch_setup(context, *args, **kwargs):
                         'camera_frame': f'{namespace}/front_camera_color_optical',
                         'odom_frame': f'{namespace}/odom',
                     },
+                    # The simulator's slalom poles (red) are 0.938 m, not 0.9 m.
+                    *([{'object_height': 0.938}] if sim else []),
                 ],
             )
         )
