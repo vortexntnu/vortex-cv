@@ -19,7 +19,7 @@ slalom_pole_finder:
     # Pole length in meters (red and white are both 0.9 m). Depth is estimated
     # from the bounding-box diagonal and corrected using the camera and drone
     # orientations.
-    object_height: 0.9
+    object_height: 0.938
 
     # Detections are published in the camera frame with the image stamp;
     # landmark_server transforms them with the pose at that time. camera_frame
