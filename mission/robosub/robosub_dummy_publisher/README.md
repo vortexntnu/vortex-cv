@@ -19,22 +19,15 @@ a simulator.
 | octagon | `OCTAGON_WHOLE` (surface) and the four plate images (`OCTAGON_IMAGE_REPAIR/RESCUE/SEARCH/SURVEY`, drawn per run over the plates) | octagon at the surface |
 | table | `TABLE_WHOLE` (table top, 0.7 m above the floor), the two baskets (`TABLE_BASKET_*`, down camera) and the four items (`TABLE_ITEM_*` on the jars/containers, down camera) | (memory) |
 
-The icon positions are the openings minus `_TORPEDO_ICON_TO_HOLE`, the same
-numbers as `rules.torpedo_targets_from_icons` in landmark_server's config
-(keep them in sync; both are placeholder values until measured on our board).
+The icon positions are read from the board textures (`_TORPEDO_ICON_OFFSETS`,
+per board version). The icon -> opening offsets they imply are
+`rules.torpedo_targets_from_icons` in landmark_server's `sim.yaml`; keep them
+in sync.
 
 **Field of view**: `use_field_of_view: true` publishes only what the cameras
 could see from the pose on `odom_topic` (front: `front_range_m`,
 `front_half_fov_deg`; down: `down_radius_m` below the vehicle). Positions are
 then assumed to be in the frame of that odometry.
-
-## Known issue: slalom layout
-
-In `course_layout.py` the pipes of each set lie along X (the course direction)
-and the three sets are staggered in Y. That looks rotated 90° compared with the
-handbook, where each set is a white-red-white row across the course and the sets
-follow each other along it. The numbers come from the Stonefish meshes, so this
-needs a check against the sim world before the layout is changed here.
 
 ## Why seeded
 
@@ -59,40 +52,34 @@ default role instead of failing.
 ## Where the numbers come from
 
 Every position -- both each task's anchor (`Task.base_pose`) and every
-landmark's `offset` within it -- comes from the real course geometry in
-`vortex-stonefish-sim/stonefish_sim/data/object_files/robosub_course/*.obj`,
-run through the same Blender -> Stonefish transform
-`tools/import_robosub_course.py` uses to place elements in the world. For
-gate and bin, a single mesh bounding-box centre per element was enough. For
-slalom, each colour's `.obj` merges every pole into one mesh, so getting
-individual pole positions took clustering their vertices by (X, Y) and
-matching each white pair to its nearest red pole (see comments in
-`course_layout.py`) -- this also corrected an earlier assumption: it's a
-sideways weave (three gates spread mainly across Y, each a
-white-red-white row along the sub's heading), not gates spaced down the
-course. For the torpedo board's target circles, there's no separate cutout
-geometry to read off the mesh, so the two decal textures the sim actually
-randomizes between (`stonefish_sim`'s manifest pool, `Task4_ver1.png` /
-`Task4_ver2.png`) were each analysed pixel-by-pixel to find the four printed
-red rings, scaled to metres using the board's handbook-specified
-0.61 m x 0.61 m face size (RoboSub 2026 Team Handbook section 3.2.5 + the
-design package's `Task04_Deploy.pdf`). The two textures put the rings in the
-same position/size (within ~1%) -- only which icon sits next to each ring
-differs, so:
+landmark's `offset` within it -- comes from the course geometry the sim
+actually loads, `vortex-stonefish-sim/stonefish_sim/data/object_files/robosub_course/*.obj`,
+run through the same world transform every course body gets in
+`objects/robosub_course.scn` (`xyz="4.0 -1.57 3.432" rpy="pi 0 pi/2"`, the
+octagon at z 1.8):
 
-- position/size of the four openings is version-independent and just
-  hardcoded (`_TORPEDO_CIRCLE_OFFSETS`);
-- which physical opening is Search & Rescue vs. Survey & Repair *does* flip
-  between versions, so `_torpedo_board_landmarks` looks up
-  `role_picks["torpedo_board"]` (which version got drawn) and picks the
-  matching `TORPEDO_TARGET_{LARGE,SMALL}_{SEARCH_RESCUE,SURVEY_REPAIR}`
-  subtype per opening (`_TORPEDO_ROLE_BY_VERSION`). Same seed-reproducibility
-  rules as gate/bin apply here too.
+    X_w = Y_b + 4.0     Y_w = X_b - 1.57     Z_w = 3.432 - Z_b
 
-Remaining known approximation: the torpedo circle offsets are relative to
-the whole board *mesh's* bounding-box centre (which includes its mounting
-stand below the face), not the face's own centre -- if that turns out to be
-off, nudge the `z` offsets in `_TORPEDO_CIRCLE_OFFSETS`.
+That is the Stonefish world frame (X forward, Y right, Z down, surface at
+Z=0), which is also the sim's `nautilus/odom` frame.
+
+- **gate, slalom**: each colour's `.obj` merges several poles into one mesh,
+  so the poles are that mesh's connected components. The slalom is the sim's
+  version, turned 90 deg so each white-red-white set lies across the course
+  and the three sets follow each other along X. All slalom poles, white and
+  red, are 0.938 m tall and centred at Z 2.624.
+- **torpedo board**: `base_pose` is the centre of the board's front face
+  (X 17.043, facing the vehicle along -X). The openings are the grey discs
+  behind the decal's cut-outs (`_TORPEDO_OPENING_OFFSETS`). The icons are the
+  centres of each icon's bounding box in `Task4_ver1.png` / `Task4_ver2.png`,
+  mapped through the decal's UVs onto the face (`_TORPEDO_ICON_OFFSETS`).
+  Which version is up is drawn with the sim's seed, like the gate and bins.
+- **bins**: `BIN_UNCLASSIFIED` (front camera) is each bin's centre; the role
+  icon (down camera) is on the bin's floor. The rig is tilted, so the bins
+  are at different depths.
+- **octagon, table**: the plates, baskets and items are the centres of their
+  meshes. The jars and containers are dynamic in the sim and settle about
+  1 cm after spawning.
 
 ## Usage
 

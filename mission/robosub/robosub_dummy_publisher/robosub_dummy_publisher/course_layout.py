@@ -36,18 +36,17 @@ it in the world:
     Z_w = POOL_FLOOR_Z - Z_b
 
 world frame: X forward (down the course), Y right, Z down, water surface at
-Z=0 -- same convention as stonefish_sim/scenarios/robosub.scn. For gate and
-slalom this meant clustering individual pole/upright vertices (each element's
-.obj merges several physical poles into one mesh per colour/material, so a
-single bounding box isn't enough); for the torpedo board's target circles,
-there's no separate cutout geometry to read -- instead the actual decal
-textures the sim randomizes between (stonefish_sim's manifest pool
-Task4_ver1.png / Task4_ver2.png) were analysed pixel-by-pixel to find the
-four printed red rings and convert their image position/size to metres via
-the board's handbook-specified 0.61 m x 0.61 m face size. Ring position and
-size come out identical between the two versions (within ~1%) -- only which
-icon, and therefore which role, sits next to each ring changes. See each
-task builder below for the specifics and remaining assumptions.
+Z=0 -- same convention as stonefish_sim/scenarios/robosub.scn (Stonefish
+builds rpy as ZYX, so the scenario's rpy="pi 0 pi/2" is exactly this
+mapping). That frame is also the sim's odom frame: the odometry is Stonefish's
+own world pose, passed through unchanged. For gate and slalom the poles are
+the connected components of each colour's mesh (each element's .obj merges
+several physical poles into one mesh per colour/material, so a single
+bounding box isn't enough). For the torpedo board the openings are the grey
+discs behind the decal's cut-outs, and the icons come from the two decal
+textures the sim randomizes between (Task4_ver1.png / Task4_ver2.png): each
+icon's bounding box in the image, mapped through the decal's UVs onto the
+board face. See each task builder below for the specifics.
 """
 
 from __future__ import annotations
@@ -175,25 +174,23 @@ def _slalom_landmarks(_role_picks: dict) -> tuple[Landmark, ...]:
     # Not randomized (handbook 3.2.3: pipe colour is a fixed navigation cue;
     # "three sets of WHITE-RED-WHITE" -- each set/gate is one white, one red,
     # one white pole in a row). slalom__pvc_white.obj / slalom__red.obj merge
-    # every pole into one mesh per colour, so getting individual pole
-    # positions took clustering their vertices by (X, Y) and matching each
-    # white pair to its nearest red pole. The simulator turns the slalom 90 deg
-    # to the left about its centroid (POSE_OVERRIDE in
-    # vortex-stonefish-sim tools/import_robosub_course.py), so each set lies
-    # across the course and the sets follow each other along X. Real world
-    # positions (pole height ~0.9 m, matching the handbook spec):
-    #   gate 1: white (8.145, -1.239, 2.791) / red (8.102, 0.345, 2.624)
-    #           / white (8.145, 1.857, 2.791)
-    #   gate 2: white (10.148, -0.643, 2.791) / red (10.105, 0.941, 2.624)
-    #           / white (10.148, 2.452, 2.791)
-    #   gate 3: white (12.151, -1.643, 2.791) / red (12.108, -0.059, 2.624)
-    #           / white (12.151, 1.452, 2.791)
+    # every pole into one mesh per colour, so the individual poles are the
+    # connected components of those meshes. The white mesh also holds the
+    # base pipes lying on the floor (Z 3.418), which are not poles. The
+    # simulator turns the slalom 90 deg to the left about its centroid
+    # (POSE_OVERRIDE in vortex-stonefish-sim tools/import_robosub_course.py),
+    # so each set lies across the course and the sets follow each other along
+    # X. Every pole, white or red, is 0.938 m tall (Z 2.155-3.093, centre
+    # 2.624). World positions of the pole centres:
+    #   gate 1: white (8.144, -1.240) / red (8.101, 0.345) / white (8.144, 1.858)
+    #   gate 2: white (10.148, -0.645) / red (10.105, 0.940) / white (10.148, 2.454)
+    #   gate 3: white (12.151, -1.645) / red (12.107, -0.060) / white (12.151, 1.454)
     # The vehicle passes the sets one after another along X; they weave a
     # little sideways (Y) from set to set. Left = smaller Y (Y is right).
     gates = (
-        ((-1.96, -1.648, 0.167), (-2.003, -0.064, 0.0), (-1.96, 1.448, 0.167)),
-        ((0.043, -1.052, 0.167), (0.0, 0.532, 0.0), (0.043, 2.043, 0.167)),
-        ((2.046, -2.052, 0.167), (2.003, -0.468, 0.0), (2.046, 1.043, 0.167)),
+        ((-1.961, -1.649, 0.0), (-2.004, -0.064, 0.0), (-1.961, 1.449, 0.0)),
+        ((0.043, -1.054, 0.0), (0.0, 0.531, 0.0), (0.043, 2.045, 0.0)),
+        ((2.046, -2.054, 0.0), (2.002, -0.469, 0.0), (2.046, 1.045, 0.0)),
     )
     landmarks = []
     for i, (white_left, red, white_right) in enumerate(gates):
@@ -224,101 +221,56 @@ def _slalom_landmarks(_role_picks: dict) -> tuple[Landmark, ...]:
     return tuple(landmarks)
 
 
-# Ring centres/diameters, fixed regardless of decal version -- verified by
-# thresholding both stonefish_sim/.../textures/Task4_ver1.png and
-# Task4_ver2.png (2304x2304) for red pixels and clustering: the four rings
-# land within ~1% of the same normalized position/size in both, e.g.
-# large-left at (0.161, 0.411) in ver1 vs (0.155, 0.396) in ver2. Only the
-# icons printed next to them move. Converted to metres using the board's
-# handbook face size (0.61 m x 0.61 m); image x -> world Y, image y (down)
-# -> world Z (down), both centred on the decal's own centre (x=0, coplanar
-# with the board face). Offsets are relative to the board's whole mesh
-# bounding-box centre (base_pose), which also includes its mounting stand --
-# if the board's actual face sits noticeably off that centre, nudge z
-# accordingly.
-_TORPEDO_CIRCLE_OFFSETS = {
-    "large_left": (0.0, -0.207, -0.056),
-    "large_right": (0.0, 0.215, 0.215),
-    "small_top": (0.0, 0.007, -0.191),
-    "small_bottom": (0.0, -0.001, 0.190),
+# The board face in the sim (torpedo_board__grey.obj / __icon_torpedo_board.obj):
+# a 0.6096 m square at world X 17.043 (the front, facing the vehicle along
+# -X), centred on (Y -5.204, Z 2.554). That centre is the task's base_pose.
+# The decal is UV-mapped straight onto that square: image x -> world Y (left
+# to right as seen from the vehicle), image y (down) -> world Z (down).
+#
+# The openings are the grey discs behind the decal's cut-outs, read off
+# torpedo_board__grey.obj: large 0.127 m, small 0.101 m across. They are the
+# same in both decal versions (ver2's printed rings sit exactly on them,
+# ver1's within ~1 cm).
+_TORPEDO_OPENING_OFFSETS = {
+    "large_left": (0.0, -0.210, -0.064),
+    "large_right": (0.0, 0.214, 0.216),
+    "small_top": (0.0, -0.003, -0.192),
+    "small_bottom": (0.0, -0.006, 0.200),
 }
 
-# Handbook 3.2.5: front side shows fire+firetruck for Survey & Repair and
-# blood+ambulance for Search & Rescue; the larger opening is marked by the
-# fire/blood icon, the smaller by the firetruck/ambulance icon. In
-# Task4_ver1.png, fire sits top-left (next to the large-left ring) and
-# firetruck top-right (next to the small-top ring); in Task4_ver2.png those
-# two icons swap with their Search & Rescue counterparts, so the same
-# physical rings carry the opposite role. Confirmed by comparing icon
-# layout between the two textures directly.
-_TORPEDO_ROLE_BY_VERSION = {
+# The icons, per decal version: centre of each icon's bounding box in the
+# texture (stonefish_sim/.../textures/Task4_ver1.png, Task4_ver2.png,
+# 2304x2304), mapped through the decal's UVs onto the board face. Handbook
+# 3.2.5: fire/blood mark the large opening, firetruck/ambulance the small one.
+# Version 1: fire above the large-left opening, firetruck right of the
+# small-top one, blood above the large-right one, ambulance left of the
+# small-bottom one. Version 2 swaps each Survey & Repair icon with its Search
+# & Rescue counterpart.
+_TORPEDO_ICON_OFFSETS = {
     "Task4_ver1.png": {
-        "large_left": LandmarkSubtype.TORPEDO_TARGET_LARGE_SURVEY_REPAIR,
-        "large_right": LandmarkSubtype.TORPEDO_TARGET_LARGE_SEARCH_RESCUE,
-        "small_top": LandmarkSubtype.TORPEDO_TARGET_SMALL_SURVEY_REPAIR,
-        "small_bottom": LandmarkSubtype.TORPEDO_TARGET_SMALL_SEARCH_RESCUE,
+        "fire": (0.0, -0.206, -0.214),
+        "firetruck": (0.0, 0.186, -0.193),
+        "blood": (0.0, 0.219, 0.058),
+        "ambulance": (0.0, -0.182, 0.202),
     },
     "Task4_ver2.png": {
-        "large_left": LandmarkSubtype.TORPEDO_TARGET_LARGE_SEARCH_RESCUE,
-        "large_right": LandmarkSubtype.TORPEDO_TARGET_LARGE_SURVEY_REPAIR,
-        "small_top": LandmarkSubtype.TORPEDO_TARGET_SMALL_SEARCH_RESCUE,
-        "small_bottom": LandmarkSubtype.TORPEDO_TARGET_SMALL_SURVEY_REPAIR,
+        "blood": (0.0, -0.210, -0.222),
+        "ambulance": (0.0, 0.178, -0.204),
+        "fire": (0.0, 0.213, 0.056),
+        "firetruck": (0.0, -0.183, 0.183),
     },
 }
+# The icon -> opening offsets these imply, in the board frame (x out of the
+# front, y right as seen from the board, i.e. -Y world; z down), are
+# landmark_server's rules.torpedo_targets_from_icons in its sim.yaml -- keep
+# them in sync.
 
-
-# Offset from an icon to its opening in the board frame (x out of the front,
-# y right, z down), per board version. The same numbers as
-# landmark_server's rules.torpedo_targets_from_icons (placeholder values,
-# to be measured on our own board) -- keep them in sync.
-_TORPEDO_ICON_TO_HOLE = {
-    1: {
-        "fire": (0.0, 0.0, -0.169),
-        "blood": (0.0, 0.0, -0.169),
-        "firetruck": (0.0, 0.1888, 0.0),
-        "ambulance": (0.0, -0.192, 0.0),
-    },
-    2: {
-        "fire": (0.0, 0.0, -0.218),
-        "blood": (0.0, 0.0, -0.168),
-        "firetruck": (0.0, -0.1555, -0.15),
-        "ambulance": (0.0, 0.193, 0.0),
-    },
+_TORPEDO_ICON_SUBTYPE = {
+    "fire": LandmarkSubtype.TORPEDO_ICON_FIRE,
+    "blood": LandmarkSubtype.TORPEDO_ICON_BLOOD,
+    "firetruck": LandmarkSubtype.TORPEDO_ICON_FIRETRUCK,
+    "ambulance": LandmarkSubtype.TORPEDO_ICON_AMBULANCE,
 }
-
-# Opening (by size and role) -> the icon printed next to it: the large opening
-# is marked by the fire/blood icon, the small one by the firetruck/ambulance
-# icon (handbook 3.2.5).
-_TORPEDO_ICON_FOR_HOLE = {
-    LandmarkSubtype.TORPEDO_TARGET_LARGE_SURVEY_REPAIR: (
-        "fire",
-        LandmarkSubtype.TORPEDO_ICON_FIRE,
-    ),
-    LandmarkSubtype.TORPEDO_TARGET_LARGE_SEARCH_RESCUE: (
-        "blood",
-        LandmarkSubtype.TORPEDO_ICON_BLOOD,
-    ),
-    LandmarkSubtype.TORPEDO_TARGET_SMALL_SURVEY_REPAIR: (
-        "firetruck",
-        LandmarkSubtype.TORPEDO_ICON_FIRETRUCK,
-    ),
-    LandmarkSubtype.TORPEDO_TARGET_SMALL_SEARCH_RESCUE: (
-        "ambulance",
-        LandmarkSubtype.TORPEDO_ICON_AMBULANCE,
-    ),
-}
-
-
-def torpedo_icon_offset(version: int, icon: str, hole: Vec3) -> Vec3:
-    """World offset of an icon, given the offset of its opening.
-
-    The board faces the vehicle, i.e. its front points along -X in the world
-    (yaw pi), so the board frame is the world frame rotated by pi about z:
-    (bx, by, bz) -> (-bx, -by, bz). hole = icon + R * off, hence
-    icon = hole - R * off = hole + (0, +off_y, -off_z) (x offsets are 0).
-    """
-    off = _TORPEDO_ICON_TO_HOLE[version][icon]
-    return (hole[0] + off[0], hole[1] + off[1], hole[2] - off[2])
 
 
 def _torpedo_board_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
@@ -328,10 +280,8 @@ def _torpedo_board_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
     # small one. landmark_server turns the icons back into openings. Which
     # physical opening carries which role flips between the two decal versions.
     version_name = role_picks.get("torpedo_board")
-    if version_name not in _TORPEDO_ROLE_BY_VERSION:
+    if version_name not in _TORPEDO_ICON_OFFSETS:
         version_name = "Task4_ver1.png"
-    roles = _TORPEDO_ROLE_BY_VERSION[version_name]
-    version = 1 if version_name == "Task4_ver1.png" else 2
 
     landmarks = [
         Landmark(
@@ -341,14 +291,13 @@ def _torpedo_board_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
             (0.0, 0.0, 0.0),
         )
     ]
-    for name, hole in _TORPEDO_CIRCLE_OFFSETS.items():
-        icon_name, icon_subtype = _TORPEDO_ICON_FOR_HOLE[roles[name]]
+    for icon_name, offset in _TORPEDO_ICON_OFFSETS[version_name].items():
         landmarks.append(
             Landmark(
                 f"torpedo_icon_{icon_name}",
                 LandmarkType.TORPEDO_BOARD,
-                icon_subtype,
-                torpedo_icon_offset(version, icon_name, hole),
+                _TORPEDO_ICON_SUBTYPE[icon_name],
+                offset,
             )
         )
     return tuple(landmarks)
@@ -363,6 +312,15 @@ def _bin_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
         "bin_2": (0.015, -0.484, -0.317),
         "bin_3": (0.016, 0.531, -0.148),
         "bin_4": (-0.496, 0.015, -0.115),
+    }
+    # The role icon lies on the floor of its bin (bin_<n>__icon_bin_<n>.obj),
+    # 0.14 m below the bin's centre; the rig is tilted, so each floor is at
+    # its own depth.
+    icons = {
+        "bin_1": (0.515, 0.028, -0.247),
+        "bin_2": (0.015, -0.484, -0.178),
+        "bin_3": (0.016, 0.531, -0.009),
+        "bin_4": (-0.496, 0.015, 0.025),
     }
     # The rig the bins sit on (bins_pipeline__white.obj): its centre is the
     # task's base_pose.
@@ -385,7 +343,7 @@ def _bin_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
         )
         # ... the down camera sees the role icon inside it.
         landmarks.append(
-            Landmark(slot, LandmarkType.BIN, subtype, offset, camera="down")
+            Landmark(slot, LandmarkType.BIN, subtype, icons[slot], camera="down")
         )
     return tuple(landmarks)
 
@@ -463,8 +421,9 @@ TASKS: dict[str, Task] = {
     "gate": Task("gate", "3.2.2", (4.0, -0.017, 2.718), _gate_landmarks),
     # Centroid of the three slalom gates' red poles (see _slalom_landmarks).
     "slalom": Task("slalom", "3.2.3", (10.105, 0.409, 2.624), _slalom_landmarks),
+    # Centre of the board's front face (see _TORPEDO_OPENING_OFFSETS).
     "torpedo_board": Task(
-        "torpedo_board", "3.2.5", (16.82, -5.204, 2.825), _torpedo_board_landmarks
+        "torpedo_board", "3.2.5", (17.043, -5.204, 2.554), _torpedo_board_landmarks
     ),
     "bin": Task("bin", "3.2.4", (16.544, 4.206, 3.152), _bin_landmarks),
     "octagon": Task("octagon", "3.2.6", (19.254, 0.114, 0.0), _octagon_landmarks),
