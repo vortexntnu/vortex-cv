@@ -81,6 +81,7 @@ class Landmark:
     offset: Vec3  # metres, in the task's (unrotated) world axes
     camera: str = "front"  # "front" (stereo) or "down" (mono, sees the floor)
     movable: bool = False  # loose object that can be moved during a run
+    decoy: bool = False  # another object a detector mistakes for this class
 
 
 @dataclass(frozen=True)
@@ -429,6 +430,46 @@ TASKS: dict[str, Task] = {
     "octagon": Task("octagon", "3.2.6", (19.254, 0.114, 0.0), _octagon_landmarks),
     "table": Task("table", "3.2.6", (19.254, 0.113, 2.717), _table_landmarks),
 }
+
+
+# Decoys: other PVC poles on the course that a pipe detector takes for slalom
+# pipes (seen with the real slalom detector: the gate's posts). World
+# positions, the centres of the posts (gate__white/red/black.obj, see
+# _gate_landmarks): the two uprights (red and black sleeves on white PVC) as
+# white pipes, the short red post between the openings as a red pipe. Only
+# published with decoy_probability > 0.
+DECOYS: tuple[tuple[Landmark, Vec3], ...] = (
+    (
+        Landmark(
+            "decoy_gate_upright_left",
+            LandmarkType.SLALOM_PIPE,
+            LandmarkSubtype.SLALOM_PIPE_WHITE,
+            (0.0, 0.0, 0.0),
+            decoy=True,
+        ),
+        (4.0, -1.569, 2.750),
+    ),
+    (
+        Landmark(
+            "decoy_gate_upright_right",
+            LandmarkType.SLALOM_PIPE,
+            LandmarkSubtype.SLALOM_PIPE_WHITE,
+            (0.0, 0.0, 0.0),
+            decoy=True,
+        ),
+        (4.0, 1.529, 2.750),
+    ),
+    (
+        Landmark(
+            "decoy_gate_middle_post",
+            LandmarkType.SLALOM_PIPE,
+            LandmarkSubtype.SLALOM_PIPE_RED,
+            (0.0, 0.0, 0.0),
+            decoy=True,
+        ),
+        (3.985, -0.019, 2.460),
+    ),
+)
 
 
 def _load_icon_manifest() -> dict | None:

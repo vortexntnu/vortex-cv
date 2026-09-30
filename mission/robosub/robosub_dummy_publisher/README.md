@@ -116,6 +116,16 @@ All of it is off by default; `profile:=unstable` turns on a moderate set.
 | `false_positive_rate` / `false_positive_radius_m` | 0.1 / 2.0 | spurious detections per frame, a copy of a real class within the radius (id >= 1000) |
 | `noise_seed` | -1 | seed for all of the above; -1 draws a new one each run |
 
+`profile:=erratic` (or `--profile erratic` in `tmux_robosub_sim.sh`) is worse
+than `unstable` on every line above (detect 0.6, frame drop 0.1, occlusions
+0.1/s, outliers 0.05, false positives 0.3/frame) and adds **decoys**:
+`decoy_probability` (0.4) is the chance per frame that another course object
+in view is reported as a landmark of the wrong class. The decoys
+(`course_layout.DECOYS`) are the gate's posts as slalom pipes: the two
+uprights as white pipes, the short middle post as a red pipe, as seen with the
+real slalom detector. Without gate detections (`tasks:=[slalom]`) they end up
+in the map as pipes; with the gate in the map landmark_server drops them.
+
 **Moving objects**: the jars and containers on the table are loose (dynamic
 bodies in the sim) and get moved during a run. `movable_move_interval_sec`
 (0 = off) moves each of them to a random spot within `movable_move_radius_m`

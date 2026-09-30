@@ -16,7 +16,7 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from vortex_msgs.msg import Landmark, LandmarkArray
 
-from robosub_dummy_publisher.course_layout import TASKS, draw_role_picks
+from robosub_dummy_publisher.course_layout import DECOYS, TASKS, draw_role_picks
 
 
 class RobosubDummyPublisherNode(Node):
@@ -56,6 +56,10 @@ class RobosubDummyPublisherNode(Node):
         # class of a random landmark, within the radius of it (clutter).
         self.declare_parameter("false_positive_rate", 0.0)
         self.declare_parameter("false_positive_radius_m", 2.0)
+        # Decoys: other course objects taken for a class (the gate's posts
+        # seen as slalom pipes, course_layout.DECOYS), each detected with this
+        # probability per frame when in view. 0 = off.
+        self.declare_parameter("decoy_probability", 0.0)
         # Loose objects (the jars and containers on the table) are moved to a
         # new spot within the radius of where they started, on average every
         # interval seconds each. 0 = they stay put.
@@ -88,6 +92,7 @@ class RobosubDummyPublisherNode(Node):
         self._outlier_std = self.get_parameter("outlier_std_m").value
         self._fp_rate = self.get_parameter("false_positive_rate").value
         self._fp_radius = self.get_parameter("false_positive_radius_m").value
+        self._p_decoy = self.get_parameter("decoy_probability").value
         self._move_interval = float(
             self.get_parameter("movable_move_interval_sec").value
         )
@@ -137,6 +142,15 @@ class RobosubDummyPublisherNode(Node):
                     f"pose=({x:.2f}, {y:.2f}, {z:.2f})"
                 )
 
+        if self._p_decoy > 0.0:
+            for landmark, pos in DECOYS:
+                self._landmarks.append((landmark, pos))
+                self.get_logger().info(
+                    f"  {landmark.label:24s} decoy type={landmark.landmark_type} "
+                    f"subtype={landmark.landmark_subtype} p={self._p_decoy} "
+                    f"pose=({pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f})"
+                )
+
         self._occluded_until = [0.0] * len(self._landmarks)
         self._home = [pos for _, pos in self._landmarks]
         if self._move_interval > 0.0:
@@ -152,6 +166,7 @@ class RobosubDummyPublisherNode(Node):
                 f"occlusions {self._dropout_rate}/s for {self._dropout_duration} s, "
                 f"outliers p={self._p_outlier} (std {self._outlier_std} m), "
                 f"false positives {self._fp_rate}/frame within {self._fp_radius} m, "
+                f"decoys p={self._p_decoy}, "
                 f"noise std {self._noise_std} m, noise_seed {noise_seed}"
             )
 
@@ -195,6 +210,7 @@ class RobosubDummyPublisherNode(Node):
             or self._dropout_rate > 0.0
             or self._p_outlier > 0.0
             or self._fp_rate > 0.0
+            or self._p_decoy > 0.0
         )
 
     def _detected(self, i: int, now: float) -> bool:
@@ -204,7 +220,8 @@ class RobosubDummyPublisherNode(Node):
         if self._rng.random() < self._dropout_rate * self._period:
             self._occluded_until[i] = now + self._rng.uniform(*self._dropout_duration)
             return False
-        return self._rng.random() < self._p_detect
+        p = self._p_decoy if self._landmarks[i][0].decoy else self._p_detect
+        return self._rng.random() < p
 
     def _publish(self):
         now_time = self.get_clock().now()
