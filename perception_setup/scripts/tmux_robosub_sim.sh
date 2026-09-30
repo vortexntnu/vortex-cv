@@ -27,6 +27,10 @@ Options:
                         see from the vehicle pose (default: everything)
   --unstable            Dummy perception is noisy and drops out (profile
                         unstable: misses, occlusions, outliers, clutter)
+  --profile <name>      Dummy perception parameter profile
+                        (config/robosub_dummy_publisher_<name>.yaml), e.g.
+                        erratic: worse than unstable, and the gate's posts
+                        detected as slalom pipes
   --moving <sec>        The jars and containers on the table move, on average
                         every <sec> seconds each (default: 0, they stay put)
   --tasks <list>        Comma-separated course elements for the dummy
@@ -71,6 +75,7 @@ SEED="7"
 DOMAIN_ID="0"
 FOV="false"
 UNSTABLE="false"
+PROFILE=""
 MOVING="0.0"
 TASKS=""
 AUTONOMY="true"
@@ -84,6 +89,7 @@ while [[ $# -gt 0 ]]; do
         --domain-id)   DOMAIN_ID="$2"; shift 2 ;;
         --fov)         FOV="true";     shift ;;
         --unstable)    UNSTABLE="true"; shift ;;
+        --profile)     PROFILE="$2";   shift 2 ;;
         --moving)      MOVING="$2";    shift 2 ;;
         --tasks)       TASKS="$2";     shift 2 ;;
         --no-autonomy) AUTONOMY="false"; shift ;;
@@ -136,6 +142,13 @@ DUMMY_CMD="ros2 run robosub_dummy_publisher robosub_dummy_publisher_node --ros-a
 DUMMY_CMD="$DUMMY_CMD --params-file $DUMMY_CONFIG/robosub_dummy_publisher_params.yaml"
 if [[ "$UNSTABLE" == "true" ]]; then
     DUMMY_CMD="$DUMMY_CMD --params-file $DUMMY_CONFIG/robosub_dummy_publisher_unstable.yaml"
+fi
+if [[ -n "$PROFILE" ]]; then
+    if [[ ! -f "$WS/$DUMMY_CONFIG/robosub_dummy_publisher_$PROFILE.yaml" ]]; then
+        echo "No dummy profile '$PROFILE' ($DUMMY_CONFIG/robosub_dummy_publisher_$PROFILE.yaml); build robosub_dummy_publisher?"
+        exit 1
+    fi
+    DUMMY_CMD="$DUMMY_CMD --params-file $DUMMY_CONFIG/robosub_dummy_publisher_$PROFILE.yaml"
 fi
 DUMMY_CMD="$DUMMY_CMD -p seed:=$SEED -p use_field_of_view:=$FOV -p movable_move_interval_sec:=$MOVING"
 if [[ -n "$TASKS" ]]; then
