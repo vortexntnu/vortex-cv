@@ -57,6 +57,10 @@ Options:
                         second one without the graph (/nautilus_raw) on the
                         same data for comparison. Implies --fov. The
                         controller still steers on the true odometry
+  --compare-install <dir>
+                        With --drift: also run the landmark_server of another
+                        install space (e.g. an older branch built with
+                        --install-base <dir>) on the same data, as cmp
   --detach              Start the session without attaching to it
   -h, --help            Show this help message
 
@@ -83,6 +87,7 @@ DRIFT=""
 DRIFT_PROFILE=""
 DETACH="false"
 FRONT_CAMERA="false"
+COMPARE_INSTALL=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --seed)        SEED="$2";      shift 2 ;;
@@ -95,6 +100,7 @@ while [[ $# -gt 0 ]]; do
         --no-autonomy) AUTONOMY="false"; shift ;;
         --front-camera) FRONT_CAMERA="true"; shift ;;
         --drift)       DRIFT="$2"; FOV="true"; shift 2 ;;
+        --compare-install) COMPARE_INSTALL="$(readlink -f "$2")"; shift 2 ;;
         --drift-profile) DRIFT_PROFILE="$2"; FOV="true"; shift 2 ;;
         --detach)      DETACH="true"; shift ;;
         -h|--help)     usage; exit 0 ;;
@@ -164,10 +170,25 @@ LS_CMD="ros2 launch landmark_server landmark_server.launch.py env:=sim"
 EVAL_CMD="ros2 run landmark_server graph_eval.py --ros-args -p truth_seed:=$SEED -p maps:=[/nautilus/landmark_server/object_map] -p labels:=[graph] -p csv:=/tmp/graph_eval.csv"
 if [[ -n "$DRIFT" ]]; then
     DUMMY_CMD="$DUMMY_CMD -p topic:=landmarks_true"
-    INJECT_CMD="ros2 run landmark_server drift_injector.py --ros-args $DRIFT_PARAMS -p drift_yaw_deg_per_m:=$DRIFT -p noise:=true -p landmarks_out:=/nautilus/landmarks"
-    LS_CMD="ros2 run landmark_server landmark_server_node --ros-args -r __ns:=/nautilus $LS_PARAMS -p topics.odom:=/nautilus/odom_drift"
-    RAW_CMD="ros2 run landmark_server landmark_server_node --ros-args -r __ns:=/nautilus_raw $LS_PARAMS -p topics.odom:=/nautilus/odom_drift -p topics.landmarks:=/nautilus/landmarks -p graph.enable:=false -p course_frame.publish_tf:=false"
-    EVAL_CMD="ros2 run landmark_server graph_eval.py --ros-args -p truth_seed:=$SEED -p maps:=[/nautilus/landmark_server/object_map,/nautilus_raw/landmark_server/object_map] -p labels:=[graph,raw] -p csv:=/tmp/graph_eval.csv"
+    # The drifted odometry and everything built on it live in their own
+    # frame, nautilus/odom_drift, which the injector puts in TF under the
+    # true nautilus/odom: Foxglove draws the maps and the truth where they are
+    # in the world (a correct map stands still on the green truth).
+    DRIFT_FRAME="nautilus/odom_drift"
+    INJECT_CMD="ros2 run landmark_server drift_injector.py --ros-args $DRIFT_PARAMS -p drift_yaw_deg_per_m:=$DRIFT -p noise:=true -p landmarks_out:=/nautilus/landmarks -p frame_id:=$DRIFT_FRAME"
+    LS_CMD="ros2 run landmark_server landmark_server_node --ros-args -r __ns:=/nautilus $LS_PARAMS -p topics.odom:=/nautilus/odom_drift -p target_frame:=$DRIFT_FRAME"
+    RAW_CMD="ros2 run landmark_server landmark_server_node --ros-args -r __ns:=/nautilus_raw $LS_PARAMS -p topics.odom:=/nautilus/odom_drift -p topics.landmarks:=/nautilus/landmarks -p target_frame:=$DRIFT_FRAME -p graph.enable:=false -p course_frame.publish_tf:=false"
+    EVAL_MAPS="/nautilus/landmark_server/object_map,/nautilus_raw/landmark_server/object_map"
+    EVAL_LABELS="graph,raw"
+    if [[ -n "$COMPARE_INSTALL" ]]; then
+        # Another build of landmark_server (e.g. an older branch) on the same
+        # data, in /nautilus_cmp, with its own config files.
+        CMP_CONFIG="$COMPARE_INSTALL/landmark_server/share/landmark_server/config"
+        CMP_CMD="source $COMPARE_INSTALL/local_setup.bash && ros2 run landmark_server landmark_server_node --ros-args -r __ns:=/nautilus_cmp --params-file $CMP_CONFIG/landmark_server_config.yaml --params-file $CMP_CONFIG/sim.yaml --params-file install/auv_setup/share/auv_setup/config/robots/nautilus.yaml -p topics.odom:=/nautilus/odom_drift -p topics.landmarks:=/nautilus/landmarks -p target_frame:=$DRIFT_FRAME -p course_frame.publish_tf:=false"
+        EVAL_MAPS="$EVAL_MAPS,/nautilus_cmp/landmark_server/object_map"
+        EVAL_LABELS="$EVAL_LABELS,cmp"
+    fi
+    EVAL_CMD="ros2 run landmark_server graph_eval.py --ros-args -p truth_seed:=$SEED -p maps:=[$EVAL_MAPS] -p labels:=[$EVAL_LABELS] -p frame_id:=$DRIFT_FRAME -p csv:=/tmp/graph_eval.csv"
 fi
 
 # Frames and detection markers for Foxglove (see foxglove_helpers.launch.py).
@@ -234,6 +255,10 @@ if [[ -n "$DRIFT" ]]; then
     tmux send-keys -t "$PANE_INJECT" "clear && $S && $INJECT_CMD" Enter
     PANE_RAW=$(tmux split-window -h -t "$PANE_INJECT" -P -F '#{pane_id}')
     tmux send-keys -t "$PANE_RAW" "clear && $S && $RAW_CMD" Enter
+    if [[ -n "$CMP_CMD" ]]; then
+        PANE_CMP=$(tmux split-window -h -t "$PANE_EVAL" -P -F '#{pane_id}')
+        tmux send-keys -t "$PANE_CMP" "clear && $S && $CMP_CMD" Enter
+    fi
 fi
 
 # =============================================
