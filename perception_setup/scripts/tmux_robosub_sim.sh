@@ -173,11 +173,13 @@ if [[ -n "$DRIFT" ]]; then
     # The drifted odometry and everything built on it live in their own
     # frame, nautilus/odom_drift, which the injector puts in TF under the
     # true nautilus/odom: Foxglove draws the maps and the truth where they are
-    # in the world (a correct map stands still on the green truth).
+    # in the world (a correct map stands still on the green truth). What is
+    # in the graph frame (odom at the start = the true world here: the true
+    # path, the graph's path, the raw odometry path) goes in nautilus/odom.
     DRIFT_FRAME="nautilus/odom_drift"
     INJECT_CMD="ros2 run landmark_server drift_injector.py --ros-args $DRIFT_PARAMS -p drift_yaw_deg_per_m:=$DRIFT -p noise:=true -p landmarks_out:=/nautilus/landmarks -p frame_id:=$DRIFT_FRAME"
-    LS_CMD="ros2 run landmark_server landmark_server_node --ros-args -r __ns:=/nautilus $LS_PARAMS -p topics.odom:=/nautilus/odom_drift -p target_frame:=$DRIFT_FRAME"
-    RAW_CMD="ros2 run landmark_server landmark_server_node --ros-args -r __ns:=/nautilus_raw $LS_PARAMS -p topics.odom:=/nautilus/odom_drift -p topics.landmarks:=/nautilus/landmarks -p target_frame:=$DRIFT_FRAME -p graph.enable:=false -p course_frame.publish_tf:=false"
+    LS_CMD="ros2 run landmark_server landmark_server_node --ros-args -r __ns:=/nautilus $LS_PARAMS -p topics.odom:=/nautilus/odom_drift -p target_frame:=$DRIFT_FRAME -p graph.frame_id:=nautilus/odom"
+    RAW_CMD="ros2 run landmark_server landmark_server_node --ros-args -r __ns:=/nautilus_raw $LS_PARAMS -p topics.odom:=/nautilus/odom_drift -p topics.landmarks:=/nautilus/landmarks -p target_frame:=$DRIFT_FRAME -p graph.frame_id:=nautilus/odom -p graph.enable:=false -p course_frame.publish_tf:=false"
     EVAL_MAPS="/nautilus/landmark_server/object_map,/nautilus_raw/landmark_server/object_map"
     EVAL_LABELS="graph,raw"
     if [[ -n "$COMPARE_INSTALL" ]]; then
@@ -188,7 +190,7 @@ if [[ -n "$DRIFT" ]]; then
         EVAL_MAPS="$EVAL_MAPS,/nautilus_cmp/landmark_server/object_map"
         EVAL_LABELS="$EVAL_LABELS,cmp"
     fi
-    EVAL_CMD="ros2 run landmark_server graph_eval.py --ros-args -p truth_seed:=$SEED -p maps:=[$EVAL_MAPS] -p labels:=[$EVAL_LABELS] -p frame_id:=$DRIFT_FRAME -p csv:=/tmp/graph_eval.csv"
+    EVAL_CMD="ros2 run landmark_server graph_eval.py --ros-args -p truth_seed:=$SEED -p maps:=[$EVAL_MAPS] -p labels:=[$EVAL_LABELS] -p frame_id:=$DRIFT_FRAME -p graph_frame_id:=nautilus/odom -p csv:=/tmp/graph_eval.csv"
 fi
 
 # Frames and detection markers for Foxglove (see foxglove_helpers.launch.py).
