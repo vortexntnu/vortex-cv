@@ -472,6 +472,31 @@ DECOYS: tuple[tuple[Landmark, Vec3], ...] = (
 )
 
 
+# Classes a detector mixes up (class_confusion_* parameters): a pipe's colour
+# under bad light, and the icons of one shape (the two red role icons, the two
+# vehicles). (type, subtype) -> the classes it can be reported as.
+CONFUSIONS: dict[tuple[int, int], tuple[tuple[int, int], ...]] = {
+    (LandmarkType.SLALOM_PIPE, LandmarkSubtype.SLALOM_PIPE_WHITE): (
+        (LandmarkType.SLALOM_PIPE, LandmarkSubtype.SLALOM_PIPE_RED),
+    ),
+    (LandmarkType.SLALOM_PIPE, LandmarkSubtype.SLALOM_PIPE_RED): (
+        (LandmarkType.SLALOM_PIPE, LandmarkSubtype.SLALOM_PIPE_WHITE),
+    ),
+    (LandmarkType.TORPEDO_BOARD, LandmarkSubtype.TORPEDO_ICON_FIRE): (
+        (LandmarkType.TORPEDO_BOARD, LandmarkSubtype.TORPEDO_ICON_BLOOD),
+    ),
+    (LandmarkType.TORPEDO_BOARD, LandmarkSubtype.TORPEDO_ICON_BLOOD): (
+        (LandmarkType.TORPEDO_BOARD, LandmarkSubtype.TORPEDO_ICON_FIRE),
+    ),
+    (LandmarkType.TORPEDO_BOARD, LandmarkSubtype.TORPEDO_ICON_FIRETRUCK): (
+        (LandmarkType.TORPEDO_BOARD, LandmarkSubtype.TORPEDO_ICON_AMBULANCE),
+    ),
+    (LandmarkType.TORPEDO_BOARD, LandmarkSubtype.TORPEDO_ICON_AMBULANCE): (
+        (LandmarkType.TORPEDO_BOARD, LandmarkSubtype.TORPEDO_ICON_FIRETRUCK),
+    ),
+}
+
+
 def _load_icon_manifest() -> dict | None:
     """Load the same role-image manifest vortex-stonefish-sim randomizes from."""
     if get_package_share_directory is None:

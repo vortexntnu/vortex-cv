@@ -5,6 +5,7 @@ perception stack or simulator. See course_layout.py for where the landmark
 positions and role draws come from.
 """
 
+import dataclasses
 import math
 import random
 
@@ -16,7 +17,12 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from vortex_msgs.msg import Landmark, LandmarkArray
 
-from robosub_dummy_publisher.course_layout import DECOYS, TASKS, draw_role_picks
+from robosub_dummy_publisher.course_layout import (
+    CONFUSIONS,
+    DECOYS,
+    TASKS,
+    draw_role_picks,
+)
 
 
 class RobosubDummyPublisherNode(Node):
@@ -67,6 +73,29 @@ class RobosubDummyPublisherNode(Node):
         number = ParameterDescriptor(dynamic_typing=True)
         self.declare_parameter("movable_move_interval_sec", 0.0, number)
         self.declare_parameter("movable_move_radius_m", 0.5, number)
+        # A realistic detector (needs use_field_of_view for the vehicle pose).
+        # Noise std along the line of sight (range) and across it, [base,
+        # per metre of distance]: a camera's range is much worse than its
+        # bearing. A range bias as a fraction of the distance (+ = too far).
+        self.declare_parameter("range_noise_along", [0.0, 0.0])
+        self.declare_parameter("range_noise_across", [0.0, 0.0])
+        self.declare_parameter("range_bias_per_m", 0.0)
+        # Detection probability at front_range_m, linear from
+        # detection_probability up close. -1 = the same at every range.
+        self.declare_parameter("detection_probability_far", -1.0)
+        # Class confusion (course_layout.CONFUSIONS: white <-> red pipe, the
+        # icons of one shape): per detection, and in episodes (a bad view
+        # that lasts) at a rate per landmark [1/s] for a duration [s].
+        self.declare_parameter("class_confusion_probability", 0.0)
+        self.declare_parameter("class_confusion_rate_per_sec", 0.0)
+        self.declare_parameter("class_confusion_duration_sec", [0.5, 3.0])
+        # Phantoms: objects that are not there but are detected again and
+        # again at one place (a reflection, a shadow, another prop), each a
+        # copy of the class of a real landmark at a distance in the range
+        # from it, detected with phantom_probability when in view.
+        self.declare_parameter("phantom_count", 0)
+        self.declare_parameter("phantom_probability", 0.3)
+        self.declare_parameter("phantom_distance_m", [0.8, 2.5])
         # Seed for the noise and the instability. -1 = a fresh draw each run.
         self.declare_parameter("noise_seed", -1)
 
@@ -97,6 +126,18 @@ class RobosubDummyPublisherNode(Node):
             self.get_parameter("movable_move_interval_sec").value
         )
         self._move_radius = float(self.get_parameter("movable_move_radius_m").value)
+        self._range_along = tuple(self.get_parameter("range_noise_along").value)
+        self._range_across = tuple(self.get_parameter("range_noise_across").value)
+        self._range_bias = self.get_parameter("range_bias_per_m").value
+        self._p_detect_far = self.get_parameter("detection_probability_far").value
+        self._p_confusion = self.get_parameter("class_confusion_probability").value
+        self._confusion_rate = self.get_parameter("class_confusion_rate_per_sec").value
+        self._confusion_duration = tuple(
+            self.get_parameter("class_confusion_duration_sec").value
+        )
+        phantom_count = self.get_parameter("phantom_count").value
+        self._p_phantom = self.get_parameter("phantom_probability").value
+        phantom_distance = tuple(self.get_parameter("phantom_distance_m").value)
         noise_seed = self.get_parameter("noise_seed").value
         self._rng = random.Random(None if noise_seed < 0 else noise_seed)
         self._period = 1.0 / rate
@@ -151,7 +192,27 @@ class RobosubDummyPublisherNode(Node):
                     f"pose=({pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f})"
                 )
 
+        # Phantoms next to the real landmarks of the tasks (not the decoys).
+        real = [(lm, pos) for lm, pos in self._landmarks if not lm.decoy]
+        self._phantoms = set()
+        for k in range(phantom_count if real else 0):
+            landmark, (x, y, z) = self._rng.choice(real)
+            r = self._rng.uniform(*phantom_distance)
+            a = self._rng.uniform(-math.pi, math.pi)
+            pos = (x + r * math.cos(a), y + r * math.sin(a), z)
+            phantom = dataclasses.replace(
+                landmark, label=f"phantom_{k}_{landmark.label}", movable=False
+            )
+            self._phantoms.add(len(self._landmarks))
+            self._landmarks.append((phantom, pos))
+            self.get_logger().info(
+                f"  {phantom.label:24s} phantom type={phantom.landmark_type} "
+                f"subtype={phantom.landmark_subtype} p={self._p_phantom} "
+                f"pose=({pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f})"
+            )
+
         self._occluded_until = [0.0] * len(self._landmarks)
+        self._confused_until = [0.0] * len(self._landmarks)
         self._home = [pos for _, pos in self._landmarks]
         if self._move_interval > 0.0:
             n = sum(1 for lm, _ in self._landmarks if lm.movable)
@@ -168,6 +229,20 @@ class RobosubDummyPublisherNode(Node):
                 f"false positives {self._fp_rate}/frame within {self._fp_radius} m, "
                 f"decoys p={self._p_decoy}, "
                 f"noise std {self._noise_std} m, noise_seed {noise_seed}"
+            )
+        if self._realistic():
+            if not self._use_fov:
+                self.get_logger().warn(
+                    "range noise and range-dependent detection need "
+                    "use_field_of_view (the vehicle pose); they are off"
+                )
+            self.get_logger().info(
+                f"realistic detector: range noise along {self._range_along}, "
+                f"across {self._range_across} (std = base + per_m * d), "
+                f"range bias {self._range_bias}/m, detection p far "
+                f"{self._p_detect_far}, class confusion p={self._p_confusion} "
+                f"+ {self._confusion_rate}/s for {self._confusion_duration} s, "
+                f"{len(self._phantoms)} phantom(s) p={self._p_phantom}"
             )
 
         self._publisher = self.create_publisher(LandmarkArray, topic, 10)
@@ -213,6 +288,23 @@ class RobosubDummyPublisherNode(Node):
             or self._p_decoy > 0.0
         )
 
+    def _realistic(self) -> bool:
+        return (
+            any(v > 0.0 for v in self._range_along + self._range_across)
+            or self._range_bias != 0.0
+            or self._p_detect_far >= 0.0
+            or self._p_confusion > 0.0
+            or self._confusion_rate > 0.0
+            or bool(self._phantoms)
+        )
+
+    def _distance(self, x, y, z):
+        """Distance from the vehicle, or None without a vehicle pose."""
+        if not self._use_fov or self._vehicle is None:
+            return None
+        vx, vy, vz, _ = self._vehicle
+        return math.sqrt((x - vx) ** 2 + (y - vy) ** 2 + (z - vz) ** 2)
+
     def _detected(self, i: int, now: float) -> bool:
         """Whether landmark i is detected in this frame (occlusion, misses)."""
         if now < self._occluded_until[i]:
@@ -220,8 +312,31 @@ class RobosubDummyPublisherNode(Node):
         if self._rng.random() < self._dropout_rate * self._period:
             self._occluded_until[i] = now + self._rng.uniform(*self._dropout_duration)
             return False
-        p = self._p_decoy if self._landmarks[i][0].decoy else self._p_detect
+        landmark, (x, y, z) = self._landmarks[i]
+        if landmark.decoy:
+            p = self._p_decoy
+        elif i in self._phantoms:
+            p = self._p_phantom
+        else:
+            p = self._p_detect
+            d = self._distance(x, y, z)
+            if self._p_detect_far >= 0.0 and d is not None and landmark.camera == "front":
+                f = min(1.0, d / self._front_range)
+                p += (self._p_detect_far - p) * f
         return self._rng.random() < p
+
+    def _class_of(self, i: int, now: float):
+        """The class landmark i is reported as in this frame."""
+        landmark = self._landmarks[i][0]
+        key = (landmark.landmark_type, landmark.landmark_subtype)
+        others = CONFUSIONS.get(key)
+        if not others:
+            return key
+        if self._rng.random() < self._confusion_rate * self._period:
+            self._confused_until[i] = now + self._rng.uniform(*self._confusion_duration)
+        if now < self._confused_until[i] or self._rng.random() < self._p_confusion:
+            return self._rng.choice(others)
+        return key
 
     def _publish(self):
         now_time = self.get_clock().now()
@@ -244,8 +359,10 @@ class RobosubDummyPublisherNode(Node):
             visible.append(i)
             if not detected[i]:
                 continue
-            x, y, z = self._perturb(x, y, z)
-            msg.landmarks.append(self._entry(stamp, i, landmark, x, y, z))
+            x, y, z = self._perturb_range(*self._perturb(x, y, z))
+            msg.landmarks.append(
+                self._entry(stamp, i, landmark, x, y, z, self._class_of(i, now))
+            )
 
         # Clutter: a copy of the class of a visible landmark close to it.
         n_false = self._poisson(self._fp_rate) if visible else 0
@@ -253,7 +370,9 @@ class RobosubDummyPublisherNode(Node):
             landmark, (x, y, z) = self._landmarks[self._rng.choice(visible)]
             r = self._fp_radius * math.sqrt(self._rng.random())
             a = self._rng.uniform(-math.pi, math.pi)
-            x, y, z = self._perturb(x + r * math.cos(a), y + r * math.sin(a), z)
+            x, y, z = self._perturb_range(
+                *self._perturb(x + r * math.cos(a), y + r * math.sin(a), z)
+            )
             msg.landmarks.append(self._entry(stamp, 1000 + k, landmark, x, y, z))
 
         self._publisher.publish(msg)
@@ -285,6 +404,35 @@ class RobosubDummyPublisherNode(Node):
             z += self._rng.gauss(0.0, std)
         return x, y, z
 
+    def _perturb_range(self, x, y, z):
+        """Noise along and across the line of sight, growing with distance."""
+        d = self._distance(x, y, z)
+        if d is None or d < 1e-6:
+            return x, y, z
+        vx, vy, vz, _ = self._vehicle
+        u = ((x - vx) / d, (y - vy) / d, (z - vz) / d)
+        # Across: one horizontal direction, and the one perpendicular to
+        # both (a line of sight straight down has no horizontal normal).
+        h = math.hypot(u[0], u[1])
+        a1 = (-u[1] / h, u[0] / h, 0.0) if h > 1e-6 else (1.0, 0.0, 0.0)
+        a2 = (
+            u[1] * a1[2] - u[2] * a1[1],
+            u[2] * a1[0] - u[0] * a1[2],
+            u[0] * a1[1] - u[1] * a1[0],
+        )
+        along = self._range_bias * d
+        std_along = self._range_along[0] + self._range_along[1] * d
+        std_across = self._range_across[0] + self._range_across[1] * d
+        if std_along > 0.0:
+            along += self._rng.gauss(0.0, std_along)
+        c1 = self._rng.gauss(0.0, std_across) if std_across > 0.0 else 0.0
+        c2 = self._rng.gauss(0.0, std_across) if std_across > 0.0 else 0.0
+        return (
+            x + along * u[0] + c1 * a1[0] + c2 * a2[0],
+            y + along * u[1] + c1 * a1[1] + c2 * a2[1],
+            z + along * u[2] + c1 * a1[2] + c2 * a2[2],
+        )
+
     def _poisson(self, lam: float) -> int:
         # Knuth; lam is small (a few per frame at most).
         if lam <= 0.0:
@@ -296,13 +444,15 @@ class RobosubDummyPublisherNode(Node):
                 return k
             k += 1
 
-    def _entry(self, stamp, i, landmark, x, y, z) -> Landmark:
+    def _entry(self, stamp, i, landmark, x, y, z, key=None) -> Landmark:
         entry = Landmark()
         entry.header.stamp = stamp
         entry.header.frame_id = self._frame_id
         entry.id = i
-        entry.type.value = landmark.landmark_type
-        entry.subtype.value = landmark.landmark_subtype
+        entry.type.value, entry.subtype.value = key or (
+            landmark.landmark_type,
+            landmark.landmark_subtype,
+        )
         entry.pose = self._pose(x, y, z)
         return entry
 
