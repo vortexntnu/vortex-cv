@@ -1,9 +1,11 @@
 #include "vortex_bt_nodes/map/register.hpp"
+#include "vortex_bt_nodes/map/set_map_focus.hpp"
 
 namespace vortex_bt_nodes::map {
 
-void register_nodes(BT::BehaviorTreeFactory& /*factory*/,
-                    const rclcpp::Node::SharedPtr& /*node*/) {
+void register_nodes(BT::BehaviorTreeFactory& factory,
+                    const rclcpp::Node::SharedPtr& node) {
+    factory.registerNodeType<SetMapFocus>("SetMapFocus", node);
     // One line per node, e.g.
     //   factory.registerNodeType<MyNode>("MyNode");
     // or, for a node whose constructor also takes the ROS node:
