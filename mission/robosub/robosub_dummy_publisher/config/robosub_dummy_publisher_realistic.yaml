@@ -1,0 +1,31 @@
+# Loaded on top of robosub_dummy_publisher_params.yaml with profile:=realistic.
+# A detector as a camera behaves, seen from a moving vehicle (needs the
+# vehicle odometry: use_field_of_view): only what is in view, range much
+# worse than bearing and both worse with distance (the values measured in the
+# simulator, landmark_server sim.yaml), fewer detections far away, colours
+# and icons mixed up now and then (in episodes, as under a bad angle),
+# occlusions, clutter, the gate's posts taken for pipes, and phantoms: things
+# that are not there but are detected again and again at one place.
+/**:
+  ros__parameters:
+    use_field_of_view: true
+    position_noise_std: 0.02           # [m] on top of the range noise
+    range_noise_along: [0.07, 0.03]    # std [m] = base + per_m * distance
+    range_noise_across: [0.06, 0.003]
+    range_bias_per_m: 0.02             # ranges 2 % too long
+    detection_probability: 0.85        # up close ...
+    detection_probability_far: 0.4     # ... down to this at front_range_m
+    frame_drop_probability: 0.05
+    dropout_rate_per_sec: 0.05         # occluded every ~20 s ...
+    dropout_duration_sec: [1.0, 4.0]   # ... for 1-4 s
+    outlier_probability: 0.02
+    outlier_std_m: 1.0
+    false_positive_rate: 0.1
+    false_positive_radius_m: 2.0
+    decoy_probability: 0.3
+    class_confusion_probability: 0.05  # 5 % of the detections the wrong class ...
+    class_confusion_rate_per_sec: 0.03 # ... plus a bad view every ~30 s
+    class_confusion_duration_sec: [0.5, 3.0]
+    phantom_count: 2
+    phantom_probability: 0.4
+    phantom_distance_m: [0.8, 2.5]
