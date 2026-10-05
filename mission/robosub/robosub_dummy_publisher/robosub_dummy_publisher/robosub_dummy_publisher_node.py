@@ -98,6 +98,10 @@ class RobosubDummyPublisherNode(Node):
         self.declare_parameter("phantom_distance_m", [0.8, 2.5])
         # Seed for the noise and the instability. -1 = a fresh draw each run.
         self.declare_parameter("noise_seed", -1)
+        # A slow detector: each frame is published this long after the time
+        # it is stamped with (the image time), as a network that takes a
+        # while per image. [s], 0 = at once.
+        self.declare_parameter("latency_sec", 0.0)
 
         seed = self.get_parameter("seed").value
         task_names = self.get_parameter("tasks").value
@@ -247,6 +251,13 @@ class RobosubDummyPublisherNode(Node):
 
         self._publisher = self.create_publisher(LandmarkArray, topic, 10)
         self._timer = self.create_timer(1.0 / rate, self._publish)
+        self._latency = float(self.get_parameter("latency_sec").value)
+        self._delayed = []  # (publish time, message), oldest first
+        if self._latency > 0.0:
+            self.create_timer(0.02, self._flush_delayed)
+            self.get_logger().info(
+                f"detections published {self._latency:.2f} s after their stamp"
+            )
 
     def _on_odom(self, msg: Odometry):
         p = msg.pose.pose.position
@@ -375,7 +386,15 @@ class RobosubDummyPublisherNode(Node):
             )
             msg.landmarks.append(self._entry(stamp, 1000 + k, landmark, x, y, z))
 
-        self._publisher.publish(msg)
+        if self._latency > 0.0:
+            self._delayed.append((now + self._latency, msg))
+        else:
+            self._publisher.publish(msg)
+
+    def _flush_delayed(self):
+        now = self.get_clock().now().nanoseconds * 1e-9
+        while self._delayed and self._delayed[0][0] <= now:
+            self._publisher.publish(self._delayed.pop(0)[1])
 
     def _move_loose_objects(self):
         if self._move_interval <= 0.0:
