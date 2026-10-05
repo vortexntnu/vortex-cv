@@ -159,8 +159,8 @@ fi
 # come from the drift injector on the usual topic), plus a second server
 # without the graph for comparison.
 LS_CONFIG="install/landmark_server/share/landmark_server/config"
-LS_PARAMS="--params-file $LS_CONFIG/landmark_server_config.yaml --params-file $LS_CONFIG/markers.yaml --params-file $LS_CONFIG/sim.yaml --params-file $LS_CONFIG/course/templates.yaml --params-file $LS_CONFIG/course/sim.yaml --params-file install/auv_setup/share/auv_setup/config/robots/nautilus.yaml"
-LS_CMD="ros2 launch landmark_server landmark_server.launch.py env:=sim"
+LS_PARAMS="--params-file $LS_CONFIG/landmark_server_config.yaml --params-file $LS_CONFIG/markers.yaml --params-file $LS_CONFIG/debug.yaml --params-file $LS_CONFIG/sim.yaml --params-file $LS_CONFIG/course/templates.yaml --params-file $LS_CONFIG/course/sim.yaml --params-file install/auv_setup/share/auv_setup/config/robots/nautilus.yaml"
+LS_CMD="ros2 launch landmark_server landmark_server.launch.py env:=sim debug:=true"
 EVAL_CMD="ros2 run landmark_server graph_eval.py --ros-args -p truth_seed:=$SEED -p maps:=[/nautilus/landmark_server/object_map] -p labels:=[graph] -p csv:=/tmp/graph_eval.csv"
 if [[ -n "$DRIFT" ]]; then
     DUMMY_CMD="$DUMMY_CMD -p topic:=landmarks_true"
