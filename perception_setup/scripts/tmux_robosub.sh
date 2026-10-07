@@ -11,8 +11,8 @@ usage() {
 Usage: $(basename "$0") [OPTIONS]
 
 Options:
-  --sim                    Flag. Use simulator topics, skip real hardware; landmark_server env:=sim.
-  --real                   Flag. Launch real cameras; landmark_server env:=pool.
+  --sim                    Flag. Use simulator topics, skip real hardware.
+  --real                   Flag. Launch real cameras.
   --gst                    Flag. Enable GStreamer streaming for all sensors.
   --no-gst                 Flag. Disable GStreamer streaming.
   --destination-ip <ip>    Value. Destination IP for GStreamer RTP stream. e.g. --destination-ip 10.0.0.50
@@ -61,10 +61,6 @@ FRONT_ARGS=""
 [[ -n "$MODEL" ]]          && FRONT_ARGS+=" model_file_path:=$MODEL"
 [[ -n "$DEVICE" ]]         && FRONT_ARGS+=" device:=$DEVICE"
 
-# landmark_server values: simulator or pool.
-LS_ENV="pool"
-[[ "$SIM_ARG" == "true" ]] && LS_ENV="sim"
-
 SESSION="robosub"
 
 # Kill existing session if it exists
@@ -98,7 +94,7 @@ PANE_A1=$(tmux list-panes -t "$SESSION:auto" -F '#{pane_id}')
 tmux send-keys -t "$PANE_A1" "source install/setup.bash && ros2 launch waypoint_manager waypoint_manager.launch.py" Enter
 
 PANE_A2=$(tmux split-window -h -t "$PANE_A1" -P -F '#{pane_id}')
-tmux send-keys -t "$PANE_A2" "source install/setup.bash && ros2 launch landmark_server landmark_server.launch.py env:=$LS_ENV" Enter
+tmux send-keys -t "$PANE_A2" "source install/setup.bash && ros2 launch landmark_slam landmark_slam.launch.py" Enter
 
 PANE_A3=$(tmux split-window -v -t "$PANE_A1" -P -F '#{pane_id}')
 tmux send-keys -t "$PANE_A3" "source install/setup.bash && ros2 launch perception_setup robosub_mission.launch.py" Enter

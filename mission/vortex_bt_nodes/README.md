@@ -37,7 +37,7 @@ Write your nodes in the order listed, then your task tree (see the
 | Person | Task | Nodes |
 |---|---|---|
 | Johannes | Torpedo | FireTorpedo, CommitEstimate, TaskSlot, RecordBag, ApproachLandmark |
-| André | Slalom | LandmarkKnown, FollowPoses, Search, AvoidSlalom, and his own slalom nodes |
+| André | Slalom | FollowPoses, Search, AvoidSlalom, and his own slalom nodes |
 | Ashish | Octagon | PoseFeeder, MapFeeder, CourseFrameFeeder, SavePose, GoToSavedPose, VerifyInside, GoToCourse, MoveCourse, LookAtLandmark |
 | Karol | Bins | Wait, MissionClock, SetOperationMode, ResetWorld, StartRun, LoadMissionConfig, ResolveRole, DropMarker, SelectLandmark, MarkUsed |
 | Amélie | Gate | LogError, SetDepth, Surface, GoTo, MoveRelative, Turn, HoldPosition, SetGripper, SelectGatePanel |
@@ -63,7 +63,6 @@ test.
 
 | Node | Kind | Ports | Does |
 |---|---|---|---|
-| LandmarkKnown | condition | `map`, `pose`, `type`, `subtype`, `max_age_s`, `min_forward_m`, `max_forward_m`, `exclude` → `id` | SUCCESS if a confirmed, recent match is in the forward window |
 | FollowPoses | nav | `poses`, `mode` | One goal, one waypoint per pose. FAILURE on an empty list |
 | Search | nav | `pose`, `pattern`, pattern numbers | ROTATE_STEPS, SCAN_ARC, LAWNMOWER or EXPANDING_SQUARE around the start pose. The XML stops it when a landmark is found |
 | AvoidSlalom | sync | `map`, `course_frame`, `layers`, `side`, `clearance_m` → `path` | Poses around the slalom for Return Home |
@@ -119,6 +118,35 @@ blackboard keys his nodes share to `common/types.hpp`.
 The marker and torpedo topics are placeholders until the drone has an
 interface for them.
 
+## Landmark nodes (done)
+
+In `map/`. They read one `LandmarkCache` (`map/landmark_cache.hpp`): the
+latest `landmark_slam/landmarks`, made once in `map/register.cpp` and passed
+to each node. Nothing is called in `tick()`. A landmark is named by `id`, or
+by `type` + `subtype` (`ANY` allowed): then the best of the class is used
+(lowest σ_xy, then most observations). Poses are in the map frame.
+
+| Node | Kind | Ports | Does |
+|---|---|---|---|
+| LandmarkKnown | condition | `id` or `type`/`subtype` | SUCCESS if the landmark is in the map (prior map or observed) |
+| LandmarkConfirmed | condition | `id` or `type`/`subtype`, `max_sigma_xy` (0.3) | SUCCESS if observed and its horizontal std relative to the vehicle is below `max_sigma_xy` |
+| GetLandmarkPose | sync | `id` or `type`/`subtype` → `pose` | `PoseStamped` (map). FAILURE if unknown |
+| GetApproachPose | sync | `id` or `type`/`subtype`, `offset` (`x;y;z`, landmark frame, +X out of the front), `symmetry_deg` (0) → `pose` | `PoseStamped` (map) at the offset, facing the landmark, on the symmetric side closest to the vehicle (turned toward the vehicle if the yaw is unknown). FAILURE if the landmark or the vehicle pose (TF map → base_link) is unknown |
+
+A retry loop around a condition needs an async node in it (`Sleep`, a
+movement node), else `RetryUntilSuccessful` loops inside one tick and the
+map never updates:
+
+```xml
+<RetryUntilSuccessful num_attempts="-1">
+  <Sequence>
+    <Sleep msec="200"/>
+    <LandmarkConfirmed type="GATE" subtype="GATE_WHOLE"/>
+  </Sequence>
+</RetryUntilSuccessful>
+<GetApproachPose type="GATE" subtype="GATE_WHOLE" offset="1.0;0;0" symmetry_deg="180" pose="{approach}"/>
+```
+
 ## NavAction
 
 Derive from `NavAction` and write `make_goal()`. Return `std::nullopt` on
@@ -140,9 +168,10 @@ ports `position_tolerance`, `orientation_tolerance_deg` and `hold_s`.
   `double` can't be read by an `int` port (e.g. `Repeat num_cycles`). The tree
   throws when it loads.
 - Interfaces (under `/nautilus`): pose `pose`, map
-  `landmark_server/object_map`, action `waypoint_manager`, services
-  `landmark_server/clear` and `landmark_server/set_course_frame`, TF
-  `nautilus/course`. The landmark_server README describes them.
+  `landmark_slam/landmarks` (map frame, TF `nautilus/map` → `nautilus/odom`),
+  action `waypoint_manager`. The landmark_slam README describes them. The
+  planned nodes that read `landmark_server/object_map` or the course frame
+  still refer to the old landmark_server.
 - `landmark_targets` (vortex-auv) already does the landmark geometry: offsets
   from a landmark, tool frames, course frame. Use it instead of writing it
   again.
