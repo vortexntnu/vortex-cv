@@ -7,10 +7,9 @@
 namespace vortex_bt_nodes::motion {
 
 /**
- * @brief Register the motion nodes (motion through waypoint_manager).
- *
- * Planned: SetDepth, Surface, Turn, HoldPosition, GoTo, MoveRelative,
- * GoToCourse, MoveCourse, FollowPoses, SelectGatePanel.
+ * @brief Register the motion nodes that need no map: SetDepth, Surface,
+ * MoveRelative, Search. Moves to map targets (GoToFrame, Turn,
+ * LookAtFrame) are in map/.
  */
 void register_nodes(BT::BehaviorTreeFactory& factory,
                     const rclcpp::Node::SharedPtr& node);

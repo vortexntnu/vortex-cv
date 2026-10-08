@@ -6,8 +6,11 @@
   starts at the world origin), and no node publishes transforms between them,
   so identity transforms let one 3D panel show the vehicle, its goal and the
   map together. Do not use on the real vehicle.
+- sim_odom_relay_node: the simulator's odometry as the estimator gives it on
+  the vehicle: `<drone>/odom -> <drone>/base_link` on `odom_nav` and in TF
+  (landmark_slam and the behavior tree use both).
 - detections_markers_node: the raw detections on `landmarks` as small markers
-  that live 0.3 s, next to the steady map from landmark_server.
+  that live 0.3 s, next to the steady map from landmark_slam.
 """
 
 from auv_setup.launch_arg_common import (
@@ -39,6 +42,20 @@ def launch_setup(context, *args, **kwargs):
             executable="static_transform_publisher",
             name="odom_to_map",
             arguments=["--frame-id", map_frame, "--child-frame-id", "odom"],
+            condition=sim_frames,
+        ),
+        Node(
+            package="robosub_dummy_publisher",
+            executable="sim_odom_relay_node",
+            name="sim_odom_relay_node",
+            namespace=namespace,
+            parameters=[
+                {
+                    "odom_frame": f"{drone}/odom",
+                    "base_frame": f"{drone}/base_link",
+                }
+            ],
+            output="screen",
             condition=sim_frames,
         ),
         Node(

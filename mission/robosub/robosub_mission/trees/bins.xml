@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!-- Bins: find the bin rig, hover above it (markers would be dropped here). -->
+<root BTCPP_format="4">
+  <BehaviorTree ID="Bins">
+    <Sequence>
+      <Timeout msec="90000"><SetDepth z="{bins_search_depth}"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="map" offset="{bins_search}" position_tolerance="0.4"/></Timeout>
+      <Timeout msec="90000">
+        <ReactiveFallback name="FindBins">
+          <LandmarkConfirmed type="BIN" subtype="BIN_STRUCTURE" max_sigma_xy="0.3"/>
+          <Search pattern="ROTATE_STEPS" step_deg="45"/>
+        </ReactiveFallback>
+      </Timeout>
+      <Timeout msec="120000"><GoToFrame frame="bin_structure" offset="{bins_hover}" position_tolerance="0.2" hold_s="2.0" freeze_within_m="0.5"/></Timeout>
+      <Log message="bins: above the bin rig (markers left out in the sim)"/>
+    </Sequence>
+  </BehaviorTree>
+</root>

@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!-- Gate: find our role's panel, then through its opening (gate frames from landmark_slam). -->
+<root BTCPP_format="4">
+  <BehaviorTree ID="Gate">
+    <Sequence>
+      <Timeout msec="90000"><SetDepth z="{gate_depth}"/></Timeout>
+      <Timeout msec="90000">
+        <ReactiveFallback name="FindPanel">
+          <LandmarkConfirmed type="GATE" subtype="{gate_panel_subtype}" max_sigma_xy="0.3"/>
+          <Search pattern="SCAN_ARC" arc_deg="60"/>
+        </ReactiveFallback>
+      </Timeout>
+      <Timeout msec="120000"><GoToFrame frame="{gate_entrance_frame}" position_tolerance="0.25" hold_s="1.0"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="{gate_exit_frame}" position_tolerance="0.3" freeze_within_m="1.5"/></Timeout>
+      <Log message="gate: through"/>
+    </Sequence>
+  </BehaviorTree>
+</root>

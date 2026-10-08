@@ -3,12 +3,16 @@
 
 #include <behaviortree_cpp/action_node.h>
 #include <cstdint>
+#include <geometry_msgs/msg/pose.hpp>
 #include <memory>
 #include <optional>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <string>
 #include <vortex_msgs/action/waypoint_manager.hpp>
+#include <vortex_msgs/msg/waypoint.hpp>
+
+#include "vortex_bt_nodes/common/types.hpp"
 
 namespace vortex_bt_nodes {
 
@@ -78,6 +82,16 @@ class NavAction : public BT::StatefulActionNode {
 
     /** @brief Turn the result into SUCCESS or FAILURE. */
     virtual BT::NodeStatus on_result(const GoalHandle::WrappedResult& result);
+
+    /** @brief A waypoint at pose with this WaypointMode value. */
+    static vortex_msgs::msg::Waypoint make_waypoint(
+        const geometry_msgs::msg::Pose& pose,
+        std::uint8_t mode) {
+        vortex_msgs::msg::Waypoint wp;
+        wp.pose = pose;
+        wp.waypoint_mode.mode = mode;
+        return wp;
+    }
 
     rclcpp::Node::SharedPtr node_;
 

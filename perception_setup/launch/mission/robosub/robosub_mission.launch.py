@@ -6,7 +6,8 @@ from auv_setup.launch_arg_common import (
     resolve_drone_and_namespace,
 )
 from launch import LaunchDescription
-from launch.actions import OpaqueFunction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 
@@ -20,12 +21,13 @@ def launch_setup(context, *args, **kwargs):
         f"{drone}.yaml",
     )
 
+    config_name = LaunchConfiguration("config").perform(context)
     mission_config = os.path.join(
         get_package_share_directory("perception_setup"),
         "config",
         "mission",
         "robosub",
-        "mission.yaml",
+        "mission.yaml" if config_name == "pool" else f"mission_{config_name}.yaml",
     )
 
     tree_file = os.path.join(
@@ -44,6 +46,7 @@ def launch_setup(context, *args, **kwargs):
                 "tree_file": tree_file,
                 "mission_config": mission_config,
                 "tick_rate_hz": 10.0,
+                "main_tree": LaunchConfiguration("main_tree").perform(context),
             },
         ],
         output="screen",
@@ -53,5 +56,18 @@ def launch_setup(context, *args, **kwargs):
 
 def generate_launch_description():
     return LaunchDescription(
-        declare_drone_and_namespace_args() + [OpaqueFunction(function=launch_setup)]
+        declare_drone_and_namespace_args()
+        + [
+            DeclareLaunchArgument(
+                "config",
+                default_value="pool",
+                description="pool (mission.yaml) or sim (mission_sim.yaml)",
+            ),
+            DeclareLaunchArgument(
+                "main_tree",
+                default_value="Main",
+                description="Main (the course) or one task, e.g. TestGate",
+            ),
+            OpaqueFunction(function=launch_setup),
+        ]
     )

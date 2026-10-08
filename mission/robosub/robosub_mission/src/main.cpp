@@ -1,8 +1,10 @@
 #include <behaviortree_cpp/bt_factory.h>
+#include <behaviortree_cpp/loggers/groot2_publisher.h>
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <chrono>
+#include <memory>
 #include <rclcpp/rclcpp.hpp>
 #include <string>
 #include <thread>
@@ -17,21 +19,37 @@ int main(int argc, char** argv) {
         "/trees/root.xml";
     const std::string tree_file =
         node->declare_parameter<std::string>("tree_file", default_tree);
+    // Main runs the course; a single task for testing, e.g. TestGate.
+    const std::string main_tree =
+        node->declare_parameter<std::string>("main_tree", "Main");
+    const std::string mission_config =
+        node->declare_parameter<std::string>("mission_config", "");
     const double tick_rate_hz =
         node->declare_parameter<double>("tick_rate_hz", 10.0);
+    const int groot_port =
+        static_cast<int>(node->declare_parameter<int>("groot_port", 1667));
 
     BT::BehaviorTreeFactory factory;
     vortex_bt_nodes::register_nodes(factory, node);
 
-    spdlog::info("Starting RoboSub mission tree from {}", tree_file);
+    spdlog::info("Starting RoboSub mission tree {} from {}", main_tree,
+                 tree_file);
     BT::Tree tree;
     try {
         // root.xml includes the task files relative to itself.
-        tree = factory.createTreeFromFile(tree_file);
+        factory.registerBehaviorTreeFromFile(tree_file);
+        auto blackboard = BT::Blackboard::create();
+        blackboard->set("mission_config", mission_config);
+        tree = factory.createTree(main_tree, blackboard);
     } catch (const std::exception& e) {
         spdlog::error("Could not load the tree: {}", e.what());
         rclcpp::shutdown();
         return 1;
+    }
+    // Live view of the tree in Groot2 (connect to this port).
+    std::unique_ptr<BT::Groot2Publisher> groot;
+    if (groot_port > 0) {
+        groot = std::make_unique<BT::Groot2Publisher>(tree, groot_port);
     }
 
     const auto period =

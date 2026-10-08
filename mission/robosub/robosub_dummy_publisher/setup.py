@@ -32,6 +32,7 @@ setup(
             'robosub_dummy_publisher.robosub_dummy_publisher_node:main',
             'detections_markers_node = '
             'robosub_dummy_publisher.detections_markers_node:main',
+            'sim_odom_relay_node = robosub_dummy_publisher.sim_odom_relay_node:main',
         ],
     },
 )
