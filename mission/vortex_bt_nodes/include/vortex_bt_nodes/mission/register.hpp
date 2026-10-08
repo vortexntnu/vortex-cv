@@ -10,7 +10,7 @@ namespace vortex_bt_nodes::mission {
  * @brief Register the mission nodes (mission flow and safety).
  *
  * Planned: LoadMissionConfig, Wait, SetOperationMode,
- * ResetWorld, LogError, SavePose, GoToSavedPose, StartRun, MissionClock,
+ * ResetWorld, LogError, SavePose, GoToSavedPose, MissionClock,
  * TaskSlot, RecordBag, ResolveRole, VerifyInside.
  */
 void register_nodes(BT::BehaviorTreeFactory& factory,

@@ -79,7 +79,6 @@ by these nodes. A landmark is named by `id`, or by `type` + `subtype`
 |---|---|---|---|
 | LoadMissionConfig | sync | `path` | Every key of the yaml (mission.yaml) to the blackboard as text; ports read it with their own type. Nested keys become `a.b` |
 | WaitForStart | stateful | `service` (get_operation_mode) | RUNNING until the killswitch is off and the mode is autonomous |
-| StartRun | stateful | `coin_flip_deg`, `slam_node`, `timeout_s` | Publishes `mission/wipe` and gives landmark_slam the coin flip (`start_yaw_offset_deg`) |
 | Log | sync | `message`, `level` (info, warn, error) | spdlog, SUCCESS |
 
 ### actuators

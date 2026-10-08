@@ -34,12 +34,12 @@
     </Fallback>
   </BehaviorTree>
 
-  <!-- Load values, wait for autonomous mode, start the map (coin flip), dive. -->
+  <!-- Load values, wait for autonomous mode, dive. The map was anchored
+       before the coin flip turn (landmark_slam README: the start). -->
   <BehaviorTree ID="Setup">
     <Sequence>
       <LoadMissionConfig path="{mission_config}"/>
       <WaitForStart/>
-      <StartRun coin_flip_deg="{coin_flip_offset_deg}"/>
       <Timeout msec="90000"><SetDepth z="{travel_depth}"/></Timeout>
     </Sequence>
   </BehaviorTree>

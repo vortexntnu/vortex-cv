@@ -20,8 +20,7 @@ Values: `perception_setup/config/mission/robosub/mission.yaml` (pool) and
 ## The course (Main)
 
 1. **Setup**: load the values, wait for killswitch off and autonomous mode,
-   start the run (`mission/wipe` and the coin flip into landmark_slam), dive
-   to travel depth.
+   dive to travel depth. The map was anchored before (below).
 2. **Gate**: find our role's panel, through its opening
    (`gate_<role>_entrance` → `gate_<role>_exit`).
 3. **Torpedo**: around the slalom, find the board, stand off in front of it
@@ -40,6 +39,20 @@ changes landmark_slam's `prior_map.yaml`; `mission.yaml` keeps how the tasks
 are done. A task that fails or runs out of its budget
 (`<task>_budget_ms`) is skipped; the run goes on. The slalom has no tree yet:
 the transits go around it.
+
+## A run (the start and the coin flip)
+
+1. Put the vehicle at the start facing the course (the prior map's
+   `initial_pose`), killswitch on.
+2. Anchor: *Anchor here* in `prior_map_gui.py`, or
+   `ros2 topic pub --once /nautilus/mission/wipe std_msgs/msg/Empty`. The map
+   starts at this pose, with the course's heading.
+3. Turn the vehicle for the coin flip. The odometry follows the turn, so
+   there is nothing to enter.
+4. Killswitch off, autonomous mode: the tree starts; its first move turns the
+   vehicle to the course.
+
+Anchor again before every attempt.
 
 ## Running it in the simulator
 

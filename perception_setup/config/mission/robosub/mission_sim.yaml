@@ -6,7 +6,6 @@
 # "x;y;z;yaw_deg" from the prior_<class> frames (x along the course, z the
 # depth), so they hold in every pool.
 
-coin_flip_offset_deg: 0.0   # 0 | 90 | -90 | 180, set before the run
 travel_depth: 1.5
 
 # Gate: our role's panel and its opening (landmark_slam gate frames).
