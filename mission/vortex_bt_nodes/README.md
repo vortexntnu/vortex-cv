@@ -52,12 +52,11 @@ odom unless said otherwise; a Pose port is `"x;y;z[;yaw_deg]"`.
 One `LandmarkCache` (`map/landmark_cache.hpp`: the latest
 `landmark_slam/landmarks` and TF) is made in `map/register.cpp` and shared
 by these nodes. A landmark is named by `id`, or by `type` + `subtype`
-(`ANY` allowed): then the best of the class is used (lowest σ_xy, then most
-observations).
+(`ANY` allowed): then the landmark of the class seen most often is used.
 
 | Node | Kind | Ports | Does |
 |---|---|---|---|
-| LandmarkKnown | condition | `id` or `type`/`subtype` | SUCCESS if the landmark is in the map (prior map or observed) |
+| LandmarkKnown | condition | `id` or `type`/`subtype` | SUCCESS if the landmark is in the map |
 | LandmarkConfirmed | condition | `id` or `type`/`subtype`, `max_sigma_xy` (0.3) | SUCCESS if observed and its horizontal std relative to the vehicle is below `max_sigma_xy` |
 | GetLandmarkPose | sync | `id` or `type`/`subtype` → `pose` | `PoseStamped` in odom (through landmark_slam's `map → odom`). FAILURE if unknown |
 | GetApproachPose | sync | `id` or `type`/`subtype`, `offset` (landmark frame, +X out of the front), `symmetry_deg` (0) → `pose` | `PoseStamped` in odom at the offset, facing the landmark, on the symmetric side closest to the vehicle (turned toward the vehicle if the yaw is unknown) |

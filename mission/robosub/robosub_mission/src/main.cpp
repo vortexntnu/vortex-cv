@@ -49,7 +49,12 @@ int main(int argc, char** argv) {
     // Live view of the tree in Groot2 (connect to this port).
     std::unique_ptr<BT::Groot2Publisher> groot;
     if (groot_port > 0) {
-        groot = std::make_unique<BT::Groot2Publisher>(tree, groot_port);
+        try {
+            groot = std::make_unique<BT::Groot2Publisher>(tree, groot_port);
+        } catch (const std::exception& e) {
+            // A busy port (another runner) must not stop the mission.
+            spdlog::warn("No Groot2 view on port {}: {}", groot_port, e.what());
+        }
     }
 
     const auto period =

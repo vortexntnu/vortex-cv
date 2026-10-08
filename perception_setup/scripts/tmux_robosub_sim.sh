@@ -99,7 +99,7 @@ fi
 
 # landmark_slam on the simulator's odometry through the relay
 # (odom_nav: <drone>/odom -> <drone>/base_link, as on the vehicle).
-SLAM_CMD="ros2 launch landmark_slam landmark_slam.launch.py odom_topic:=odom_nav"
+SLAM_CMD="ros2 launch landmark_slam landmark_slam.launch.py env:=sim odom_topic:=odom_nav"
 HELPERS_CMD="ros2 launch robosub_dummy_publisher foxglove_helpers.launch.py"
 BT_CMD="ros2 launch perception_setup robosub_mission.launch.py config:=sim main_tree:=$TREE"
 

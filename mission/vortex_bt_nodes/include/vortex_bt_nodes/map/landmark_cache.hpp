@@ -72,8 +72,9 @@ class LandmarkCache {
         return std::nullopt;
     }
 
-    /// Lowest sigma_xy of the class, ties: most observations. subtype -1 =
-    /// any.
+    /// The landmark of the class seen most often (a real object is seen far
+    /// more often than a phantom), as landmark_slam's class frame. subtype -1
+    /// = any.
     std::optional<LandmarkView> best_of_class(std::uint16_t type,
                                               int subtype) const {
         std::optional<LandmarkView> best;
@@ -85,8 +86,7 @@ class LandmarkCache {
                 continue;
             }
             const LandmarkView v = view(t);
-            if (!best || sigma_xy(v) < sigma_xy(*best) ||
-                (sigma_xy(v) == sigma_xy(*best) && v.n_obs > best->n_obs)) {
+            if (!best || v.n_obs > best->n_obs) {
                 best = v;
             }
         }
