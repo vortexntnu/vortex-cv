@@ -13,7 +13,7 @@ BT::PortsList GetApproachPose::providedPorts() {
     ports.insert(BT::InputPort<int>(
         "symmetry_deg", 0, "Yaw symmetry of the object (0, 90, 180, 360)"));
     ports.insert(BT::OutputPort<geometry_msgs::msg::PoseStamped>(
-        "pose", "Approach pose (map frame)"));
+        "pose", "Approach pose in odom (drift-corrected)"));
     return ports;
 }
 
@@ -28,11 +28,16 @@ BT::NodeStatus GetApproachPose::tick() {
                                : "no vehicle pose in the map frame (TF)");
         return BT::NodeStatus::FAILURE;
     }
+    const auto in_odom = cache_->map_to_odom(LandmarkCache::approach_pose(
+        *landmark, *vehicle, *offset,
+        getInput<int>("symmetry_deg").value_or(0)));
+    if (!in_odom) {
+        spdlog::warn("[{}] no TF map -> odom", name());
+        return BT::NodeStatus::FAILURE;
+    }
     geometry_msgs::msg::PoseStamped out;
-    out.header.frame_id = cache_->frame_id();
-    out.pose =
-        LandmarkCache::approach_pose(*landmark, *vehicle, *offset,
-                                     getInput<int>("symmetry_deg").value_or(0));
+    out.header.frame_id = cache_->odom_frame();
+    out.pose = *in_odom;
     setOutput("pose", out);
     spdlog::info(
         "[{}] landmark {}: approach [{:.2f}, {:.2f}, {:.2f}] yaw {:.0f} deg",

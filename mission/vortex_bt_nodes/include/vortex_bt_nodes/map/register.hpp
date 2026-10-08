@@ -8,8 +8,8 @@ namespace vortex_bt_nodes::map {
 
 /**
  * @brief Register the map nodes. The landmark nodes (LandmarkKnown,
- * LandmarkConfirmed, GetLandmarkPose, GetApproachPose) share one
- * LandmarkCache of landmark_slam/landmarks.
+ * LandmarkConfirmed, GetLandmarkPose, GetApproachPose, GoToFrame) share
+ * one LandmarkCache of landmark_slam/landmarks and TF.
  *
  * Planned: PoseFeeder, CourseFrameFeeder, SelectLandmark, Search,
  * AvoidSlalom, and the slalom nodes.

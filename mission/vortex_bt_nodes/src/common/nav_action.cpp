@@ -68,6 +68,15 @@ BT::NodeStatus NavAction::onRunning() {
     if (result_) {
         return on_result(*result_);
     }
+    if (auto goal = update_goal()) {
+        // New target: the new goal preempts the running one in
+        // waypoint_manager; callbacks of the old one are ignored.
+        goal_ = std::move(*goal);
+        apply_tolerances(*goal_);
+        ++goal_seq_;
+        goal_handle_.reset();
+        send_goal();
+    }
     return BT::NodeStatus::RUNNING;
 }
 

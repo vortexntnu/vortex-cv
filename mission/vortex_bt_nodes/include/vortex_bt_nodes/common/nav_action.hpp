@@ -66,6 +66,13 @@ class NavAction : public BT::StatefulActionNode {
      */
     virtual std::optional<Goal> make_goal() = 0;
 
+    /**
+     * @brief Called every tick while the goal runs. Return a new goal to
+     * replace the running one (waypoint_manager preempts the old one), e.g.
+     * when the target moved. Default: never.
+     */
+    virtual std::optional<Goal> update_goal() { return std::nullopt; }
+
     /** @brief Called on every feedback message. Default: nothing. */
     virtual void on_feedback(const Action::Feedback& /*feedback*/) {}
 

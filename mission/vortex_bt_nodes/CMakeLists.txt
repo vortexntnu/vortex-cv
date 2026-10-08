@@ -14,6 +14,7 @@ find_package(vortex_utils_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
 
@@ -37,6 +38,7 @@ ament_target_dependencies(vortex_bt_nodes PUBLIC
   geometry_msgs
   tf2
   tf2_ros
+  tf2_geometry_msgs
 )
 target_link_libraries(vortex_bt_nodes PUBLIC spdlog::spdlog fmt::fmt)
 
@@ -64,6 +66,7 @@ ament_export_dependencies(
   geometry_msgs
   tf2
   tf2_ros
+  tf2_geometry_msgs
   spdlog
   fmt
 )

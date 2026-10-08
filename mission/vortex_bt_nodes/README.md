@@ -55,9 +55,8 @@ blocks), nav = derives from `NavAction`. `→` marks an output port.
 | RecordBag | decorator | `profile`, `directory` | Runs `ros2 bag record` while the child runs, then passes on the child's status |
 | ApproachLandmark | nav | `map`, `pose`, `id` or `type`/`subtype`, `frame`, `x y z yaw_deg`, `mode`, `tool_frame`, `freeze`, `dead_reckoning_m`, `track_loss_timeout_s` | Goes to an offset from a landmark (`landmark_targets`). Sends the goal again when the landmark moves, except with `freeze` or within `dead_reckoning_m`. FAILURE on track loss |
 
-ApproachLandmark needs NavAction to resend a goal. Add a
-`virtual bool should_resend()` to `NavAction` in its own commit, with a
-test.
+NavAction can replace a running goal: override `update_goal()` (see
+`GoToFrame`).
 
 ### André
 
@@ -121,17 +120,20 @@ interface for them.
 ## Landmark nodes (done)
 
 In `map/`. They read one `LandmarkCache` (`map/landmark_cache.hpp`): the
-latest `landmark_slam/landmarks`, made once in `map/register.cpp` and passed
-to each node. Nothing is called in `tick()`. A landmark is named by `id`, or
-by `type` + `subtype` (`ANY` allowed): then the best of the class is used
-(lowest σ_xy, then most observations). Poses are in the map frame.
+latest `landmark_slam/landmarks` and TF, made once in `map/register.cpp` and
+passed to each node. Nothing is called in `tick()`. A landmark is named by
+`id`, or by `type` + `subtype` (`ANY` allowed): then the best of the class
+is used (lowest σ_xy, then most observations). Output poses are in odom,
+through landmark_slam's `map → odom` correction: where the drifted vehicle
+has to go.
 
 | Node | Kind | Ports | Does |
 |---|---|---|---|
 | LandmarkKnown | condition | `id` or `type`/`subtype` | SUCCESS if the landmark is in the map (prior map or observed) |
 | LandmarkConfirmed | condition | `id` or `type`/`subtype`, `max_sigma_xy` (0.3) | SUCCESS if observed and its horizontal std relative to the vehicle is below `max_sigma_xy` |
-| GetLandmarkPose | sync | `id` or `type`/`subtype` → `pose` | `PoseStamped` (map). FAILURE if unknown |
-| GetApproachPose | sync | `id` or `type`/`subtype`, `offset` (`x;y;z`, landmark frame, +X out of the front), `symmetry_deg` (0) → `pose` | `PoseStamped` (map) at the offset, facing the landmark, on the symmetric side closest to the vehicle (turned toward the vehicle if the yaw is unknown). FAILURE if the landmark or the vehicle pose (TF map → base_link) is unknown |
+| GetLandmarkPose | sync | `id` or `type`/`subtype` → `pose` | `PoseStamped` (odom). FAILURE if unknown |
+| GetApproachPose | sync | `id` or `type`/`subtype`, `offset` (`x;y;z`, landmark frame, +X out of the front), `symmetry_deg` (0) → `pose` | `PoseStamped` (odom) at the offset, facing the landmark, on the symmetric side closest to the vehicle (turned toward the vehicle if the yaw is unknown). FAILURE if the landmark or the vehicle pose (TF map → base_link) is unknown |
+| GoToFrame | nav | `frame` (e.g. `gate_search_rescue_entrance`, `slalom_pipe_red_7`), `offset` (`x;y;z[;yaw_deg]` in the frame), `mode` (POSITION_AND_YAW), `resend_m` (0.1), `freeze_within_m` (1.0) | Goes to a landmark_slam TF frame. Looks it up in odom every tick and sends the goal again when it moved more than `resend_m`, so the approach follows the map as detections correct it; within `freeze_within_m` the target is fixed (close up the detections are poor). FAILURE if the frame is not in TF at the start |
 
 A retry loop around a condition needs an async node in it (`Sleep`, a
 movement node), else `RetryUntilSuccessful` loops inside one tick and the
@@ -144,7 +146,8 @@ map never updates:
     <LandmarkConfirmed type="GATE" subtype="GATE_WHOLE"/>
   </Sequence>
 </RetryUntilSuccessful>
-<GetApproachPose type="GATE" subtype="GATE_WHOLE" offset="1.0;0;0" symmetry_deg="180" pose="{approach}"/>
+<GoToFrame frame="gate_search_rescue_entrance"/>
+<GoToFrame frame="gate_search_rescue_exit"/>
 ```
 
 ## NavAction

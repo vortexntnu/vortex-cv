@@ -4,6 +4,7 @@
 
 #include "vortex_bt_nodes/map/get_approach_pose.hpp"
 #include "vortex_bt_nodes/map/get_landmark_pose.hpp"
+#include "vortex_bt_nodes/map/go_to_frame.hpp"
 #include "vortex_bt_nodes/map/landmark_cache.hpp"
 #include "vortex_bt_nodes/map/landmark_confirmed.hpp"
 #include "vortex_bt_nodes/map/landmark_known.hpp"
@@ -19,6 +20,7 @@ void register_nodes(BT::BehaviorTreeFactory& factory,
     factory.registerNodeType<LandmarkConfirmed>("LandmarkConfirmed", cache);
     factory.registerNodeType<GetLandmarkPose>("GetLandmarkPose", cache);
     factory.registerNodeType<GetApproachPose>("GetApproachPose", cache);
+    factory.registerNodeType<GoToFrame>("GoToFrame", node, cache);
 }
 
 }  // namespace vortex_bt_nodes::map

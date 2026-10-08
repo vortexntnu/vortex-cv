@@ -5,6 +5,7 @@
 #include <tf2/exceptions.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 #include <algorithm>
 #include <array>
@@ -50,7 +51,9 @@ class LandmarkCache {
               std::make_shared<tf2_ros::TransformListener>(*tf_buffer_, node)) {
         std::string ns = node->get_namespace();
         ns.erase(0, ns.find_first_not_of('/'));
-        base_frame_ = ns.empty() ? "base_link" : ns + "/base_link";
+        prefix_ = ns.empty() ? "" : ns + "/";
+        base_frame_ = prefix_ + "base_link";
+        odom_frame_ = prefix_ + "odom";
         sub_ = node->create_subscription<vortex_msgs::msg::LandmarkTrackArray>(
             topic, rclcpp::QoS(1).reliable().transient_local(),
             [this](vortex_msgs::msg::LandmarkTrackArray::ConstSharedPtr msg) {
@@ -96,14 +99,12 @@ class LandmarkCache {
         return map_ ? map_->header.frame_id : std::string();
     }
 
-    /// Vehicle pose in the map frame (TF), or nullopt.
-    std::optional<Pose> vehicle_pose() const {
-        if (!map_) {
-            return std::nullopt;
-        }
+    /// Pose of `frame` in `target` (latest TF), or nullopt.
+    std::optional<Pose> lookup(const std::string& target,
+                               const std::string& frame) const {
         try {
-            const auto tf = tf_buffer_->lookupTransform(
-                map_->header.frame_id, base_frame_, tf2::TimePointZero);
+            const auto tf =
+                tf_buffer_->lookupTransform(target, frame, tf2::TimePointZero);
             Pose p;
             p.position.x = tf.transform.translation.x;
             p.position.y = tf.transform.translation.y;
@@ -113,6 +114,49 @@ class LandmarkCache {
         } catch (const tf2::TransformException&) {
             return std::nullopt;
         }
+    }
+
+    /// Vehicle pose in the map frame (TF), or nullopt.
+    std::optional<Pose> vehicle_pose() const {
+        if (!map_) {
+            return std::nullopt;
+        }
+        return lookup(map_->header.frame_id, base_frame_);
+    }
+
+    /// Vehicle pose in odom (TF), or nullopt.
+    std::optional<Pose> vehicle_in_odom() const {
+        return lookup(odom_frame_, base_frame_);
+    }
+
+    /**
+     * @brief A map-frame pose in odom, where the drifted vehicle has to go:
+     * through the current map -> odom correction. nullopt without TF.
+     */
+    std::optional<Pose> map_to_odom(const Pose& in_map) const {
+        const auto map_in_odom =
+            map_ ? lookup(odom_frame_, map_->header.frame_id) : std::nullopt;
+        if (!map_in_odom) {
+            return std::nullopt;
+        }
+        return compose(*map_in_odom, in_map);
+    }
+
+    /// "gate_entrance" -> "nautilus/gate_entrance"; full names stay.
+    std::string frame_name(const std::string& name) const {
+        return name.find('/') == std::string::npos ? prefix_ + name : name;
+    }
+    const std::string& odom_frame() const { return odom_frame_; }
+
+    /// a * b for poses (b expressed in a).
+    static Pose compose(const Pose& a, const Pose& b) {
+        tf2::Transform ta;
+        tf2::Transform tb;
+        tf2::fromMsg(a, ta);
+        tf2::fromMsg(b, tb);
+        Pose out;
+        tf2::toMsg(ta * tb, out);
+        return out;
     }
 
     /// Largest horizontal position std [m].
@@ -217,7 +261,9 @@ class LandmarkCache {
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
     rclcpp::Subscription<vortex_msgs::msg::LandmarkTrackArray>::SharedPtr sub_;
     vortex_msgs::msg::LandmarkTrackArray::ConstSharedPtr map_;
+    std::string prefix_;
     std::string base_frame_;
+    std::string odom_frame_;
 };
 
 }  // namespace vortex_bt_nodes::map
