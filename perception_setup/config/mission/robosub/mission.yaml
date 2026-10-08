@@ -1,29 +1,34 @@
 # RoboSub mission values for the pool, read by the behavior tree
 # (robosub_mission, LoadMissionConfig). Course numbers are measured on site;
 # these are starting points. mission_sim.yaml has the same keys for the
-# simulator. Positions are in the map frame (the prior map's, or odom at the
-# start); offsets are "x;y;z;yaw_deg".
+# simulator.
+
+# Where the objects are is the prior map's (landmark_slam prior_map.yaml);
+# here only how we do the tasks. Search points and transits are offsets
+# "x;y;z;yaw_deg" from the prior_<class> frames (x along the course, z the
+# depth), so they hold in every pool.
 
 coin_flip_offset_deg: 0.0   # 0 | 90 | -90 | 180, set before the run
 travel_depth: 0.6
 
 gate_depth: 1.0
 gate_panel_subtype: GATE_SURVEY_REPAIR
+gate_search: "-3.0;0;1.0;0"   # from prior_gate
 gate_entrance_frame: gate_survey_repair_entrance
 gate_exit_frame: gate_survey_repair_exit
 
-slalom_bypass_in: "6.0;-3.5;0.6;0"
-slalom_bypass_out: "12.0;-3.5;0.6;0"
+slalom_bypass_in: "-4.0;-4.0;0.6;0"
+slalom_bypass_out: "4.0;-4.0;0.6;0"
 
 torpedo_depth: 1.25
-torpedo_search: "13.0;-5.0;1.25;0"
+torpedo_search: "-3.0;0;1.25;0"
 torpedo_standoff: "-1.5;0;0"
 
 bins_search_depth: 1.0
-bins_search: "12.0;2.0;1.0;0"
+bins_search: "-2.5;0;1.0;0"
 bins_hover: "0;0;-1.0"
 
-octagon_search: "18.0;0.0;0.9;0"
+octagon_search: "-3.0;0;0.6;0"
 octagon_hover: "0;0;-1.0"
 surface_depth: 0.2
 

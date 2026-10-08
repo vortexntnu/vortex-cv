@@ -1,7 +1,10 @@
 # RoboSub mission values for the simulator course (Stonefish robosub
 # scenario, the dummy perception's layout). Same keys as mission.yaml.
-# Positions are in the map frame (odom at the start: x forward from the
-# start, y left, z depth, down positive); offsets are "x;y;z;yaw_deg".
+
+# Where the objects are is the prior map's (landmark_slam prior_map.yaml);
+# here only how we do the tasks. Search points and transits are offsets
+# "x;y;z;yaw_deg" from the prior_<class> frames (x along the course, z the
+# depth), so they hold in every pool.
 
 coin_flip_offset_deg: 0.0   # 0 | 90 | -90 | 180, set before the run
 travel_depth: 1.5
@@ -9,25 +12,27 @@ travel_depth: 1.5
 # Gate: our role's panel and its opening (landmark_slam gate frames).
 gate_depth: 2.7
 gate_panel_subtype: GATE_SEARCH_RESCUE
+gate_search: "-3.0;0;2.7;0"   # from prior_gate
 gate_entrance_frame: gate_search_rescue_entrance
 gate_exit_frame: gate_search_rescue_exit
 
-# Around the slalom to the right (y negative), out and back.
-slalom_bypass_in: "6.0;-3.5;1.5;0"
-slalom_bypass_out: "14.0;-3.5;1.5;0"
+# Around the slalom to the right (y negative), out and back, from
+# prior_slalom_pipe_red (the middle of the slalom).
+slalom_bypass_in: "-4.0;-4.0;1.5;0"
+slalom_bypass_out: "4.0;-4.0;1.5;0"
 
 # Torpedo: where to look from, and where to stand off from the board.
 torpedo_depth: 2.5
-torpedo_search: "14.0;-5.2;2.5;0"
+torpedo_search: "-3.0;0;2.5;0"
 torpedo_standoff: "-1.5;0;0"
 
 # Bins: where to look from, and how far above the bin rig to hover.
 bins_search_depth: 1.8
-bins_search: "14.0;4.0;1.8;0"
+bins_search: "-2.5;0;1.8;0"
 bins_hover: "0;0;-1.3"
 
 # Octagon: where to look from, above the table, and surfacing.
-octagon_search: "16.0;0.0;1.5;0"
+octagon_search: "-3.0;0;1.5;0"
 octagon_hover: "0;0;-1.2"
 surface_depth: 0.3
 

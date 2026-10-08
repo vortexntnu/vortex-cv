@@ -4,6 +4,7 @@
   <BehaviorTree ID="Gate">
     <Sequence>
       <Timeout msec="90000"><SetDepth z="{gate_depth}"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="prior_gate" offset="{gate_search}" position_tolerance="0.4"/></Timeout>
       <Timeout msec="90000">
         <ReactiveFallback name="FindPanel">
           <LandmarkConfirmed type="GATE" subtype="{gate_panel_subtype}" max_sigma_xy="0.3"/>

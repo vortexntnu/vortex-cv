@@ -7,7 +7,7 @@
 #
 # The simulator, the controller and the Foxglove bridge are not started here:
 # start them first with vortex-auv's launch_drone_sim.sh, e.g.
-#   src/vortex-auv/utility_scripts/launch_drone_sim.sh --scenario robosub --low-res --detach
+#   src/vortex-auv/utility_scripts/launch_drone_sim.sh --scenario robosub --low-res --keyboard-joy false --detach
 # Usage: ./tmux_robosub_sim.sh [OPTIONS]   (see --help)
 
 usage() {
@@ -15,7 +15,7 @@ usage() {
 Usage: $(basename "$0") [OPTIONS]
 
 Start the simulator first (vortex-auv):
-  src/vortex-auv/utility_scripts/launch_drone_sim.sh --scenario robosub --low-res --detach
+  src/vortex-auv/utility_scripts/launch_drone_sim.sh --scenario robosub --low-res --keyboard-joy false --detach
   src/vortex-auv/utility_scripts/launch_drone_sim.sh --headless --detach    (light, no images)
 
 Options:

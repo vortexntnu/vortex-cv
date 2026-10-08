@@ -4,9 +4,10 @@
   every task in course order. A task that fails or runs out of time is
   skipped (ForceSuccess + Timeout), never the run. Each task is a subtree in
   <task>.xml with the same shape: depth, search point, search until the map
-  has it, do it, leave. Targets are TF frames from landmark_slam (a landmark
-  class, gate frames, start, or map + offset). Values come from the mission
-  config ({key}), loaded first.
+  has it, do it, leave. Targets are TF frames from landmark_slam: where an
+  object should be (prior_<class>, from the prior map: the search points),
+  where it is (<class>, the gate frames), and start. Offsets from them come
+  from the mission config ({key}), loaded first.
 
   Test<Task> runs one task alone: robosub_mission -p main_tree:=TestGate
 -->
@@ -46,14 +47,14 @@
   <!-- Around the slalom at travel depth, out and back. -->
   <BehaviorTree ID="TransitOut">
     <Sequence>
-      <Timeout msec="120000"><GoToFrame frame="map" offset="{slalom_bypass_in}" position_tolerance="0.4"/></Timeout>
-      <Timeout msec="120000"><GoToFrame frame="map" offset="{slalom_bypass_out}" position_tolerance="0.4"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="prior_slalom_pipe_red" offset="{slalom_bypass_in}" position_tolerance="0.4"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="prior_slalom_pipe_red" offset="{slalom_bypass_out}" position_tolerance="0.4"/></Timeout>
     </Sequence>
   </BehaviorTree>
   <BehaviorTree ID="TransitBack">
     <Sequence>
-      <Timeout msec="120000"><GoToFrame frame="map" offset="{slalom_bypass_out}" position_tolerance="0.4"/></Timeout>
-      <Timeout msec="120000"><GoToFrame frame="map" offset="{slalom_bypass_in}" position_tolerance="0.4"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="prior_slalom_pipe_red" offset="{slalom_bypass_out}" position_tolerance="0.4"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="prior_slalom_pipe_red" offset="{slalom_bypass_in}" position_tolerance="0.4"/></Timeout>
     </Sequence>
   </BehaviorTree>
 

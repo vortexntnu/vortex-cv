@@ -31,14 +31,20 @@ Values: `perception_setup/config/mission/robosub/mission.yaml` (pool) and
 6. **ReturnHome**: around the slalom, back through our opening, to `start`.
 
 Each task has the same shape: depth, search point, search until the map has
-it, do it, leave. A task that fails or runs out of its budget
+it, do it, leave. The search point is an offset from where the object should
+be (`prior_<class>`, landmark_slam's frame from the prior map), e.g.
+`GoToFrame frame="prior_torpedo_board" offset="{torpedo_search}"` with
+`torpedo_search: "-3.0;0;2.5;0"` (3 m before it, at 2.5 m depth); the move to
+the object itself uses where it is (`torpedo_board`). So a new pool only
+changes landmark_slam's `prior_map.yaml`; `mission.yaml` keeps how the tasks
+are done. A task that fails or runs out of its budget
 (`<task>_budget_ms`) is skipped; the run goes on. The slalom has no tree yet:
 the transits go around it.
 
 ## Running it in the simulator
 
 ```bash
-src/vortex-auv/utility_scripts/launch_drone_sim.sh --scenario robosub --low-res --detach
+src/vortex-auv/utility_scripts/launch_drone_sim.sh --scenario robosub --low-res --keyboard-joy false --detach
 src/vortex-cv/perception_setup/scripts/tmux_robosub_sim.sh            # realistic dummy, field of view
 src/vortex-cv/perception_setup/scripts/tmux_robosub_sim.sh --tree TestGate   # one task
 ```

@@ -5,7 +5,7 @@
     <Sequence>
       <SubTree ID="TransitOut" _autoremap="true"/>
       <Timeout msec="90000"><SetDepth z="{torpedo_depth}"/></Timeout>
-      <Timeout msec="120000"><GoToFrame frame="map" offset="{torpedo_search}" position_tolerance="0.4"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="prior_torpedo_board" offset="{torpedo_search}" position_tolerance="0.4"/></Timeout>
       <Timeout msec="90000">
         <ReactiveFallback name="FindBoard">
           <LandmarkConfirmed type="TORPEDO_BOARD" subtype="TORPEDO_BOARD_WHOLE" max_sigma_xy="0.3"/>

@@ -4,7 +4,7 @@
   <BehaviorTree ID="Octagon">
     <Sequence>
       <Timeout msec="90000"><SetDepth z="{travel_depth}"/></Timeout>
-      <Timeout msec="120000"><GoToFrame frame="map" offset="{octagon_search}" position_tolerance="0.4"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="prior_table" offset="{octagon_search}" position_tolerance="0.4"/></Timeout>
       <Timeout msec="90000">
         <ReactiveFallback name="FindTable">
           <LandmarkConfirmed type="TABLE" subtype="TABLE_WHOLE" max_sigma_xy="0.3"/>
