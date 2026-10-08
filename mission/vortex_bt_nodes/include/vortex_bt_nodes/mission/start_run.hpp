@@ -17,8 +17,10 @@ namespace vortex_bt_nodes::mission {
 /**
  * @brief Starts the run: publishes mission/wipe (map, waypoint_manager and
  * reference filter start over) and gives landmark_slam the coin flip
- * (start_yaw_offset_deg: the map is anchored at the current pose). FAILURE
- * if landmark_slam does not take the parameter within timeout_s.
+ * (start_yaw_offset_deg: the map is anchored at the current pose). The
+ * request is sent again every 2 s until answered (a reply can be lost while
+ * the service is discovered). FAILURE if landmark_slam does not take the
+ * parameter within timeout_s.
  */
 class StartRun : public BT::StatefulActionNode {
    public:
@@ -40,6 +42,7 @@ class StartRun : public BT::StatefulActionNode {
     std::shared_ptr<rclcpp::AsyncParametersClient> params_;
     std::optional<std::shared_future<Results>> pending_;
     rclcpp::Time start_;
+    rclcpp::Time sent_;
 };
 
 }  // namespace vortex_bt_nodes::mission

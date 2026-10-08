@@ -8,6 +8,10 @@
 
 namespace vortex_bt_nodes::mission {
 
+namespace {
+constexpr double kResendS = 2.0;
+}  // namespace
+
 StartRun::StartRun(const std::string& name,
                    const BT::NodeConfig& config,
                    rclcpp::Node::SharedPtr node)
@@ -21,7 +25,7 @@ BT::PortsList StartRun::providedPorts() {
                                   "Start heading relative to the prior map's"),
             BT::InputPort<std::string>("slam_node", "landmark_slam_node",
                                        "landmark_slam node name"),
-            BT::InputPort<double>("timeout_s", 5.0, "Wait for landmark_slam")};
+            BT::InputPort<double>("timeout_s", 10.0, "Wait for landmark_slam")};
 }
 
 BT::NodeStatus StartRun::onStart() {
@@ -38,19 +42,23 @@ BT::NodeStatus StartRun::onStart() {
 
 BT::NodeStatus StartRun::onRunning() {
     const double coin_flip = getInput<double>("coin_flip_deg").value_or(0.0);
-    if (!pending_) {
-        if (params_->service_is_ready()) {
-            pending_ = params_->set_parameters(
-                {rclcpp::Parameter("start_yaw_offset_deg", coin_flip)});
-        } else if ((node_->now() - start_).seconds() >
-                   getInput<double>("timeout_s").value_or(5.0)) {
-            spdlog::error("[{}] landmark_slam not available", name());
-            return BT::NodeStatus::FAILURE;
-        }
+    const double elapsed = (node_->now() - start_).seconds();
+    if (elapsed > getInput<double>("timeout_s").value_or(10.0)) {
+        spdlog::error("[{}] landmark_slam did not answer", name());
+        return BT::NodeStatus::FAILURE;
+    }
+    // A reply can be lost while the service is still being discovered:
+    // setting the same value again is harmless, so ask again.
+    const bool resend =
+        pending_ && (node_->now() - sent_).seconds() > kResendS;
+    if ((!pending_ || resend) && params_->service_is_ready()) {
+        pending_ = params_->set_parameters(
+            {rclcpp::Parameter("start_yaw_offset_deg", coin_flip)});
+        sent_ = node_->now();
         return BT::NodeStatus::RUNNING;
     }
-    if (pending_->wait_for(std::chrono::seconds(0)) !=
-        std::future_status::ready) {
+    if (!pending_ || pending_->wait_for(std::chrono::seconds(0)) !=
+                         std::future_status::ready) {
         return BT::NodeStatus::RUNNING;
     }
     const auto results = pending_->get();
