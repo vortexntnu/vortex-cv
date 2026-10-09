@@ -1,5 +1,9 @@
 <?xml version="1.0"?>
-<!-- Torpedo: past the slalom, find the board, stand off in front of it facing it. -->
+<!-- Torpedo: past the slalom, find the board, stand off in front of it, then
+     per shot drive to the aim point in front of the opening and hold it
+     before firing. The aim follows the map until 0.1 m from it (close up the
+     detections are best), then holds still: a goal moved during the hold
+     would restart it. -->
 <root BTCPP_format="4">
   <BehaviorTree ID="Torpedo">
     <Sequence>
@@ -14,7 +18,10 @@
       </Timeout>
       <Timeout msec="120000"><GoToFrame frame="torpedo_board" offset="{torpedo_standoff}" position_tolerance="0.25" hold_s="1.0"/></Timeout>
       <Timeout msec="60000"><LookAtFrame frame="torpedo_board"/></Timeout>
-      <Log message="torpedo: in front of the board (firing left out in the sim)"/>
+      <Timeout msec="60000"><GoToFrame frame="{torpedo_opening_1}" offset="{torpedo_aim_left}" freeze_within_m="0.1" resend_m="0.02" position_tolerance="0.05" hold_s="3.0"/></Timeout>
+      <FireTorpedo side="left"/>
+      <Timeout msec="60000"><GoToFrame frame="{torpedo_opening_2}" offset="{torpedo_aim_right}" freeze_within_m="0.1" resend_m="0.02" position_tolerance="0.05" hold_s="3.0"/></Timeout>
+      <FireTorpedo side="right"/>
     </Sequence>
   </BehaviorTree>
 </root>

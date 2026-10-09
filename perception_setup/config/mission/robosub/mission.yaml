@@ -22,6 +22,14 @@ slalom_bypass_out: "4.0;-4.0;0.6;0"
 torpedo_depth: 1.25
 torpedo_search: "-3.0;0;1.25;0"
 torpedo_standoff: "-1.5;0;0"
+# The openings to shoot (landmark_slam <icon>_opening frames) and, per
+# tube, where base_link holds to fire: in the opening frame (+X through the
+# board), so -x is the distance and y, z take out the tube's offset from
+# base_link. MEASURE the tubes.
+torpedo_opening_1: torpedo_icon_fire_opening
+torpedo_opening_2: torpedo_icon_firetruck_opening
+torpedo_aim_left: "-0.6;0;0"
+torpedo_aim_right: "-0.6;0;0"
 
 bins_search_depth: 1.0
 bins_search: "-2.5;0;1.0;0"

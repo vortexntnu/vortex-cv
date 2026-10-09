@@ -9,9 +9,11 @@
 /**:
   ros__parameters:
     use_field_of_view: true
-    position_noise_std: 0.02           # [m] on top of the range noise
+    position_noise_std: 0.005          # [m] on top of the range noise
     range_noise_along: [0.07, 0.03]    # std [m] = base + per_m * distance
-    range_noise_across: [0.06, 0.003]
+    # Across the line of sight a camera errs by an angle (~1 deg here): a few
+    # cm at 3 m (as measured in the simulator), under 2 cm at 0.5 m.
+    range_noise_across: [0.005, 0.02]
     range_bias_per_m: 0.02             # ranges 2 % too long
     detection_probability: 0.85        # up close ...
     detection_probability_far: 0.4     # ... down to this at front_range_m
