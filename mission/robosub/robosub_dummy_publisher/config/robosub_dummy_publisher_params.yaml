@@ -1,0 +1,66 @@
+/**:
+  ros__parameters:
+    # Empty string = fresh random draw each run (printed to the log so you can
+    # reproduce it). Pass the same value as vortex-stonefish-sim's
+    # robosub_icon_seed to make role-dependent landmarks (gate, bin) agree
+    # with what the sim actually rendered.
+    seed: ""
+
+    # Which course elements to publish dummy landmarks for.
+    tasks: ["gate", "slalom", "torpedo_board", "bin", "octagon", "table"]
+
+    # Detectors run at 10 Hz or more.
+    rate: 10.0
+
+    # Must be resolvable (directly, or via tf) to the odometry frame. The
+    # default is the odometry frame, so no tf is needed; the positions are
+    # then odom positions (the simulator's world).
+    frame_id: "nautilus/odom"
+
+    topic: "landmarks"
+
+    # Publish only what the cameras could see from the vehicle pose on
+    # odom_topic (front: range and half field of view; down: radius below the
+    # vehicle). Positions are then assumed to be in the frame of that odom.
+    use_field_of_view: false
+    odom_topic: "odom"
+    front_range_m: 8.0
+    front_half_fov_deg: 45.0
+    down_radius_m: 1.5
+    down_max_altitude_m: 3.0
+
+    # View quality (needs use_field_of_view): within near_range_m and
+    # centre_half_fov_deg of the image centre the near values of the
+    # [near, far] pairs below hold; toward front_range_m and the edge of the
+    # view the far values. Without the field of view: the near values.
+    near_range_m: 2.0
+    centre_half_fov_deg: 15.0
+
+    # Detector errors. All off here; launch with profile:=realistic (a camera
+    # seen from a moving vehicle), unstable or erratic for the others.
+    position_noise_std: 0.0             # [m] isotropic, on top
+    range_noise_along: [0.0, 0.0]       # std [m] = base + per_m * distance
+    range_noise_across: [0.0, 0.0]
+    off_axis_noise_gain: 0.0            # noise x (1 + gain) at the view's edge
+    range_bias_per_m: 0.0
+    orientation_noise_deg: [0.0, 0.0]   # [near, far] yaw of a surface normal
+    detection_probability: [1.0, 1.0]   # [near, far] per landmark and frame
+    dropout_rate_per_sec: [0.0, 0.0]    # [near, far] new occlusions [1/s] ...
+    dropout_duration_sec: [1.0, 5.0]    # ... lasting this long [s]
+    outlier_probability: [0.0, 0.0]     # [near, far] detection far off ...
+    outlier_std_m: 1.0                  # ... by this much (std)
+    false_positive_rate: [0.0, 0.0]     # [near, far] clutter per frame ...
+    false_positive_radius_m: 2.0        # ... within this of a landmark in view
+    class_confusion_probability: [0.0, 0.0]  # [near, far] wrong class
+    class_confusion_rate_per_sec: 0.0   # bad-view episodes at the far end
+    class_confusion_duration_sec: [0.5, 3.0]
+    phantom_count: 0                    # objects that are not there ...
+    phantom_probability: [0.0, 0.3]     # ... detected with [near, far]
+    phantom_distance_m: [0.8, 2.5]      # ... this far from a real landmark
+    frame_drop_probability: 0.0         # the whole message is lost
+    decoy_probability: 0.0              # gate posts seen as slalom pipes
+    noise_seed: -1                      # -1 = a fresh draw each run
+    # The jars and containers on the table: moved within the radius of where
+    # they started, on average every interval seconds each. 0 = they stay put.
+    movable_move_interval_sec: 0.0
+    movable_move_radius_m: 0.5

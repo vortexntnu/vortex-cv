@@ -1,0 +1,35 @@
+# Loaded on top of robosub_dummy_publisher_params.yaml with profile:=realistic.
+# A camera detector seen from a moving vehicle, as in a real mission: far
+# away noisy, with misses, dropouts, outliers, clutter, phantoms (things that
+# are not there but are seen again and again at one place, from afar) and
+# mixed-up classes; up close and in the middle of the image accurate and
+# consistent. The torpedo board comes with its surface normal.
+/**:
+  ros__parameters:
+    use_field_of_view: true
+    front_range_m: 8.0                  # detection range [m]
+    front_half_fov_deg: 45.0            # field of view, half [deg]
+    near_range_m: 2.0                   # best within this ...
+    centre_half_fov_deg: 15.0           # ... and this off the image centre
+
+    range_noise_along: [0.03, 0.03]     # std [m]: 9 cm at 2 m, 27 cm at 8 m
+    range_noise_across: [0.005, 0.015]  # ~1 deg: 3.5 cm at 2 m
+    off_axis_noise_gain: 1.0            # twice the noise at the view's edge
+    range_bias_per_m: 0.01              # ranges 1 % too long
+    orientation_noise_deg: [2.0, 15.0]  # board normal yaw [near, far]
+
+    # [near, far]
+    detection_probability: [0.95, 0.4]
+    dropout_rate_per_sec: [0.0, 0.1]    # occluded every ~10 s far away ...
+    dropout_duration_sec: [1.0, 4.0]    # ... for 1-4 s
+    outlier_probability: [0.0, 0.05]
+    outlier_std_m: 1.0
+    false_positive_rate: [0.0, 0.3]
+    false_positive_radius_m: 2.0
+    class_confusion_probability: [0.0, 0.1]
+    class_confusion_rate_per_sec: 0.05  # a bad view every ~20 s far away
+    class_confusion_duration_sec: [0.5, 3.0]
+    phantom_count: 3
+    phantom_probability: [0.0, 0.4]
+    phantom_distance_m: [0.8, 2.5]
+    frame_drop_probability: 0.05

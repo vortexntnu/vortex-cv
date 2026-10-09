@@ -1,0 +1,16 @@
+# Loaded on top of robosub_dummy_publisher_params.yaml with profile:=erratic.
+# A bad real detector: more misses, occlusions, outliers and clutter than
+# profile:=unstable, and decoys: the gate's posts detected as slalom pipes
+# (course_layout.DECOYS), as seen with the real slalom detector.
+/**:
+  ros__parameters:
+    position_noise_std: 0.05              # [m]
+    detection_probability: [0.6, 0.6]     # 40 % of the detections are missed
+    frame_drop_probability: 0.1           # 10 % of the frames are lost
+    dropout_rate_per_sec: [0.1, 0.1]      # occluded every ~10 s ...
+    dropout_duration_sec: [1.0, 6.0]      # ... for 1-6 s
+    outlier_probability: [0.05, 0.05]     # 5 % far off ...
+    outlier_std_m: 1.5                    # ... by 1.5 m (std)
+    false_positive_rate: [0.3, 0.3]       # a spurious detection every ~3 frames
+    false_positive_radius_m: 2.0
+    decoy_probability: 0.4                # a gate post taken for a pipe in 40 % of the frames it is seen
