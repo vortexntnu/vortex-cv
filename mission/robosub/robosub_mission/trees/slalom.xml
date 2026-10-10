@@ -3,11 +3,13 @@
      (slalom_frame_<n> in the mission config: slalom_left_<n> or
      slalom_right_<n> from landmark_server, +X straight through the row).
 
-     Per row: go to a point in front of the gap, where the whole row is in
-     view; wait until the gap frame stands still and commit to it; then drive
-     from just before to just behind the row on that committed pose. Beside
-     the pipes the camera no longer sees them, so the pass must not follow
-     the map. A row that is not in the map, or never settles, is passed
+     Per row: line up in front of the gap (slalom_view, in the gap frame);
+     wait until the gap frame stands still and commit to it; then drive
+     straight through to slalom_after on that committed pose. Beside the
+     pipes the camera no longer sees them, so the pass must not follow the
+     map. With the rows 2 m apart, 1 m behind a row is 1 m in front of the
+     next: the vehicle only shifts sideways there, it does not stop twice or
+     back up. A row that is not in the map, or never settles, is passed
      blind: straight ahead by one row spacing. -->
 <root BTCPP_format="4">
   <BehaviorTree ID="Slalom">
@@ -24,9 +26,8 @@
   <BehaviorTree ID="SlalomRow">
     <Fallback>
       <Sequence name="ThroughTheGap">
-        <Timeout msec="90000"><GoToFrame frame="{row_frame}" offset="{slalom_view}" position_tolerance="0.3" hold_s="1.0"/></Timeout>
+        <Timeout msec="90000"><GoToFrame frame="{row_frame}" offset="{slalom_view}" position_tolerance="0.1" orientation_tolerance_deg="5" hold_s="0.5"/></Timeout>
         <Timeout msec="20000"><CommitTarget frame="{row_frame}" stable_m="0.05" stable_s="2.0" pose="{slalom_gap}"/></Timeout>
-        <Timeout msec="60000"><GoToPose pose="{slalom_gap}" offset="{slalom_before}" position_tolerance="0.15" orientation_tolerance_deg="5" hold_s="0.5"/></Timeout>
         <Timeout msec="60000"><GoToPose pose="{slalom_gap}" offset="{slalom_after}" position_tolerance="0.3"/></Timeout>
       </Sequence>
       <Sequence name="BlindPass">

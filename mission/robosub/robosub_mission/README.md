@@ -43,7 +43,7 @@ same port.
 
 Each task has the same shape: depth, search point, search until the map has
 it, do it, leave. The search point is an offset from where the object should
-be (`prior_<class>`, landmark_server's frame from the prior map), e.g.
+be (`prior_<task>`, landmark_server's frame from the prior map), e.g.
 `GoToFrame frame="prior_torpedo_board" offset="{torpedo_search}"` with
 `torpedo_search: "-3.0;0;2.5;0"` (3 m before it, at 2.5 m depth); the move to
 the object itself uses where it is (`torpedo_board`). So a new pool only

@@ -23,11 +23,11 @@ slalom_search: "-4.5;0;0;0"        # from prior_slalom (the middle row)
 slalom_frame_0: slalom_right_0
 slalom_frame_1: slalom_right_1
 slalom_frame_2: slalom_right_2
-# In a gap frame (+X through the row): where to look at the row from, and
-# the pass from just before to just behind it.
-slalom_view: "-1.4;0;0"
-slalom_before: "-0.8;0;0"
-slalom_after: "0.7;0;0"
+# In a gap frame (+X through the row): where to line up and commit to the
+# gap, and where the pass ends (1 m behind a row is 1 m in front of the
+# next).
+slalom_view: "-1.0;0;0"
+slalom_after: "1.0;0;0"
 slalom_blind: "2.0;0;0"            # a row that is not found: one row ahead
 
 # Around the slalom (y negative), out and back, from prior_slalom (the
