@@ -20,13 +20,24 @@ Launch file and mission values are in `perception_setup`:
 
 ## Owners
 
-| Task | Owner |
-|---|---|
-| Gate | Amélie |
-| Slalom | André |
-| Bins | Karol |
-| Torpedo | Johannes |
-| Octagon | Ashish |
+Write your nodes first (see the `vortex_bt_nodes` README), then your tree.
+
+| Task | Owner | Tree |
+|---|---|---|
+| Gate | Amélie | `gate.xml`, plus `Setup` in `root.xml` |
+| Slalom | André | `slalom.xml` |
+| Torpedo | Johannes | `torpedo.xml` |
+| Bins | Karol | `bins.xml` |
+| Octagon | Ashish | `octagon.xml`, plus `return_home.xml` |
+
+A task tree is done when:
+- every move and wait has a `Timeout`;
+- the numbers come from the mission config;
+- a failed task never stops the run;
+- it succeeds in the simulator.
+
+Add it with `<include path="<task>.xml"/>` and a
+`<SubTree ID="<Task>" _autoremap="true"/>` in `root.xml`.
 
 ## How a task tree is built
 
