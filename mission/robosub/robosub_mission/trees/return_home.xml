@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!-- Return home: around the slalom, back through our gate opening, to the start. -->
+<root BTCPP_format="4">
+  <BehaviorTree ID="ReturnHome">
+    <Sequence>
+      <SubTree ID="TransitBack" _autoremap="true"/>
+      <Timeout msec="120000"><GoToFrame frame="{gate_exit_frame}" position_tolerance="0.3"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="{gate_entrance_frame}" position_tolerance="0.3" freeze_within_m="1.5"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="start" position_tolerance="0.4"/></Timeout>
+      <Log message="home"/>
+    </Sequence>
+  </BehaviorTree>
+</root>

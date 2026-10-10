@@ -1,0 +1,66 @@
+# RoboSub mission values for the simulator course (Stonefish robosub
+# scenario, the dummy perception's layout). Same keys as mission.yaml.
+
+# Where the tasks are is the prior map's (landmark_server premap_sim.yaml);
+# here only how we do them. Search points and transits are offsets
+# "x;y;z;yaw_deg" from the prior_<task> frames (x along the course; the
+# frame is at the task's depth, so z is how much deeper), so they hold in
+# every pool.
+
+travel_depth: 1.5
+
+# Gate: our role's panel and its opening (landmark_server gate frames).
+gate_depth: 2.7
+gate_panel_subtype: GATE_SEARCH_RESCUE
+gate_search: "-3.0;0;0.4;0"   # from prior_gate (at 2.3 m)
+gate_entrance_frame: gate_search_rescue_entrance
+gate_exit_frame: gate_search_rescue_exit
+
+# Slalom: the side of the red pipes we pass on (the same as our half of the
+# gate; left / right seen going down the course), per row the gap frame.
+slalom_depth: 2.6
+slalom_search: "-4.5;0;0;0"        # from prior_slalom (the middle row)
+slalom_frame_0: slalom_right_0
+slalom_frame_1: slalom_right_1
+slalom_frame_2: slalom_right_2
+# In a gap frame (+X through the row): where to look at the row from, and
+# the pass from just before to just behind it.
+slalom_view: "-1.4;0;0"
+slalom_before: "-0.8;0;0"
+slalom_after: "0.7;0;0"
+slalom_blind: "2.0;0;0"            # a row that is not found: one row ahead
+
+# Around the slalom (y negative), out and back, from prior_slalom (the
+# middle of the slalom, at 2.6 m): for the tasks behind it and the way home.
+slalom_bypass_in: "-4.0;-4.0;-1.1;0"
+slalom_bypass_out: "4.0;-4.0;-1.1;0"
+
+# Torpedo: where to look from, and where to stand off from the board.
+torpedo_depth: 2.5
+torpedo_search: "-3.0;0;0;0"      # from prior_torpedo (at 2.55 m)
+torpedo_standoff: "-1.5;0;0"
+# The openings to shoot (landmark_server <icon>_opening frames) and, per
+# tube, where base_link holds to fire: in the opening frame (+X through the
+# board), so -x is the distance and y, z take out the tube's offset from
+# base_link. MEASURE the tubes.
+torpedo_opening_1: torpedo_icon_fire_opening
+torpedo_opening_2: torpedo_icon_firetruck_opening
+torpedo_aim_left: "-0.6;0;0"
+torpedo_aim_right: "-0.6;0;0"
+
+# Bins: where to look from, and how far above the bin rig to hover.
+bins_search_depth: 1.8
+bins_search: "-2.5;0;-1.35;0"   # from prior_bin (at 3.15 m)
+bins_hover: "0;0;-1.3"
+
+# Octagon: where to look from, above the table, and surfacing.
+octagon_search: "-3.0;0;1.5;0"   # from prior_octagon (at the surface)
+octagon_hover: "0;0;-1.2"
+surface_depth: 0.3
+
+# Time per task [ms]; a task that runs out is skipped.
+gate_budget_ms: 360000
+torpedo_budget_ms: 600000
+bins_budget_ms: 420000
+octagon_budget_ms: 480000
+return_budget_ms: 720000
