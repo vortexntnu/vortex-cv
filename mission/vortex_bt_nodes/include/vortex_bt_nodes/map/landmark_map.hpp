@@ -160,47 +160,6 @@ class LandmarkMap {
         return l.n_obs > 0 && sigma_xy(l) < max_sigma_xy;
     }
 
-    /**
-     * @brief Pose at offset from the landmark, facing it. Without a known
-     * yaw the offset is turned toward the vehicle.
-     */
-    static Pose approach_pose(const LandmarkView& l,
-                              const Pose& vehicle,
-                              const Pose& offset,
-                              int symmetry_deg) {
-        const double lx = l.pose.position.x;
-        const double ly = l.pose.position.y;
-        const double ox = offset.position.x;
-        const double oy = offset.position.y;
-        const auto at = [&](double yaw) {
-            return std::make_pair(lx + std::cos(yaw) * ox - std::sin(yaw) * oy,
-                                  ly + std::sin(yaw) * ox + std::cos(yaw) * oy);
-        };
-        const auto dist = [&](double yaw) {
-            const auto [x, y] = at(yaw);
-            return std::hypot(x - vehicle.position.x, y - vehicle.position.y);
-        };
-
-        double yaw = yaw_of(l.pose);
-        if (!l.has_orientation || symmetry_deg >= 360) {
-            yaw = std::atan2(vehicle.position.y - ly, vehicle.position.x - lx) -
-                  std::atan2(oy, ox);
-        } else if (symmetry_deg > 0) {
-            const double step = symmetry_deg * M_PI / 180.0;
-            const double base = yaw;
-            for (int n = 1; n * symmetry_deg < 360; ++n) {
-                if (dist(base + n * step) < dist(yaw)) {
-                    yaw = base + n * step;
-                }
-            }
-        }
-        const auto [x, y] = at(yaw);
-        const double heading = std::hypot(lx - x, ly - y) > 1e-3
-                                   ? std::atan2(ly - y, lx - x)
-                                   : yaw_of(vehicle);
-        return make_pose(x, y, l.pose.position.z + offset.position.z, heading);
-    }
-
     static BT::PortsList ports() {
         return {BT::InputPort<int>("id", "Landmark id (wins over type)"),
                 BT::InputPort<std::string>("type", "", "LandmarkType name"),
