@@ -19,7 +19,7 @@ Mission:
 
 Simulator:
   --no-gpu             No rendering, no course to look at.
-  --keyboard-joy       Drive with the keyboard from the simulator window.
+  --no-keyboard-joy    Do not start the keyboard joystick.
   --no-foxglove        Do not start the Foxglove bridge.
   --no-debug           Do not publish landmark markers and NIS.
 
@@ -38,7 +38,7 @@ SEED="7"
 TREE=""
 START="true"
 GPU="true"
-KEYBOARD_JOY="false"
+KEYBOARD_JOY="true"
 FOXGLOVE="true"
 DEBUG="true"
 DOMAIN_ID="0"
@@ -52,7 +52,7 @@ while [[ $# -gt 0 ]]; do
         --tree)        TREE="$2"; shift 2 ;;
         --no-start)    START="false"; shift ;;
         --no-gpu)      GPU="false"; shift ;;
-        --keyboard-joy) KEYBOARD_JOY="true"; shift ;;
+        --no-keyboard-joy) KEYBOARD_JOY="false"; shift ;;
         --no-foxglove) FOXGLOVE="false"; shift ;;
         --no-debug)    DEBUG="false"; shift ;;
         --domain-id)   DOMAIN_ID="$2"; shift 2 ;;

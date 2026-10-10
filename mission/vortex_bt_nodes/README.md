@@ -185,7 +185,7 @@ tmux_robosub_sim.sh --no-gpu
 | `--tree <name>` | | Tree to run when everything is up |
 | `--no-start` | | Leave the killswitch on and the mode manual |
 | `--no-gpu` | | No rendering |
-| `--keyboard-joy` | | Drive with the keyboard from the simulator window. Its keys also toggle the killswitch and the mode |
+| `--no-keyboard-joy` | | No keyboard joystick. It is on by default: its keys drive the vehicle and also toggle the killswitch and the mode |
 | `--no-foxglove` | | Do not start the Foxglove bridge |
 | `--no-debug` | | No landmark markers or NIS |
 | `--domain-id <id>` | 0 | `ROS_DOMAIN_ID` |
