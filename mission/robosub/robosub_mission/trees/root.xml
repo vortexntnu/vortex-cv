@@ -1,113 +1,14 @@
 <?xml version="1.0"?>
 <!--
-  Main runs every task in course order. A task that fails or runs out of time
-  is skipped. Test<Task> runs one task alone:
-    robosub_mission -p main_tree:=TestGate
+  Main runs the course. Add one file per task and include it here, see the
+  README. Run one tree alone with: robosub_mission -p main_tree:=TestGate
 -->
 <root BTCPP_format="4" main_tree_to_execute="Main">
-  <include path="gate.xml"/>
-  <include path="slalom.xml"/>
-  <include path="torpedo.xml"/>
-  <include path="bins.xml"/>
-  <include path="octagon.xml"/>
-  <include path="return_home.xml"/>
+  <!-- <include path="gate.xml"/> -->
 
   <BehaviorTree ID="Main">
-    <Fallback name="RunOrSafeStop">
-      <Sequence name="Run">
-        <SubTree ID="Setup" _autoremap="true"/>
-        <ForceSuccess><Timeout msec="{gate_budget_ms}"><SubTree ID="Gate" _autoremap="true"/></Timeout></ForceSuccess>
-        <ForceSuccess><Timeout msec="{torpedo_budget_ms}"><SubTree ID="Torpedo" _autoremap="true"/></Timeout></ForceSuccess>
-        <ForceSuccess><Timeout msec="{bins_budget_ms}"><SubTree ID="Bins" _autoremap="true"/></Timeout></ForceSuccess>
-        <ForceSuccess><Timeout msec="{octagon_budget_ms}"><SubTree ID="Octagon" _autoremap="true"/></Timeout></ForceSuccess>
-        <ForceSuccess><Timeout msec="{return_budget_ms}"><SubTree ID="ReturnHome" _autoremap="true"/></Timeout></ForceSuccess>
-        <Log message="course done, surfacing"/>
-        <Timeout msec="90000"><Surface/></Timeout>
-      </Sequence>
-      <SubTree ID="SafeStop" _autoremap="true"/>
-    </Fallback>
-  </BehaviorTree>
-
-  <BehaviorTree ID="Setup">
     <Sequence>
-      <LoadMissionConfig path="{mission_config}"/>
-      <WaitForStart/>
-      <Timeout msec="90000"><SetDepth z="{travel_depth}"/></Timeout>
-    </Sequence>
-  </BehaviorTree>
-
-  <!-- Around the slalom at travel depth, out and back. -->
-  <BehaviorTree ID="TransitOut">
-    <Sequence>
-      <Timeout msec="120000"><GoToFrame frame="prior_slalom" offset="{slalom_bypass_in}" position_tolerance="0.4" orientation_tolerance_deg="15" resend_m="0.5"/></Timeout>
-      <Timeout msec="120000"><GoToFrame frame="prior_slalom" offset="{slalom_bypass_out}" position_tolerance="0.4" orientation_tolerance_deg="15" resend_m="0.5"/></Timeout>
-    </Sequence>
-  </BehaviorTree>
-  <BehaviorTree ID="TransitBack">
-    <Sequence>
-      <Timeout msec="120000"><GoToFrame frame="prior_slalom" offset="{slalom_bypass_out}" position_tolerance="0.4" orientation_tolerance_deg="15" resend_m="0.5"/></Timeout>
-      <Timeout msec="120000"><GoToFrame frame="prior_slalom" offset="{slalom_bypass_in}" position_tolerance="0.4" orientation_tolerance_deg="15" resend_m="0.5"/></Timeout>
-    </Sequence>
-  </BehaviorTree>
-
-  <BehaviorTree ID="SafeStop">
-    <Sequence>
-      <Log message="mission failed, surfacing" level="error"/>
-      <Timeout msec="90000"><Surface/></Timeout>
-    </Sequence>
-  </BehaviorTree>
-
-  <BehaviorTree ID="TestSlalom">
-    <Sequence>
-      <SubTree ID="Setup" _autoremap="true"/>
-      <SubTree ID="Gate" _autoremap="true"/>
-      <SubTree ID="Slalom" _autoremap="true"/>
-      <Timeout msec="90000"><Surface/></Timeout>
-    </Sequence>
-  </BehaviorTree>
-  <BehaviorTree ID="TestGate">
-    <Sequence><SubTree ID="Setup" _autoremap="true"/><SubTree ID="Gate" _autoremap="true"/></Sequence>
-  </BehaviorTree>
-  <BehaviorTree ID="TestTorpedo">
-    <Sequence><SubTree ID="Setup" _autoremap="true"/><SubTree ID="Torpedo" _autoremap="true"/></Sequence>
-  </BehaviorTree>
-  <BehaviorTree ID="TestBins">
-    <Sequence><SubTree ID="Setup" _autoremap="true"/><SubTree ID="Bins" _autoremap="true"/></Sequence>
-  </BehaviorTree>
-  <BehaviorTree ID="TestOctagon">
-    <Sequence><SubTree ID="Setup" _autoremap="true"/><SubTree ID="Octagon" _autoremap="true"/></Sequence>
-  </BehaviorTree>
-  <BehaviorTree ID="TestReturnHome">
-    <Sequence><SubTree ID="Setup" _autoremap="true"/><SubTree ID="ReturnHome" _autoremap="true"/></Sequence>
-  </BehaviorTree>
-  <BehaviorTree ID="TestCourse">
-    <Sequence>
-      <SubTree ID="Setup" _autoremap="true"/>
-      <Fallback>
-        <Sequence><SubTree ID="Gate" _autoremap="true"/><Log message="RESULT Gate OK"/></Sequence>
-        <Log message="RESULT Gate FAILED" level="error"/>
-      </Fallback>
-      <Fallback>
-        <Sequence><SubTree ID="Slalom" _autoremap="true"/><Log message="RESULT Slalom OK"/></Sequence>
-        <Log message="RESULT Slalom FAILED" level="error"/>
-      </Fallback>
-      <Fallback>
-        <Sequence><SubTree ID="TorpedoTask" _autoremap="true"/><Log message="RESULT Torpedo OK"/></Sequence>
-        <Log message="RESULT Torpedo FAILED" level="error"/>
-      </Fallback>
-      <Fallback>
-        <Sequence><SubTree ID="Bins" _autoremap="true"/><Log message="RESULT Bins OK"/></Sequence>
-        <Log message="RESULT Bins FAILED" level="error"/>
-      </Fallback>
-      <Fallback>
-        <Sequence><SubTree ID="Octagon" _autoremap="true"/><Log message="RESULT Octagon OK"/></Sequence>
-        <Log message="RESULT Octagon FAILED" level="error"/>
-      </Fallback>
-      <Fallback>
-        <Sequence><SubTree ID="ReturnHome" _autoremap="true"/><Log message="RESULT ReturnHome OK"/></Sequence>
-        <Log message="RESULT ReturnHome FAILED" level="error"/>
-      </Fallback>
-      <Timeout msec="90000"><Surface/></Timeout>
+      <AlwaysSuccess name="replace with Setup and the task subtrees"/>
     </Sequence>
   </BehaviorTree>
 </root>
