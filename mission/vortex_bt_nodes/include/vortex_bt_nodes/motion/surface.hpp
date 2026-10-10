@@ -8,10 +8,7 @@
 
 namespace vortex_bt_nodes::motion {
 
-/**
- * @brief Goes up to depth z (default 0.2 m) like SetDepth: a separate name so
- * the tree reads as it does.
- */
+/** @brief SetDepth with a default of 0.2 m. */
 class Surface : public NavAction {
    public:
     using NavAction::NavAction;

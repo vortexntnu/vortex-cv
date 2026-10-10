@@ -6,12 +6,7 @@
 
 namespace vortex_bt_nodes::approach {
 
-/**
- * @brief Register the approach nodes (approaching landmarks with
- * landmark_targets).
- *
- * Planned: ApproachLandmark, CommitEstimate, LookAtLandmark.
- */
+/** @brief Registers the approach nodes. */
 void register_nodes(BT::BehaviorTreeFactory& factory,
                     const rclcpp::Node::SharedPtr& node);
 

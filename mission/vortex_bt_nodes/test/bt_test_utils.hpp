@@ -1,8 +1,7 @@
 #ifndef BT_TEST_UTILS_HPP_
 #define BT_TEST_UTILS_HPP_
 
-// Helpers for testing one node alone: a fake waypoint_manager and a fixture
-// that builds a tree from an XML string and ticks it like the runner does.
+// Fake waypoint_manager and a fixture for testing one node alone.
 
 #include <gtest/gtest.h>
 
@@ -22,7 +21,6 @@ namespace vortex_bt_nodes::test {
 using Action = vortex_msgs::action::WaypointManager;
 using ServerGoalHandle = rclcpp_action::ServerGoalHandle<Action>;
 
-// Stands in for waypoint_manager.
 class FakeWaypointManager {
    public:
     enum class Behaviour { kSucceed, kAbort, kReject, kNeverFinish };
@@ -47,7 +45,6 @@ class FakeWaypointManager {
             });
     }
 
-    // Finish the active goal the way the behaviour says.
     void step() {
         if (!active_ || !active_->is_active()) {
             return;
@@ -74,11 +71,7 @@ class FakeWaypointManager {
     std::shared_ptr<ServerGoalHandle> active_;
 };
 
-/**
- * Register the node under test in SetUp (after BtNodeTest::SetUp), with
- * client_node_ as its ROS node. start_server() adds the fake
- * waypoint_manager; blackboard() fills keys before run().
- */
+/// Register the node under test in SetUp, with client_node_ as its ROS node.
 class BtNodeTest : public ::testing::Test {
    protected:
     static void SetUpTestSuite() {
@@ -100,8 +93,7 @@ class BtNodeTest : public ::testing::Test {
         server_ = std::make_unique<FakeWaypointManager>(server_node_);
     }
 
-    // node_xml is the body of one BehaviorTree; the tree shares
-    // blackboard(), so keys set there are visible to the nodes.
+    // node_xml is the body of one BehaviorTree.
     BT::Tree make_tree(const std::string& node_xml) {
         factory_.registerBehaviorTreeFromText(
             R"(<root BTCPP_format="4"><BehaviorTree ID="Main">)" + node_xml +
@@ -109,7 +101,6 @@ class BtNodeTest : public ::testing::Test {
         return factory_.createTree("Main", tree_blackboard_);
     }
 
-    // Tick like the runner does: spin, then tick, until the tree is done.
     BT::NodeStatus run(BT::Tree& tree, double max_s = 5.0) {
         const auto end = std::chrono::steady_clock::now() +
                          std::chrono::duration<double>(max_s);

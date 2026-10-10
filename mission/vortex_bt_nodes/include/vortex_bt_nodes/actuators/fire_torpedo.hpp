@@ -11,11 +11,7 @@
 
 namespace vortex_bt_nodes::actuators {
 
-/**
- * @brief Fires the left (0) or right (1) torpedo: std_msgs/Int8 on topic,
- * then waits settle_s. FAILURE on an unknown side. The topic is a placeholder
- * until the drone has an interface.
- */
+/** @brief Fires the left or right torpedo. The topic is a placeholder. */
 class FireTorpedo : public BT::StatefulActionNode {
    public:
     FireTorpedo(const std::string& name,

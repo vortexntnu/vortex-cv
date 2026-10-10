@@ -64,7 +64,7 @@ std::optional<NavAction::Goal> Search::make_goal() {
 }
 
 BT::NodeStatus Search::on_result(const GoalHandle::WrappedResult& result) {
-    // A completed sweep means nothing stopped it: not found.
+    // Nothing stopped the sweep, so the target was not found.
     NavAction::on_result(result);
     spdlog::info("[{}] sweep done, nothing found", name());
     return BT::NodeStatus::FAILURE;

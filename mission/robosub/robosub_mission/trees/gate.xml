@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- Gate: find our role's panel, then through its opening (gate frames from landmark_server). -->
+<!-- Find our panel, then go through its opening. -->
 <root BTCPP_format="4">
   <BehaviorTree ID="Gate">
     <Sequence>

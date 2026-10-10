@@ -6,7 +6,6 @@
 namespace vortex_bt_nodes {
 
 namespace {
-// How long to wait for waypoint_manager to show up before failing.
 constexpr double kServerWaitS = 2.0;
 }  // namespace
 
@@ -69,8 +68,6 @@ BT::NodeStatus NavAction::onRunning() {
         return on_result(*result_);
     }
     if (auto goal = update_goal()) {
-        // New target: the new goal preempts the running one in
-        // waypoint_manager; callbacks of the old one are ignored.
         goal_ = std::move(*goal);
         apply_tolerances(*goal_);
         ++goal_seq_;
@@ -148,8 +145,7 @@ void NavAction::send_goal() {
 }
 
 void NavAction::cancel_goal() {
-    // A new sequence number makes the callbacks of this goal stale; a goal
-    // that is still waiting for acceptance is cancelled when it arrives.
+    // Makes the callbacks of this goal stale.
     ++goal_seq_;
     if (goal_handle_ && !result_) {
         client_->async_cancel_goal(goal_handle_);

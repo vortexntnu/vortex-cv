@@ -8,9 +8,8 @@
 namespace vortex_bt_nodes::mission {
 
 /**
- * @brief Writes every key of a yaml file (mission.yaml) to the blackboard
- * as text; ports read it with their own type ({gate_depth} as a double).
- * Nested keys become a.b. FAILURE if the file can't be read.
+ * @brief Writes every key of a yaml file to the blackboard as text. Nested
+ * keys become a.b.
  */
 class LoadMissionConfig : public BT::SyncActionNode {
    public:

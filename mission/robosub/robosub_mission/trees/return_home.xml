@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- Return home: around the slalom, back through our gate opening, to the start. -->
+<!-- Around the slalom, back through the gate, to the start. -->
 <root BTCPP_format="4">
   <BehaviorTree ID="ReturnHome">
     <Sequence>

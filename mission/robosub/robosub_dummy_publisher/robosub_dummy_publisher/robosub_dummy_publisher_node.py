@@ -1,15 +1,7 @@
-"""Publishes dummy vortex_msgs/LandmarkArray detections for RoboSub course elements.
+"""Publishes dummy landmark detections for the RoboSub course.
 
-For exercising landmark_server and mission logic without a running
-perception stack or simulator. See course_layout.py for where the landmark
-positions and role draws come from.
-
-With use_field_of_view the detections behave like a camera's: every error
-effect is a [near, far] pair, interpolated by how badly the object is seen.
-Up close (within near_range_m) and in the middle of the image (within
-centre_half_fov_deg) the near values hold: accurate and consistent. Toward
-front_range_m or the edge of the field of view the far values take over:
-noise, misses, dropouts, outliers, clutter, phantoms and confused classes.
+With use_field_of_view the detections get worse with distance and toward the
+edge of the image: more noise, misses, outliers, clutter and wrong classes.
 """
 
 import dataclasses
@@ -40,88 +32,62 @@ class RobosubDummyPublisherNode(Node):
     def __init__(self):
         super().__init__("robosub_dummy_publisher_node")
 
-        # A number or a string; "-p seed:=7" gives an integer.
         self.declare_parameter("seed", "", ParameterDescriptor(dynamic_typing=True))
         self.declare_parameter("tasks", list(TASKS.keys()))
         self.declare_parameter("rate", 2.0)
         self.declare_parameter("frame_id", "world")
         self.declare_parameter("topic", "landmarks")
-        # Field of view: when enabled only landmarks the cameras could see from
-        # the vehicle pose on `odom_topic` are published. Landmark positions
-        # are then assumed to be in the frame of that odometry.
+        # Only publish what the cameras could see from the pose on odom_topic.
         self.declare_parameter("use_field_of_view", False)
         self.declare_parameter("odom_topic", "odom")
         self.declare_parameter("front_range_m", 8.0)
         self.declare_parameter("front_half_fov_deg", 45.0)
         self.declare_parameter("down_radius_m", 1.5)
         self.declare_parameter("down_max_altitude_m", 3.0)
-        # View quality: within near_range_m and centre_half_fov_deg of the
-        # image centre an object is seen best (the near values below); it
-        # gets worse linearly up to front_range_m and the edge of the view.
+        # Quality goes from the near values to the far values with distance and
+        # angle from the image centre.
         self.declare_parameter("near_range_m", 2.0)
         self.declare_parameter("centre_half_fov_deg", 15.0)
-        # Rotation variance >= 1000 means "no orientation".
+        # Rotation variance >= 1000 means no orientation.
         self.declare_parameter("no_orientation_variance", 1000.0)
 
-        # Noise. Std [m] along the line of sight (range) and across it,
-        # [base, per metre of distance]: a camera's range is much worse than
-        # its bearing. Both grow by off_axis_noise_gain at the edge of the
-        # view (lens distortion, a part of the object cut off). A range bias
-        # as a fraction of the distance (+ = too far). position_noise_std:
-        # isotropic, on top (the only noise without use_field_of_view).
+        # Noise std as [base, per metre], along and across the line of sight.
         self.declare_parameter("position_noise_std", 0.0)
         self.declare_parameter("range_noise_along", [0.0, 0.0])
         self.declare_parameter("range_noise_across", [0.0, 0.0])
         self.declare_parameter("off_axis_noise_gain", 0.0)
         self.declare_parameter("range_bias_per_m", 0.0)
-        # Yaw noise [deg] of a measured surface normal (torpedo board).
         self.declare_parameter("orientation_noise_deg", [0.0, 0.0])
 
-        # [near, far] pairs: per landmark and frame unless stated otherwise.
+        # The pairs below are [near, far].
         self.declare_parameter("detection_probability", [1.0, 1.0])
-        # Occlusions: a landmark disappears for a while. Rate of new
-        # occlusions per landmark [1/s], and their duration range [s].
+        # Occlusions per landmark [1/s] and how long they last [s].
         self.declare_parameter("dropout_rate_per_sec", [0.0, 0.0])
         self.declare_parameter("dropout_duration_sec", [1.0, 5.0])
-        # A detection far off its landmark (bad depth, wrong association).
+        # Detections far off their landmark.
         self.declare_parameter("outlier_probability", [0.0, 0.0])
         self.declare_parameter("outlier_std_m", 1.0)
-        # Clutter: spurious detections per frame (expected count, the mean
-        # over the landmarks in view), each a copy of the class of a landmark
-        # in view within false_positive_radius_m of it.
+        # Spurious detections near real landmarks.
         self.declare_parameter("false_positive_rate", [0.0, 0.0])
         self.declare_parameter("false_positive_radius_m", 2.0)
-        # Class confusion (course_layout.CONFUSIONS: white <-> red pipe, the
-        # icons of one shape): per detection, and in episodes (a bad view
-        # that lasts) at class_confusion_rate_per_sec at the far end (none up
-        # close) for a duration [s].
+        # Wrong class, per detection and in longer episodes.
         self.declare_parameter("class_confusion_probability", [0.0, 0.0])
         self.declare_parameter("class_confusion_rate_per_sec", 0.0)
         self.declare_parameter("class_confusion_duration_sec", [0.5, 3.0])
-        # Phantoms: objects that are not there but are detected again and
-        # again at one place (a reflection, a shadow, another prop), each a
-        # copy of the class of a real landmark at a distance in the range
-        # from it, detected with phantom_probability [near, far] when in
-        # view: seen from afar, gone up close.
+        # Phantoms: false objects that stay in one place, seen from far away.
         self.declare_parameter("phantom_count", 0)
         self.declare_parameter("phantom_probability", [0.0, 0.3])
         self.declare_parameter("phantom_distance_m", [0.8, 2.5])
         self.declare_parameter("frame_drop_probability", 0.0)  # whole message
-        # Decoys: other course objects taken for a class (the gate's posts
-        # seen as slalom pipes, course_layout.DECOYS), each detected with this
-        # probability per frame when in view. 0 = off.
+        # Other course objects taken for a class, e.g. gate posts as pipes.
         self.declare_parameter("decoy_probability", 0.0)
-        # Loose objects (the jars and containers on the table) are moved to a
-        # new spot within the radius of where they started, on average every
-        # interval seconds each. 0 = they stay put.
-        # Integers are accepted too ("-p movable_move_interval_sec:=10").
+        # Loose objects on the table are moved now and then. 0 = never.
         number = ParameterDescriptor(dynamic_typing=True)
         self.declare_parameter("movable_move_interval_sec", 0.0, number)
         self.declare_parameter("movable_move_radius_m", 0.5, number)
-        # Seed for the noise and the instability. -1 = a fresh draw each run.
+        # -1 = a new seed each run.
         self.declare_parameter("noise_seed", -1)
-        # A slow detector: each frame is published this long after the time
-        # it is stamped with (the image time). [s], 0 = at once.
+        # Delay between the image time and publishing [s].
         self.declare_parameter("latency_sec", 0.0)
 
         def get(name):
@@ -220,7 +186,6 @@ class RobosubDummyPublisherNode(Node):
                     f"pose=({pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f})"
                 )
 
-        # Phantoms next to the real landmarks of the tasks (not the decoys).
         real = [(lm, pos) for lm, pos in self._landmarks if not lm.decoy]
         self._phantoms = set()
         for k in range(phantom_count if real else 0):
@@ -298,8 +263,6 @@ class RobosubDummyPublisherNode(Node):
         vx, vy, vz, _ = self._vehicle
         dx, dy, dz = x - vx, y - vy, z - vz
         if landmark.camera == "down":
-            # Below the vehicle, close enough in the horizontal plane (NED:
-            # larger z is deeper).
             return (
                 math.hypot(dx, dy) <= self._down_radius
                 and 0.0 < dz <= self._down_max_altitude
@@ -377,7 +340,6 @@ class RobosubDummyPublisherNode(Node):
         for i, (landmark, (x, y, z)) in enumerate(self._landmarks):
             if self._visible(landmark, x, y, z):
                 visible.append((i, *self._view(landmark, x, y, z)))
-        # Advance the occlusions even when the frame is lost.
         detected = {i: self._detected(i, now, b) for i, b, _ in visible}
         if self._rng.random() < self._p_frame_drop:
             return
@@ -394,7 +356,6 @@ class RobosubDummyPublisherNode(Node):
                 self._entry(stamp, i, landmark, x, y, z, b, self._class_of(i, now, b))
             )
 
-        # Clutter: copies of the class of a landmark in view, close to it.
         for i, b, edge in visible:
             rate = self._lerp(self._fp_rate, b) / len(visible)
             for k in range(self._poisson(rate)):
@@ -455,8 +416,6 @@ class RobosubDummyPublisherNode(Node):
         if d < 1e-6:
             return x, y, z
         u = ((x - vx) / d, (y - vy) / d, (z - vz) / d)
-        # Across: one horizontal direction, and the one perpendicular to
-        # both (a line of sight straight down has no horizontal normal).
         h = math.hypot(u[0], u[1])
         a1 = (-u[1] / h, u[0] / h, 0.0) if h > 1e-6 else (1.0, 0.0, 0.0)
         a2 = (
@@ -479,7 +438,6 @@ class RobosubDummyPublisherNode(Node):
         )
 
     def _poisson(self, lam: float) -> int:
-        # Knuth; lam is small (a few per frame at most).
         if lam <= 0.0:
             return 0
         limit, k, p = math.exp(-lam), 0, 1.0
@@ -510,13 +468,11 @@ class RobosubDummyPublisherNode(Node):
         for i in (0, 7, 14):
             pose.covariance[i] = variance
         if normal_yaw is None:
-            # Position only: the orientation is a placeholder (identity) and
-            # the rotation variance says so.
             pose.pose.orientation.w = 1.0
             for i in (21, 28, 35):
                 pose.covariance[i] = self._no_ori_variance
             return pose
-        # A measured surface normal: +X out of the front, yaw only.
+        # Surface normal: +X out of the front, yaw only.
         std = self._lerp(self._ori_noise, b)
         yaw = normal_yaw + (self._rng.gauss(0.0, std) if std > 0.0 else 0.0)
         pose.pose.orientation.z = math.sin(yaw / 2.0)

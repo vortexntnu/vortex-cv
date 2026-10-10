@@ -12,9 +12,8 @@
 namespace vortex_bt_nodes::map {
 
 /**
- * @brief Writes a pose at offset from the landmark (landmark frame), facing it,
- * in odom (drift-corrected), on the symmetric side closest to the vehicle.
- * FAILURE if the landmark or the vehicle pose is unknown.
+ * @brief Writes a pose at offset from the landmark, facing it, in odom. For
+ * symmetric landmarks the side closest to the vehicle is used.
  */
 class GetApproachPose : public BT::SyncActionNode {
    public:

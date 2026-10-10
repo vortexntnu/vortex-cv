@@ -1,9 +1,5 @@
-# Loaded on top of robosub_dummy_publisher_params.yaml with profile:=realistic.
-# A camera detector seen from a moving vehicle, as in a real mission: far
-# away noisy, with misses, dropouts, outliers, clutter, phantoms (things that
-# are not there but are seen again and again at one place, from afar) and
-# mixed-up classes; up close and in the middle of the image accurate and
-# consistent. The torpedo board comes with its surface normal.
+# profile:=realistic. A camera on a moving vehicle: poor detections far away,
+# good ones up close.
 /**:
   ros__parameters:
     use_field_of_view: true

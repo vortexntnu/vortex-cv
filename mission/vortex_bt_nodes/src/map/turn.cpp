@@ -30,7 +30,6 @@ std::optional<NavAction::Goal> Turn::make_goal() {
         spdlog::warn("[{}] give yaw_deg or relative_deg", name());
         return std::nullopt;
     }
-    // Map heading -> odom heading through the map -> odom correction.
     const auto map_in_odom =
         cache_->lookup(cache_->odom_frame(), cache_->frame_name("map"));
     if (!map_in_odom) {

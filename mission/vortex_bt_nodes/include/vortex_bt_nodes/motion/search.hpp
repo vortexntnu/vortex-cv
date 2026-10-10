@@ -9,11 +9,9 @@
 namespace vortex_bt_nodes::motion {
 
 /**
- * @brief Turns on the spot to look for something: ROTATE_STEPS (a full turn
- * in step_deg steps) or SCAN_ARC (arc_deg to each side and back), holding
- * pause_s at each heading so the detectors can see. The tree stops it when
- * the target is found (e.g. ReactiveFallback with LandmarkConfirmed);
- * returns FAILURE when the sweep is done without being stopped.
+ * @brief Turns on the spot: ROTATE_STEPS is a full turn in step_deg steps,
+ * SCAN_ARC goes arc_deg to each side. Returns FAILURE when the sweep
+ * finishes, so stop it from the tree when the target is found.
  */
 class Search : public NavAction {
    public:

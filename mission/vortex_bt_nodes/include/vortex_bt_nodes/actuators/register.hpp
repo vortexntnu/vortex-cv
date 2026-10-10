@@ -6,11 +6,7 @@
 
 namespace vortex_bt_nodes::actuators {
 
-/**
- * @brief Register the actuators nodes (actuators).
- *
- * Planned: DropMarker, FireTorpedo, SetGripper, MarkUsed.
- */
+/** @brief Registers the actuator nodes. */
 void register_nodes(BT::BehaviorTreeFactory& factory,
                     const rclcpp::Node::SharedPtr& node);
 

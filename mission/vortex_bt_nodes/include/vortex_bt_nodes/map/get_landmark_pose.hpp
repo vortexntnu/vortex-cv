@@ -11,11 +11,7 @@
 
 namespace vortex_bt_nodes::map {
 
-/**
- * @brief Writes the landmark pose to pose, in odom through the current
- * map -> odom correction (where the drifted vehicle has to go). FAILURE if
- * unknown.
- */
+/** @brief Writes the landmark pose in odom. FAILURE if unknown. */
 class GetLandmarkPose : public BT::SyncActionNode {
    public:
     GetLandmarkPose(const std::string& name,

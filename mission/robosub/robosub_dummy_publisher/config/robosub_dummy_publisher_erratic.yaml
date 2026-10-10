@@ -1,7 +1,4 @@
-# Loaded on top of robosub_dummy_publisher_params.yaml with profile:=erratic.
-# A bad real detector: more misses, occlusions, outliers and clutter than
-# profile:=unstable, and decoys: the gate's posts detected as slalom pipes
-# (course_layout.DECOYS), as seen with the real slalom detector.
+# profile:=erratic. Worse than unstable, plus gate posts detected as pipes.
 /**:
   ros__parameters:
     position_noise_std: 0.05              # [m]

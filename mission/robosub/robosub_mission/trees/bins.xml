@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- Bins: find the bin rig, hover above it (markers would be dropped here). -->
+<!-- Find the bin rig and hover above it. Dropping is not done yet. -->
 <root BTCPP_format="4">
   <BehaviorTree ID="Bins">
     <Sequence>

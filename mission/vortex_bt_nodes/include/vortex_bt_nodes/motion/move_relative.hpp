@@ -9,9 +9,8 @@
 namespace vortex_bt_nodes::motion {
 
 /**
- * @brief Moves by offset "x;y;z[;yaw_deg]" from where the vehicle is when the
- * node starts: in the vehicle frame (frame BODY, e.g. 2 m ahead) or along
- * the odom axes (frame WORLD). For blind drives and backing off.
+ * @brief Moves by offset "x;y;z[;yaw_deg]" from the pose at start, in the
+ * vehicle frame (BODY) or along the odom axes (WORLD).
  */
 class MoveRelative : public NavAction {
    public:

@@ -24,23 +24,20 @@
 
 namespace vortex_bt_nodes::map {
 
-/// One landmark of the map, as the landmark nodes see it.
 struct LandmarkView {
     int id{0};
     std::uint16_t type{0};
     std::uint16_t subtype{0};
     Pose pose;  // map frame
-    /// ROS order (x, y, z, rotation); the position part is relative to the
-    /// vehicle.
+    /// Position part is relative to the vehicle.
     std::array<double, 36> cov{};
     std::uint32_t n_obs{0};  // 0 = prior map only
     bool has_orientation{false};
 };
 
 /**
- * @brief The latest landmark map (landmark_server/landmarks), shared by all
- * landmark nodes of a tree. Created once per executor; nodes only read it,
- * nothing is called in tick(). Updated by the runner's spin_some.
+ * @brief Latest map from landmark_server/landmarks plus TF, shared by the
+ * landmark nodes of a tree. Nodes only read it.
  */
 class LandmarkCache {
    public:
@@ -73,9 +70,7 @@ class LandmarkCache {
         return std::nullopt;
     }
 
-    /// The landmark of the class seen most often (a real object is seen far
-    /// more often than a phantom), as landmark_server's class frame. subtype -1
-    /// = any.
+    /// The most observed landmark of the class. subtype -1 = any.
     std::optional<LandmarkView> best_of_class(std::uint16_t type,
                                               int subtype) const {
         std::optional<LandmarkView> best;
@@ -94,13 +89,11 @@ class LandmarkCache {
         return best;
     }
 
-    /// Frame of the landmark poses (the map frame), empty before the first
-    /// map.
+    /// Empty before the first map.
     std::string frame_id() const {
         return map_ ? map_->header.frame_id : std::string();
     }
 
-    /// Pose of `frame` in `target` (latest TF), or nullopt.
     std::optional<Pose> lookup(const std::string& target,
                                const std::string& frame) const {
         try {
@@ -117,7 +110,6 @@ class LandmarkCache {
         }
     }
 
-    /// Vehicle pose in the map frame (TF), or nullopt.
     std::optional<Pose> vehicle_pose() const {
         if (!map_) {
             return std::nullopt;
@@ -125,15 +117,11 @@ class LandmarkCache {
         return lookup(map_->header.frame_id, base_frame_);
     }
 
-    /// Vehicle pose in odom (TF), or nullopt.
     std::optional<Pose> vehicle_in_odom() const {
         return lookup(odom_frame_, base_frame_);
     }
 
-    /**
-     * @brief A map-frame pose in odom, where the drifted vehicle has to go:
-     * through the current map -> odom correction. nullopt without TF.
-     */
+    /** @brief A map-frame pose in odom. */
     std::optional<Pose> map_to_odom(const Pose& in_map) const {
         const auto map_in_odom =
             map_ ? lookup(odom_frame_, map_->header.frame_id) : std::nullopt;
@@ -143,13 +131,12 @@ class LandmarkCache {
         return compose(*map_in_odom, in_map);
     }
 
-    /// "gate_entrance" -> "nautilus/gate_entrance"; full names stay.
+    /// Adds the namespace prefix unless the name already has one.
     std::string frame_name(const std::string& name) const {
         return name.find('/') == std::string::npos ? prefix_ + name : name;
     }
     const std::string& odom_frame() const { return odom_frame_; }
 
-    /// a * b for poses (b expressed in a).
     static Pose compose(const Pose& a, const Pose& b) {
         tf2::Transform ta;
         tf2::Transform tb;
@@ -160,7 +147,6 @@ class LandmarkCache {
         return out;
     }
 
-    /// Largest horizontal position std [m].
     static double sigma_xy(const LandmarkView& l) {
         const double a = l.cov[0];
         const double b = l.cov[1];
@@ -170,16 +156,13 @@ class LandmarkCache {
         return std::sqrt(std::max(0.0, half_trace + disc));
     }
 
-    /// Observed (not only the prior map) and known to max_sigma_xy.
     static bool confirmed(const LandmarkView& l, double max_sigma_xy) {
         return l.n_obs > 0 && sigma_xy(l) < max_sigma_xy;
     }
 
     /**
-     * @brief Pose at offset (landmark frame: +X out of the front) from the
-     * landmark, facing it. With a symmetric yaw the side closest to the
-     * vehicle is used; without a known yaw the offset is turned toward the
-     * vehicle.
+     * @brief Pose at offset from the landmark, facing it. Without a known
+     * yaw the offset is turned toward the vehicle.
      */
     static Pose approach_pose(const LandmarkView& l,
                               const Pose& vehicle,
@@ -218,7 +201,6 @@ class LandmarkCache {
         return make_pose(x, y, l.pose.position.z + offset.position.z, heading);
     }
 
-    /// Ports shared by the landmark nodes: id, or type + subtype.
     static BT::PortsList ports() {
         return {BT::InputPort<int>("id", "Landmark id (wins over type)"),
                 BT::InputPort<std::string>("type", "", "LandmarkType name"),
@@ -226,7 +208,6 @@ class LandmarkCache {
                                            "LandmarkSubtype name or ANY")};
     }
 
-    /// The landmark a node's ports name, or nullopt.
     std::optional<LandmarkView> resolve(const BT::TreeNode& node) const {
         if (const auto id = node.getInput<int>("id")) {
             return by_id(*id);

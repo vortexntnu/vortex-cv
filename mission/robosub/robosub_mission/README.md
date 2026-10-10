@@ -35,8 +35,8 @@ same port.
    dive to travel depth. The map was anchored before (below).
 2. **Gate**: find our role's panel, through its opening
    (`gate_<role>_entrance` → `gate_<role>_exit`).
-3. **Torpedo**: around the slalom, find the board, stand off in front of it
-   facing it (firing is left out until the launcher has an interface).
+3. **Torpedo**: around the slalom, find the board, stand off in front of it,
+   then go to the aim point of each opening and fire.
 4. **Bins**: find the bin rig, hover above it (markers left out).
 5. **Octagon**: find the table, go above it and surface inside the octagon.
 6. **ReturnHome**: around the slalom, back through our opening, to `start`.
@@ -44,19 +44,19 @@ same port.
 Each task has the same shape: depth, search point, search until the map has
 it, do it, leave. The search point is an offset from where the object should
 be (`prior_<task>`, landmark_server's frame from the prior map), e.g.
-`GoToFrame frame="prior_torpedo_board" offset="{torpedo_search}"` with
-`torpedo_search: "-3.0;0;2.5;0"` (3 m before it, at 2.5 m depth); the move to
+`GoToFrame frame="prior_torpedo" offset="{torpedo_search}"` with
+`torpedo_search: "-3.0;0;0;0"` (3 m before it); the move to
 the object itself uses where it is (`torpedo_board`). So a new pool only
-changes landmark_server's `prior_map.yaml`; `mission.yaml` keeps how the tasks
+changes landmark_server's `premap.yaml`; `mission.yaml` keeps how the tasks
 are done. A task that fails or runs out of its budget
-(`<task>_budget_ms`) is skipped; the run goes on. The slalom has no tree yet:
-the transits go around it.
+(`<task>_budget_ms`) is skipped; the run goes on. The slalom tree (`TestSlalom`) is not in
+Main yet: the transits go around it.
 
 ## A run (the start and the coin flip)
 
-1. Put the vehicle at the start facing the course (the prior map's
-   `initial_pose`), killswitch on.
-2. Anchor: *Anchor here* in `prior_map_gui.py`, or
+1. Put the vehicle at the start facing the course (the reference in the
+   prior map), killswitch on.
+2. Anchor:
    `ros2 topic pub --once /nautilus/mission/wipe std_msgs/msg/Empty`. The map
    starts at this pose, with the course's heading.
 3. Turn the vehicle for the coin flip. The odometry follows the turn, so

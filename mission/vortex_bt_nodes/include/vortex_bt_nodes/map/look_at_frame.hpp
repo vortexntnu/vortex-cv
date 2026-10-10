@@ -11,10 +11,7 @@
 
 namespace vortex_bt_nodes::map {
 
-/**
- * @brief Turns on the spot to face a TF frame (a landmark, a gate frame,
- * start), so the cameras see it. FAILURE if the frame is not in TF.
- */
+/** @brief Turns to face a TF frame. FAILURE if it is not in TF. */
 class LookAtFrame : public NavAction {
    public:
     LookAtFrame(const std::string& name,

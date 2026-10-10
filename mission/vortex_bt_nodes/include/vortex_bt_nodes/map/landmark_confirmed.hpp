@@ -12,8 +12,8 @@
 namespace vortex_bt_nodes::map {
 
 /**
- * @brief SUCCESS if the landmark has been observed and its horizontal position
- * std (relative to the vehicle) is below max_sigma_xy.
+ * @brief SUCCESS if the landmark has been observed and its horizontal std is
+ * below max_sigma_xy.
  */
 class LandmarkConfirmed : public BT::ConditionNode {
    public:

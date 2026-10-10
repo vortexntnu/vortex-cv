@@ -19,7 +19,6 @@ int main(int argc, char** argv) {
         "/trees/root.xml";
     const std::string tree_file =
         node->declare_parameter<std::string>("tree_file", default_tree);
-    // Main runs the course; a single task for testing, e.g. TestGate.
     const std::string main_tree =
         node->declare_parameter<std::string>("main_tree", "Main");
     const std::string mission_config =
@@ -36,7 +35,6 @@ int main(int argc, char** argv) {
                  tree_file);
     BT::Tree tree;
     try {
-        // root.xml includes the task files relative to itself.
         factory.registerBehaviorTreeFromFile(tree_file);
         auto blackboard = BT::Blackboard::create();
         blackboard->set("mission_config", mission_config);
@@ -46,15 +44,12 @@ int main(int argc, char** argv) {
         rclcpp::shutdown();
         return 1;
     }
-    // Live view of the tree: Groot2, or the VS Code extension "BehaviorTree
-    // Viewer" (its default monitorPort is 1666; the status stream is on the
-    // next port). 0 = off.
+    // Groot2 or the VS Code BehaviorTree Viewer. 0 = off.
     std::unique_ptr<BT::Groot2Publisher> groot;
     if (groot_port > 0) {
         try {
             groot = std::make_unique<BT::Groot2Publisher>(tree, groot_port);
         } catch (const std::exception& e) {
-            // A busy port (another runner) must not stop the mission.
             spdlog::warn("No Groot2 view on port {}: {}", groot_port, e.what());
         }
     }

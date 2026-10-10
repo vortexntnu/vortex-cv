@@ -1,17 +1,8 @@
-"""Simulator odometry as the state estimator gives it on the vehicle.
+"""Stands in for the state estimator in the simulator.
 
-On the vehicle the state estimator gives <drone>/odom -> <drone>/base_link
-as a message (odom, and pose and twist for the controller) and as TF. This
-node is that estimator in the simulator: it republishes an odometry
-(odom_in: the simulator's, or a drifting one from the drift injector) as
-odom_out, pose_out, twist_out and TF.
-
-Run the simulator with mock_odom:=false when this node gives the standard
-names (odom, pose, twist): the simulator then publishes its truth as
-odom/stonefish, pose/stonefish and twist/stonefish and no TF. With
-mock_odom:=true the simulator publishes odom -> base_link itself, from the
-true pose: two publishers of one transform, and the vehicle flickers between
-its true and its drifted position.
+Republishes an odometry as odom, pose, twist and odom -> base_link in TF.
+Run the simulator with mock_odom:=false, otherwise two nodes publish
+odom -> base_link and the vehicle jumps between them.
 """
 
 import rclpy

@@ -11,10 +11,7 @@
 
 namespace vortex_bt_nodes::map {
 
-/**
- * @brief SUCCESS if the landmark (id, or the best of type/subtype) is in the
- * map, from the prior map or observed.
- */
+/** @brief SUCCESS if the landmark is in the map. */
 class LandmarkKnown : public BT::ConditionNode {
    public:
     LandmarkKnown(const std::string& name,

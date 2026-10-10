@@ -61,6 +61,8 @@ by these nodes. A landmark is named by `id`, or by `type` + `subtype`
 | GetLandmarkPose | sync | `id` or `type`/`subtype` → `pose` | `PoseStamped` in odom (through landmark_server's `map → odom`). FAILURE if unknown |
 | GetApproachPose | sync | `id` or `type`/`subtype`, `offset` (landmark frame, +X out of the front), `symmetry_deg` (0) → `pose` | `PoseStamped` in odom at the offset, facing the landmark, on the symmetric side closest to the vehicle (turned toward the vehicle if the yaw is unknown) |
 | GoToFrame | move | `frame`, `offset` (in the frame), `mode` (POSITION_AND_YAW), `resend_m` (0.1), `freeze_within_m` (1.0) | Goes to a TF frame: a landmark (`<class>_<id>`), a class (`torpedo_board`), a gate frame, `start`, or `map` + offset for a fixed point. Looks it up in odom every tick and sends the goal again when it moved more than `resend_m`; within `freeze_within_m` the target is fixed (close up the detections are poor) |
+| CommitTarget | stateful | `frame`, `stable_m`, `stable_s` → `pose` | Waits until the frame stands still, then writes its pose in odom |
+| GoToPose | move | `pose`, `offset` (in the pose's frame) | Goes to a pose from CommitTarget without following the map |
 | Turn | move | `yaw_deg` (heading in the map frame) or `relative_deg` | Turns on the spot: coin-flip alignment, an exit heading |
 | LookAtFrame | move | `frame` | Turns to face a frame, so the cameras see it |
 

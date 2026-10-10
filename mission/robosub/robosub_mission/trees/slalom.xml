@@ -1,16 +1,8 @@
 <?xml version="1.0"?>
-<!-- Slalom: three rows of pipes, each passed on our side of its red pipe
-     (slalom_frame_<n> in the mission config: slalom_left_<n> or
-     slalom_right_<n> from landmark_server, +X straight through the row).
-
-     Per row: line up in front of the gap (slalom_view, in the gap frame);
-     wait until the gap frame stands still and commit to it; then drive
-     straight through to slalom_after on that committed pose. Beside the
-     pipes the camera no longer sees them, so the pass must not follow the
-     map. With the rows 2 m apart, 1 m behind a row is 1 m in front of the
-     next: the vehicle only shifts sideways there, it does not stop twice or
-     back up. A row that is not in the map, or never settles, is passed
-     blind: straight ahead by one row spacing. -->
+<!-- Per row: line up in front of the gap, wait until the gap frame stands
+     still, then drive straight through on that fixed pose. The pipes are out
+     of view while passing, so the pass must not follow the map. A row that
+     is not found is passed blind. -->
 <root BTCPP_format="4">
   <BehaviorTree ID="Slalom">
     <Sequence>

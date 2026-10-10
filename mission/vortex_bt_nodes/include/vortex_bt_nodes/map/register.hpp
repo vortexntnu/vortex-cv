@@ -6,14 +6,7 @@
 
 namespace vortex_bt_nodes::map {
 
-/**
- * @brief Register the map nodes. The landmark nodes (LandmarkKnown,
- * LandmarkConfirmed, GetLandmarkPose, GetApproachPose, GoToFrame) share
- * one LandmarkCache of landmark_server/landmarks and TF.
- *
- * Planned: PoseFeeder, CourseFrameFeeder, SelectLandmark, Search,
- * AvoidSlalom, and the slalom nodes.
- */
+/** @brief The landmark nodes share one LandmarkCache. */
 void register_nodes(BT::BehaviorTreeFactory& factory,
                     const rclcpp::Node::SharedPtr& node);
 

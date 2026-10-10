@@ -1,9 +1,6 @@
 <?xml version="1.0"?>
-<!-- Torpedo: past the slalom, find the board, stand off in front of it, then
-     per shot drive to the aim point in front of the opening and hold it
-     before firing. The aim follows the map until 0.1 m from it (close up the
-     detections are best), then holds still: a goal moved during the hold
-     would restart it. -->
+<!-- Find the board, stand off in front of it, then go to the aim point of
+     each opening and hold before firing. -->
 <root BTCPP_format="4">
   <BehaviorTree ID="Torpedo">
     <Sequence>

@@ -12,8 +12,7 @@
 namespace vortex_bt_nodes::map {
 
 /**
- * @brief Turns on the spot: to heading yaw_deg in the map frame (the course:
- * the coin-flip alignment, an exit heading), or by relative_deg from the
+ * @brief Turns to yaw_deg in the map frame, or by relative_deg from the
  * current heading. Give one of the two.
  */
 class Turn : public NavAction {

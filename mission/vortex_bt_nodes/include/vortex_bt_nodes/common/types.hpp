@@ -13,36 +13,13 @@
 #include <vortex_msgs/msg/waypoint_mode.hpp>
 
 /**
- * The types that go between nodes written by different people. A node reads
- * and writes these keys with these types, so it can be written and tested
- * alone by filling the blackboard by hand.
+ * Shared blackboard types. Poses are in odom (x forward, y right, z down)
+ * unless a port says otherwise.
  *
- *   Key                          Type          Written by
- *   {pose}                       Pose          PoseFeeder (vehicle in odom)
- *   {map}                        LandmarkMap   MapFeeder (object_map)
- *   {course_frame}               Pose          CourseFrameFeeder
- *   {mission_clock}              MissionClock  MissionClock
- *   {start_pose}                 Pose          SavePose
- *   {role}                       std::string   SelectGatePanel
- *                                              ("survey_repair" or
- *                                               "search_rescue")
- *   {gate_side}                  std::string   SelectGatePanel ("left",
- *                                              "right")
- *   {avoid_path}                 PoseList      AvoidSlalom
- *   {bin_subtype}, ...           std::string   ResolveRole (subtype names)
- *   every key in mission.yaml    double or     LoadMissionConfig
- *                                std::string
- *
- * Landmark ids (ports id, gate_id) are int, the track id in {map}.
- * Landmark types and subtypes are written by name, as in LandmarkType.msg and
- * LandmarkSubtype.msg: type="SLALOM_PIPE" subtype="SLALOM_PIPE_RED"; subtype
- * "ANY" matches every subtype. Waypoint modes (port mode) are written the
- * same way, as in WaypointMode.msg: mode="POSITION_AND_YAW".
- *
- * Poses are in odom (x forward, y right, z down) unless a port says
- * otherwise. In XML a Pose is "x;y;z" or "x;y;z;yaw_deg", e.g.
- * pose="2.0;0.0;1.5;90"; a PoseList is poses separated by '|'; an IdList
- * is "3;7;12".
+ * In XML a Pose is "x;y;z" or "x;y;z;yaw_deg", a PoseList is poses separated
+ * by '|' and an IdList is "3;7;12". Landmark types, subtypes and waypoint
+ * modes are written by their message constant name, e.g. type="SLALOM_PIPE"
+ * subtype="SLALOM_PIPE_RED". Subtype "ANY" matches every subtype.
  */
 namespace vortex_bt_nodes {
 
@@ -52,7 +29,6 @@ using IdList = std::vector<int>;
 using LandmarkTrack = vortex_msgs::msg::LandmarkTrack;
 using LandmarkMap = vortex_msgs::msg::LandmarkTrackArray;
 
-/** @brief When the run started and how long it may last. */
 struct MissionClock {
     rclcpp::Time start;
     double run_time_s{900.0};
@@ -65,14 +41,13 @@ struct MissionClock {
     }
 };
 
-/** @brief Yaw [rad] of a pose's orientation. */
 inline double yaw_of(const Pose& pose) {
     const auto& q = pose.orientation;
     return std::atan2(2.0 * (q.w * q.z + q.x * q.y),
                       1.0 - 2.0 * (q.y * q.y + q.z * q.z));
 }
 
-/** @brief Level pose (roll = pitch = 0) at (x, y, z) with yaw [rad]. */
+/** @brief Level pose, yaw in rad. */
 inline Pose make_pose(double x, double y, double z, double yaw = 0.0) {
     Pose pose;
     pose.position.x = x;
@@ -83,24 +58,15 @@ inline Pose make_pose(double x, double y, double z, double yaw = 0.0) {
     return pose;
 }
 
-/** @brief LandmarkType value for a name ("GATE"), or nullopt. */
 std::optional<std::uint16_t> landmark_type_from_string(std::string_view name);
 
-/**
- * @brief LandmarkSubtype value for a name ("SLALOM_PIPE_RED"), -1 for
- * "ANY", or nullopt for an unknown name.
- */
+/** @brief Returns -1 for "ANY". */
 std::optional<int> landmark_subtype_from_string(std::string_view name);
 
-/**
- * @brief WaypointMode for a name ("POSITION_AND_YAW" or "position_and_yaw"),
- * or nullopt. Wraps vortex_utils' string_to_waypoint_mode, without the
- * exception, so a bad port fails the node instead of the tree.
- */
 std::optional<vortex_msgs::msg::WaypointMode> waypoint_mode_from_string(
     const std::string& name);
 
-/** @brief True if the track has this type and subtype (-1 = any subtype). */
+/** @brief subtype -1 matches any. */
 inline bool matches(const LandmarkTrack& track,
                     std::uint16_t type,
                     int subtype) {
@@ -112,7 +78,6 @@ inline bool matches(const LandmarkTrack& track,
 
 namespace BT {
 
-/** @brief "x;y;z" or "x;y;z;yaw_deg" → level Pose. Spaces are ignored. */
 template <>
 inline vortex_bt_nodes::Pose convertFromString(StringView str) {
     std::vector<StringView> parts;
@@ -137,7 +102,6 @@ inline vortex_bt_nodes::Pose convertFromString(StringView str) {
                                       yaw_deg * M_PI / 180.0);
 }
 
-/** @brief Poses separated by '|': "1;0;1 | 2;0;1;90". */
 template <>
 inline vortex_bt_nodes::PoseList convertFromString(StringView str) {
     vortex_bt_nodes::PoseList poses;

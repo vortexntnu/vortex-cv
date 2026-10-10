@@ -6,10 +6,7 @@
 
 namespace vortex_bt_nodes {
 
-/**
- * @brief Register all custom nodes with the factory, before the trees are
- * loaded. Calls each area's register_nodes (<area>/register.hpp).
- */
+/** @brief Registers every node. Call before loading the trees. */
 void register_nodes(BT::BehaviorTreeFactory& factory,
                     const rclcpp::Node::SharedPtr& node);
 

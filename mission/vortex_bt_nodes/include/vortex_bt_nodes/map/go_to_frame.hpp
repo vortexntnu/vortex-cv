@@ -12,13 +12,9 @@
 namespace vortex_bt_nodes::map {
 
 /**
- * @brief Goes to a TF frame (a landmark or a gate frame from landmark_server),
- * plus an offset in that frame. The target is looked up in odom every tick,
- * so it follows the map as detections correct it: the goal is sent again
- * when the target moved more than resend_m. Within freeze_within_m of the
- * target the goal is no longer updated (close up the detections are poor
- * and the last metre is driven on odometry). FAILURE if the frame is not in
- * TF at the start.
+ * @brief Goes to a TF frame plus an offset in that frame. The goal is sent
+ * again when the frame moves more than resend_m, until the vehicle is within
+ * freeze_within_m. FAILURE if the frame is not in TF at the start.
  */
 class GoToFrame : public NavAction {
    public:

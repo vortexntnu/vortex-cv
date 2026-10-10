@@ -1,27 +1,19 @@
 /**:
   ros__parameters:
-    # Empty string = fresh random draw each run (printed to the log so you can
-    # reproduce it). Pass the same value as vortex-stonefish-sim's
-    # robosub_icon_seed to make role-dependent landmarks (gate, bin) agree
-    # with what the sim actually rendered.
+    # Empty = random. Use the same value as the simulator's robosub_icon_seed
+    # to get matching roles.
     seed: ""
 
-    # Which course elements to publish dummy landmarks for.
     tasks: ["gate", "slalom", "torpedo_board", "bin", "octagon", "table"]
 
-    # Detectors run at 10 Hz or more.
     rate: 10.0
 
-    # Must be resolvable (directly, or via tf) to the odometry frame. The
-    # default is the odometry frame, so no tf is needed; the positions are
-    # then odom positions (the simulator's world).
+    # Must resolve to the odometry frame.
     frame_id: "nautilus/odom"
 
     topic: "landmarks"
 
-    # Publish only what the cameras could see from the vehicle pose on
-    # odom_topic (front: range and half field of view; down: radius below the
-    # vehicle). Positions are then assumed to be in the frame of that odom.
+    # Publish only what the cameras could see from the pose on odom_topic.
     use_field_of_view: false
     odom_topic: "odom"
     front_range_m: 8.0
@@ -29,15 +21,12 @@
     down_radius_m: 1.5
     down_max_altitude_m: 3.0
 
-    # View quality (needs use_field_of_view): within near_range_m and
-    # centre_half_fov_deg of the image centre the near values of the
-    # [near, far] pairs below hold; toward front_range_m and the edge of the
-    # view the far values. Without the field of view: the near values.
+    # The [near, far] pairs below go from near to far with distance and angle
+    # from the image centre.
     near_range_m: 2.0
     centre_half_fov_deg: 15.0
 
-    # Detector errors. All off here; launch with profile:=realistic (a camera
-    # seen from a moving vehicle), unstable or erratic for the others.
+    # Detector errors, all off here. See the profile files.
     position_noise_std: 0.0             # [m] isotropic, on top
     range_noise_along: [0.0, 0.0]       # std [m] = base + per_m * distance
     range_noise_across: [0.0, 0.0]
@@ -60,7 +49,6 @@
     frame_drop_probability: 0.0         # the whole message is lost
     decoy_probability: 0.0              # gate posts seen as slalom pipes
     noise_seed: -1                      # -1 = a fresh draw each run
-    # The jars and containers on the table: moved within the radius of where
-    # they started, on average every interval seconds each. 0 = they stay put.
+    # Jars and containers on the table are moved now and then. 0 = never.
     movable_move_interval_sec: 0.0
     movable_move_radius_m: 0.5

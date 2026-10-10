@@ -8,10 +8,7 @@
 
 namespace vortex_bt_nodes::motion {
 
-/**
- * @brief Goes to depth z (odom z, down positive), keeps x, y and heading
- * (mode ONLY_Z).
- */
+/** @brief Goes to depth z, keeping x, y and heading. */
 class SetDepth : public NavAction {
    public:
     using NavAction::NavAction;

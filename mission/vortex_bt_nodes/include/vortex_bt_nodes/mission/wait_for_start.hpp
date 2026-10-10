@@ -14,8 +14,7 @@ namespace vortex_bt_nodes::mission {
 
 /**
  * @brief RUNNING until the killswitch is off and the vehicle is in
- * autonomous mode (asks get_operation_mode twice a second: the mode is only
- * published when it changes).
+ * autonomous mode.
  */
 class WaitForStart : public BT::StatefulActionNode {
    public:

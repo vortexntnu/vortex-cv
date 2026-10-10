@@ -17,7 +17,6 @@ namespace vortex_bt_nodes::map {
 
 void register_nodes(BT::BehaviorTreeFactory& factory,
                     const rclcpp::Node::SharedPtr& node) {
-    // One map for every landmark node of the tree.
     const std::shared_ptr<const LandmarkCache> cache =
         std::make_shared<LandmarkCache>(node);
     factory.registerNodeType<LandmarkKnown>("LandmarkKnown", cache);

@@ -1,7 +1,4 @@
-# Loaded on top of robosub_dummy_publisher_params.yaml with profile:=unstable.
-# A detector that is noisy and drops out the same at every distance (no field
-# of view), to check that the map stays stable: ids kept, positions near the
-# truth, no duplicates or landmarks from clutter.
+# profile:=unstable. Noisy with dropouts at every distance, no field of view.
 /**:
   ros__parameters:
     position_noise_std: 0.05              # [m]

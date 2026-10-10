@@ -1,50 +1,38 @@
-# RoboSub mission values for the pool, read by the behavior tree
-# (robosub_mission, LoadMissionConfig). Course numbers are measured on site;
-# these are starting points. mission_sim.yaml has the same keys for the
-# simulator.
-
-# Where the objects are is the prior map's (landmark_server premap.yaml);
-# here only how we do the tasks. Search points and transits are offsets
-# "x;y;z;yaw_deg" from the prior_<task> frames (x along the course, z the
-# depth), so they hold in every pool.
+# Mission values for the pool. Starting points, measure on site.
+# Offsets are "x;y;z;yaw_deg" from the frame they are used with. For the
+# prior_<task> frames x is along the course and z is relative to the task's
+# depth.
 
 travel_depth: 0.6
 
 gate_depth: 1.0
 gate_panel_subtype: GATE_SURVEY_REPAIR
-gate_search: "-3.0;0;1.0;0"   # from prior_gate
+gate_search: "-3.0;0;1.0;0"
 gate_entrance_frame: gate_survey_repair_entrance
 gate_exit_frame: gate_survey_repair_exit
 
-# Slalom: the side of the red pipes we pass on (the same as our half of the
-# gate; left / right seen going down the course), per row the gap frame.
-# In a gap frame (+X through the row): where to line up and commit to the
-# gap, and where the pass ends (1 m behind a row is 1 m in front of the
-# next). MEASURE the depth: the middle
-# of the pipes.
+# Pass on the same side of the red pipes as our half of the gate.
 slalom_depth: 1.0
-slalom_search: "-4.5;0;0;0"        # from prior_slalom (the middle row)
+slalom_search: "-4.5;0;0;0"
 slalom_frame_0: slalom_right_0
 slalom_frame_1: slalom_right_1
 slalom_frame_2: slalom_right_2
-slalom_view: "-1.0;0;0"
-slalom_after: "1.0;0;0"
-slalom_blind: "2.0;0;0"            # a row that is not found: one row ahead
+slalom_view: "-1.0;0;0"     # line up here, in front of the gap
+slalom_after: "1.0;0;0"     # the pass ends here
+slalom_blind: "2.0;0;0"     # used when a row is not found
 
+# Around the slalom, from prior_slalom.
 slalom_bypass_in: "-4.0;-4.0;0.6;0"
 slalom_bypass_out: "4.0;-4.0;0.6;0"
 
 torpedo_depth: 1.25
 torpedo_search: "-3.0;0;1.25;0"
 torpedo_standoff: "-1.5;0;0"
-# The openings to shoot (landmark_server torpedo_opening_<name> frames; which
-# two are ours depends on the board's decal version, these are version 1's
-# Search & Rescue pair) and, per
-# tube, where base_link holds to fire: in the opening frame (+X through the
-# board), so -x is the distance and y, z take out the tube's offset from
-# base_link. MEASURE the tubes.
+# Which two openings are ours depends on the board version. These are the
+# Search & Rescue pair on version 1.
 torpedo_opening_1: torpedo_opening_large_left
 torpedo_opening_2: torpedo_opening_small_top
+# Where base_link holds to fire, in the opening frame. TODO: measure the tubes.
 torpedo_aim_left: "-0.6;0;0"
 torpedo_aim_right: "-0.6;0;0"
 
@@ -56,6 +44,7 @@ octagon_search: "-3.0;0;0.6;0"
 octagon_hover: "0;0;-1.0"
 surface_depth: 0.2
 
+# Time per task [ms]. A task that runs out is skipped.
 gate_budget_ms: 120000
 torpedo_budget_ms: 180000
 bins_budget_ms: 150000

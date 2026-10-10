@@ -1,52 +1,12 @@
-"""Seeded RoboSub course layout: which dummy landmark goes where.
+"""Where each dummy landmark is on the RoboSub course.
 
-Randomization mirrors the simulator's role-image draw
-(vortex-stonefish-sim/stonefish_sim/launch/robosub_icons.py): the RoboSub Team
-Handbook fixes *which* role images exist and *how many* of each, and leaves
-only their placement (which slot gets which pool item) open, so each
-randomized group is a permutation/choice draw from a fixed pool -- done with
-the exact same ``random.Random(seed)`` recipe, reading the exact same
-manifest (``stonefish_sim/metadata/robosub_icons.json``). Launch this package
-with the same seed as vortex-stonefish-sim's ``robosub_icon_seed`` launch
-argument and the dummy landmarks' roles (which bin says Blood vs Fire, which
-gate upright says Search & Rescue, which torpedo board version is up and
-therefore which physical opening is which role, ...) will agree with
-whatever the sim actually rendered.
+Positions come from the course meshes in vortex-stonefish-sim, in the
+simulator's world frame: X down the course, Y right, Z down, surface at Z=0.
 
-If stonefish_sim isn't available (e.g. running against real hardware with no
-sim installed), the role-dependent landmarks (gate, bin, torpedo_board) fall
-back to a fixed default role rather than failing.
-
-The landmarks are what the perception gives: 3D positions without
-orientation (the publisher marks the rotation as unknown), the two gate
-panels and the whole gate, the icons of the torpedo board instead of its
-openings, bins from the front camera without a role plus the role icons seen
-by the down camera. landmark_server derives yaw, openings and bin roles from
-these parts.
-
-Every position below -- both each ``Task.base_pose`` and every landmark's
-``offset`` -- comes from the real course geometry in vortex-stonefish-sim
-(data/object_files/robosub_course/*.obj), not guesswork. Each element's
-vertices were read directly out of its .obj and run through the same
-Blender -> Stonefish transform tools/import_robosub_course.py uses to place
-it in the world:
-
-    X_w = Y_b + COURSE_ORIGIN[0]      COURSE_ORIGIN = (4.0, -1.57)
-    Y_w = X_b + COURSE_ORIGIN[1]      POOL_FLOOR_Z  = 3.432
-    Z_w = POOL_FLOOR_Z - Z_b
-
-world frame: X forward (down the course), Y right, Z down, water surface at
-Z=0 -- same convention as stonefish_sim/scenarios/robosub.scn (Stonefish
-builds rpy as ZYX, so the scenario's rpy="pi 0 pi/2" is exactly this
-mapping). That frame is also the sim's odom frame: the odometry is Stonefish's
-own world pose, passed through unchanged. For gate and slalom the poles are
-the connected components of each colour's mesh (each element's .obj merges
-several physical poles into one mesh per colour/material, so a single
-bounding box isn't enough). For the torpedo board the openings are the grey
-discs behind the decal's cut-outs, and the icons come from the two decal
-textures the sim randomizes between (Task4_ver1.png / Task4_ver2.png): each
-icon's bounding box in the image, mapped through the decal's UVs onto the
-board face. See each task builder below for the specifics.
+Which role image goes where is drawn with the same seed and manifest as the
+simulator (robosub_icons.json), so launching both with the same seed gives
+matching roles. Without stonefish_sim installed the roles fall back to fixed
+defaults.
 """
 
 from __future__ import annotations
@@ -83,8 +43,7 @@ class Landmark:
     camera: str = "front"  # "front" (stereo) or "down" (mono, sees the floor)
     movable: bool = False  # loose object that can be moved during a run
     decoy: bool = False  # another object a detector mistakes for this class
-    # Yaw [rad, world] of the surface normal (+X out of the front) for objects
-    # whose detector measures it; None = position only.
+    # Yaw of the surface normal in the world frame, None = position only.
     normal_yaw: float | None = None
 
 
@@ -101,9 +60,7 @@ class Task:
         return self.build_landmarks(role_picks)
 
 
-# Role-image filename -> our landmark subtype. The handbook names the two
-# overarching mission roles "Search & Rescue" / "Survey & Repair"; the actual
-# bin decal filenames (Blood / Fire) are that pair's Task-3-specific skin.
+# Role image filename -> landmark subtype.
 _GATE_ROLE_SUBTYPE = {
     "Task1_SearchRescue.png": LandmarkSubtype.GATE_SEARCH_RESCUE,
     "Task1_SurveyRepair.png": LandmarkSubtype.GATE_SURVEY_REPAIR,
@@ -114,9 +71,6 @@ _OCTAGON_IMAGE_SUBTYPE = {
     "Task5_Search.png": LandmarkSubtype.OCTAGON_IMAGE_SEARCH,
     "Task5_Survey.png": LandmarkSubtype.OCTAGON_IMAGE_SURVEY,
 }
-# Basket floors: the red cross marks the Search & Rescue basket and the
-# warning sign the Survey & Repair one (same pairing as the bins: blood for
-# Search & Rescue, fire for Survey & Repair).
 _TABLE_BASKET_SUBTYPE = {
     "Task5_RedCross.png": LandmarkSubtype.TABLE_BASKET_SEARCH_RESCUE,
     "Task5_Warning.png": LandmarkSubtype.TABLE_BASKET_SURVEY_REPAIR,
@@ -134,13 +88,8 @@ _BIN_ROLE_SUBTYPE = {
 
 
 def _gate_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
-    # gate__icon_gate_1.obj / gate__icon_gate_2.obj bounding-box centres,
-    # relative to the gate task's base_pose (gate__white.obj's centre):
-    # gate_1 world (3.977, 0.771, 2.273), gate_2 world (3.977, -0.788, 2.273).
-    # The uprights sit ~1.56 m apart and the role image is higher up the
-    # gate than the panel-colour centroid (base_pose), hence the -0.445 z.
+    # Role panels, from the gate icon meshes.
     slots = (("gate_1", (-0.023, 0.788, -0.445)), ("gate_2", (-0.023, -0.771, -0.445)))
-    # The whole gate as the front camera sees it (label "gate"): its centre.
     landmarks = [
         Landmark("gate", LandmarkType.GATE, LandmarkSubtype.GATE_WHOLE, (0.0, 0.0, 0.0))
     ]
@@ -148,10 +97,7 @@ def _gate_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
         role = role_picks.get(slot)
         subtype = _GATE_ROLE_SUBTYPE.get(role, LandmarkSubtype.GATE_SEARCH_RESCUE)
         landmarks.append(Landmark(slot, LandmarkType.GATE, subtype, offset))
-    # The posts, from the vertical clusters of gate__white/red/black.obj
-    # (world): outer uprights at Y -1.569 and 1.529 spanning Z 2.07-3.43, and
-    # the short post between the openings at Y -0.019 hanging from the top bar,
-    # Z 2.16-2.76. Positions are the centre of each post.
+    # Centres of the two outer posts and the short middle post.
     landmarks += [
         Landmark(
             "gate_pole_left",
@@ -176,22 +122,12 @@ def _gate_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
 
 
 def _slalom_landmarks(_role_picks: dict) -> tuple[Landmark, ...]:
-    # Not randomized (handbook 3.2.3: pipe colour is a fixed navigation cue;
-    # "three sets of WHITE-RED-WHITE" -- each set/gate is one white, one red,
-    # one white pole in a row). slalom__pvc_white.obj / slalom__red.obj merge
-    # every pole into one mesh per colour, so the individual poles are the
-    # connected components of those meshes. The white mesh also holds the
-    # base pipes lying on the floor (Z 3.418), which are not poles. The
-    # simulator turns the slalom 90 deg to the left about its centroid
-    # (POSE_OVERRIDE in vortex-stonefish-sim tools/import_robosub_course.py),
-    # so each set lies across the course and the sets follow each other along
-    # X. Every pole, white or red, is 0.938 m tall (Z 2.155-3.093, centre
-    # 2.624). World positions of the pole centres:
-    #   gate 1: white (8.144, -1.240) / red (8.101, 0.345) / white (8.144, 1.858)
-    #   gate 2: white (10.148, -0.645) / red (10.105, 0.940) / white (10.148, 2.454)
-    #   gate 3: white (12.151, -1.645) / red (12.107, -0.060) / white (12.151, 1.454)
-    # The vehicle passes the sets one after another along X; they weave a
-    # little sideways (Y) from set to set. Left = smaller Y (Y is right).
+    # Three rows of white, red, white. Pole centres in the world frame:
+    #   row 1: white (8.144, -1.240) / red (8.101, 0.345) / white (8.144, 1.858)
+    #   row 2: white (10.148, -0.645) / red (10.105, 0.940) / white (10.148, 2.454)
+    #   row 3: white (12.151, -1.645) / red (12.107, -0.060) / white (12.151, 1.454)
+    # The simulator turns the slalom 90 deg, so the rows follow each other
+    # along X.
     gates = (
         ((-1.961, -1.649, 0.0), (-2.004, -0.064, 0.0), (-1.961, 1.449, 0.0)),
         ((0.043, -1.054, 0.0), (0.0, 0.531, 0.0), (0.043, 2.045, 0.0)),
@@ -226,16 +162,9 @@ def _slalom_landmarks(_role_picks: dict) -> tuple[Landmark, ...]:
     return tuple(landmarks)
 
 
-# The board face in the sim (torpedo_board__grey.obj / __icon_torpedo_board.obj):
-# a 0.6096 m square at world X 17.043 (the front, facing the vehicle along
-# -X), centred on (Y -5.204, Z 2.554). That centre is the task's base_pose.
-# The decal is UV-mapped straight onto that square: image x -> world Y (left
-# to right as seen from the vehicle), image y (down) -> world Z (down).
-#
-# The openings are the grey discs behind the decal's cut-outs, read off
-# torpedo_board__grey.obj: large 0.127 m, small 0.101 m across. They are the
-# same in both decal versions (ver2's printed rings sit exactly on them,
-# ver1's within ~1 cm).
+# The board is a 0.6096 m square facing -X. Offsets are (x, y, z) from its
+# centre in the world frame, so y is to the right seen from the vehicle.
+# landmark_server has the same opening offsets in torpedo.openings.
 _TORPEDO_OPENING_OFFSETS = {
     "large_left": (0.0, -0.210, -0.064),
     "large_right": (0.0, 0.214, 0.216),
@@ -243,14 +172,8 @@ _TORPEDO_OPENING_OFFSETS = {
     "small_bottom": (0.0, -0.006, 0.200),
 }
 
-# The icons, per decal version: centre of each icon's bounding box in the
-# texture (stonefish_sim/.../textures/Task4_ver1.png, Task4_ver2.png,
-# 2304x2304), mapped through the decal's UVs onto the board face. Handbook
-# 3.2.5: fire/blood mark the large opening, firetruck/ambulance the small one.
-# Version 1: fire above the large-left opening, firetruck right of the
-# small-top one, blood above the large-right one, ambulance left of the
-# small-bottom one. Version 2 swaps each Survey & Repair icon with its Search
-# & Rescue counterpart.
+# Icon centres per decal version. Fire and blood mark the large openings,
+# firetruck and ambulance the small ones. Version 2 swaps the roles.
 _TORPEDO_ICON_OFFSETS = {
     "Task4_ver1.png": {
         "fire": (0.0, -0.206, -0.214),
@@ -265,10 +188,6 @@ _TORPEDO_ICON_OFFSETS = {
         "firetruck": (0.0, -0.183, 0.183),
     },
 }
-# The icon -> opening offsets these imply, in the board frame (x out of the
-# front, y right as seen from the board, i.e. -Y world; z down), are
-# landmark_server's rules.torpedo_targets_from_icons in its sim.yaml -- keep
-# them in sync.
 
 _TORPEDO_ICON_SUBTYPE = {
     "fire": LandmarkSubtype.TORPEDO_ICON_FIRE,
@@ -279,11 +198,7 @@ _TORPEDO_ICON_SUBTYPE = {
 
 
 def _torpedo_board_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
-    # Handbook 3.2.5: the board has two different-size openings. Perception
-    # does not see the openings, it sees the role icons printed next
-    # to them: fire/blood at the large opening, firetruck/ambulance at the
-    # small one. landmark_server turns the icons back into openings. Which
-    # physical opening carries which role flips between the two decal versions.
+    # Perception sees the icons, not the openings.
     version_name = role_picks.get("torpedo_board")
     if version_name not in _TORPEDO_ICON_OFFSETS:
         version_name = "Task4_ver1.png"
@@ -294,7 +209,6 @@ def _torpedo_board_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
             LandmarkType.TORPEDO_BOARD,
             LandmarkSubtype.TORPEDO_BOARD_WHOLE,
             (0.0, 0.0, 0.0),
-            # The front faces the vehicle coming down the course (-X world).
             normal_yaw=math.pi,
         )
     ]
@@ -311,26 +225,20 @@ def _torpedo_board_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
 
 
 def _bin_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
-    # Offsets are each bin's own mesh-bbox centre minus the bin field's
-    # (bins_pipeline__white.obj) centre -- real relative spacing, extracted
-    # the same way as every Task.base_pose below.
+    # Bin centres relative to the rig centre.
     slots = {
         "bin_1": (0.515, 0.028, -0.386),
         "bin_2": (0.015, -0.484, -0.317),
         "bin_3": (0.016, 0.531, -0.148),
         "bin_4": (-0.496, 0.015, -0.115),
     }
-    # The role icon lies on the floor of its bin (bin_<n>__icon_bin_<n>.obj),
-    # 0.14 m below the bin's centre; the rig is tilted, so each floor is at
-    # its own depth.
+    # The role icon is on the floor of each bin, 0.14 m below its centre.
     icons = {
         "bin_1": (0.515, 0.028, -0.247),
         "bin_2": (0.015, -0.484, -0.178),
         "bin_3": (0.016, 0.531, -0.009),
         "bin_4": (-0.496, 0.015, 0.025),
     }
-    # The rig the bins sit on (bins_pipeline__white.obj): its centre is the
-    # task's base_pose.
     landmarks = [
         Landmark(
             "bin_rig", LandmarkType.BIN, LandmarkSubtype.BIN_STRUCTURE, (0.0, 0.0, 0.0)
@@ -339,7 +247,7 @@ def _bin_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
     for slot, offset in slots.items():
         role = role_picks.get(slot)
         subtype = _BIN_ROLE_SUBTYPE.get(role, LandmarkSubtype.BIN_SEARCH_RESCUE)
-        # The front camera sees a bin without knowing its role ...
+        # The front camera sees a bin without its role.
         landmarks.append(
             Landmark(
                 f"{slot}_front",
@@ -348,7 +256,7 @@ def _bin_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
                 offset,
             )
         )
-        # ... the down camera sees the role icon inside it.
+        # The down camera sees the role icon.
         landmarks.append(
             Landmark(slot, LandmarkType.BIN, subtype, icons[slot], camera="down")
         )
@@ -356,11 +264,8 @@ def _bin_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
 
 
 def _octagon_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
-    # base_pose is the centre of octagon__pvc_white.obj (the floating frame,
-    # at the surface). The four image plates hang 0.24 m under it; offsets are
-    # the centres of octagon__icon_octagon_<n>.obj. Which image is on which
-    # plate is drawn per run (manifest group octagon_plates); the plates
-    # themselves do not move.
+    # The four image plates hang 0.24 m under the octagon frame. Which image
+    # is on which plate is drawn per run.
     slots = {
         "octagon_1": (1.296, -0.001, 0.243),
         "octagon_2": (-0.917, 0.916, 0.243),
@@ -384,12 +289,7 @@ def _octagon_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
 
 
 def _table_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
-    # base_pose is the centre of the table top (restore_table__white.obj),
-    # 0.7 m above the pool floor, straight under the octagon. The baskets
-    # (restore_table__icon_restore_table_<n>) and the loose items on top
-    # (restore_jar_<n>, restore_container_<n>, dynamic bodies in the sim) are
-    # seen by the down camera. Which image is where is drawn per run; the
-    # items can also be moved during a run (see movable_* parameters).
+    # Baskets and loose items on the table, seen by the down camera.
     baskets = {
         "restore_table_1": (0.010, 0.393, 0.027),
         "restore_table_2": (0.011, -0.395, 0.027),
@@ -426,9 +326,7 @@ def _table_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
 
 TASKS: dict[str, Task] = {
     "gate": Task("gate", "3.2.2", (4.0, -0.017, 2.718), _gate_landmarks),
-    # Centroid of the three slalom gates' red poles (see _slalom_landmarks).
     "slalom": Task("slalom", "3.2.3", (10.105, 0.409, 2.624), _slalom_landmarks),
-    # Centre of the board's front face (see _TORPEDO_OPENING_OFFSETS).
     "torpedo_board": Task(
         "torpedo_board", "3.2.5", (17.043, -5.204, 2.554), _torpedo_board_landmarks
     ),
@@ -438,11 +336,7 @@ TASKS: dict[str, Task] = {
 }
 
 
-# Decoys: other PVC poles on the course that a pipe detector takes for slalom
-# pipes (seen with the real slalom detector: the gate's posts). World
-# positions, the centres of the posts (gate__white/red/black.obj, see
-# _gate_landmarks): the two uprights (red and black sleeves on white PVC) as
-# white pipes, the short red post between the openings as a red pipe. Only
+# Gate posts that a pipe detector can take for slalom pipes. Only
 # published with decoy_probability > 0.
 DECOYS: tuple[tuple[Landmark, Vec3], ...] = (
     (
@@ -478,9 +372,7 @@ DECOYS: tuple[tuple[Landmark, Vec3], ...] = (
 )
 
 
-# Classes a detector mixes up (class_confusion_* parameters): a pipe's colour
-# under bad light, and the icons of one shape (the two red role icons, the two
-# vehicles). (type, subtype) -> the classes it can be reported as.
+# (type, subtype) -> the classes it can be misreported as.
 CONFUSIONS: dict[tuple[int, int], tuple[tuple[int, int], ...]] = {
     (LandmarkType.SLALOM_PIPE, LandmarkSubtype.SLALOM_PIPE_WHITE): (
         (LandmarkType.SLALOM_PIPE, LandmarkSubtype.SLALOM_PIPE_RED),

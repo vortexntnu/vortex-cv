@@ -13,11 +13,7 @@
 
 namespace vortex_bt_nodes::actuators {
 
-/**
- * @brief Moves the gripper (GripperReferenceFilterWaypoint): roll and pinch,
- * mode ROLL_AND_PINCH, ONLY_ROLL or ONLY_PINCH. SUCCESS when the action
- * reports success; the goal is cancelled when halted.
- */
+/** @brief Sends roll and pinch to the gripper action. */
 class SetGripper : public BT::StatefulActionNode {
    public:
     using Action = vortex_msgs::action::GripperReferenceFilterWaypoint;

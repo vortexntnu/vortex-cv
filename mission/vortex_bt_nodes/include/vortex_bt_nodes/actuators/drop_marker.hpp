@@ -11,11 +11,7 @@
 
 namespace vortex_bt_nodes::actuators {
 
-/**
- * @brief Drops marker 0 or 1: std_msgs/Int8 on topic, then waits settle_s.
- * FAILURE if the index is not 0 or 1. The topic is a placeholder until the
- * drone has an interface.
- */
+/** @brief Drops marker 0 or 1. The topic is a placeholder. */
 class DropMarker : public BT::StatefulActionNode {
    public:
     DropMarker(const std::string& name,

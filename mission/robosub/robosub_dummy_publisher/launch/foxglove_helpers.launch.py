@@ -1,16 +1,7 @@
-"""Helpers for viewing the landmark chain in Foxglove/RViz in the simulator.
+"""Simulator helpers for viewing the map in Foxglove.
 
-- Two static transforms: the simulator publishes odometry in `world_ned` and
-  the reference filter its goals in `odom`, while the map is in
-  `nautilus/odom`. In the simulator all three are the same axes (odometry
-  starts at the world origin), and no node publishes transforms between them,
-  so identity transforms let one 3D panel show the vehicle, its goal and the
-  map together. Do not use on the real vehicle.
-- sim_odom_relay_node: the simulator's odometry as the estimator gives it on
-  the vehicle: `<drone>/odom -> <drone>/base_link` on `odom_nav` and in TF
-  (landmark_server and the behavior tree use both).
-- detections_markers_node: the raw detections on `landmarks` as small markers
-  that live 0.3 s, next to the steady map from landmark_server.
+Starts identity transforms between world_ned, odom and nautilus/odom,
+sim_odom_relay_node and detections_markers_node. Do not use on the vehicle.
 """
 
 from auv_setup.launch_arg_common import (

@@ -14,17 +14,11 @@
 namespace vortex_bt_nodes::map {
 
 /**
- * @brief Waits until a TF frame stands still, then writes its pose (in odom)
- * to the blackboard: the target is committed, and GoToPose drives to it
- * without following the map any more.
+ * @brief Waits until a TF frame has moved less than stable_m for stable_s,
+ * then writes its pose in odom to the blackboard for GoToPose.
  *
- * A frame from the map moves while detections correct it. Close to an
- * object, or beside it, the detections get worse or stop, so the precise
- * part of a task (through a gap, in front of an opening) is driven on a
- * target frozen at a good viewpoint. RUNNING while the frame is missing or
- * has moved more than stable_m in the last stable_s; SUCCESS when it has not.
- * Put a Timeout around it: a frame that never settles must not stop the
- * task.
+ * Used before driving close to or past an object, where the detections get
+ * worse and the frame should no longer be followed. Wrap it in a Timeout.
  */
 class CommitTarget : public BT::StatefulActionNode {
    public:
@@ -41,7 +35,6 @@ class CommitTarget : public BT::StatefulActionNode {
     void onHalted() override {}
 
     std::shared_ptr<const LandmarkCache> cache_;
-    // Where the frame was when it last moved more than stable_m, and when.
     std::optional<Pose> anchor_;
     std::chrono::steady_clock::time_point anchor_time_;
 };

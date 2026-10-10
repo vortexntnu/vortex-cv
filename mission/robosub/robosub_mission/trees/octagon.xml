@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- Octagon: find the table, go above it and surface inside the octagon. -->
+<!-- Find the table, go above it and surface. -->
 <root BTCPP_format="4">
   <BehaviorTree ID="Octagon">
     <Sequence>
