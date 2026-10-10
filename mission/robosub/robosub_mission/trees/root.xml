@@ -39,14 +39,14 @@
   <!-- Around the slalom at travel depth, out and back. -->
   <BehaviorTree ID="TransitOut">
     <Sequence>
-      <Timeout msec="120000"><GoToFrame frame="prior_slalom" offset="{slalom_bypass_in}" position_tolerance="0.4"/></Timeout>
-      <Timeout msec="120000"><GoToFrame frame="prior_slalom" offset="{slalom_bypass_out}" position_tolerance="0.4"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="prior_slalom" offset="{slalom_bypass_in}" position_tolerance="0.4" orientation_tolerance_deg="15" resend_m="0.5"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="prior_slalom" offset="{slalom_bypass_out}" position_tolerance="0.4" orientation_tolerance_deg="15" resend_m="0.5"/></Timeout>
     </Sequence>
   </BehaviorTree>
   <BehaviorTree ID="TransitBack">
     <Sequence>
-      <Timeout msec="120000"><GoToFrame frame="prior_slalom" offset="{slalom_bypass_out}" position_tolerance="0.4"/></Timeout>
-      <Timeout msec="120000"><GoToFrame frame="prior_slalom" offset="{slalom_bypass_in}" position_tolerance="0.4"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="prior_slalom" offset="{slalom_bypass_out}" position_tolerance="0.4" orientation_tolerance_deg="15" resend_m="0.5"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="prior_slalom" offset="{slalom_bypass_in}" position_tolerance="0.4" orientation_tolerance_deg="15" resend_m="0.5"/></Timeout>
     </Sequence>
   </BehaviorTree>
 
@@ -79,5 +79,35 @@
   </BehaviorTree>
   <BehaviorTree ID="TestReturnHome">
     <Sequence><SubTree ID="Setup" _autoremap="true"/><SubTree ID="ReturnHome" _autoremap="true"/></Sequence>
+  </BehaviorTree>
+  <BehaviorTree ID="TestCourse">
+    <Sequence>
+      <SubTree ID="Setup" _autoremap="true"/>
+      <Fallback>
+        <Sequence><SubTree ID="Gate" _autoremap="true"/><Log message="RESULT Gate OK"/></Sequence>
+        <Log message="RESULT Gate FAILED" level="error"/>
+      </Fallback>
+      <Fallback>
+        <Sequence><SubTree ID="Slalom" _autoremap="true"/><Log message="RESULT Slalom OK"/></Sequence>
+        <Log message="RESULT Slalom FAILED" level="error"/>
+      </Fallback>
+      <Fallback>
+        <Sequence><SubTree ID="TorpedoTask" _autoremap="true"/><Log message="RESULT Torpedo OK"/></Sequence>
+        <Log message="RESULT Torpedo FAILED" level="error"/>
+      </Fallback>
+      <Fallback>
+        <Sequence><SubTree ID="Bins" _autoremap="true"/><Log message="RESULT Bins OK"/></Sequence>
+        <Log message="RESULT Bins FAILED" level="error"/>
+      </Fallback>
+      <Fallback>
+        <Sequence><SubTree ID="Octagon" _autoremap="true"/><Log message="RESULT Octagon OK"/></Sequence>
+        <Log message="RESULT Octagon FAILED" level="error"/>
+      </Fallback>
+      <Fallback>
+        <Sequence><SubTree ID="ReturnHome" _autoremap="true"/><Log message="RESULT ReturnHome OK"/></Sequence>
+        <Log message="RESULT ReturnHome FAILED" level="error"/>
+      </Fallback>
+      <Timeout msec="90000"><Surface/></Timeout>
+    </Sequence>
   </BehaviorTree>
 </root>

@@ -5,8 +5,14 @@
   <BehaviorTree ID="Torpedo">
     <Sequence>
       <SubTree ID="TransitOut" _autoremap="true"/>
+      <SubTree ID="TorpedoTask" _autoremap="true"/>
+    </Sequence>
+  </BehaviorTree>
+
+  <BehaviorTree ID="TorpedoTask">
+    <Sequence>
       <Timeout msec="90000"><SetDepth z="{torpedo_depth}"/></Timeout>
-      <Timeout msec="120000"><GoToFrame frame="prior_torpedo" offset="{torpedo_search}" position_tolerance="0.4"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="prior_torpedo" offset="{torpedo_search}" position_tolerance="0.4" orientation_tolerance_deg="15"/></Timeout>
       <Timeout msec="90000">
         <ReactiveFallback name="FindBoard">
           <LandmarkConfirmed type="TORPEDO_BOARD" subtype="TORPEDO_BOARD_WHOLE" max_sigma_xy="0.3"/>

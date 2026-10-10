@@ -4,7 +4,7 @@
   <BehaviorTree ID="Bins">
     <Sequence>
       <Timeout msec="90000"><SetDepth z="{bins_search_depth}"/></Timeout>
-      <Timeout msec="120000"><GoToFrame frame="prior_bin" offset="{bins_search}" position_tolerance="0.4"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="prior_bin" offset="{bins_search}" position_tolerance="0.4" orientation_tolerance_deg="15"/></Timeout>
       <Timeout msec="90000">
         <ReactiveFallback name="FindBins">
           <LandmarkConfirmed type="BIN" subtype="BIN_STRUCTURE" max_sigma_xy="0.3"/>

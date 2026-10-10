@@ -26,7 +26,10 @@ BT::PortsList GoToFrame::providedPorts() {
                                "Send the goal again when the target moved "
                                "this much [m]"),
          BT::InputPort<double>("freeze_within_m", 1.0,
-                               "Stop updating the target this close [m]")});
+                               "Stop updating the target this close [m]"),
+         BT::InputPort<double>("max_step_m", 2.0,
+                               "Longer moves get waypoints this far apart "
+                               "[m], 0 = one waypoint")});
 }
 
 std::optional<Pose> GoToFrame::target() const {
@@ -54,6 +57,22 @@ std::optional<NavAction::Goal> GoToFrame::goal_for(const Pose& target) const {
     wp.pose = target;
     wp.waypoint_mode = *mode;
     Goal goal;
+    // One long step can saturate the thrusters and flip the vehicle.
+    const double step = getInput<double>("max_step_m").value_or(2.0);
+    const auto vehicle = cache_->vehicle_in_odom();
+    if (step > 0.0 && vehicle) {
+        const int n = static_cast<int>(std::ceil(distance(*vehicle, target) / step));
+        for (int i = 1; i < n; ++i) {
+            const double a = static_cast<double>(i) / n;
+            auto via = wp;
+            via.pose.position.x = std::lerp(vehicle->position.x, target.position.x, a);
+            via.pose.position.y = std::lerp(vehicle->position.y, target.position.y, a);
+            via.pose.position.z = std::lerp(vehicle->position.z, target.position.z, a);
+            via.position_tolerance = 0.5;
+            via.hold_time_sec = 0.01;
+            goal.waypoints.push_back(via);
+        }
+    }
     goal.waypoints.push_back(wp);
     goal.convergence_threshold = 0.1;
     return goal;

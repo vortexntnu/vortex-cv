@@ -7,7 +7,7 @@
   <BehaviorTree ID="Slalom">
     <Sequence>
       <Timeout msec="90000"><SetDepth z="{slalom_depth}"/></Timeout>
-      <Timeout msec="120000"><GoToFrame frame="prior_slalom" offset="{slalom_search}" position_tolerance="0.4"/></Timeout>
+      <Timeout msec="120000"><GoToFrame frame="prior_slalom" offset="{slalom_search}" position_tolerance="0.4" orientation_tolerance_deg="15"/></Timeout>
       <SubTree ID="SlalomRow" row_frame="{slalom_frame_0}" _autoremap="true"/>
       <SubTree ID="SlalomRow" row_frame="{slalom_frame_1}" _autoremap="true"/>
       <SubTree ID="SlalomRow" row_frame="{slalom_frame_2}" _autoremap="true"/>

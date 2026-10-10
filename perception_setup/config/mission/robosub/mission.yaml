@@ -27,7 +27,7 @@ slalom_bypass_out: "4.0;-4.0;0.6;0"
 
 torpedo_depth: 1.25
 torpedo_search: "-3.0;0;1.25;0"
-torpedo_standoff: "-1.5;0;0"
+torpedo_standoff: "1.5;0;0;180"
 # Which two openings are ours depends on the board version. These are the
 # Search & Rescue pair on version 1.
 torpedo_opening_1: torpedo_opening_large_left
@@ -42,6 +42,7 @@ bins_hover: "0;0;-1.0"
 
 octagon_search: "-3.0;0;0.6;0"
 octagon_hover: "0;0;-1.0"
+octagon_exit_depth: 1.0   # leave above the octagon frame
 surface_depth: 0.2
 
 # Time per task [ms]. A task that runs out is skipped.
