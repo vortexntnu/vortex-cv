@@ -100,12 +100,10 @@ and leave above the frame.
 
 ## Running
 
-See "Testing in the simulator" in the `vortex_bt_nodes` README. The last
-step starts your tree:
-
 ```bash
-ros2 launch perception_setup robosub_mission.launch.py config:=sim main_tree:=TestGate
+src/vortex-cv/perception_setup/scripts/tmux_robosub_sim.sh --tree TestGate
 ```
 
-The runner publishes the tree on port 1666 for Groot2 or the VS Code
-BehaviorTree Viewer.
+See "Testing in the simulator" in the `vortex_bt_nodes` README for the
+options. The runner publishes the tree on port 1666 for Groot2 or the VS
+Code BehaviorTree Viewer.

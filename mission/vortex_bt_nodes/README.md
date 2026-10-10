@@ -149,79 +149,63 @@ Every NavAction also has the ports `position_tolerance`,
 
 ## Testing in the simulator
 
-Run each block in its own terminal, from the workspace root, after
-`source install/setup.bash`. Start them in this order.
+One script starts everything in a tmux session. Run it from the workspace
+root:
 
-1. Simulator. With a GPU:
+```bash
+src/vortex-cv/perception_setup/scripts/tmux_robosub_sim.sh
+```
 
-   ```bash
-   ros2 launch stonefish_sim vortex_sim_launch.py scenario:=robosub mock_odom:=false \
-       keyboard_joy:=false robosub_icon_seed:=7 rendering_quality:=low \
-       window_res_x:=960 window_res_y:=540
-   ```
+That gives the simulator with the RoboSub course, the controller, the
+waypoint manager, exact detections with no noise, the landmark server, and
+the vehicle armed in autonomous mode. The command for your tree is typed in
+the `mission` window, press Enter to run it.
 
-   Without a GPU there is no window and no course to look at, but everything
-   else works the same:
+Common uses:
 
-   ```bash
-   ros2 launch stonefish_sim vortex_sim_launch.py scenario:=nautilus_no_gpu \
-       rendering:=false mock_odom:=false
-   ```
+```bash
+# Run a tree as soon as everything is up
+tmux_robosub_sim.sh --tree TestGate
 
-2. Controller and waypoint manager:
+# Detections like a real camera
+tmux_robosub_sim.sh --profile realistic --tree TestGate
 
-   ```bash
-   ros2 launch auv_setup dp_quat.launch.py
-   ros2 launch waypoint_manager waypoint_manager.launch.py
-   ```
+# Only some of the objects
+tmux_robosub_sim.sh --tasks gate,slalom
 
-3. Odometry. This stands in for the state estimator:
+# No GPU: no window, everything else the same
+tmux_robosub_sim.sh --no-gpu
+```
 
-   ```bash
-   ros2 run robosub_dummy_publisher sim_odom_relay_node --ros-args -r __ns:=/nautilus \
-       -p odom_in:=odom/stonefish -p odom_out:=odom -p pose_out:=pose -p twist_out:=twist
-   ```
+| Option | Default | |
+|---|---|---|
+| `--profile <name>` | `none` | Detection noise, see the table below |
+| `--tasks <list>` | all | Objects to publish: `gate`, `slalom`, `torpedo_board`, `bin`, `octagon`, `table` |
+| `--seed <n>` | 7 | Which role image is where, the same for simulator and detections |
+| `--tree <name>` | | Tree to run when everything is up |
+| `--no-start` | | Leave the killswitch on and the mode manual |
+| `--no-gpu` | | No rendering |
+| `--no-foxglove` | | Do not start the Foxglove bridge |
+| `--no-debug` | | No landmark markers or NIS |
+| `--domain-id <id>` | 0 | `ROS_DOMAIN_ID` |
 
-4. Detections. Use the same `seed` as `robosub_icon_seed` above:
+Windows: `sim` (simulator, controller, waypoint manager, odometry), `map`
+(detections, landmark server, start, Foxglove), `mission` (your tree and a
+free pane). Switch with `Ctrl-b` and the window number. Stop everything
+with `tmux kill-session -t robosub_sim`.
 
-   ```bash
-   ros2 launch robosub_dummy_publisher robosub_dummy_publisher.launch.py profile:=realistic seed:=7
-   ```
-
-5. Map:
-
-   ```bash
-   ros2 launch landmark_server landmark_server.launch.py env:=sim debug:=true
-   ```
-
-6. Killswitch off and autonomous mode:
-
-   ```bash
-   ros2 service call /nautilus/set_killswitch vortex_msgs/srv/SetKillswitch '{killswitch_on: false}'
-   ros2 service call /nautilus/set_operation_mode vortex_msgs/srv/SetOperationMode \
-       '{requested_operation_mode: {operation_mode: 1}}'
-   ```
-
-7. Your tree:
-
-   ```bash
-   ros2 launch perception_setup robosub_mission.launch.py config:=sim main_tree:=TestGate
-   ```
-
-`mock_odom:=false` matters. With it on, the simulator and the relay both
-publish `odom -> base_link` and the vehicle jumps between them.
+To run a part by hand, the commands are at the top of the script.
 
 ### Detection profiles
 
-| `profile:=` | Detections |
+| `--profile` | Detections |
 |---|---|
-| (none) | Perfect. Every object is published all the time, wherever the vehicle is |
+| `none` | Perfect. Every object is published all the time, wherever the vehicle is |
 | `realistic` | Only what the cameras could see. Good up close, noisy and unreliable far away |
 | `unstable` | Noisy with dropouts at every distance |
 | `erratic` | Worse than `unstable`, and gate posts get reported as slalom pipes |
 
-Start without a profile to check your logic, then use `realistic`. Use
-`tasks:=gate,slalom` to publish only some of the objects.
+Start without a profile to check your logic, then use `realistic`.
 
 ### Checking that it runs
 
@@ -231,14 +215,14 @@ ros2 run tf2_ros tf2_echo nautilus/odom nautilus/prior_gate  # a target frame
 ros2 run tf2_ros tf2_echo nautilus/odom nautilus/base_link   # the vehicle
 ```
 
-To look at it, start `ros2 launch foxglove_bridge foxglove_bridge_launch.xml`
-and open the layout in
+To look at it, connect Foxglove to `ws://localhost:8765` and open the layout
+in
 `vortex-auv/mission/landmark_server/foxglove/landmark_server.json`. The
 running tree shows in Groot2 or the VS Code BehaviorTree Viewer on port 1666.
 
 ### Between runs
 
-Restart the simulator, or drive the vehicle back and reset the map:
+Run the script again, or drive the vehicle back and reset the map:
 
 ```bash
 ros2 topic pub --once /nautilus/mission/wipe std_msgs/msg/Empty
