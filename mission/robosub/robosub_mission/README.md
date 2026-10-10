@@ -3,9 +3,8 @@
 Runner and trees for RoboSub. The nodes are in `vortex_bt_nodes`, the map is
 `landmark_server` in vortex-auv.
 
-The task trees are not written yet. `trees/root.xml` is an empty skeleton.
-This README gives the plan and hints. Trees built this way have passed gate,
-slalom and torpedo in the simulator.
+`trees/root.xml` is an empty skeleton. This README gives the plan for the
+task trees and hints for writing them.
 
 ## Files
 
@@ -79,13 +78,14 @@ and leave above the frame.
 
 **Return home**: back through our gate opening, then to `start`.
 
-## Things that went wrong in testing
+## Things to watch out for
 
-- One long move flipped the vehicle. Keep moves short or split them.
-- An offset with the wrong sign put the search point behind the torpedo
-  board, and the vehicle drove through it.
-- Driving at the octagon frame's depth hit the frame.
-- Moves without a heading tolerance waited a long time to converge.
+- One long move can saturate the thrusters and flip the vehicle. Keep moves
+  short or split them.
+- An offset with the wrong sign puts a search point behind the object
+  instead of in front of it.
+- Check the depth of everything around the octagon before driving in.
+- A move without a heading tolerance can take a long time to converge.
 
 ## Running
 

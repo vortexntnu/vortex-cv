@@ -3,9 +3,8 @@
 BehaviorTree.CPP v4 nodes for the missions. The trees and the runner are in
 `robosub_mission`.
 
-The nodes are not written yet. This README lists what is needed and gives
-hints. A version of every node here has been run through gate, slalom and
-torpedo in the simulator, so the design works.
+This README lists the nodes that are needed and gives hints for writing
+them.
 
 ## What is already here
 
@@ -67,13 +66,13 @@ Hints:
 - Close to an object the detections get worse. Decide when `GoToFrame`
   should stop updating its goal.
 - An offset is in the frame's own axes. Check which way the frame's X points
-  before choosing the sign. Getting this wrong sent the vehicle through the
-  torpedo board in testing.
+  before choosing the sign. A wrong sign puts the goal on the other side of
+  the object.
 - One long move can saturate the thrusters and flip the vehicle. Split long
   moves into waypoints a couple of metres apart.
-- `CommitTarget` and `GoToPose` exist because the camera cannot see the
-  slalom pipes while passing between them. Think about what should happen
-  to the target in that moment.
+- `CommitTarget` and `GoToPose` are for moments like the slalom, where the
+  camera cannot see the pipes while passing between them. Think about what
+  should happen to the target then.
 
 ### mission
 
