@@ -19,6 +19,7 @@ Mission:
 
 Simulator:
   --no-gpu             No rendering, no course to look at.
+  --keyboard-joy       Drive with the keyboard from the simulator window.
   --no-foxglove        Do not start the Foxglove bridge.
   --no-debug           Do not publish landmark markers and NIS.
 
@@ -37,6 +38,7 @@ SEED="7"
 TREE=""
 START="true"
 GPU="true"
+KEYBOARD_JOY="false"
 FOXGLOVE="true"
 DEBUG="true"
 DOMAIN_ID="0"
@@ -50,6 +52,7 @@ while [[ $# -gt 0 ]]; do
         --tree)        TREE="$2"; shift 2 ;;
         --no-start)    START="false"; shift ;;
         --no-gpu)      GPU="false"; shift ;;
+        --keyboard-joy) KEYBOARD_JOY="true"; shift ;;
         --no-foxglove) FOXGLOVE="false"; shift ;;
         --no-debug)    DEBUG="false"; shift ;;
         --domain-id)   DOMAIN_ID="$2"; shift 2 ;;
@@ -72,7 +75,7 @@ else
     SIM_ARGS="scenario:=nautilus_no_gpu rendering:=false"
 fi
 # mock_odom:=false: the relay below is the only publisher of odom -> base_link.
-SIM_CMD="ros2 launch stonefish_sim vortex_sim_launch.py $SIM_ARGS mock_odom:=false keyboard_joy:=false"
+SIM_CMD="ros2 launch stonefish_sim vortex_sim_launch.py $SIM_ARGS mock_odom:=false keyboard_joy:=$KEYBOARD_JOY"
 
 RELAY_CMD="ros2 run robosub_dummy_publisher sim_odom_relay_node --ros-args -r __ns:=/nautilus -p odom_in:=odom/stonefish -p odom_out:=odom -p pose_out:=pose -p twist_out:=twist"
 
