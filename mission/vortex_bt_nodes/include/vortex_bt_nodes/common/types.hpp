@@ -27,7 +27,6 @@ using Pose = geometry_msgs::msg::Pose;
 using PoseList = std::vector<Pose>;
 using IdList = std::vector<int>;
 using LandmarkTrack = vortex_msgs::msg::LandmarkTrack;
-using LandmarkMap = vortex_msgs::msg::LandmarkTrackArray;
 
 struct MissionClock {
     rclcpp::Time start;

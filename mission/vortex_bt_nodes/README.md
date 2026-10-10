@@ -7,7 +7,7 @@ BehaviorTree.CPP v4 nodes for Vortex missions, set up like
 include/vortex_bt_nodes/
   common/nav_action.hpp    base for nodes that move the vehicle
   common/types.hpp         Pose types and how they are written in XML
-  map/landmark_cache.hpp   latest map and TF lookups, shared by the map nodes
+  map/landmark_map.hpp   latest map and TF lookups, shared by the map nodes
   <area>/                  one header per node + register.hpp
 src/<area>/                one source per node + register.cpp
 test/bt_test_utils.hpp     test fixture + fake waypoint_manager
@@ -18,7 +18,7 @@ Areas: `motion`, `map`, `mission`, `actuators`.
 
 ## Rules
 
-- A node only depends on `common/` and `LandmarkCache`. If your node reads a
+- A node only depends on `common/` and `LandmarkMap`. If your node reads a
   key another person's node writes, set that key by hand in your test.
 - A node is a header, a source file, a test and one line in
   `src/<area>/register.cpp`. Use snake_case file names and namespace
@@ -121,7 +121,7 @@ Hints:
 | Turn | map | nav | `yaw_deg` or `relative_deg` | Turns to a heading in the map frame, or by an angle from the current heading |
 
 Hints:
-- `LandmarkCache` has what you need: `resolve()`, `confirmed()`,
+- `LandmarkMap` has what you need: `resolve()`, `confirmed()`,
   `lookup()`, `vehicle_in_odom()`.
 - A heading in the map frame is not the same heading in `odom`.
 
@@ -150,7 +150,7 @@ Every NavAction also has the ports `position_tolerance`,
 - `test/test_nav_action.cpp` shows how a node is tested with the fake
   waypoint_manager.
 - A landmark is named by `id`, or by `type` + `subtype`.
-  `LandmarkCache::ports()` and `resolve()` handle this for you.
+  `LandmarkMap::ports()` and `resolve()` handle this for you.
 - Interfaces (under `/nautilus`): action `waypoint_manager`,
   `landmark_server/landmarks` and its TF frames, `get_operation_mode`,
   TF `odom -> base_link`. The `landmark_server` README describes the map.

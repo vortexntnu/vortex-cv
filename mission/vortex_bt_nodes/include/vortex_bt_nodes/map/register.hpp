@@ -6,7 +6,7 @@
 
 namespace vortex_bt_nodes::map {
 
-/** @brief The landmark nodes share one LandmarkCache. */
+/** @brief The landmark nodes share one LandmarkMap. */
 void register_nodes(BT::BehaviorTreeFactory& factory,
                     const rclcpp::Node::SharedPtr& node);
 

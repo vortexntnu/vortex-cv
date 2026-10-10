@@ -1,5 +1,5 @@
-#ifndef VORTEX_BT_NODES__MAP__LANDMARK_CACHE_HPP_
-#define VORTEX_BT_NODES__MAP__LANDMARK_CACHE_HPP_
+#ifndef VORTEX_BT_NODES__MAP__LANDMARK_MAP_HPP_
+#define VORTEX_BT_NODES__MAP__LANDMARK_MAP_HPP_
 
 #include <behaviortree_cpp/tree_node.h>
 #include <tf2/exceptions.h>
@@ -39,9 +39,9 @@ struct LandmarkView {
  * @brief Latest map from landmark_server/landmarks plus TF, shared by the
  * landmark nodes of a tree. Nodes only read it.
  */
-class LandmarkCache {
+class LandmarkMap {
    public:
-    explicit LandmarkCache(
+    explicit LandmarkMap(
         const rclcpp::Node::SharedPtr& node,
         const std::string& topic = "landmark_server/landmarks")
         : tf_buffer_(std::make_shared<tf2_ros::Buffer>(node->get_clock())),
@@ -250,4 +250,4 @@ class LandmarkCache {
 
 }  // namespace vortex_bt_nodes::map
 
-#endif  // VORTEX_BT_NODES__MAP__LANDMARK_CACHE_HPP_
+#endif  // VORTEX_BT_NODES__MAP__LANDMARK_MAP_HPP_
