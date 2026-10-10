@@ -37,12 +37,14 @@ slalom_bypass_out: "4.0;-4.0;0.6;0"
 torpedo_depth: 1.25
 torpedo_search: "-3.0;0;1.25;0"
 torpedo_standoff: "-1.5;0;0"
-# The openings to shoot (landmark_server <icon>_opening frames) and, per
+# The openings to shoot (landmark_server torpedo_opening_<name> frames; which
+# two are ours depends on the board's decal version, these are version 1's
+# Search & Rescue pair) and, per
 # tube, where base_link holds to fire: in the opening frame (+X through the
 # board), so -x is the distance and y, z take out the tube's offset from
 # base_link. MEASURE the tubes.
-torpedo_opening_1: torpedo_icon_fire_opening
-torpedo_opening_2: torpedo_icon_firetruck_opening
+torpedo_opening_1: torpedo_opening_large_left
+torpedo_opening_2: torpedo_opening_small_top
 torpedo_aim_left: "-0.6;0;0"
 torpedo_aim_right: "-0.6;0;0"
 
