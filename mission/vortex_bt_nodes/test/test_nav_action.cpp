@@ -28,7 +28,6 @@ class GoToDepth : public NavAction {
         wp.pose.position.z = *depth;
         wp.waypoint_mode.mode = vortex_msgs::msg::WaypointMode::ONLY_Z;
         goal.waypoints.push_back(wp);
-        goal.convergence_threshold = 0.1;
         return goal;
     }
 };
