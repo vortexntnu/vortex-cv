@@ -116,7 +116,7 @@ All of it is off by default; `profile:=unstable` turns on a moderate set.
 | `false_positive_rate` / `false_positive_radius_m` | 0.1 / 2.0 | spurious detections per frame, a copy of a real class within the radius (id >= 1000) |
 | `noise_seed` | -1 | seed for all of the above; -1 draws a new one each run |
 
-`profile:=erratic` (or `--profile erratic` in `tmux_robosub_sim.sh`) is worse
+`profile:=erratic` is worse
 than `unstable` on every line above (detect 0.6, frame drop 0.1, occlusions
 0.1/s, outliers 0.05, false positives 0.3/frame) and adds **decoys**:
 `decoy_probability` (0.4) is the chance per frame that another course object

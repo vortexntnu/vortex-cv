@@ -147,6 +147,111 @@ Every NavAction also has the ports `position_tolerance`,
 - The vehicle approaches a goal slowly at the end. A tolerance of 0.1 m
   takes much longer to reach than 0.4 m, so only be strict where it matters.
 
+## Testing in the simulator
+
+Run each block in its own terminal, from the workspace root, after
+`source install/setup.bash`. Start them in this order.
+
+1. Simulator. With a GPU:
+
+   ```bash
+   ros2 launch stonefish_sim vortex_sim_launch.py scenario:=robosub mock_odom:=false \
+       keyboard_joy:=false robosub_icon_seed:=7 rendering_quality:=low \
+       window_res_x:=960 window_res_y:=540
+   ```
+
+   Without a GPU there is no window and no course to look at, but everything
+   else works the same:
+
+   ```bash
+   ros2 launch stonefish_sim vortex_sim_launch.py scenario:=nautilus_no_gpu \
+       rendering:=false mock_odom:=false
+   ```
+
+2. Controller and waypoint manager:
+
+   ```bash
+   ros2 launch auv_setup dp_quat.launch.py
+   ros2 launch waypoint_manager waypoint_manager.launch.py
+   ```
+
+3. Odometry. This stands in for the state estimator:
+
+   ```bash
+   ros2 run robosub_dummy_publisher sim_odom_relay_node --ros-args -r __ns:=/nautilus \
+       -p odom_in:=odom/stonefish -p odom_out:=odom -p pose_out:=pose -p twist_out:=twist
+   ```
+
+4. Detections. Use the same `seed` as `robosub_icon_seed` above:
+
+   ```bash
+   ros2 launch robosub_dummy_publisher robosub_dummy_publisher.launch.py profile:=realistic seed:=7
+   ```
+
+5. Map:
+
+   ```bash
+   ros2 launch landmark_server landmark_server.launch.py env:=sim debug:=true
+   ```
+
+6. Killswitch off and autonomous mode:
+
+   ```bash
+   ros2 service call /nautilus/set_killswitch vortex_msgs/srv/SetKillswitch '{killswitch_on: false}'
+   ros2 service call /nautilus/set_operation_mode vortex_msgs/srv/SetOperationMode \
+       '{requested_operation_mode: {operation_mode: 1}}'
+   ```
+
+7. Your tree:
+
+   ```bash
+   ros2 launch perception_setup robosub_mission.launch.py config:=sim main_tree:=TestGate
+   ```
+
+`mock_odom:=false` matters. With it on, the simulator and the relay both
+publish `odom -> base_link` and the vehicle jumps between them.
+
+### Detection profiles
+
+| `profile:=` | Detections |
+|---|---|
+| (none) | Perfect. Every object is published all the time, wherever the vehicle is |
+| `realistic` | Only what the cameras could see. Good up close, noisy and unreliable far away |
+| `unstable` | Noisy with dropouts at every distance |
+| `erratic` | Worse than `unstable`, and gate posts get reported as slalom pipes |
+
+Start without a profile to check your logic, then use `realistic`. Use
+`tasks:=gate,slalom` to publish only some of the objects.
+
+### Checking that it runs
+
+```bash
+ros2 topic echo --once /nautilus/landmark_server/landmarks   # the map
+ros2 run tf2_ros tf2_echo nautilus/odom nautilus/prior_gate  # a target frame
+ros2 run tf2_ros tf2_echo nautilus/odom nautilus/base_link   # the vehicle
+```
+
+To look at it, start `ros2 launch foxglove_bridge foxglove_bridge_launch.xml`
+and open the layout in
+`vortex-auv/mission/landmark_server/foxglove/landmark_server.json`. The
+running tree shows in Groot2 or the VS Code BehaviorTree Viewer on port 1666.
+
+### Between runs
+
+Restart the simulator, or drive the vehicle back and reset the map:
+
+```bash
+ros2 topic pub --once /nautilus/mission/wipe std_msgs/msg/Empty
+```
+
+### Without the simulator
+
+The node tests need no simulator:
+
+```bash
+colcon test --packages-select vortex_bt_nodes && colcon test-result --verbose
+```
+
 ## Good to know
 
 - XML formats (Pose, PoseList, type/subtype/mode names) are in the comment

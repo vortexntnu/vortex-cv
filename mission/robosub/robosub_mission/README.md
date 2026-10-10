@@ -100,16 +100,11 @@ and leave above the frame.
 
 ## Running
 
-```bash
-src/vortex-auv/utility_scripts/launch_drone_sim.sh --scenario robosub --low-res --keyboard-joy false --detach
-src/vortex-cv/perception_setup/scripts/tmux_robosub_sim.sh --tree TestGate
-```
-
-Before each run, put the vehicle at the start facing the course and reset
-the map:
+See "Testing in the simulator" in the `vortex_bt_nodes` README. The last
+step starts your tree:
 
 ```bash
-ros2 topic pub --once /nautilus/mission/wipe std_msgs/msg/Empty
+ros2 launch perception_setup robosub_mission.launch.py config:=sim main_tree:=TestGate
 ```
 
 The runner publishes the tree on port 1666 for Groot2 or the VS Code
