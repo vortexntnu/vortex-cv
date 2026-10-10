@@ -1,15 +1,25 @@
 """Simulator odometry as the state estimator gives it on the vehicle.
 
-The simulator publishes odometry in world_ned with child nautilus/odom and no
-TF. On the vehicle the estimator gives <drone>/odom -> <drone>/base_link,
-as a message and as TF. This node republishes the simulator's odometry that
-way (odom_out, TF), so landmark_slam and the behavior tree run in the
-simulator as on the vehicle. With odom_in a drifting odometry (the drift
-injector), pose_out also gives its pose for the controller.
+On the vehicle the state estimator gives <drone>/odom -> <drone>/base_link
+as a message (odom, and pose and twist for the controller) and as TF. This
+node is that estimator in the simulator: it republishes an odometry
+(odom_in: the simulator's, or a drifting one from the drift injector) as
+odom_out, pose_out, twist_out and TF.
+
+Run the simulator with mock_odom:=false when this node gives the standard
+names (odom, pose, twist): the simulator then publishes its truth as
+odom/stonefish, pose/stonefish and twist/stonefish and no TF. With
+mock_odom:=true the simulator publishes odom -> base_link itself, from the
+true pose: two publishers of one transform, and the vehicle flickers between
+its true and its drifted position.
 """
 
 import rclpy
-from geometry_msgs.msg import PoseWithCovarianceStamped, TransformStamped
+from geometry_msgs.msg import (
+    PoseWithCovarianceStamped,
+    TransformStamped,
+    TwistWithCovarianceStamped,
+)
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
@@ -22,6 +32,7 @@ class SimOdomRelayNode(Node):
         self.declare_parameter("odom_in", "odom")
         self.declare_parameter("odom_out", "odom_nav")
         self.declare_parameter("pose_out", "")
+        self.declare_parameter("twist_out", "")
         self.declare_parameter("odom_frame", "nautilus/odom")
         self.declare_parameter("base_frame", "nautilus/base_link")
         self._odom_frame = self.get_parameter("odom_frame").value
@@ -36,6 +47,14 @@ class SimOdomRelayNode(Node):
                 PoseWithCovarianceStamped, pose_out, qos_profile_sensor_data
             )
             if pose_out
+            else None
+        )
+        twist_out = self.get_parameter("twist_out").value
+        self._twist_pub = (
+            self.create_publisher(
+                TwistWithCovarianceStamped, twist_out, qos_profile_sensor_data
+            )
+            if twist_out
             else None
         )
         self.create_subscription(
@@ -65,6 +84,11 @@ class SimOdomRelayNode(Node):
             pose.header = msg.header
             pose.pose = msg.pose
             self._pose_pub.publish(pose)
+        if self._twist_pub:
+            twist = TwistWithCovarianceStamped()
+            twist.header = msg.header
+            twist.twist = msg.twist
+            self._twist_pub.publish(twist)
 
 
 def main():

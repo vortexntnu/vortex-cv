@@ -8,9 +8,9 @@
   map together. Do not use on the real vehicle.
 - sim_odom_relay_node: the simulator's odometry as the estimator gives it on
   the vehicle: `<drone>/odom -> <drone>/base_link` on `odom_nav` and in TF
-  (landmark_slam and the behavior tree use both).
+  (landmark_server and the behavior tree use both).
 - detections_markers_node: the raw detections on `landmarks` as small markers
-  that live 0.3 s, next to the steady map from landmark_slam.
+  that live 0.3 s, next to the steady map from landmark_server.
 """
 
 from auv_setup.launch_arg_common import (
