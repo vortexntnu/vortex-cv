@@ -80,7 +80,7 @@ Hints:
 | Node | Area | Kind | Ports | Does |
 |---|---|---|---|---|
 | FireTorpedo | actuators | stateful | `side` (left, right), `topic`, `settle_s` | Publishes `std_msgs/Int8` (0 left, 1 right), then waits `settle_s`. FAILURE on an unknown side |
-| GoToFrame | map | nav | `frame`, `offset`, `mode`, `resend_m`, `freeze_within_m`, `max_step_m` | Goes to a TF frame plus an offset in that frame, and follows the frame while it moves. FAILURE if the frame is not in TF at the start |
+| GoToFrame | map | nav | `frame`, `offset`, `tool_frame`, `mode`, `resend_m`, `freeze_within_m`, `max_step_m` | Goes to a TF frame plus an offset in that frame, and follows the frame while it moves. With `tool_frame` set, that frame is put on the target instead of `base_link`. FAILURE if a frame is not in TF at the start |
 
 Hints:
 - `GoToFrame` is the node every tree uses most, so do it early.
@@ -95,6 +95,10 @@ Hints:
   the object.
 - One long move can saturate the thrusters and flip the vehicle. Split moves
   longer than `max_step_m` into several waypoints.
+- `tool_frame` is for aiming: the torpedo tube should end up in front of
+  the opening, not the middle of the vehicle. Work out where `base_link`
+  has to be for that. The tubes and the dropper have no link in the robot
+  description yet, so they need to be added with measured positions.
 - The torpedo opening frames are yours too, see the `landmark_server`
   README.
 
