@@ -207,6 +207,9 @@ To run a part by hand, the commands are at the top of the script.
 
 Start without a profile to check your logic, then use `realistic`.
 
+The map only takes detections within 10 m of the vehicle, so even with
+`none` the far objects show up as you get closer.
+
 ### Checking that it runs
 
 ```bash
@@ -219,6 +222,20 @@ To look at it, connect Foxglove to `ws://localhost:8765` and open the layout
 in
 `vortex-auv/mission/landmark_server/foxglove/landmark_server.json`. The
 running tree shows in Groot2 or the VS Code BehaviorTree Viewer on port 1666.
+
+### After changing code
+
+The simulator can stay up. Rebuild, then run your tree again from the
+`mission` window:
+
+```bash
+colcon build --symlink-install --packages-select vortex_bt_nodes robosub_mission
+ros2 launch perception_setup robosub_mission.launch.py config:=sim main_tree:=TestGate
+```
+
+Trees and the mission config are read when the mission starts, so a change
+to an XML or yaml file needs no rebuild. `Can't find a tree with name`
+means the tree is not in `root.xml` or its file is not included there.
 
 ### Between runs
 
