@@ -18,6 +18,7 @@ Mission:
   --no-start           Leave the killswitch on and the mode manual.
 
 Simulator:
+  --drone <name>       Drone to simulate, e.g. orca (default: nautilus).
   --no-gpu             No rendering, no course to look at.
   --no-keyboard-joy    Do not start the keyboard joystick.
   --no-foxglove        Do not start the Foxglove bridge.
@@ -32,6 +33,7 @@ Stop everything with: tmux kill-session -t robosub_sim
 EOF
 }
 
+DRONE="nautilus"
 PROFILE="none"
 TASKS=""
 SEED="7"
@@ -46,6 +48,7 @@ ATTACH="true"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --drone)       DRONE="$2"; shift 2 ;;
         --profile)     PROFILE="$2"; shift 2 ;;
         --tasks)       TASKS="$2"; shift 2 ;;
         --seed)        SEED="$2"; shift 2 ;;
@@ -72,24 +75,32 @@ esac
 if [[ "$GPU" == "true" ]]; then
     SIM_ARGS="scenario:=robosub rendering_quality:=low window_res_x:=960 window_res_y:=540 robosub_icon_seed:=$SEED"
 else
-    SIM_ARGS="scenario:=nautilus_no_gpu rendering:=false"
+    SIM_ARGS="scenario:=${DRONE}_no_gpu rendering:=false"
 fi
 # mock_odom:=false: the relay below is the only publisher of odom -> base_link.
-SIM_CMD="ros2 launch stonefish_sim vortex_sim_launch.py $SIM_ARGS mock_odom:=false keyboard_joy:=$KEYBOARD_JOY"
+SIM_CMD="ros2 launch stonefish_sim vortex_sim_launch.py drone:=$DRONE $SIM_ARGS mock_odom:=false keyboard_joy:=$KEYBOARD_JOY"
 
-RELAY_CMD="ros2 run robosub_dummy_publisher sim_odom_relay_node --ros-args -r __ns:=/nautilus -p odom_in:=odom/stonefish -p odom_out:=odom -p pose_out:=pose -p twist_out:=twist"
+RELAY_CMD="ros2 run robosub_dummy_publisher sim_odom_relay_node --ros-args -r __ns:=/$DRONE -p odom_in:=odom/stonefish -p odom_out:=odom -p pose_out:=pose -p twist_out:=twist -p odom_frame:=$DRONE/odom -p base_frame:=$DRONE/base_link"
 
-DUMMY_CMD="ros2 launch robosub_dummy_publisher robosub_dummy_publisher.launch.py seed:=$SEED"
+# The quaternion controller where the drone has a tuning for it, otherwise the Euler one.
+if ls src/vortex-auv/control/dp_adapt_backs_controller_quat/config/adapt_params_${DRONE}_sim.yaml >/dev/null 2>&1; then
+    DP_LAUNCH="dp_quat.launch.py"
+else
+    DP_LAUNCH="dp.launch.py"
+fi
+DP_CMD="ros2 launch auv_setup $DP_LAUNCH drone:=$DRONE config_type:=sim"
+
+DUMMY_CMD="ros2 launch robosub_dummy_publisher robosub_dummy_publisher.launch.py drone:=$DRONE seed:=$SEED"
 [[ "$PROFILE" != "none" ]] && DUMMY_CMD+=" profile:=$PROFILE"
 [[ -n "$TASKS" ]]          && DUMMY_CMD+=" tasks:=$TASKS"
 
-SERVER_CMD="ros2 launch landmark_server landmark_server.launch.py env:=sim debug:=$DEBUG"
+SERVER_CMD="ros2 launch landmark_server landmark_server.launch.py drone:=$DRONE env:=sim debug:=$DEBUG"
 
 START_CMD="until ros2 service list | grep -q set_operation_mode; do sleep 2; done"
-START_CMD+=" && ros2 service call /nautilus/set_killswitch vortex_msgs/srv/SetKillswitch '{killswitch_on: false}'"
-START_CMD+=" && ros2 service call /nautilus/set_operation_mode vortex_msgs/srv/SetOperationMode '{requested_operation_mode: {operation_mode: 1}}'"
+START_CMD+=" && ros2 service call /$DRONE/set_killswitch vortex_msgs/srv/SetKillswitch '{killswitch_on: false}'"
+START_CMD+=" && ros2 service call /$DRONE/set_operation_mode vortex_msgs/srv/SetOperationMode '{requested_operation_mode: {operation_mode: 1}}'"
 
-MISSION_CMD="ros2 launch perception_setup robosub_mission.launch.py config:=sim main_tree:=${TREE:-Main}"
+MISSION_CMD="ros2 launch perception_setup robosub_mission.launch.py drone:=$DRONE config:=sim main_tree:=${TREE:-Main}"
 
 S="source install/setup.bash && export ROS_DOMAIN_ID=$DOMAIN_ID"
 SESSION="robosub_sim"
@@ -104,10 +115,10 @@ PANE_SIM=$(tmux list-panes -t "$SESSION:sim" -F '#{pane_id}')
 tmux send-keys -t "$PANE_SIM" "$S && $SIM_CMD" Enter
 
 PANE_DP=$(tmux split-window -h -t "$PANE_SIM" -P -F '#{pane_id}')
-tmux send-keys -t "$PANE_DP" "$S && sleep 15 && ros2 launch auv_setup dp_quat.launch.py" Enter
+tmux send-keys -t "$PANE_DP" "$S && sleep 15 && $DP_CMD" Enter
 
 PANE_WM=$(tmux split-window -v -t "$PANE_SIM" -P -F '#{pane_id}')
-tmux send-keys -t "$PANE_WM" "$S && sleep 15 && ros2 launch waypoint_manager waypoint_manager.launch.py" Enter
+tmux send-keys -t "$PANE_WM" "$S && sleep 15 && ros2 launch waypoint_manager waypoint_manager.launch.py drone:=$DRONE" Enter
 
 PANE_RELAY=$(tmux split-window -v -t "$PANE_DP" -P -F '#{pane_id}')
 tmux send-keys -t "$PANE_RELAY" "$S && sleep 15 && $RELAY_CMD" Enter

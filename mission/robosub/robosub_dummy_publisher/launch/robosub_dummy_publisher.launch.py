@@ -12,7 +12,7 @@ from launch_ros.actions import Node
 
 
 def launch_setup(context, *args, **kwargs):
-    _drone, namespace = resolve_drone_and_namespace(context)
+    drone, namespace = resolve_drone_and_namespace(context)
 
     default_config = os.path.join(
         get_package_share_directory("robosub_dummy_publisher"),
@@ -21,6 +21,7 @@ def launch_setup(context, *args, **kwargs):
     )
 
     overrides = {
+        "frame_id": f"{drone}/odom",
         "seed": LaunchConfiguration("seed").perform(context),
         "rate": float(LaunchConfiguration("rate").perform(context)),
     }
