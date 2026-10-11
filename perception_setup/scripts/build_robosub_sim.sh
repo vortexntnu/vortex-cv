@@ -59,9 +59,10 @@ SKIP=(behaviortree_cpp)
 source /opt/ros/humble/setup.bash
 export MAKEFLAGS="-j$JOBS"
 
+mapfile -t ALL < <(colcon list --names-only --packages-up-to "${PACKAGES[@]}" \
+    --packages-skip "${SKIP[@]}" 2>/dev/null)
+
 if $CLEAN; then
-    mapfile -t ALL < <(colcon list --names-only --packages-up-to "${PACKAGES[@]}" \
-        --packages-skip "${SKIP[@]}" 2>/dev/null)
     for pkg in "${ALL[@]}" perception_setup; do
         rm -rf "build/$pkg" "install/$pkg"
     done
@@ -71,7 +72,11 @@ colcon build --symlink-install --parallel-workers "$JOBS" \
     --packages-up-to "${PACKAGES[@]}" \
     --packages-skip "${SKIP[@]}" "$@" || exit 1
 
-# Built alone: its package.xml lists every mission package as a dependency.
-colcon build --symlink-install --packages-select perception_setup "$@" || exit 1
+# perception_setup lists every mission package as a dependency. Hide the ones
+# not built above so colcon does not ask for them.
+mapfile -t OTHERS < <(colcon list --names-only 2>/dev/null |
+    grep -vxF -e perception_setup "${ALL[@]/#/-e}")
+colcon build --symlink-install --packages-select perception_setup \
+    --packages-ignore "${OTHERS[@]}" "$@" || exit 1
 
 echo "Done. Run: source install/setup.bash"
