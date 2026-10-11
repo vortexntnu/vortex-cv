@@ -80,7 +80,7 @@ Hints:
 | Node | Area | Kind | Ports | Does |
 |---|---|---|---|---|
 | FireTorpedo | actuators | stateful | `side` (left, right), `topic`, `settle_s` | Publishes `std_msgs/Int8` (0 left, 1 right), then waits `settle_s`. FAILURE on an unknown side |
-| GoToFrame | map | nav | `frame`, `offset`, `tool_frame`, `mode`, `resend_m`, `freeze_within_m`, `max_step_m` | Goes to a TF frame plus an offset in that frame, and follows the frame while it moves. With `tool_frame` set, that frame is put on the target instead of `base_link`. FAILURE if a frame is not in TF at the start |
+| GoToFrame | map | nav | `frame`, `offset`, `tool_frame`, `mode`, `resend_m`, `dead_reckoning_threshold`, `max_step_m` | Goes to a TF frame plus an offset in that frame, and follows the frame while it moves. With `tool_frame` set, that frame is put on the target instead of `base_link`. FAILURE if a frame is not in TF at the start |
 
 Hints:
 - `GoToFrame` is the node every tree uses most, so do it early.
@@ -89,7 +89,7 @@ Hints:
   driving and send a new goal when it has moved more than `resend_m`.
   `NavAction::update_goal()` is made for this.
 - Close to an object the detections get worse. Stop updating the goal within
-  `freeze_within_m`.
+  `dead_reckoning_threshold`.
 - An offset is in the frame's own axes. Check which way the frame's X points
   before choosing the sign. A wrong sign puts the goal on the other side of
   the object.
