@@ -1,7 +1,7 @@
 # vortex_bt_nodes
 
-BehaviorTree.CPP v4 nodes for Vortex missions, set up like
-`vortex_yasmin_utils`. The trees and the runner are in `robosub_mission`.
+BehaviorTree.CPP v4 nodes for Vortex missions. The trees and the runner are
+in `robosub_mission`.
 
 ```
 include/vortex_bt_nodes/
@@ -10,23 +10,20 @@ include/vortex_bt_nodes/
   map/landmark_map.hpp   latest map and TF lookups, shared by the map nodes
   <area>/                  one header per node + register.hpp
 src/<area>/                one source per node + register.cpp
-test/bt_test_utils.hpp     test fixture + fake waypoint_manager
-test/test_<node>.cpp       one test per node
 ```
 
 Areas: `motion`, `map`, `mission`, `actuators`.
 
 ## Rules
 
-- A node only depends on `common/` and `LandmarkMap`. If your node reads a
-  key another person's node writes, set that key by hand in your test.
-- A node is a header, a source file, a test and one line in
+- A node only depends on `common/` and `LandmarkMap`.
+- A node is a header, a source file and one line in
   `src/<area>/register.cpp`. Use snake_case file names and namespace
   `vortex_bt_nodes::<area>`.
 - A node does one thing. Retries, timeouts and fallbacks go in the XML.
 - Log with spdlog: `spdlog::warn("[{}] ...", name());`
-- A node is done when its test passes and it is registered. The test covers
-  success and every failure case listed below.
+- A node is done when it is registered and handles success and every
+  failure case listed below.
 
 ## Who makes what
 
@@ -246,20 +243,10 @@ Run the script again, or drive the vehicle back and reset the map:
 ros2 topic pub --once /nautilus/mission/wipe std_msgs/msg/Empty
 ```
 
-### Without the simulator
-
-The node tests need no simulator:
-
-```bash
-colcon test --packages-select vortex_bt_nodes && colcon test-result --verbose
-```
-
 ## Good to know
 
 - XML formats (Pose, PoseList, type/subtype/mode names) are in the comment
   at the top of `common/types.hpp`, with the converters.
-- `test/test_nav_action.cpp` shows how a node is tested with the fake
-  waypoint_manager.
 - A landmark is named by `id`, or by `type` + `subtype`.
   `LandmarkMap::ports()` and `resolve()` handle this for you.
 - Interfaces (under `/nautilus`): action `waypoint_manager`,
