@@ -61,7 +61,9 @@ Rules:
 
 ## Hints per task
 
-**Setup**: load the config, wait for the start signal, dive.
+**Setup**: load the config, wait for the start signal, dive. After a coin
+flip the vehicle does not face the course. Heading 0 in the map is the
+course heading, so turn to it before looking for the gate.
 
 **Gate**: `landmark_server` publishes `<panel>_entrance` and `<panel>_exit`
 for each role panel. Find our panel, go to the entrance, then the exit.

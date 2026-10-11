@@ -25,6 +25,108 @@ Areas: `motion`, `map`, `mission`, `actuators`.
 - A node is done when it is registered and handles success and every
   failure case listed below.
 
+## How a node is built
+
+`Wait` in `mission/` is a finished node to copy from. It has the four parts
+every node has.
+
+### 1. Base class
+
+Pick it from what the node does:
+
+| Base | Use it when | You write |
+|---|---|---|
+| `BT::SyncActionNode` | It finishes at once | `tick()` |
+| `BT::StatefulActionNode` | It takes time | `onStart()`, `onRunning()`, `onHalted()` |
+| `NavAction` | It moves the vehicle | `make_goal()` |
+| `BT::ConditionNode` | It only checks something | `tick()` |
+
+The tree is ticked at 10 Hz from one thread, the same thread that spins ROS.
+A node that sleeps or waits in a loop stops every other node and every ROS
+callback. So `Wait` never sleeps. It writes down when it is done and answers
+RUNNING until then:
+
+| | Called | `Wait` does |
+|---|---|---|
+| `onStart()` | The first tick | Reads `seconds`, stores the end time, returns RUNNING |
+| `onRunning()` | Every tick after that, while it returned RUNNING | SUCCESS if the time has passed, otherwise RUNNING |
+| `onHalted()` | The tree stops the node before it is done | Nothing to stop |
+
+The next time the tree reaches the node it starts over with `onStart()`, so
+set every member there and do not rely on what the last run left behind.
+
+`onHalted()` is called when something above the node gives up on it, for
+example a `Timeout` that fires or a `Fallback` that moves on. A node that
+started something has to stop it there: cancel the goal, close the gripper
+command, stop the motor. Leave it out and the tree moves on while the
+vehicle keeps doing the old thing.
+
+### 2. Ports
+
+The inputs and outputs of the node, listed in `providedPorts()`. They are
+the only way it talks to the rest of the tree:
+
+```cpp
+BT::InputPort<double>("seconds", "Time to wait [s]"),               // required
+BT::InputPort<std::string>("level", "info", "info, warn or error"), // has a default
+BT::OutputPort<Pose>("pose"),
+```
+
+In XML a port is either a value or one blackboard key: `seconds="2.5"` or
+`seconds="{settle_s}"`. It cannot be a mix, `"Finished {task}"` is passed
+on as that exact text.
+
+### 3. The work
+
+Read ports with `getInput`, write them with `setOutput`:
+
+```cpp
+const auto seconds = getInput<double>("seconds");
+if (!seconds) {
+    spdlog::error("[{}] {}", name(), seconds.error());
+    return BT::NodeStatus::FAILURE;
+}
+```
+
+`getInput` fails when the port is missing or its blackboard key is not set.
+Return FAILURE then, and for values that make no sense. Do not throw, an
+exception stops the whole mission. A value of the wrong type written
+straight in the XML, like `seconds="abc"`, is caught when the tree loads.
+
+`Wait` needs the time, so it takes the ROS node as a third constructor
+argument and keeps it. Use `node_->now()` for time, it follows the simulator
+clock. A node with a subscriber, a service or an action client makes it in
+the constructor the same way. Its callback only stores what arrived, and
+`onRunning()` looks at it on the next tick.
+
+### 4. Registering
+
+One line in `src/<area>/register.cpp`. The string is the tag name in XML,
+`node` is the third constructor argument:
+
+```cpp
+factory.registerNodeType<Wait>("Wait", node);
+```
+
+### Using it
+
+```xml
+<Wait seconds="2.5"/>
+<Timeout msec="1000">
+  <Wait name="Settle" seconds="{settle_s}"/>
+</Timeout>
+```
+
+`name` is what shows in the log and in the tree viewer. It defaults to the
+tag name. The second `Wait` is halted by the `Timeout` if `settle_s` is
+more than one second.
+
+To try a node alone, put it in a small XML file and run it:
+
+```bash
+ros2 run robosub_mission robosub_mission --ros-args -p tree_file:=/path/to/my_test.xml
+```
+
 ## Who makes what
 
 Write your nodes in the order listed, then your target frames if you have
