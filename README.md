@@ -16,6 +16,14 @@ TODO: Write a setup guide
 export FASTRTPS_DEFAULT_PROFILES_FILE=/home/vortex/fastdds.xml
 ```
 
+## Parked packages
+
+`vortex_yasmin_utils` and the docking, pipeline and visual inspection state
+machines have a `COLCON_IGNORE` file, so colcon skips them. They use
+`convergence_threshold` and the landmark polling and convergence actions,
+which this branch no longer has. Delete the file in a package to build it
+again once it is ported.
+
 ## Using pre-commit
 
 This project uses [pre-commit](https://github.com/pre-commit/pre-commit) to manage automated checks.
