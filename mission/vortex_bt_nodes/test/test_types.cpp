@@ -45,10 +45,10 @@ TEST(TypesTest, Matches) {
     vbn::LandmarkTrack track;
     track.landmark.type.value = vortex_msgs::msg::LandmarkType::GATE;
     track.landmark.subtype.value =
-        vortex_msgs::msg::LandmarkSubtype::GATE_WHOLE;
+        vortex_msgs::msg::LandmarkSubtype::GATE_SEARCH_RESCUE;
     EXPECT_TRUE(vbn::matches(track, vortex_msgs::msg::LandmarkType::GATE, -1));
     EXPECT_TRUE(vbn::matches(track, vortex_msgs::msg::LandmarkType::GATE,
-                             vortex_msgs::msg::LandmarkSubtype::GATE_WHOLE));
+                             vortex_msgs::msg::LandmarkSubtype::GATE_SEARCH_RESCUE));
     EXPECT_FALSE(vbn::matches(track, vortex_msgs::msg::LandmarkType::BIN, -1));
 }
 
