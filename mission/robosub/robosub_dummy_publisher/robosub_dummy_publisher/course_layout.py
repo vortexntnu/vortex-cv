@@ -90,34 +90,11 @@ _BIN_ROLE_SUBTYPE = {
 def _gate_landmarks(role_picks: dict) -> tuple[Landmark, ...]:
     # Role panels, from the gate icon meshes.
     slots = (("gate_1", (-0.023, 0.788, -0.445)), ("gate_2", (-0.023, -0.771, -0.445)))
-    landmarks = [
-        Landmark("gate", LandmarkType.GATE, LandmarkSubtype.GATE_WHOLE, (0.0, 0.0, 0.0))
-    ]
+    landmarks = []
     for slot, offset in slots:
         role = role_picks.get(slot)
         subtype = _GATE_ROLE_SUBTYPE.get(role, LandmarkSubtype.GATE_SEARCH_RESCUE)
         landmarks.append(Landmark(slot, LandmarkType.GATE, subtype, offset))
-    # Centres of the two outer posts and the short middle post.
-    landmarks += [
-        Landmark(
-            "gate_pole_left",
-            LandmarkType.GATE,
-            LandmarkSubtype.GATE_POLE_EDGE,
-            (0.0, -1.552, 0.032),
-        ),
-        Landmark(
-            "gate_pole_right",
-            LandmarkType.GATE,
-            LandmarkSubtype.GATE_POLE_EDGE,
-            (0.0, 1.546, 0.032),
-        ),
-        Landmark(
-            "gate_pole_middle",
-            LandmarkType.GATE,
-            LandmarkSubtype.GATE_POLE_MIDDLE,
-            (-0.015, -0.002, -0.258),
-        ),
-    ]
     return tuple(landmarks)
 
 
