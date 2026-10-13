@@ -16,5 +16,5 @@ image_mean: [0.0, 0.0, 0.0]
 image_stddev: [1.0, 1.0, 1.0]
 
 # Classification Decoder
-confidence_threshold: 0.25
+confidence_threshold: 0.60
 num_classes: 2

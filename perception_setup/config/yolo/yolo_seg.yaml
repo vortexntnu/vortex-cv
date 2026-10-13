@@ -20,7 +20,7 @@ image_stddev: [1.0, 1.0, 1.0]
 
 # Segmentation Decoder
 # NMS is embedded in the model export - only confidence filtering is applied.
-confidence_threshold: 0.25
+confidence_threshold: 0.60
 # Must match the inner-batch dim of output0 [1, num_detections, 38]
 num_detections: 300
 # Prototype mask dimensions from output1 [1, num_protos, mask_height, mask_width]

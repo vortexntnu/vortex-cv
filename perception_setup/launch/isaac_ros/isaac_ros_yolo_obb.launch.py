@@ -296,7 +296,7 @@ def generate_launch_description():
                 'annotated_image_topic',
                 default_value='/yolo_obb/annotated_image',
             ),
-            DeclareLaunchArgument('confidence_threshold', default_value='0.25'),
+            DeclareLaunchArgument('confidence_threshold', default_value='0.60'),
             DeclareLaunchArgument(
                 'visualize',
                 default_value='true',

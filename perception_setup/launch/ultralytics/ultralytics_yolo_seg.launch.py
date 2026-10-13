@@ -171,7 +171,7 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 'confidence_threshold',
-                default_value='0.3',
+                default_value='0.60',
             ),
             DeclareLaunchArgument(
                 'iou',

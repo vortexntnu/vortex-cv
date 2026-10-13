@@ -17,6 +17,6 @@ image_stddev: [1.0, 1.0, 1.0]
 
 # OBB Decoder
 # NMS is embedded in the model export - only confidence filtering is applied here.
-confidence_threshold: 0.25
+confidence_threshold: 0.60
 # Must match the inner-batch dim of the output tensor [1, num_detections, 7]
 num_detections: 300
