@@ -39,6 +39,7 @@ torpedo_aim_right: "-0.6;0;0"
 bins_search_depth: 1.0
 bins_search: "-2.5;0;1.0;0"
 bins_hover: "0;0;-1.0"
+bins_frame: bin_survey_repair   # our role's bin, seen by the down camera
 
 octagon_search: "-3.0;0;0.6;0"
 octagon_hover: "0;0;-1.0"

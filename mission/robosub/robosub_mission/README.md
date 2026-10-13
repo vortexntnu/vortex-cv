@@ -82,7 +82,9 @@ offsets.
 
 **Bins**: the front camera sees the rig and bins without a role. The role
 only shows from above, through the down camera. So: find the rig, go above
-it, wait for our role's bin, go above that bin, drop.
+it, wait for our role's bin, go above that bin, drop. The rig is the frame
+`bin_structure` and our bin is `{bins_frame}` from the mission config. Both
+come straight from `landmark_server`, so bins needs no target frame.
 
 **Octagon**: find the table, come in under the octagon, surface inside it.
 In the simulator the octagon frame is at about 1.6 m depth with plates
