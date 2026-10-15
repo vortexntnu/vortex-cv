@@ -77,8 +77,7 @@ std::optional<Pose> GoToFrame::target_in_odom() const {
     return target;
 }
 
-std::optional<GoToFrame::Goal> GoToFrame::build_goal(
-    const Pose& target) const {
+std::optional<GoToFrame::Goal> GoToFrame::build_goal(const Pose& target) const {
     const auto mode_name = getInput<std::string>("mode");
     const auto mode = waypoint_mode_from_string(
         mode_name ? *mode_name : std::string("POSITION_AND_YAW"));
@@ -93,9 +92,8 @@ std::optional<GoToFrame::Goal> GoToFrame::build_goal(
     int steps = 1;
     if (max_step > 0.0 && vehicle) {
         steps = std::max(
-            1, static_cast<int>(
-                   std::ceil(distance(vehicle->position, target.position) /
-                             max_step)));
+            1, static_cast<int>(std::ceil(
+                   distance(vehicle->position, target.position) / max_step)));
     }
 
     Goal goal;
@@ -146,8 +144,8 @@ std::optional<GoToFrame::Goal> GoToFrame::update_goal() {
     const auto vehicle = map_->vehicle_in_odom();
     const double dead_reckoning =
         getInput<double>("dead_reckoning_threshold").value_or(1.0);
-    if (vehicle && distance(vehicle->position, last_target_.position) <
-                      dead_reckoning) {
+    if (vehicle &&
+        distance(vehicle->position, last_target_.position) < dead_reckoning) {
         frozen_ = true;
         spdlog::info("[{}] inside {} m of {}, holding the last target", name(),
                      dead_reckoning, map_->frame_name(*frame));
