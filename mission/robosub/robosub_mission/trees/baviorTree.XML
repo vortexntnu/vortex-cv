@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+
+<root BTCPP_format="4">
+
+    <BehaviorTree ID="MainTree">
+        <Sequence name="TestLoadMissionConfig">
+
+            <LoadMissionConfig path="perception_setup/config/mission/robosub/mission_sim.yaml"/>
+
+            <Wait seconds="{10.0}"/>
+
+            <AlwaysSuccess/>
+
+        </Sequence>
+    </BehaviorTree>
+
+    <TreeNodesModel>
+        <Action ID="LoadMissionConfig">
+            <input_port name="path" type="std::string"/>
+        </Action>
+
+        <Action ID="Wait">
+            <input_port name="seconds" type="double"/>
+        </Action>
+    </TreeNodesModel>
+
+</root>
