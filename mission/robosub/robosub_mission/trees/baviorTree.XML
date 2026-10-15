@@ -2,12 +2,12 @@
 
 <root BTCPP_format="4">
 
-    <BehaviorTree ID="MainTree">
+    <BehaviorTree ID="TestLoadMissionConfig">
         <Sequence name="TestLoadMissionConfig">
 
-            <LoadMissionConfig path="perception_setup/config/mission/robosub/mission_sim.yaml"/>
+            <LoadMissionConfig path="{mission_config}"/>
 
-            <Wait seconds="{10.0}"/>
+            <Wait seconds=10.0>
 
             <AlwaysSuccess/>
 
