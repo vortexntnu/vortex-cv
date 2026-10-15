@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<root BTCPP_format="4">
+  <BehaviorTree ID="TestAmelie">
+    <Sequence>
+      <Log message="Starting SetDepth test" level="info"/>
+
+      <SetDepth
+        z="1.0"
+        position_tolerance="0.4"
+        orientation_tolerance_deg="10.0"
+        hold_s="1.0"/>
+
+      <Log message="SetDepth succeeded" level="info"/>
+    </Sequence>
+  </BehaviorTree>
+</root>
