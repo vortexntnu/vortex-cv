@@ -10,6 +10,7 @@ namespace vortex_bt_nodes::map {
 namespace {
 
 constexpr char kBaseFrame[] = "base_link";
+constexpr double kRad2Deg = 180.0 / M_PI;
 
 double distance(const geometry_msgs::msg::Point& a,
                 const geometry_msgs::msg::Point& b) {
@@ -17,6 +18,15 @@ double distance(const geometry_msgs::msg::Point& a,
     const double dy = a.y - b.y;
     const double dz = a.z - b.z;
     return std::sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+double rotation_deg(const geometry_msgs::msg::Quaternion& a,
+                    const geometry_msgs::msg::Quaternion& b) {
+    tf2::Quaternion qa, qb;
+    tf2::fromMsg(a, qa);
+    tf2::fromMsg(b, qb);
+    const tf2::Quaternion e = qa.inverse() * qb;
+    return 2.0 * std::atan2(e.length(), std::abs(e.w())) * kRad2Deg;
 }
 
 }  // namespace
@@ -35,11 +45,14 @@ BT::PortsList GoToFrame::providedPorts() {
          BT::InputPort<std::string>("tool_frame", "",
                                     "Frame put on the target instead of "
                                     "base_link, empty = base_link"),
-         BT::InputPort<std::string>("mode", "POSITION_AND_YAW",
-                                    "WaypointMode name"),
+         BT::InputPort<std::string>("mode", "FULL_POSE", "WaypointMode name"),
          BT::InputPort<double>("resend_m", 0.1,
                                "[m] Send a new goal when the frame moved "
                                "further than this in odom"),
+         BT::InputPort<double>("resend_deg", 10,
+                               "[deg] Send a new goal when the frame rotated "
+                               "further than this in odom"),
+
          BT::InputPort<double>("dead_reckoning_threshold", 1.0,
                                "[m] Stop following the frame closer than "
                                "this and drive on the last target"),
@@ -77,11 +90,10 @@ std::optional<Pose> GoToFrame::target_in_odom() const {
     return target;
 }
 
-std::optional<GoToFrame::Goal> GoToFrame::build_goal(
-    const Pose& target) const {
+std::optional<GoToFrame::Goal> GoToFrame::build_goal(const Pose& target) const {
     const auto mode_name = getInput<std::string>("mode");
     const auto mode = waypoint_mode_from_string(
-        mode_name ? *mode_name : std::string("POSITION_AND_YAW"));
+        mode_name ? *mode_name : std::string("FULL_POSE"));
     if (!mode) {
         spdlog::error("[{}] unknown mode: {}", name(),
                       mode_name ? *mode_name : "");
@@ -93,14 +105,14 @@ std::optional<GoToFrame::Goal> GoToFrame::build_goal(
     int steps = 1;
     if (max_step > 0.0 && vehicle) {
         steps = std::max(
-            1, static_cast<int>(
-                   std::ceil(distance(vehicle->position, target.position) /
-                             max_step)));
+            1, static_cast<int>(std::ceil(
+                   distance(vehicle->position, target.position) / max_step)));
     }
 
     Goal goal;
     for (int i = 1; i <= steps; ++i) {
         Pose pose = target;
+        const bool last = (i == steps);
         if (vehicle && steps > 1) {
             const double t = static_cast<double>(i) / steps;
             pose.position.x = vehicle->position.x +
@@ -110,7 +122,10 @@ std::optional<GoToFrame::Goal> GoToFrame::build_goal(
             pose.position.z = vehicle->position.z +
                               t * (target.position.z - vehicle->position.z);
         }
-        goal.waypoints.push_back(make_waypoint(pose, mode->mode));
+        goal.waypoints.push_back(make_waypoint(
+            pose, last ? mode->mode
+                       : static_cast<std::uint8_t>(
+                             vortex_msgs::msg::WaypointMode::ONLY_POSITION)));
     }
     return goal;
 }
@@ -146,8 +161,13 @@ std::optional<GoToFrame::Goal> GoToFrame::update_goal() {
     const auto vehicle = map_->vehicle_in_odom();
     const double dead_reckoning =
         getInput<double>("dead_reckoning_threshold").value_or(1.0);
-    if (vehicle && distance(vehicle->position, last_target_.position) <
-                      dead_reckoning) {
+    // NOTE checks total rotation, not per level
+    const double resend_deg = getInput<double>("resend_deg").value_or(10);
+
+    if (vehicle &&
+        distance(vehicle->position, last_target_.position) < dead_reckoning &&
+        rotation_deg(vehicle->orientation, last_target_.orientation) <
+            resend_deg) {
         frozen_ = true;
         spdlog::info("[{}] inside {} m of {}, holding the last target", name(),
                      dead_reckoning, map_->frame_name(*frame));
@@ -166,7 +186,10 @@ std::optional<GoToFrame::Goal> GoToFrame::update_goal() {
     lost_ = false;
 
     const double resend_m = getInput<double>("resend_m").value_or(0.1);
-    if (distance(last_target_.position, target->position) < resend_m) {
+
+    if (distance(last_target_.position, target->position) < resend_m &&
+        rotation_deg(last_target_.orientation, target->orientation) <
+            resend_deg) {
         return std::nullopt;
     }
     last_target_ = *target;
