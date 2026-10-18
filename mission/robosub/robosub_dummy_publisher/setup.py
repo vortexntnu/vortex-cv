@@ -15,7 +15,6 @@ setup(
         ),
         ('share/robosub_dummy_publisher', ['package.xml']),
         ('share/robosub_dummy_publisher/launch', glob('launch/*.launch.py')),
-        ('share/robosub_dummy_publisher/config', glob('config/*.yaml')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -28,8 +27,6 @@ setup(
     license='MIT',
     entry_points={
         'console_scripts': [
-            'robosub_dummy_publisher_node = '
-            'robosub_dummy_publisher.robosub_dummy_publisher_node:main',
             'detections_markers_node = '
             'robosub_dummy_publisher.detections_markers_node:main',
             'sim_odom_relay_node = robosub_dummy_publisher.sim_odom_relay_node:main',

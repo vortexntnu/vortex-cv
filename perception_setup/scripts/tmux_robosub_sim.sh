@@ -6,11 +6,9 @@ usage() {
     cat <<EOF
 Usage: $(basename "$0") [OPTIONS]
 
-Detections:
-  --profile <name>     Detection noise: none, realistic, unstable, erratic (default: none).
-                       none = exact positions, every object always visible.
-  --tasks <list>       Objects to publish, e.g. gate,slalom (default: all).
-  --seed <n>           Role image seed, same for simulator and detections (default: 7).
+Course:
+  --seed <n>           Role image seed (default: 7). The simulator publishes the course
+                       landmarks itself, with roles that follow the same seed.
 
 Mission:
   --tree <name>        Tree to run when everything is up, e.g. TestGate.
@@ -34,8 +32,6 @@ EOF
 }
 
 DRONE="nautilus"
-PROFILE="none"
-TASKS=""
 SEED="7"
 TREE=""
 START="true"
@@ -49,8 +45,6 @@ ATTACH="true"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --drone)       DRONE="$2"; shift 2 ;;
-        --profile)     PROFILE="$2"; shift 2 ;;
-        --tasks)       TASKS="$2"; shift 2 ;;
         --seed)        SEED="$2"; shift 2 ;;
         --tree)        TREE="$2"; shift 2 ;;
         --no-start)    START="false"; shift ;;
@@ -64,11 +58,6 @@ while [[ $# -gt 0 ]]; do
         *) echo "Unknown argument: $1"; usage; exit 1 ;;
     esac
 done
-
-case "$PROFILE" in
-    none|realistic|unstable|erratic) ;;
-    *) echo "Unknown profile: $PROFILE"; usage; exit 1 ;;
-esac
 
 # --- Commands ---------------------------------------------------------------
 
@@ -89,10 +78,6 @@ else
     DP_LAUNCH="dp.launch.py"
 fi
 DP_CMD="ros2 launch auv_setup $DP_LAUNCH drone:=$DRONE config_type:=sim"
-
-DUMMY_CMD="ros2 launch robosub_dummy_publisher robosub_dummy_publisher.launch.py drone:=$DRONE seed:=$SEED"
-[[ "$PROFILE" != "none" ]] && DUMMY_CMD+=" profile:=$PROFILE"
-[[ -n "$TASKS" ]]          && DUMMY_CMD+=" tasks:=$TASKS"
 
 SERVER_CMD="ros2 launch landmark_server landmark_server.launch.py drone:=$DRONE env:=sim debug:=$DEBUG"
 
@@ -125,17 +110,15 @@ tmux send-keys -t "$PANE_RELAY" "$S && sleep 15 && $RELAY_CMD" Enter
 
 tmux select-layout -t "$SESSION:sim" tiled
 
-# --- Window 2: map (detections, landmark server, start, Foxglove) -----------
+# --- Window 2: map (landmark server, start, Foxglove) -------------------------
+# The landmarks come from the simulator (<landmark> tags in the robosub scene).
 
 tmux new-window -t "$SESSION" -n "map"
 
-PANE_DUMMY=$(tmux list-panes -t "$SESSION:map" -F '#{pane_id}')
-tmux send-keys -t "$PANE_DUMMY" "$S && sleep 20 && $DUMMY_CMD" Enter
-
-PANE_SERVER=$(tmux split-window -h -t "$PANE_DUMMY" -P -F '#{pane_id}')
+PANE_SERVER=$(tmux list-panes -t "$SESSION:map" -F '#{pane_id}')
 tmux send-keys -t "$PANE_SERVER" "$S && sleep 20 && $SERVER_CMD" Enter
 
-PANE_START=$(tmux split-window -v -t "$PANE_DUMMY" -P -F '#{pane_id}')
+PANE_START=$(tmux split-window -v -t "$PANE_SERVER" -P -F '#{pane_id}')
 if [[ "$START" == "true" ]]; then
     tmux send-keys -t "$PANE_START" "$S && $START_CMD" Enter
 else
