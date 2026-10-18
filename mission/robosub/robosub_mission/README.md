@@ -120,3 +120,29 @@ it matches the layout and the spawn.
 See "Testing in the simulator" in the `vortex_bt_nodes` README for the
 options. The runner publishes the tree on port 1666 for Groot2 or the VS
 Code BehaviorTree Viewer.
+
+### One tree alone, no simulator
+
+`main_tree` defaults to `Main`, and the runner reads it from the parameter,
+not from `main_tree_to_execute` in the XML. Pointing `tree_file` at a file
+whose tree is not called `Main` gives `Can't find a tree with name: Main`, so
+always pass both:
+
+```bash
+cd ~/code/ros2_ws
+source install/setup.bash
+ros2 run robosub_mission robosub_mission --ros-args \
+  -p tree_file:=src/vortex-cv/mission/robosub/robosub_mission/trees/test_fire_torpedo.xml \
+  -p main_tree:=TestFireTorpedo \
+  -p groot_port:=0
+```
+
+`tree_file` is relative to the directory you run from, or absolute. The trees
+are installed under `install/robosub_mission/share/robosub_mission/trees/`,
+but with `--symlink-install` those are symlinks back to `src/`, so editing an
+XML needs no rebuild either way.
+
+| Tree | What it covers |
+|---|---|
+| `TestFireTorpedo` | `FireTorpedo` ports and failure cases. Publishes only, so no simulator. See the comment in `trees/test_fire_torpedo.xml` |
+
