@@ -6,10 +6,6 @@ usage() {
     cat <<EOF
 Usage: $(basename "$0") [OPTIONS]
 
-Course:
-  --seed <n>           Role image seed (default: 7). The simulator publishes the course
-                       landmarks itself, with roles that follow the same seed.
-
 Mission:
   --tree <name>        Tree to run when everything is up, e.g. TestGate.
                        Without it the command is typed in the mission pane, press Enter to run.
@@ -32,7 +28,6 @@ EOF
 }
 
 DRONE="nautilus"
-SEED="7"
 TREE=""
 START="true"
 GPU="true"
@@ -45,7 +40,6 @@ ATTACH="true"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --drone)       DRONE="$2"; shift 2 ;;
-        --seed)        SEED="$2"; shift 2 ;;
         --tree)        TREE="$2"; shift 2 ;;
         --no-start)    START="false"; shift ;;
         --no-gpu)      GPU="false"; shift ;;
@@ -62,7 +56,7 @@ done
 # --- Commands ---------------------------------------------------------------
 
 if [[ "$GPU" == "true" ]]; then
-    SIM_ARGS="scenario:=robosub rendering_quality:=low window_res_x:=960 window_res_y:=540 robosub_icon_seed:=$SEED"
+    SIM_ARGS="scenario:=robosub rendering_quality:=low window_res_x:=960 window_res_y:=540"
 else
     SIM_ARGS="scenario:=${DRONE}_no_gpu rendering:=false"
 fi
