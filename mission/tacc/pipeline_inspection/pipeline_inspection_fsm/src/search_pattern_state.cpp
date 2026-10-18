@@ -57,13 +57,14 @@ SearchPatternState::build_search_goal(
         waypoint_msg.pose =
             vortex::utils::ros_conversions::to_pose_msg(wp.pose);
         waypoint_msg.waypoint_mode.mode = static_cast<uint8_t>(wp.mode);
+        waypoint_msg.position_tolerance = wp.position_tolerance;
+        waypoint_msg.orientation_tolerance = wp.orientation_tolerance;
         waypoint_msgs.push_back(waypoint_msg);
     }
 
     pipeline_inspection_fsm::WaypointManagerAction::Goal goal;
     goal.waypoints = waypoint_msgs;
     goal.persistent = false;
-    goal.convergence_threshold = waypoints.front().convergence_threshold;
 
     return goal;
 }

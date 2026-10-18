@@ -27,7 +27,6 @@ std::string StartWaypointManagerState::execute(
 
     pipeline_inspection_fsm::WaypointManagerAction::Goal goal;
     goal.persistent = true;
-    goal.convergence_threshold = 0.1;
 
     auto future = client_->async_send_goal(goal);
     if (future.wait_for(5s) != std::future_status::ready) {

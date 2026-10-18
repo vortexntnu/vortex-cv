@@ -28,11 +28,13 @@ pipeline_inspection_fsm::WaypointManagerAction::Goal ConvergeState::create_goal(
     vortex_msgs::msg::Waypoint wp;
     wp.pose = vortex::utils::ros_conversions::to_pose_msg(target_pose);
     wp.waypoint_mode.mode = static_cast<uint8_t>(convergence_goal_.mode);
+    // the landmark goal has one threshold, used for both like landmark_server
+    wp.position_tolerance = convergence_goal_.convergence_threshold;
+    wp.orientation_tolerance = convergence_goal_.convergence_threshold;
 
     pipeline_inspection_fsm::WaypointManagerAction::Goal goal;
     goal.waypoints = {wp};
     goal.persistent = false;
-    goal.convergence_threshold = convergence_goal_.convergence_threshold;
 
     return goal;
 }

@@ -20,11 +20,12 @@ WaypointManagerAction::Goal WaypointGoalState::create_goal(
     vortex_msgs::msg::Waypoint wp;
     wp.pose = vortex::utils::ros_conversions::to_pose_msg(waypoint_goal_.pose);
     wp.waypoint_mode.mode = static_cast<uint8_t>(waypoint_goal_.mode);
+    wp.position_tolerance = waypoint_goal_.position_tolerance;
+    wp.orientation_tolerance = waypoint_goal_.orientation_tolerance;
 
     WaypointManagerAction::Goal goal;
     goal.waypoints = {wp};
     goal.persistent = false;
-    goal.convergence_threshold = waypoint_goal_.convergence_threshold;
 
     return goal;
 }

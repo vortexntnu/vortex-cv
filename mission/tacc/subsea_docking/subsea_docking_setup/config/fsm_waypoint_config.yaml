@@ -4,4 +4,4 @@ initial_docking_guess:
     y: -5.0
     z: 0.0
   mode: 1
-  convergence_threshold: 0.5
+  position_tolerance: 0.5
