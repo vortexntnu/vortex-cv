@@ -1,18 +1,22 @@
-# Mission values for the Stonefish course. Same keys as mission.yaml.
+# Mission values for the simulated RoboSub course (Stonefish scenario robosub: the Unity
+# RoboSub2026 pool and course, 2.1 m deep). Same keys as mission.yaml.
 # Offsets are "x;y;z;yaw_deg" from the frame they are used with. For the
 # prior_<task> frames x is along the course and z is relative to the task's
-# depth.
+# depth. The prior_<task> frames come from landmark_server premap_sim.yaml.
+#
+# Unity course depths: gate opening 0.05-1.27 m (panels at 0.23), slalom pipes
+# centred at 1.2, torpedo board centre 1.45, bins ~1.66, table top 1.31, floor 2.1.
 
-travel_depth: 1.5
+travel_depth: 0.8
 
-gate_depth: 2.7
+gate_depth: 0.7
 gate_panel_subtype: GATE_SEARCH_RESCUE
 gate_search: "-3.0;0;0.4;0"
 gate_entrance_frame: gate_search_rescue_entrance
 gate_exit_frame: gate_search_rescue_exit
 
 # Pass on the same side of the red pipes as our half of the gate.
-slalom_depth: 2.6
+slalom_depth: 1.2
 slalom_search: "-4.5;0;0;0"
 slalom_frame_0: slalom_right_0
 slalom_frame_1: slalom_right_1
@@ -22,10 +26,10 @@ slalom_after: "1.0;0;0"     # the pass ends here
 slalom_blind: "2.0;0;0"     # used when a row is not found
 
 # Around the slalom, from prior_slalom.
-slalom_bypass_in: "-4.0;-4.0;-1.1;0"
-slalom_bypass_out: "4.0;-4.0;-1.1;0"
+slalom_bypass_in: "-4.0;-4.0;-0.4;0"
+slalom_bypass_out: "4.0;-4.0;-0.4;0"
 
-torpedo_depth: 2.5
+torpedo_depth: 1.45
 torpedo_search: "3.0;0;0;180"
 torpedo_standoff: "1.5;0;0;180"
 # Which two openings are ours depends on the board version. These are the
@@ -36,14 +40,14 @@ torpedo_opening_2: torpedo_opening_small_top
 torpedo_aim_left: "-0.6;0;0"
 torpedo_aim_right: "-0.6;0;0"
 
-bins_search_depth: 1.8
-bins_search: "-2.5;0;-1.35;0"
-bins_hover: "0;0;-1.3"
+bins_search_depth: 0.6
+bins_search: "-2.5;0;-1.1;0"
+bins_hover: "0;0;-1.0"
 bins_frame: bin_search_rescue   # our role's bin, seen by the down camera
 
-octagon_search: "-3.0;0;2.35;0"
+octagon_search: "-3.0;0;0.9;0"
 octagon_hover: "0;0;-0.4"
-octagon_exit_depth: 1.0   # leave above the octagon frame
+octagon_exit_depth: 0.6   # leave above the octagon frame
 surface_depth: 0.3
 
 # Time per task [ms]. A task that runs out is skipped.
