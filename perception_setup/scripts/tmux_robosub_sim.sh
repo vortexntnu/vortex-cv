@@ -13,6 +13,8 @@ Mission:
 
 Simulator:
   --drone <name>       Drone to simulate, e.g. orca (default: nautilus).
+  --spawn <name>       Start at a spawn point of the course, e.g. slalom, torpedo, bin, octagon
+                       (<spawn> tags of the scenario, placed in the simulator's editor).
   --no-gpu             No rendering, no course to look at.
   --no-keyboard-joy    Do not start the keyboard joystick.
   --no-foxglove        Do not start the Foxglove bridge.
@@ -28,6 +30,7 @@ EOF
 }
 
 DRONE="nautilus"
+SPAWN=""
 TREE=""
 START="true"
 GPU="true"
@@ -40,6 +43,7 @@ ATTACH="true"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --drone)       DRONE="$2"; shift 2 ;;
+        --spawn)       SPAWN="$2"; shift 2 ;;
         --tree)        TREE="$2"; shift 2 ;;
         --no-start)    START="false"; shift ;;
         --no-gpu)      GPU="false"; shift ;;
@@ -56,7 +60,7 @@ done
 # --- Commands ---------------------------------------------------------------
 
 if [[ "$GPU" == "true" ]]; then
-    SIM_ARGS="scenario:=robosub rendering_quality:=low window_res_x:=960 window_res_y:=540"
+    SIM_ARGS="scenario:=robosub rendering_quality:=low window_res_x:=960 window_res_y:=540${SPAWN:+ spawn:=$SPAWN}"
 else
     SIM_ARGS="scenario:=${DRONE}_no_gpu rendering:=false"
 fi
@@ -74,6 +78,10 @@ fi
 DP_CMD="ros2 launch auv_setup $DP_LAUNCH drone:=$DRONE config_type:=sim"
 
 SERVER_CMD="ros2 launch landmark_server landmark_server.launch.py drone:=$DRONE env:=sim debug:=$DEBUG"
+if [[ "$GPU" == "true" ]]; then
+    # The simulator writes the premap from the course (<prior> tags), in the frame of where the drone starts
+    SERVER_CMD+=" premap_file:=/tmp/${DRONE}_sim_premap.yaml"
+fi
 
 START_CMD="until ros2 service list | grep -q set_operation_mode; do sleep 2; done"
 START_CMD+=" && ros2 service call /$DRONE/set_killswitch vortex_msgs/srv/SetKillswitch '{killswitch_on: false}'"
