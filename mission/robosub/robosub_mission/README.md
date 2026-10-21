@@ -108,6 +108,13 @@ and leave above the frame.
 src/vortex-cv/perception_setup/scripts/tmux_robosub_sim.sh --tree TestGate
 ```
 
+To test a task without driving the whole course, start next to it with
+`--spawn slalom` (or `torpedo`, `bin`, `octagon`) together with its
+`Test<Task>` tree. The spawn points are `<spawn>` tags on the course objects,
+placed in the simulator's editor (Tab, select an object, "Add spawn point").
+The simulator writes the landmark server's premap from the `<prior>` tags, so
+it matches the layout and the spawn.
+
 See "Testing in the simulator" in the `vortex_bt_nodes` README for the
 options. The runner publishes the tree on port 1666 for Groot2 or the VS
 Code BehaviorTree Viewer.
