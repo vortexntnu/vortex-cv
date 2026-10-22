@@ -15,6 +15,7 @@ Simulator:
   --drone <name>       Drone to simulate, e.g. orca (default: nautilus).
   --spawn <name>       Start at a spawn point of the course, e.g. slalom, torpedo, bin, octagon
                        (<spawn> tags of the scenario, placed in the simulator's editor).
+  --res <WxH>          Render window size, e.g. 2880x1800 (default: 960x540).
   --no-gpu             No rendering, no course to look at.
   --no-keyboard-joy    Do not start the keyboard joystick.
   --no-foxglove        Do not start the Foxglove bridge.
@@ -31,6 +32,7 @@ EOF
 
 DRONE="nautilus"
 SPAWN=""
+RES="960x540"
 TREE=""
 START="true"
 GPU="true"
@@ -44,6 +46,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --drone)       DRONE="$2"; shift 2 ;;
         --spawn)       SPAWN="$2"; shift 2 ;;
+        --res)         RES="$2"; shift 2 ;;
         --tree)        TREE="$2"; shift 2 ;;
         --no-start)    START="false"; shift ;;
         --no-gpu)      GPU="false"; shift ;;
@@ -60,7 +63,7 @@ done
 # --- Commands ---------------------------------------------------------------
 
 if [[ "$GPU" == "true" ]]; then
-    SIM_ARGS="scenario:=robosub rendering_quality:=low window_res_x:=960 window_res_y:=540${SPAWN:+ spawn:=$SPAWN}"
+    SIM_ARGS="scenario:=robosub rendering_quality:=low window_res_x:=${RES%x*} window_res_y:=${RES#*x}${SPAWN:+ spawn:=$SPAWN}"
 else
     SIM_ARGS="scenario:=${DRONE}_no_gpu rendering:=false"
 fi
