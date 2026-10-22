@@ -5,6 +5,7 @@
 -->
 <root BTCPP_format="4" main_tree_to_execute="Main">
   <!-- <include path="gate.xml"/> -->
+  <include path="test_amelie.xml"/>
 
   <BehaviorTree ID="Main">
     <Sequence>
@@ -12,3 +13,4 @@
     </Sequence>
   </BehaviorTree>
 </root>
+
