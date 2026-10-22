@@ -198,8 +198,8 @@ Hints:
   the opening, not the middle of the vehicle. Work out where `base_link`
   has to be for that. The tubes and the dropper have no link in the robot
   description yet, so they need to be added with measured positions.
-- The torpedo opening frames are yours too, see the `landmark_server`
-  README.
+- The torpedo openings are landmarks with frames of their own
+  (`torpedo_opening_large_left`, `_large_right`, `_small_top`, `_small_bottom`).
 
 ### Karol
 
