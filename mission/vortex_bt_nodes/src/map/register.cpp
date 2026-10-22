@@ -9,10 +9,10 @@ namespace vortex_bt_nodes::map {
 void register_nodes(BT::BehaviorTreeFactory& factory,
                     const rclcpp::Node::SharedPtr& node) {
     // One map for all map nodes. Pass it to the nodes that need it.
-    [[maybe_unused]] const std::shared_ptr<const LandmarkMap> map =
+    const std::shared_ptr<const LandmarkMap> map =
         std::make_shared<LandmarkMap>(node);
 
-    factory.registerNodeType<LandmarkKnown>("landmark_known", map);
+    factory.registerNodeType<LandmarkKnown>("LandmarkKnown", map);
 }
 
 }  // namespace vortex_bt_nodes::map

@@ -11,13 +11,8 @@ BT::PortsList LandmarkKnown::providedPorts() {
 }
 
 BT::NodeStatus LandmarkKnown::tick() {
-    if (!map_) {
-        return BT::NodeStatus::FAILURE;
-    }
-
-    if (map_->resolve(*this).has_value()) {
-        return BT::NodeStatus::SUCCESS;
-    }
-    return BT::NodeStatus::FAILURE;
+    return map_->resolve(*this) ? BT::NodeStatus::SUCCESS
+                                : BT::NodeStatus::FAILURE;
 }
+
 }  // namespace vortex_bt_nodes::map
