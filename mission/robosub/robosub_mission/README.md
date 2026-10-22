@@ -74,9 +74,11 @@ not in `landmark_server` yet, see its README. Line up in front of the gap
 first. The pipes are out of view while you pass, so decide what the vehicle
 should steer on in that moment. Plan for a row that is never found.
 
-**Torpedo**: the board is one object, the openings are not. You need frames
-for the openings, see the `landmark_server` README. Stand off in front of
-the board first, then aim at each opening and hold still before firing.
+**Torpedo**: each opening (the centre of a red circle) is its own landmark,
+so the landmark server gives a frame per opening: `torpedo_opening_large_left`,
+`_large_right`, `_small_top` and `_small_bottom` (left and right as seen from
+in front of the board). Stand off in front of the board first, then aim at
+each opening and hold still before firing.
 Check which way `prior_torpedo` and `torpedo_board` point before choosing
 offsets.
 
