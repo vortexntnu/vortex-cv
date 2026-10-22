@@ -3,11 +3,8 @@
 namespace vortex_bt_nodes::map {
 LandmarkKnown::LandmarkKnown(const std::string& name,
                              const BT::NodeConfig& config,
-                             rclcpp::Node::SharedPtr node,
                              std::shared_ptr<const LandmarkMap> map)
-    : BT::ConditionNode(name, config),
-      node_(std::move(node)),
-      map_(std::move(map)) {}
+    : BT::ConditionNode(name, config), map_(std::move(map)) {}
 
 BT::PortsList LandmarkKnown::providedPorts() {
     return LandmarkMap::ports();

@@ -13,13 +13,11 @@ class LandmarkKnown : public BT::ConditionNode {
    public:
     LandmarkKnown(const std::string& name,
                   const BT::NodeConfig& config,
-                  rclcpp::Node::SharedPtr node,
                   std::shared_ptr<const LandmarkMap> map);
 
     static BT::PortsList providedPorts();
 
    private:
-    rclcpp::Node::SharedPtr node_;
     std::shared_ptr<const LandmarkMap> map_;
     BT::NodeStatus tick() override;
 };

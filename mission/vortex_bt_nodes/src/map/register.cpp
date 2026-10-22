@@ -12,7 +12,7 @@ void register_nodes(BT::BehaviorTreeFactory& factory,
     [[maybe_unused]] const std::shared_ptr<const LandmarkMap> map =
         std::make_shared<LandmarkMap>(node);
 
-    factory.registerNodeType<LandmarkKnown>("landmark_known", node, map);
+    factory.registerNodeType<LandmarkKnown>("landmark_known", map);
 }
 
 }  // namespace vortex_bt_nodes::map
