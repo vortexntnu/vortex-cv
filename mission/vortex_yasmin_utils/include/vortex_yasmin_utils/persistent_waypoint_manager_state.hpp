@@ -23,20 +23,16 @@ using WaypointManagerAction = vortex_msgs::action::WaypointManager;
  *
  * Outcomes: SUCCEED, ABORT.
  *
- * @param action_server_name    Name of the WaypointManager action server.
- * @param convergence_threshold Convergence threshold for the action server.
+ * @param action_server_name Name of the WaypointManager action server.
  */
 class PersistentWaypointManagerState
     : public yasmin_ros::ActionState<WaypointManagerAction> {
    public:
-    PersistentWaypointManagerState(const std::string& action_server_name,
-                                   double convergence_threshold = 0.1);
+    explicit PersistentWaypointManagerState(
+        const std::string& action_server_name);
 
     WaypointManagerAction::Goal create_goal(
         yasmin::Blackboard::SharedPtr blackboard);
-
-   private:
-    double convergence_threshold_;
 };
 
 }  // namespace vortex_yasmin_utils

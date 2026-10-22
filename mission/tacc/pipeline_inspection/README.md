@@ -68,7 +68,8 @@ search_waypoint_1:
   position: {x: 2.0, y: 0.0, z: 0.0}
   orientation: {roll: 0.0, pitch: 0.0, yaw: 0.0}
   mode: 0
-  convergence_threshold: 0.1
+  position_tolerance: 0.1          # [m]
+  orientation_tolerance_deg: 2.0   # [deg], optional, not checked if left out
 ```
 
 Add additional `search_waypoint_N` entries to extend the search area.

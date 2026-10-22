@@ -47,11 +47,12 @@ WaypointManagerAction::Goal LandmarkWaypointState::create_goal(
     wp.pose = vortex::utils::ros_conversions::to_pose_msg(target_pose);
     wp.waypoint_mode =
         vortex::utils::waypoints::waypoint_mode_to_ros(waypoint_goal_.mode);
+    wp.position_tolerance = waypoint_goal_.position_tolerance;
+    wp.orientation_tolerance = waypoint_goal_.orientation_tolerance;
 
     WaypointManagerAction::Goal goal;
     goal.waypoints = {wp};
     goal.persistent = false;
-    goal.convergence_threshold = waypoint_goal_.convergence_threshold;
 
     return goal;
 }
