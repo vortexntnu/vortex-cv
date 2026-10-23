@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "vortex_bt_nodes/map/go_to_frame_node.hpp"
+#include "vortex_bt_nodes/map/landmark_known.hpp"
 #include "vortex_bt_nodes/map/landmark_map.hpp"
 
 namespace vortex_bt_nodes::map {
@@ -10,9 +11,11 @@ namespace vortex_bt_nodes::map {
 void register_nodes(BT::BehaviorTreeFactory& factory,
                     const rclcpp::Node::SharedPtr& node) {
     // One map for all map nodes. Pass it to the nodes that need it.
-    const std::shared_ptr<LandmarkMap> map =
+    const std::shared_ptr<const LandmarkMap> map =
         std::make_shared<LandmarkMap>(node);
+
     factory.registerNodeType<GoToFrame>("GoToFrame", node, map);
+    factory.registerNodeType<LandmarkKnown>("LandmarkKnown", map);
 }
 
 }  // namespace vortex_bt_nodes::map
