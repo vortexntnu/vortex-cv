@@ -169,6 +169,13 @@ Hints:
 
 Hints:
 - For `Search`, one goal can hold several waypoints.
+  `ROTATE_STEPS` turns through 360 degrees in positive yaw steps; `SCAN_ARC`
+  first turns to `-arc_deg/2` from the initial heading, then sweeps to
+  `+arc_deg/2`. Every turn is at most `step_deg` (strictly between 0 and
+  180), including a shorter final step when needed. `pause_s` is required
+  and nonnegative; `arc_deg` is required only for `SCAN_ARC`, in (0, 360].
+  Searches hold their starting position in odom and fail if the vehicle TF
+  is unavailable or the inputs would produce more than 10000 waypoints.
 - `CommitTarget` and `GoToPose` are for moments like the slalom, where the
   camera cannot see the pipes while passing between them. Think about what
   should happen to the target then.
