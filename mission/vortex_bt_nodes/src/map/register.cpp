@@ -4,6 +4,7 @@
 
 #include "vortex_bt_nodes/map/landmark_confirmed.hpp"
 #include "vortex_bt_nodes/map/landmark_map.hpp"
+#include "vortex_bt_nodes/map/look_at_frame.hpp"
 
 namespace vortex_bt_nodes::map {
 
@@ -13,6 +14,7 @@ void register_nodes(BT::BehaviorTreeFactory& factory,
     const std::shared_ptr<const LandmarkMap> map =
         std::make_shared<LandmarkMap>(node);
     factory.registerNodeType<LandmarkConfirmed>("LandmarkConfirmed", map);
+    factory.registerNodeType<LookAtFrame>("LookAtFrame", node, map);
 }
 
 }  // namespace vortex_bt_nodes::map
