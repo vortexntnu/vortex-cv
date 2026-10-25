@@ -1,0 +1,35 @@
+slalom_pole_finder:
+  ros__parameters:
+    detections_topic: "/yolo/detections"
+    odom_topic: "/nautilus/odom"
+    positions_topic: "/slalom_pole_finder/poles_3d"
+    # LandmarkArray containing the tracked pole positions and IDs.
+    landmarks_topic: "/nautilus/landmarks"
+    # Reject boxes this close to the top, bottom, left, or right image edge.
+    edge_margin_px: 30.0
+    image_width: 1920
+    image_height: 1080
+    # Maximum 3D distance for reusing a pole ID across frames.
+    match_distance_m: 0.75
+
+    # Set these to the camera's calibrated intrinsic values, in pixels.
+    fx: 1396.808667
+    fy: 1396.808667
+    cx: 960.0
+    cy: 540.0
+    # Actual pole height in meters. Depth is estimated from the bounding-box
+    # diagonal and corrected using the camera and drone orientations.
+    object_height: 0.938215
+
+    # Forward-facing camera optical frame -> drone FRD frame (x forward,
+    # y right, z down). This rotation maps camera (x right, y down, z forward)
+    # to drone (x forward, y right, z down). Calibrate for the real mount.
+    # The odometry frame must also use positive-down z (NED) for the published
+    # pole z to be positive below the starting position.
+    camera.tx: 0.0
+    camera.ty: 0.0
+    camera.tz: 0.0
+    camera.qx: 0.5
+    camera.qy: 0.5
+    camera.qz: 0.5
+    camera.qw: 0.5
