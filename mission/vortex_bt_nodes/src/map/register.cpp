@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include "vortex_bt_nodes/map/commit_target.hpp"
 #include "vortex_bt_nodes/map/go_to_frame_node.hpp"
 #include "vortex_bt_nodes/map/landmark_known.hpp"
 #include "vortex_bt_nodes/map/landmark_map.hpp"
@@ -16,6 +17,7 @@ void register_nodes(BT::BehaviorTreeFactory& factory,
 
     factory.registerNodeType<GoToFrame>("GoToFrame", node, map);
     factory.registerNodeType<LandmarkKnown>("LandmarkKnown", map);
+    factory.registerNodeType<CommitTarget>("CommitTarget", node, map);
 }
 
 }  // namespace vortex_bt_nodes::map
