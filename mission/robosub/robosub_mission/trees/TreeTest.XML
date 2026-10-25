@@ -1,16 +1,14 @@
 <?xml version="1.0"?>
 
-<root BTCPP_format="4">
+<!--
 
+<?xml version="1.0"?>
+
+<root BTCPP_format="4">
     <BehaviorTree ID="TestLoadMissionConfig">
         <Sequence name="TestLoadMissionConfig">
-
             <LoadMissionConfig path="{mission_config}"/>
-
-            <Wait seconds=10.0>
-
-            <AlwaysSuccess/>
-
+            <ScriptCondition code="travel_depth == 1.5"/>        
         </Sequence>
     </BehaviorTree>
 
@@ -19,9 +17,15 @@
             <input_port name="path" type="std::string"/>
         </Action>
 
-        <Action ID="Wait">
-            <input_port name="seconds" type="double"/>
-        </Action>
+        <Condition ID="ScriptCondition">
+            <input_port name="code" type="string"/>
+        </Condition>
     </TreeNodesModel>
+</root>
+-->
 
+<root BTCPP_format="4">
+    <BehaviorTree ID="TestWaitForStart">
+        <WaitForStart service="get_operation_mode"/>
+    </BehaviorTree>
 </root>

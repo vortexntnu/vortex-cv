@@ -16,7 +16,6 @@ namespace vortex_bt_nodes::mission{
 
         private: 
         BT::NodeStatus tick() override; 
-        rclcpp::Node::SharedPtr node_;
 
 
     };
