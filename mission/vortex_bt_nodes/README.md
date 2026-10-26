@@ -198,8 +198,8 @@ Hints:
   the opening, not the middle of the vehicle. Work out where `base_link`
   has to be for that. The tubes and the dropper have no link in the robot
   description yet, so they need to be added with measured positions.
-- The torpedo opening frames are yours too, see the `landmark_server`
-  README.
+- The torpedo openings are landmarks with frames of their own
+  (`torpedo_opening_large_left`, `_large_right`, `_small_top`, `_small_bottom`).
 
 ### Karol
 
@@ -256,8 +256,9 @@ src/vortex-cv/perception_setup/scripts/tmux_robosub_sim.sh
 ```
 
 That gives the simulator with the RoboSub course, the controller, the
-waypoint manager, exact detections with no noise, the landmark server, and
-the vehicle armed in autonomous mode. The command for your tree is typed in
+waypoint manager, the landmark server, and the vehicle armed in autonomous
+mode. The simulator publishes the course landmarks itself (exact, no noise by
+default). The command for your tree is typed in
 the `mission` window, press Enter to run it.
 
 Common uses:
@@ -266,21 +267,12 @@ Common uses:
 # Run a tree as soon as everything is up
 tmux_robosub_sim.sh --tree TestGate
 
-# Detections like a real camera
-tmux_robosub_sim.sh --profile realistic --tree TestGate
-
-# Only some of the objects
-tmux_robosub_sim.sh --tasks gate,slalom
-
 # No GPU: no window, everything else the same
 tmux_robosub_sim.sh --no-gpu
 ```
 
 | Option | Default | |
 |---|---|---|
-| `--profile <name>` | `none` | Detection noise, see the table below |
-| `--tasks <list>` | all | Objects to publish: `gate`, `slalom`, `torpedo_board`, `bin`, `octagon`, `table` |
-| `--seed <n>` | 7 | Which role image is where, the same for simulator and detections |
 | `--tree <name>` | | Tree to run when everything is up |
 | `--no-start` | | Leave the killswitch on and the mode manual |
 | `--no-gpu` | | No rendering |
@@ -290,7 +282,7 @@ tmux_robosub_sim.sh --no-gpu
 | `--domain-id <id>` | 0 | `ROS_DOMAIN_ID` |
 
 Windows: `sim` (simulator, controller, waypoint manager, odometry), `map`
-(detections, landmark server, start, Foxglove), `mission` (your tree and a
+(landmark server, start, Foxglove), `mission` (your tree and a
 free pane). Switch with `Ctrl-b` and the window number. Stop everything
 with `tmux kill-session -t robosub_sim`.
 
@@ -298,14 +290,19 @@ To run a part by hand, the commands are at the top of the script.
 
 ### Detection profiles
 
-| `--profile` | Detections |
+Pick the profile in the simulator window (the "Detection profile" dropdown,
+top right), or set `profile` in `<ros_landmarks>` in
+`vortex-stonefish-sim/stonefish_sim/scenarios/robosub.scn`. To leave objects
+out, untick "Publish this landmark" in the editor (Tab) and save.
+
+| Profile | Detections |
 |---|---|
 | `none` | Perfect. Every object is published all the time, wherever the vehicle is |
 | `realistic` | Only what the cameras could see. Good up close, noisy and unreliable far away |
 | `unstable` | Noisy with dropouts at every distance |
-| `erratic` | Worse than `unstable`, and gate posts get reported as slalom pipes |
+| `erratic` | Worse than `unstable` (gate posts are not reported as slalom pipes yet) |
 
-Start without a profile to check your logic, then use `realistic`.
+Start with `none` to check your logic, then use `realistic`.
 
 The map only takes detections within 10 m of the vehicle, so even with
 `none` the far objects show up as you get closer.

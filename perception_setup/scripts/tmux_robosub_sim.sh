@@ -6,12 +6,6 @@ usage() {
     cat <<EOF
 Usage: $(basename "$0") [OPTIONS]
 
-Detections:
-  --profile <name>     Detection noise: none, realistic, unstable, erratic (default: none).
-                       none = exact positions, every object always visible.
-  --tasks <list>       Objects to publish, e.g. gate,slalom (default: all).
-  --seed <n>           Role image seed, same for simulator and detections (default: 7).
-
 Mission:
   --tree <name>        Tree to run when everything is up, e.g. TestGate.
                        Without it the command is typed in the mission pane, press Enter to run.
@@ -19,6 +13,9 @@ Mission:
 
 Simulator:
   --drone <name>       Drone to simulate, e.g. orca (default: nautilus).
+  --spawn <name>       Start at a spawn point of the course, e.g. slalom, torpedo, bin, octagon
+                       (<spawn> tags of the scenario, placed in the simulator's editor).
+  --res <WxH>          Render window size, e.g. 2880x1800 (default: 960x540).
   --no-gpu             No rendering, no course to look at.
   --no-keyboard-joy    Do not start the keyboard joystick.
   --no-foxglove        Do not start the Foxglove bridge.
@@ -34,9 +31,8 @@ EOF
 }
 
 DRONE="nautilus"
-PROFILE="none"
-TASKS=""
-SEED="7"
+SPAWN=""
+RES="960x540"
 TREE=""
 START="true"
 GPU="true"
@@ -49,9 +45,8 @@ ATTACH="true"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --drone)       DRONE="$2"; shift 2 ;;
-        --profile)     PROFILE="$2"; shift 2 ;;
-        --tasks)       TASKS="$2"; shift 2 ;;
-        --seed)        SEED="$2"; shift 2 ;;
+        --spawn)       SPAWN="$2"; shift 2 ;;
+        --res)         RES="$2"; shift 2 ;;
         --tree)        TREE="$2"; shift 2 ;;
         --no-start)    START="false"; shift ;;
         --no-gpu)      GPU="false"; shift ;;
@@ -65,15 +60,10 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-case "$PROFILE" in
-    none|realistic|unstable|erratic) ;;
-    *) echo "Unknown profile: $PROFILE"; usage; exit 1 ;;
-esac
-
 # --- Commands ---------------------------------------------------------------
 
 if [[ "$GPU" == "true" ]]; then
-    SIM_ARGS="scenario:=robosub rendering_quality:=low window_res_x:=960 window_res_y:=540 robosub_icon_seed:=$SEED"
+    SIM_ARGS="scenario:=robosub rendering_quality:=low window_res_x:=${RES%x*} window_res_y:=${RES#*x}${SPAWN:+ spawn:=$SPAWN}"
 else
     SIM_ARGS="scenario:=${DRONE}_no_gpu rendering:=false"
 fi
@@ -90,11 +80,11 @@ else
 fi
 DP_CMD="ros2 launch auv_setup $DP_LAUNCH drone:=$DRONE config_type:=sim"
 
-DUMMY_CMD="ros2 launch robosub_dummy_publisher robosub_dummy_publisher.launch.py drone:=$DRONE seed:=$SEED"
-[[ "$PROFILE" != "none" ]] && DUMMY_CMD+=" profile:=$PROFILE"
-[[ -n "$TASKS" ]]          && DUMMY_CMD+=" tasks:=$TASKS"
-
 SERVER_CMD="ros2 launch landmark_server landmark_server.launch.py drone:=$DRONE env:=sim debug:=$DEBUG"
+if [[ "$GPU" == "true" ]]; then
+    # The simulator writes the premap from the course (<prior> tags), in the frame of where the drone starts
+    SERVER_CMD+=" premap_file:=/tmp/${DRONE}_sim_premap.yaml"
+fi
 
 START_CMD="until ros2 service list | grep -q set_operation_mode; do sleep 2; done"
 START_CMD+=" && ros2 service call /$DRONE/set_killswitch vortex_msgs/srv/SetKillswitch '{killswitch_on: false}'"
@@ -125,17 +115,15 @@ tmux send-keys -t "$PANE_RELAY" "$S && sleep 15 && $RELAY_CMD" Enter
 
 tmux select-layout -t "$SESSION:sim" tiled
 
-# --- Window 2: map (detections, landmark server, start, Foxglove) -----------
+# --- Window 2: map (landmark server, start, Foxglove) -------------------------
+# The landmarks come from the simulator (<landmark> tags in the robosub scene).
 
 tmux new-window -t "$SESSION" -n "map"
 
-PANE_DUMMY=$(tmux list-panes -t "$SESSION:map" -F '#{pane_id}')
-tmux send-keys -t "$PANE_DUMMY" "$S && sleep 20 && $DUMMY_CMD" Enter
-
-PANE_SERVER=$(tmux split-window -h -t "$PANE_DUMMY" -P -F '#{pane_id}')
+PANE_SERVER=$(tmux list-panes -t "$SESSION:map" -F '#{pane_id}')
 tmux send-keys -t "$PANE_SERVER" "$S && sleep 20 && $SERVER_CMD" Enter
 
-PANE_START=$(tmux split-window -v -t "$PANE_DUMMY" -P -F '#{pane_id}')
+PANE_START=$(tmux split-window -v -t "$PANE_SERVER" -P -F '#{pane_id}')
 if [[ "$START" == "true" ]]; then
     tmux send-keys -t "$PANE_START" "$S && $START_CMD" Enter
 else

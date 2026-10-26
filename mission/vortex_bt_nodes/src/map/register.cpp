@@ -3,6 +3,8 @@
 #include <memory>
 
 #include "vortex_bt_nodes/map/landmark_confirmed.hpp"
+#include "vortex_bt_nodes/map/go_to_frame_node.hpp"
+#include "vortex_bt_nodes/map/landmark_known.hpp"
 #include "vortex_bt_nodes/map/landmark_map.hpp"
 #include "vortex_bt_nodes/map/look_at_frame.hpp"
 #include "vortex_bt_nodes/map/turn.hpp"
@@ -17,6 +19,9 @@ void register_nodes(BT::BehaviorTreeFactory& factory,
     factory.registerNodeType<LandmarkConfirmed>("LandmarkConfirmed", map);
     factory.registerNodeType<LookAtFrame>("LookAtFrame", node, map);
     factory.registerNodeType<Turn>("Turn", node, map);
+
+    factory.registerNodeType<GoToFrame>("GoToFrame", node, map);
+    factory.registerNodeType<LandmarkKnown>("LandmarkKnown", map);
 }
 
 }  // namespace vortex_bt_nodes::map
