@@ -10,7 +10,7 @@
 namespace vortex_bt_nodes::map {
 
 /**
- * @brief SUCCESS if the landmark has been obmax_sigma_xyserved and its horizontal std
+ * @brief SUCCESS if the landmark has been max_sigma_xyobserved and its horizontal std
  * is below max_sigma_xy.
  */
 class LandmarkConfirmed : public BT::ConditionNode {
