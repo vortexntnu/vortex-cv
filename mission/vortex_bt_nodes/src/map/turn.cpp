@@ -36,13 +36,13 @@ std::optional<NavAction::Goal> Turn::make_goal() {
     double yaw = 0.0;
     if (yaw_deg) {
 
-        const auto map_in_odom =
-            map_->lookup(map_->odom_frame(), map_->frame_name("map"));
-        if (!map_in_odom) {
+        const auto goal_in_odom =
+            map_->map_to_odom(make_pose(0.0, 0.0, 0.0, *yaw_deg * M_PI / 180.0));
+        if (!goal_in_odom) {
             spdlog::warn("[{}] map is not in TF", name());
             return std::nullopt;
         }
-        yaw = *yaw_deg * M_PI / 180.0 + yaw_of(*map_in_odom);
+        yaw = yaw_of(*goal_in_odom);
     } else {
         const auto vehicle = map_->vehicle_in_odom();
         if (!vehicle) {
