@@ -1,0 +1,14 @@
+/**:
+  ros_parameters:
+    topic:
+      # Subscribing topics
+      mask_sub_topic: /eksempel_nummer/en
+      depth_camera_sub_topic: 
+      colour_camera_sub_topic:
+
+      # Publishing topics
+      board_pose_pub_topic: XXX/torpedo_board
+      small_search_rescue_pub_topic: XXX/torpedo_target_small_search_rescue
+      large_search_rescue_pub_topic: XXX/torpedo_target_large_search_rescue
+      small_survey_repair_pub_topic: XXX/torpedo_target_small_survey_repair
+      large_survey_repair_pub_topic: XXX/torpedo_target_large_survey_repair
