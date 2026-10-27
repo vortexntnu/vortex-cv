@@ -32,7 +32,6 @@ std::optional<NavAction::Goal> Turn::make_goal() {
         return std::nullopt;
     }
 
-    
     double yaw = 0.0;
     if (yaw_deg) {
 

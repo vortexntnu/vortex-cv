@@ -32,7 +32,6 @@ std::optional<NavAction::Goal> LookAtFrame::make_goal() {
         return std::nullopt;
     }
 
-
     const auto target =
         map_->lookup(map_->odom_frame(), map_->frame_name(*frame));
     if (!target) {
@@ -49,8 +48,8 @@ std::optional<NavAction::Goal> LookAtFrame::make_goal() {
     const double dx = target->position.x - vehicle->position.x;
     const double dy = target->position.y - vehicle->position.y;
     if (std::hypot(dx, dy) < kMinDistanceM) {
-        spdlog::warn("[{}] '{}' is straight above or below the vehicle",
-                     name(), *frame);
+        spdlog::warn("[{}] '{}' is straight above or below the vehicle", name(),
+                     *frame);
         return std::nullopt;
     }
 
