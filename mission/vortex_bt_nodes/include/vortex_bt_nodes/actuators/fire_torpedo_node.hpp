@@ -36,7 +36,7 @@ class FireTorpedo : public BT::StatefulActionNode {
 
     rclcpp::Node::SharedPtr node_;
     rclcpp::Client<Srv>::SharedPtr fire_torpedo_cli_;
-    std::shared_future<Srv::SharedPtr> future_;
+    std::shared_future<Srv::Response::SharedPtr> future_;
     std::optional<int64_t> req_ID_;
 };
 
