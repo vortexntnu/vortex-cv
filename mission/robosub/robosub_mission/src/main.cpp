@@ -1,4 +1,5 @@
 #include <behaviortree_cpp/bt_factory.h>
+#include <behaviortree_cpp/loggers/bt_cout_logger.h>
 #include <behaviortree_cpp/loggers/groot2_publisher.h>
 #include <spdlog/spdlog.h>
 #include <algorithm>
@@ -25,6 +26,8 @@ int main(int argc, char** argv) {
         node->declare_parameter<std::string>("mission_config", "");
     const double tick_rate_hz =
         node->declare_parameter<double>("tick_rate_hz", 10.0);
+    const bool log_transitions =
+        node->declare_parameter<bool>("log_transitions", false);
     const int groot_port =
         static_cast<int>(node->declare_parameter<int>("groot_port", 1666));
 
@@ -43,6 +46,11 @@ int main(int argc, char** argv) {
         spdlog::error("Could not load the tree: {}", e.what());
         rclcpp::shutdown();
         return 1;
+    }
+    // Every node's state change on stdout, for debugging.
+    std::unique_ptr<BT::StdCoutLogger> cout_logger;
+    if (log_transitions) {
+        cout_logger = std::make_unique<BT::StdCoutLogger>(tree);
     }
     // Groot2 or the VS Code BehaviorTree Viewer. 0 = off.
     std::unique_ptr<BT::Groot2Publisher> groot;
