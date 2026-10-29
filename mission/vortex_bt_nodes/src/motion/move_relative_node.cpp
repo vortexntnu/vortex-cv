@@ -1,74 +1,63 @@
-#ifndef _VORTEX_BT_NODES__MOTION__MOVE_RELATIVE_
+#include "vortex_bt_nodes/motion/move_relative_node.hpp"
 
 #include <spdlog/spdlog.h>
+
 #include <optional>
-#include <vortex_bt_nodes/motion/move_relative_node.hpp>
+#include <string>
 
 namespace vortex_bt_nodes::motion {
 
+namespace {
+
+constexpr char kFrameBody[] = "BODY";
+constexpr char kFrameWorld[] = "WORLD";
+constexpr char kModeDefault[] = "POSITION_AND_YAW";
+
+}  // namespace
+
 MoveRelative::MoveRelative(const std::string& name,
                            const BT::NodeConfig& config,
-                           const rclcpp::Node::SharedPtr& node,
-                           const std::shared_ptr<const map::LandmarkMap> map)
-    : NavAction(name, config, node), map_(map) {}
+                           rclcpp::Node::SharedPtr node)
+    : NavAction(name, config, std::move(node)) {}
 
 BT::PortsList MoveRelative::providedPorts() {
     return providedBasicPorts(
-        {BT::InputPort("offset", "0;0;0",
-                       "Move to offset relative to position"),
-         BT::InputPort("frame", "baselink", "Move relative to this frame"),
-         BT::InputPort("mode", "ONLY_POSITION", "Mode to move in")});
+        {BT::InputPort<Pose>("offset", "0;0;0",
+                             "Offset from the pose at start [m], yaw [deg]"),
+         BT::InputPort<std::string>("frame", kFrameBody,
+                                    "BODY = vehicle axes, WORLD = odom axes"),
+         BT::InputPort<std::string>("mode", kModeDefault,
+                                    "WaypointMode name")});
 }
 
-std::optional<Pose> MoveRelative::target_in_odom() const {
-    const auto frame = getInput<std::string>("frame");
+std::optional<MoveRelative::Goal> MoveRelative::make_goal() {
     const auto offset = getInput<Pose>("offset");
-    if (!frame || !offset) {
+    if (!offset) {
+        spdlog::error("[{}] {}", name(), offset.error());
         return std::nullopt;
     }
-    // The controller works in odom, so ask for the frame there and not in
-    // map: a frame fixed in map moves whenever the map corrects drift.
-    const auto frame_in_odom =
-        map_->lookup(map_->odom_frame(), map_->frame_name(*frame));
-    if (!frame_in_odom) {
-        return std::nullopt;
-    }
-    Pose target = LandmarkMap::compose(*frame_in_odom, *offset);
 
-    const auto tool = getInput<std::string>("tool_frame");
-    if (tool && !tool->empty()) {
-        // Put tool_frame on the target instead of base_link:
-        // T_odom_base = T_odom_tool * T_tool_base.
-        const auto base_in_tool =
-            map_->lookup(map_->frame_name(*tool), map_->frame_name(kBaseFrame));
-        if (!base_in_tool) {
-            return std::nullopt;
-        }
-        target = LandmarkMap::compose(target, *base_in_tool);
-    }
-    return target;
-}
-optional<NavAction::Goal> MoveRelative::make_goal() {
-    const auto frame = getInput<std::string>("frame");
-    if (!frame) {
-        spdlog::error("[{}] {}", name(), frame.error());
-        return std::nullopt;
-    }
-    if (frame != "BODY" || frame != "WORLD") {
-        spdlog::error("[{}] Only WORLD and BODY frame allowed, not ", name(),
+    const std::string frame =
+        getInput<std::string>("frame").value_or(kFrameBody);
+    if (frame != kFrameBody && frame != kFrameWorld) {
+        spdlog::error("[{}] frame must be BODY or WORLD, not {}", name(),
                       frame);
+        return std::nullopt;
     }
-    const auto target = target_in_odom();
 
-    const auto mode = getInput<std::string>("mode");
+    const std::string mode_name =
+        getInput<std::string>("mode").value_or(kModeDefault);
+    const auto mode = waypoint_mode_from_string(mode_name);
+    if (!mode) {
+        spdlog::error("[{}] unknown mode: {}", name(), mode_name);
+        return std::nullopt;
+    }
 
-    last_target_ = *target;
-
-    NavAction::Goal goal;
-    goal.waypoints.push_back(
-        make_waypoint(*target, static_cast<std::uint8_t>(mode)));
+    Goal goal;
+    goal.frame =
+        frame == kFrameBody ? Goal::BODY_RELATIVE : Goal::WORLD_RELATIVE;
+    goal.waypoints.push_back(make_waypoint(*offset, mode->mode));
+    return goal;
 }
 
 }  // namespace vortex_bt_nodes::motion
-
-#endif  // _VORTEX_BT_NODES__MOTION__MOVE_RELATIVE_

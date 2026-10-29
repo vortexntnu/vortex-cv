@@ -2,33 +2,31 @@
 #define VORTEX_BT_NODES__MOTION__MOVE_RELATIVE_NODE_HPP_
 
 #include <behaviortree_cpp/bt_factory.h>
-#include <memory>
+
+#include <cstdint>
 #include <optional>
-#include <rclcpp/rclcpp.hpp>
 #include <string>
-#include <vortex_bt_nodes/common/nav_action.hpp>
-#include <vortex_bt_nodes/map/landmark_map.hpp>
+
+#include "vortex_bt_nodes/common/nav_action.hpp"
 
 namespace vortex_bt_nodes::motion {
 
-class MoveRelative : NavAction {
+/**
+ * @brief Moves by an offset from where the vehicle is when the node starts.
+ *
+ * frame BODY: the offset is along the vehicle's own axes.
+ * frame WORLD: the offset is along the odom axes, heading ignored.
+ */
+class MoveRelative : public NavAction {
    public:
     MoveRelative(const std::string& name,
                  const BT::NodeConfig& config,
-                 const rclcpp::Node::SharedPtr& node,
-                 const std::shared_ptr<const map::LandmarkMap> map);
+                 rclcpp::Node::SharedPtr node);
 
     static BT::PortsList providedPorts();
 
-   private:
+   protected:
     std::optional<Goal> make_goal() override;
-    std::optional<Goal> update_goal() override;
-
-    const std::shared_ptr<const map::LandmarkMap> map_;
-
-    std::optional<Pose> target_in_odom() const;
-
-    Pose last_target_;
 };
 
 }  // namespace vortex_bt_nodes::motion
