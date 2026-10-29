@@ -4,6 +4,7 @@
 #include "vortex_bt_nodes/map/register.hpp"
 #include "vortex_bt_nodes/mission/register.hpp"
 #include "vortex_bt_nodes/motion/register.hpp"
+#include "vortex_bt_nodes/temp/register.hpp"
 
 namespace vortex_bt_nodes {
 
@@ -14,6 +15,7 @@ void register_nodes(BT::BehaviorTreeFactory& factory,
     approach::register_nodes(factory, node);
     actuators::register_nodes(factory, node);
     mission::register_nodes(factory, node);
+    temp::register_nodes(factory, node);
 }
 
 }  // namespace vortex_bt_nodes

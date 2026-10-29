@@ -133,7 +133,8 @@ class LandmarkMap {
 
     /// Adds the namespace prefix unless the name already has one.
     std::string frame_name(const std::string& name) const {
-        return name.find('/') == std::string::npos ? prefix_ + name : name;
+        return prefix_.empty() || name.rfind(prefix_, 0) == 0 ? name
+                                                               : prefix_ + name;
     }
     const std::string& odom_frame() const { return odom_frame_; }
 
