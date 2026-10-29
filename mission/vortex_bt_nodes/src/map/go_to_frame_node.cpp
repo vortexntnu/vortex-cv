@@ -46,7 +46,7 @@ BT::PortsList GoToFrame::providedPorts() {
                                     "Frame put on the target instead of "
                                     "base_link, empty = base_link"),
          BT::InputPort<std::string>("mode", "FULL_POSE", "WaypointMode name"),
-         BT::InputPort<double>("resend_m", 0.1,
+         BT::InputPort<double>("resend_m", 1,
                                "[m] Send a new goal when the frame moved "
                                "further than this in odom"),
          BT::InputPort<double>("resend_deg", 10,
@@ -185,7 +185,7 @@ std::optional<GoToFrame::Goal> GoToFrame::update_goal() {
     }
     lost_ = false;
 
-    const double resend_m = getInput<double>("resend_m").value_or(0.1);
+    const double resend_m = getInput<double>("resend_m").value_or(1);
 
     if (distance(last_target_.position, target->position) < resend_m &&
         rotation_deg(last_target_.orientation, target->orientation) <
