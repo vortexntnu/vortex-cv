@@ -11,9 +11,7 @@ SetDepth::SetDepth(const std::string& name,
     : NavAction(name, config, std::move(node)) {}
 
 BT::PortsList SetDepth::providedPorts() {
-    return providedBasicPorts({
-        BT::InputPort<double>("z", "Target depth [m]")
-    });
+    return providedBasicPorts({BT::InputPort<double>("z", "Target depth [m]")});
 }
 
 std::optional<NavAction::Goal> SetDepth::make_goal() {
@@ -21,6 +19,11 @@ std::optional<NavAction::Goal> SetDepth::make_goal() {
 
     if (!z) {
         spdlog::error("[{}] {}", name(), z.error());
+        return std::nullopt;
+    }
+
+    if (*z < 0.0) {
+        spdlog::error("[{}] z is negative: {}", name(), *z);
         return std::nullopt;
     }
 

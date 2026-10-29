@@ -8,9 +8,9 @@ Log::Log(const std::string& name, const BT::NodeConfig& config)
     : BT::SyncActionNode(name, config) {}
 
 BT::PortsList Log::providedPorts() {
-    return {
-        BT::InputPort<std::string>("message", "Message to log"),
-        BT::InputPort<std::string>("level", "Log level: info, warn or error")};
+    return {BT::InputPort<std::string>("message", "Message to log"),
+            BT::InputPort<std::string>("level", "info",
+                                       "Log level: info, warn or error")};
 }
 
 BT::NodeStatus Log::tick() {
