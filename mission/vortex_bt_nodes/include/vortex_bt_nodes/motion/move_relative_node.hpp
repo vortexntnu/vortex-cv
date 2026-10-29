@@ -25,6 +25,10 @@ class MoveRelative : NavAction {
     std::optional<Goal> update_goal() override;
 
     const std::shared_ptr<const map::LandmarkMap> map_;
+
+    std::optional<Pose> target_in_odom() const;
+
+    Pose last_target_;
 };
 
 }  // namespace vortex_bt_nodes::motion
