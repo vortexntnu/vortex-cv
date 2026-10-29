@@ -26,7 +26,8 @@ double rotation_deg(const geometry_msgs::msg::Quaternion& a,
     tf2::fromMsg(a, qa);
     tf2::fromMsg(b, qb);
     const tf2::Quaternion e = qa.inverse() * qb;
-    return 2.0 * std::atan2(e.length(), std::abs(e.w())) * kRad2Deg;
+    const double vec = std::sqrt(e.x() * e.x() + e.y() * e.y() + e.z() * e.z());
+    return 2.0 * std::atan2(vec, std::abs(e.w())) * kRad2Deg;
 }
 
 }  // namespace
