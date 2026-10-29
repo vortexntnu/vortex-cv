@@ -3,6 +3,7 @@
 #include <spdlog/spdlog.h>
 
 #include <cmath>
+#include <utility>
 
 namespace vortex_bt_nodes::map {
 

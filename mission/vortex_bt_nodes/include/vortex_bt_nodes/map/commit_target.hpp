@@ -3,6 +3,10 @@
 
 #include <behaviortree_cpp/action_node.h>
 
+#include <memory>
+#include <optional>
+#include <string>
+
 #include "vortex_bt_nodes/map/landmark_map.hpp"
 
 namespace vortex_bt_nodes::map {
