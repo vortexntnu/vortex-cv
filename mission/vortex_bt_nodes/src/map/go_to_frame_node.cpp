@@ -68,8 +68,8 @@ BT::PortsList GoToFrame::providedPorts() {
                                "[m] Split a longer move into several "
                                "waypoints, 0 = no split"),
          BT::InputPort<bool>("right_angles", true,
-                             "Straight forward or back first, then straight "
-                             "sideways, never diagonally")});
+                             "Along the target's X first, then along its "
+                             "Y, never diagonally")});
 }
 
 std::optional<Pose> GoToFrame::target_in_odom() const {
@@ -114,12 +114,13 @@ std::optional<GoToFrame::Goal> GoToFrame::build_goal(const Pose& target) const {
     const double max_step = getInput<double>("max_step_m").value_or(0.0);
     const auto vehicle = map_->vehicle_in_odom();
 
-    // Forward or back along the vehicle's heading first, keeping it, then
-    // sideways onto the target, so it never slides diagonally past an object.
+    // Along the target's X first, then along its Y, never diagonally. On a
+    // task X points out of it: out to the right distance, then sideways into
+    // line. The same in every run, so a route can be checked on paper.
     std::vector<Pose> legs{target};
     if (vehicle && getInput<bool>("right_angles").value_or(true)) {
         tf2::Quaternion q;
-        tf2::fromMsg(vehicle->orientation, q);
+        tf2::fromMsg(target.orientation, q);
         const double yaw = tf2::getYaw(q);
         const double dx = target.position.x - vehicle->position.x;
         const double dy = target.position.y - vehicle->position.y;
