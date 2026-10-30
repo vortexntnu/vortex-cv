@@ -1,6 +1,7 @@
 #include "vortex_bt_nodes/map/go_to_frame_node.hpp"
 
 #include <spdlog/spdlog.h>
+#include <tf2/utils.h>
 
 #include <algorithm>
 #include <cmath>
@@ -11,6 +12,12 @@ namespace {
 
 constexpr char kBaseFrame[] = "base_link";
 constexpr double kRad2Deg = 180.0 / M_PI;
+constexpr double kMinLegM = 0.3;  // shorter than this: one straight move
+constexpr double kFaceLegM = 1.5;  // longer than this: driven facing forward
+// Waypoints on the way are passed, not stopped at: only the last one uses the
+// reference filter's tight default tolerance.
+constexpr double kPassPositionM = 0.4;
+constexpr double kPassOrientationRad = 0.2;
 
 double distance(const geometry_msgs::msg::Point& a,
                 const geometry_msgs::msg::Point& b) {
@@ -59,7 +66,10 @@ BT::PortsList GoToFrame::providedPorts() {
                                "this and drive on the last target"),
          BT::InputPort<double>("max_step_m", 3.0,
                                "[m] Split a longer move into several "
-                               "waypoints, 0 = no split")});
+                               "waypoints, 0 = no split"),
+         BT::InputPort<bool>("right_angles", true,
+                             "Straight forward or back first, then straight "
+                             "sideways, never diagonally")});
 }
 
 std::optional<Pose> GoToFrame::target_in_odom() const {
@@ -103,31 +113,86 @@ std::optional<GoToFrame::Goal> GoToFrame::build_goal(const Pose& target) const {
 
     const double max_step = getInput<double>("max_step_m").value_or(0.0);
     const auto vehicle = map_->vehicle_in_odom();
-    int steps = 1;
-    if (max_step > 0.0 && vehicle) {
-        steps = std::max(
-            1, static_cast<int>(std::ceil(
-                   distance(vehicle->position, target.position) / max_step)));
+
+    // Forward or back along the vehicle's heading first, keeping it, then
+    // sideways onto the target, so it never slides diagonally past an object.
+    std::vector<Pose> legs{target};
+    if (vehicle && getInput<bool>("right_angles").value_or(true)) {
+        tf2::Quaternion q;
+        tf2::fromMsg(vehicle->orientation, q);
+        const double yaw = tf2::getYaw(q);
+        const double dx = target.position.x - vehicle->position.x;
+        const double dy = target.position.y - vehicle->position.y;
+        const double forward = dx * std::cos(yaw) + dy * std::sin(yaw);
+        const double sideways = -dx * std::sin(yaw) + dy * std::cos(yaw);
+        if (std::abs(forward) > kMinLegM && std::abs(sideways) > kMinLegM) {
+            Pose corner = *vehicle;
+            corner.position.x += forward * std::cos(yaw);
+            corner.position.y += forward * std::sin(yaw);
+            corner.position.z = target.position.z;
+            legs.insert(legs.begin(), corner);
+        }
     }
 
+    // A long leg is driven facing the way it goes, so the camera sees ahead:
+    // turn on the spot, drive, and turn to the target's heading at the end.
+    // A short one keeps the heading.
+    using WM = vortex_msgs::msg::WaypointMode;
+    auto with_yaw = [](Pose p, double yaw) {
+        tf2::Quaternion q;
+        q.setRPY(0.0, 0.0, yaw);
+        p.orientation = tf2::toMsg(q);
+        return p;
+    };
     Goal goal;
-    for (int i = 1; i <= steps; ++i) {
-        Pose pose = target;
-        const bool last = (i == steps);
-        if (vehicle && steps > 1) {
-            const double t = static_cast<double>(i) / steps;
-            pose.position.x = vehicle->position.x +
-                              t * (target.position.x - vehicle->position.x);
-            pose.position.y = vehicle->position.y +
-                              t * (target.position.y - vehicle->position.y);
-            pose.position.z = vehicle->position.z +
-                              t * (target.position.z - vehicle->position.z);
+    auto add = [&](const Pose& p, std::uint8_t m) {
+        auto wp = make_waypoint(p, m);
+        wp.position_tolerance = kPassPositionM;
+        wp.orientation_tolerance = kPassOrientationRad;
+        goal.waypoints.push_back(wp);
+    };
+    Pose from = vehicle ? *vehicle : target;
+    bool faced = false;
+    for (std::size_t l = 0; l < legs.size(); ++l) {
+        const Pose& end = legs[l];
+        const double dx = end.position.x - from.position.x;
+        const double dy = end.position.y - from.position.y;
+        const double heading = std::atan2(dy, dx);
+        faced = vehicle && std::hypot(dx, dy) > kFaceLegM;
+        if (faced) {
+            add(with_yaw(from, heading), WM::FULL_POSE);
         }
-        goal.waypoints.push_back(make_waypoint(
-            pose, last ? mode->mode
-                       : static_cast<std::uint8_t>(
-                             vortex_msgs::msg::WaypointMode::ONLY_POSITION)));
+        int steps = 1;
+        if (max_step > 0.0 && vehicle) {
+            steps = std::max(1, static_cast<int>(std::ceil(
+                                    distance(from.position, end.position) /
+                                    max_step)));
+        }
+        for (int i = 1; i <= steps; ++i) {
+            Pose pose = end;
+            const double t = static_cast<double>(i) / steps;
+            pose.position.x = from.position.x + t * dx;
+            pose.position.y = from.position.y + t * dy;
+            pose.position.z =
+                from.position.z + t * (end.position.z - from.position.z);
+            const bool last = l + 1 == legs.size() && i == steps;
+            const bool corner = l + 1 < legs.size() && i == steps;
+            if (faced) {
+                add(with_yaw(pose, heading), WM::FULL_POSE);
+            } else {
+                add(pose, last     ? mode->mode
+                          : corner ? static_cast<std::uint8_t>(WM::FULL_POSE)
+                                   : static_cast<std::uint8_t>(
+                                         WM::ONLY_POSITION));
+            }
+        }
+        from = faced ? with_yaw(end, heading) : end;
     }
+    if (faced) {
+        add(target, mode->mode);
+    }
+    goal.waypoints.back().position_tolerance = 0.0;  // the default
+    goal.waypoints.back().orientation_tolerance = 0.0;
     return goal;
 }
 
