@@ -91,7 +91,7 @@ fi
 
 START_CMD="until ros2 service list | grep -q set_operation_mode; do sleep 2; done"
 # The controller holds the pose it has when it goes autonomous: without one yet it holds the origin
-START_CMD+=" && until timeout 3 ros2 topic echo --once /$DRONE/pose >/dev/null 2>&1; do sleep 1; done && sleep 2"
+START_CMD+=" && until timeout 15 ros2 topic echo --once /$DRONE/pose >/dev/null 2>&1; do sleep 2; done && sleep 2"
 START_CMD+=" && ros2 service call /$DRONE/set_killswitch vortex_msgs/srv/SetKillswitch '{killswitch_on: false}'"
 START_CMD+=" && ros2 service call /$DRONE/set_operation_mode vortex_msgs/srv/SetOperationMode '{requested_operation_mode: {operation_mode: 1}}'"
 
