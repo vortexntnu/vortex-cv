@@ -12,7 +12,7 @@ namespace {
 
 constexpr char kBaseFrame[] = "base_link";
 constexpr double kRad2Deg = 180.0 / M_PI;
-constexpr double kMinLegM = 0.3;  // shorter than this: one straight move
+constexpr double kMinLegM = 0.3;   // shorter than this: one straight move
 constexpr double kFaceLegM = 1.5;  // longer than this: driven facing forward
 // Waypoints on the way are passed, not stopped at: only the last one uses the
 // reference filter's tight default tolerance.
@@ -118,10 +118,11 @@ std::optional<GoToFrame::Goal> GoToFrame::build_goal(const Pose& target) const {
     // task X points out of it: out to the right distance, then sideways into
     // line. The same in every run, so a route can be checked on paper.
     std::vector<Pose> legs{target};
-    if (vehicle && getInput<bool>("right_angles").value_or(true)) {
-        tf2::Quaternion q;
-        tf2::fromMsg(target.orientation, q);
-        const double yaw = tf2::getYaw(q);
+    const bool right_angles = getInput<bool>("right_angles").value_or(true);
+    tf2::Quaternion q;
+    tf2::fromMsg(target.orientation, q);
+    const double yaw = tf2::getYaw(q);
+    if (vehicle && right_angles) {
         const double dx = target.position.x - vehicle->position.x;
         const double dy = target.position.y - vehicle->position.y;
         const double forward = dx * std::cos(yaw) + dy * std::sin(yaw);
@@ -158,16 +159,28 @@ std::optional<GoToFrame::Goal> GoToFrame::build_goal(const Pose& target) const {
         const Pose& end = legs[l];
         const double dx = end.position.x - from.position.x;
         const double dy = end.position.y - from.position.y;
-        const double heading = std::atan2(dy, dx);
+        double heading = std::atan2(dy, dx);
+        if (right_angles) {
+            // Along one of the target's axes: face that axis, not the line
+            // from where the vehicle happens to stop, so a gate is passed
+            // square and a resend does not turn the vehicle.
+            const double along = dx * std::cos(yaw) + dy * std::sin(yaw);
+            const double across = -dx * std::sin(yaw) + dy * std::cos(yaw);
+            if (std::abs(across) <= kMinLegM) {
+                heading = along >= 0.0 ? yaw : yaw + M_PI;
+            } else if (std::abs(along) <= kMinLegM) {
+                heading = across >= 0.0 ? yaw + M_PI_2 : yaw - M_PI_2;
+            }
+        }
         faced = vehicle && std::hypot(dx, dy) > kFaceLegM;
         if (faced) {
             add(with_yaw(from, heading), WM::FULL_POSE);
         }
         int steps = 1;
         if (max_step > 0.0 && vehicle) {
-            steps = std::max(1, static_cast<int>(std::ceil(
-                                    distance(from.position, end.position) /
-                                    max_step)));
+            steps = std::max(
+                1, static_cast<int>(std::ceil(
+                       distance(from.position, end.position) / max_step)));
         }
         for (int i = 1; i <= steps; ++i) {
             Pose pose = end;
@@ -181,10 +194,10 @@ std::optional<GoToFrame::Goal> GoToFrame::build_goal(const Pose& target) const {
             if (faced) {
                 add(with_yaw(pose, heading), WM::FULL_POSE);
             } else {
-                add(pose, last     ? mode->mode
-                          : corner ? static_cast<std::uint8_t>(WM::FULL_POSE)
-                                   : static_cast<std::uint8_t>(
-                                         WM::ONLY_POSITION));
+                add(pose, last ? mode->mode
+                          : corner
+                              ? static_cast<std::uint8_t>(WM::FULL_POSE)
+                              : static_cast<std::uint8_t>(WM::ONLY_POSITION));
             }
         }
         from = faced ? with_yaw(end, heading) : end;
