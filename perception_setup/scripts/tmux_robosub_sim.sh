@@ -10,6 +10,8 @@ Mission:
   --tree <name>        Tree to run when everything is up, e.g. TestGate.
                        Without it the command is typed in the mission pane, press Enter to run.
   --no-start           Leave the killswitch on and the mode manual.
+  --blank              No prior map and no route points, as at a new pool. Starts the map GUI.
+                       Kept in /tmp/<drone>_blank, emptied at every start.
 
 Simulator:
   --drone <name>       Drone to simulate, e.g. orca (default: nautilus).
@@ -43,6 +45,7 @@ FOXGLOVE="true"
 DEBUG="true"
 DOMAIN_ID="0"
 ATTACH="true"
+BLANK="false"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -52,6 +55,7 @@ while [[ $# -gt 0 ]]; do
         --res)         RES="$2"; shift 2 ;;
         --tree)        TREE="$2"; shift 2 ;;
         --no-start)    START="false"; shift ;;
+        --blank)       BLANK="true"; shift ;;
         --no-gpu)      GPU="false"; shift ;;
         --no-keyboard-joy) KEYBOARD_JOY="false"; shift ;;
         --no-foxglove) FOXGLOVE="false"; shift ;;
@@ -84,7 +88,15 @@ fi
 DP_CMD="ros2 launch auv_setup $DP_LAUNCH drone:=$DRONE config_type:=sim"
 
 SERVER_CMD="ros2 launch landmark_server landmark_server.launch.py drone:=$DRONE env:=sim debug:=$DEBUG"
-if [[ "$GPU" == "true" ]]; then
+if [[ "$BLANK" == "true" ]]; then
+    BLANK_DIR="/tmp/${DRONE}_blank"
+    mkdir -p "$BLANK_DIR"
+    printf 'reference_frame: start\nobjects: {}\n' > "$BLANK_DIR/premap.yaml"
+    # The server does not take an empty targets: the first saved point turns {} into one
+    printf '/**:\n  ros__parameters:\n    {}\n' > "$BLANK_DIR/routes.yaml"
+    SERVER_CMD+=" premap_file:=$BLANK_DIR/premap.yaml routes_file:=$BLANK_DIR/routes.yaml"
+    GUI_CMD="ros2 run landmark_server competition_map_gui.py --ros-args -r __ns:=/$DRONE -r __node:=competition_map_gui -p frame_prefix:=$DRONE -p routes_file:=$BLANK_DIR/routes.yaml"
+elif [[ "$GPU" == "true" ]]; then
     # The simulator writes the premap from the course (<prior> tags), in the frame of where the drone starts
     SERVER_CMD+=" premap_file:=/tmp/${DRONE}_sim_premap.yaml"
 fi
@@ -157,7 +169,11 @@ else
 fi
 
 PANE_FREE=$(tmux split-window -h -t "$PANE_MISSION" -P -F '#{pane_id}')
-tmux send-keys -t "$PANE_FREE" "$S" Enter
+if [[ "$BLANK" == "true" ]]; then
+    tmux send-keys -t "$PANE_FREE" "$S && sleep 25 && $GUI_CMD" Enter
+else
+    tmux send-keys -t "$PANE_FREE" "$S" Enter
+fi
 
 tmux select-window -t "$SESSION:sim"
 [[ "$ATTACH" == "true" ]] && tmux attach-session -t "$SESSION"
