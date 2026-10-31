@@ -67,6 +67,14 @@ BT::NodeStatus NavAction::onRunning() {
     if (result_) {
         return on_result(*result_);
     }
+    if (const auto status = watch()) {
+        if (*status == BT::NodeStatus::FAILURE) {
+            cancel_goal();
+        } else {
+            ++goal_seq_;  // its result no longer matters
+        }
+        return *status;
+    }
     if (auto goal = update_goal()) {
         goal_ = std::move(*goal);
         apply_tolerances(*goal_);

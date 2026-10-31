@@ -18,6 +18,13 @@ constexpr double kFaceLegM = 1.5;  // longer than this: driven facing forward
 // reference filter's tight default tolerance.
 constexpr double kPassPositionM = 0.4;
 constexpr double kPassOrientationRad = 0.2;
+// Closer than this and no longer getting closer: there. The vehicle can hold
+// a steady 0.15 m off in depth.
+constexpr double kSettleM = 0.2;
+constexpr double kSettleDeg = 6.0;
+// Getting this much closer to the target counts as progress.
+constexpr double kProgressM = 0.03;
+constexpr double kProgressDeg = 2.0;
 
 double distance(const geometry_msgs::msg::Point& a,
                 const geometry_msgs::msg::Point& b) {
@@ -69,7 +76,13 @@ BT::PortsList GoToFrame::providedPorts() {
                                "waypoints, 0 = no split"),
          BT::InputPort<bool>("right_angles", true,
                              "Along the target's X first, then along its "
-                             "Y, never diagonally")});
+                             "Y, never diagonally"),
+         BT::InputPort<double>("settle_s", 10.0,
+                               "[s] Close to the target and no closer for "
+                               "this long: done"),
+         BT::InputPort<double>("stuck_s", 30.0,
+                               "[s] Not getting closer for this long: "
+                               "fail, 0 = never")});
 }
 
 std::optional<Pose> GoToFrame::target_in_odom() const {
@@ -213,6 +226,7 @@ std::optional<GoToFrame::Goal> GoToFrame::build_goal(const Pose& target) const {
 std::optional<GoToFrame::Goal> GoToFrame::make_goal() {
     frozen_ = false;
     lost_ = false;
+    progress_t_ = 0.0;
 
     const auto frame = getInput<std::string>("frame");
     if (!frame) {
@@ -226,6 +240,63 @@ std::optional<GoToFrame::Goal> GoToFrame::make_goal() {
     }
     last_target_ = *target;
     return build_goal(*target);
+}
+
+std::optional<BT::NodeStatus> GoToFrame::watch() {
+    const auto vehicle = map_->vehicle_in_odom();
+    if (!vehicle) {
+        return std::nullopt;
+    }
+    const double t = node_->now().seconds();
+    const double m = distance(vehicle->position, last_target_.position);
+    tf2::Quaternion qv, qt;
+    tf2::fromMsg(vehicle->orientation, qv);
+    tf2::fromMsg(last_target_.orientation, qt);
+    const auto mode = getInput<std::string>("mode").value_or("FULL_POSE");
+    const double deg =
+        mode == "ONLY_POSITION"
+            ? 0.0
+            : std::abs(std::remainder(tf2::getYaw(qt) - tf2::getYaw(qv),
+                                      2.0 * M_PI)) *
+                  kRad2Deg;
+
+    // A new target starts the clock again.
+    if (distance(watched_target_.position, last_target_.position) > 1e-3 ||
+        rotation_deg(watched_target_.orientation, last_target_.orientation) >
+            0.1 ||
+        progress_t_ == 0.0) {
+        watched_target_ = last_target_;
+        best_m_ = m;
+        best_deg_ = deg;
+        progress_t_ = t;
+        return std::nullopt;
+    }
+    // Closer by a few cm or degrees counts, the last bit is slow.
+    if (m < best_m_ - kProgressM || deg < best_deg_ - kProgressDeg) {
+        best_m_ = std::min(best_m_, m);
+        best_deg_ = std::min(best_deg_, deg);
+        progress_t_ = t;
+        return std::nullopt;
+    }
+    const double idle = t - progress_t_;
+    const double settle = getInput<double>("settle_s").value_or(10.0) +
+                          getInput<double>("hold_s").value_or(0.0);
+    if (m < kSettleM && deg < kSettleDeg && idle > settle) {
+        spdlog::info(
+            "[{}] {:.2f} m, {:.0f} deg from the target and no closer "
+            "for {:.0f} s: there",
+            name(), m, deg, idle);
+        return BT::NodeStatus::SUCCESS;
+    }
+    const double stuck = getInput<double>("stuck_s").value_or(30.0);
+    if (stuck > 0.0 && idle > stuck) {
+        spdlog::warn(
+            "[{}] {:.2f} m, {:.0f} deg from the target and no closer "
+            "for {:.0f} s: stuck",
+            name(), m, deg, idle);
+        return BT::NodeStatus::FAILURE;
+    }
+    return std::nullopt;
 }
 
 std::optional<GoToFrame::Goal> GoToFrame::update_goal() {

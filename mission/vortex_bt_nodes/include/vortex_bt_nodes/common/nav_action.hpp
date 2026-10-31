@@ -45,6 +45,9 @@ class NavAction : public BT::StatefulActionNode {
     /** @brief Called every tick. Return a goal to replace the running one. */
     virtual std::optional<Goal> update_goal() { return std::nullopt; }
 
+    /** @brief Called every tick. SUCCESS ends the node and leaves the goal
+     * running (the vehicle keeps holding it), FAILURE cancels it. */
+    virtual std::optional<BT::NodeStatus> watch() { return std::nullopt; }
     virtual void on_feedback(const Action::Feedback& /*feedback*/) {}
 
     virtual BT::NodeStatus on_result(const GoalHandle::WrappedResult& result);

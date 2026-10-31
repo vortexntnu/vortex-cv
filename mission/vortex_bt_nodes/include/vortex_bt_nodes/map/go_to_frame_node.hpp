@@ -30,6 +30,7 @@ class GoToFrame : public NavAction {
    protected:
     std::optional<Goal> make_goal() override;
     std::optional<Goal> update_goal() override;
+    std::optional<BT::NodeStatus> watch() override;
 
    private:
     /** @brief frame + offset in odom. nullopt when a frame is not in TF. */
@@ -47,6 +48,12 @@ class GoToFrame : public NavAction {
     bool frozen_{false};
     // Only used to log a lost frame once instead of every tick.
     bool lost_{false};
+    // Progress towards last_target_: the closest the vehicle has been, and
+    // when it last got closer.
+    Pose watched_target_;
+    double best_m_{0.0};
+    double best_deg_{0.0};
+    double progress_t_{0.0};
 };  // GoToFrame
 
 }  // namespace vortex_bt_nodes::map
