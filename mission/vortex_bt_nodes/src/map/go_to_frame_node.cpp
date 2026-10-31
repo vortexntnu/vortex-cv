@@ -77,6 +77,10 @@ BT::PortsList GoToFrame::providedPorts() {
          BT::InputPort<bool>("right_angles", true,
                              "Along the target's X first, then along its "
                              "Y, never diagonally"),
+         BT::InputPort<bool>("face_travel", true,
+                             "Turn to face the way a long leg goes. False "
+                             "keeps the heading, e.g. backing out from an "
+                             "object"),
          BT::InputPort<double>("settle_s", 10.0,
                                "[s] Close to the target and no closer for "
                                "this long: done"),
@@ -168,6 +172,7 @@ std::optional<GoToFrame::Goal> GoToFrame::build_goal(const Pose& target) const {
     };
     Pose from = vehicle ? *vehicle : target;
     bool faced = false;
+    const bool face_travel = getInput<bool>("face_travel").value_or(true);
     for (std::size_t l = 0; l < legs.size(); ++l) {
         const Pose& end = legs[l];
         const double dx = end.position.x - from.position.x;
@@ -185,7 +190,7 @@ std::optional<GoToFrame::Goal> GoToFrame::build_goal(const Pose& target) const {
                 heading = across >= 0.0 ? yaw + M_PI_2 : yaw - M_PI_2;
             }
         }
-        faced = vehicle && std::hypot(dx, dy) > kFaceLegM;
+        faced = vehicle && face_travel && std::hypot(dx, dy) > kFaceLegM;
         if (faced) {
             add(with_yaw(from, heading), WM::FULL_POSE);
         }

@@ -179,7 +179,7 @@ Hints:
 | Node | Area | Kind | Ports | Does |
 |---|---|---|---|---|
 | FireTorpedo | actuators | stateful | `side` (left, right), `topic`, `settle_s` | Publishes `std_msgs/Int8` (0 left, 1 right), then waits `settle_s`. FAILURE on an unknown side |
-| GoToFrame | map | nav | `frame`, `offset`, `tool_frame`, `mode`, `resend_m`, `dead_reckoning_threshold`, `max_step_m`, `settle_s`, `stuck_s` | Goes to a TF frame plus an offset in that frame, and follows the frame while it moves. With `tool_frame` set, that frame is put on the target instead of `base_link`. FAILURE if a frame is not in TF at the start. Within 0.2 m and 6° of the target and no closer for `settle_s` (10): SUCCESS. No closer for `stuck_s` (30) anywhere else: FAILURE |
+| GoToFrame | map | nav | `frame`, `offset`, `tool_frame`, `mode`, `resend_m`, `dead_reckoning_threshold`, `max_step_m`, `face_travel`, `settle_s`, `stuck_s` | Goes to a TF frame plus an offset in that frame, and follows the frame while it moves. With `tool_frame` set, that frame is put on the target instead of `base_link`. FAILURE if a frame is not in TF at the start. Within 0.2 m and 6° of the target and no closer for `settle_s` (10): SUCCESS. No closer for `stuck_s` (30) anywhere else: FAILURE. Legs longer than 1.5 m are driven facing the way they go; `face_travel="false"` keeps the heading, to back out from an object before turning |
 
 Hints:
 - `GoToFrame` is the node every tree uses most, so do it early.
