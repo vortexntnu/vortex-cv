@@ -1,0 +1,24 @@
+/**:
+  ros__parameters:
+    topic:
+      image_sub_topic: /forward_looking_sonar/display
+      line_segments_pub_topic: line_detection/line_segments
+      color_overlay_pub_topic: line_detection/visualization
+      boundary_debug_pub_topic: line_detection/boundary_image
+      boundary_overlay_pub_topic: line_detection/boundary_overlay
+
+    boundary_detection:
+      threshold: 15
+      step: 1.0
+      num_rays: 50
+      sample_side_length: 5
+      angle: 150
+      edge_detection: true
+
+    ransac:
+      points_checked: 4
+      inlier_threshold: 2.0
+      min_remaining_points: 6
+      min_inliers: 6
+
+    mode: "debug" # {"standard", "visualize", "debug"}
