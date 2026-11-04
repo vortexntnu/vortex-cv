@@ -140,7 +140,6 @@ blocks), nav = derives from `NavAction`, condition = `ConditionNode`.
 | LookAtFrame | map | nav | `frame` | Turns on the spot to face a TF frame. FAILURE if it is not in TF |
 | Turn | map | nav | `yaw_deg` or `relative_deg` | Turns to a heading in the map frame, or by an angle from the current heading |
 | LandmarkSeen | map | condition | `id` or `type`/`subtype`, `within_s` (2.0) | SUCCESS if it was detected in the last `within_s` seconds |
-| FireTorpedo | actuators | stateful | `service` (`fire_torpedo`), `settle_s` (2), `timeout_s` (5) | Calls the `std_srvs/Trigger` service, then waits `settle_s`. FAILURE if the service is not there or says no |
 
 These are enough to start on a task in the simulator. `GoToFrame` also changes
 depth, with the Z of the offset.
@@ -160,21 +159,18 @@ Hints:
 - The torpedo openings are classes with frames of their own
   (`torpedo_opening_large_left`, `_large_right`, `_small_top`, `_small_bottom`).
 - A heading in the map frame is not the same heading in `odom`.
-- In the simulator `fire_torpedo` and `drop_marker` are `std_srvs/Trigger` services
-  with no limit on the number of shots. Try them by hand:
-  `ros2 service call /nautilus/fire_torpedo std_srvs/srv/Trigger`
 
 ## Who does what
 
 Everyone makes the tree for their task, and the measurement if `Measure` on one
 class is not enough, see "A measurement for your task" in the `landmark_server`
-README. The nodes below are not on this branch yet.
+README. The nodes below are not finished on this branch yet.
 
 | Person | Task | Nodes |
 |---|---|---|
 | Amélie | Gate | Log, SetDepth, Surface, MoveRelative, SetGripper |
 | André | Slalom | Search |
-| Johannes | Torpedo | |
+| Johannes | Torpedo | FireTorpedo |
 | Karol | Bins | LoadMissionConfig, WaitForStart, DropMarker |
 | Ashish | Octagon | |
 
@@ -188,13 +184,17 @@ README. The nodes below are not on this branch yet.
 | Search | motion | nav | `pattern` (ROTATE_STEPS or SCAN_ARC), `step_deg`, `arc_deg`, `pause_s` | Turns on the spot, pausing at each heading. FAILURE when the sweep is done, so the tree stops it when the target is found |
 | LoadMissionConfig | mission | sync | `path` | Writes every key in the yaml to the blackboard. Nested keys become `a.b`. FAILURE if the file can't be read |
 | WaitForStart | mission | stateful | `service` | RUNNING until the killswitch is off and the vehicle is in autonomous mode |
-| DropMarker | actuators | stateful | `service` (`drop_marker`), `settle_s` | As `FireTorpedo`, on the `drop_marker` service |
+| FireTorpedo | actuators | stateful | `service` (`fire_torpedo`), `settle_s` | Calls the `std_srvs/Trigger` service, then waits `settle_s`. FAILURE if the service is not there or says no. The one here still publishes on a topic |
+| DropMarker | actuators | stateful | `service` (`drop_marker`), `settle_s` | The same, on the `drop_marker` service |
 
 Hints:
 - Look at the `WaypointMode` message. There is a mode for depth only.
 - The `WaypointManager` action has a `frame` field for relative goals.
 - Search until something is in view with `LandmarkSeen` in a `ReactiveFallback`,
   and give it a `Timeout`.
+- In the simulator `fire_torpedo` and `drop_marker` are `std_srvs/Trigger` services
+  with no limit on the number of shots. Try them by hand:
+  `ros2 service call /nautilus/fire_torpedo std_srvs/srv/Trigger`
 - BehaviorTree.CPP checks port types. Writing the values as text lets every
   port read them with its own type.
 - The operation mode is only published when it changes, so ask for it with

@@ -2,8 +2,6 @@
 
 #include <spdlog/spdlog.h>
 
-#include <chrono>
-
 namespace vortex_bt_nodes::actuators {
 
 FireTorpedo::FireTorpedo(const std::string& name,
@@ -12,61 +10,83 @@ FireTorpedo::FireTorpedo(const std::string& name,
     : BT::StatefulActionNode(name, config), node_(node) {}
 
 BT::PortsList FireTorpedo::providedPorts() {
-    return {BT::InputPort<std::string>("service", "fire_torpedo", ""),
-            BT::InputPort<double>("settle_s", 2.0, "Wait after the shot [s]"),
-            BT::InputPort<double>("timeout_s", 5.0, "Wait for the service [s]")};
+    return {
+        BT::InputPort<double>("settle_s", "5", "Seconds to wait after launch"),
+        BT::InputPort<std::string>("side", "left",
+                                   "What side to fire (left / right)"),
+        BT::InputPort<std::string>("topic", "torpedo_launch",
+                                   "What topic to publish the launch")};
 }
 
 BT::NodeStatus FireTorpedo::onStart() {
-    const auto service = getInput<std::string>("service");
+    // Set every member here: the tree starts over at onStart() and must not
+    // depend on what the last launch left behind.
+    torpedo_launched_ = false;
+
     const auto settle_s = getInput<double>("settle_s");
-    const auto timeout_s = getInput<double>("timeout_s");
-    if (!service || !settle_s || !timeout_s || *settle_s < 0.0) {
-        spdlog::error("[{}] bad ports", name());
+
+    if (!settle_s) {
+        spdlog::error("[{}] undefined settle_s: {}", name(), settle_s.error());
         return BT::NodeStatus::FAILURE;
     }
-    settle_s_ = *settle_s;
-    give_up_at_ = node_->now() + rclcpp::Duration::from_seconds(*timeout_s);
-    end_time_.reset();
-    pending_.reset();
-    client_ = node_->create_client<Srv>(*service);
+    if (*settle_s < 0.0) {
+        spdlog::error("[{}] negative settle_s: {}", name(), *settle_s);
+        return BT::NodeStatus::FAILURE;
+    }
+
+    const auto side = getInput<std::string>("side");
+
+    if (!side) {
+        spdlog::error("[{}] undefined side: {}", name(), side.error());
+        return BT::NodeStatus::FAILURE;
+    }
+    if (*side == "left") {
+        side_ = 0;
+    } else if (*side == "right") {
+        side_ = 1;
+    } else {
+        spdlog::error("[{}] unknown side: {}", name(), *side);
+        return BT::NodeStatus::FAILURE;
+    }
+
+    const auto topic = getInput<std::string>("topic");
+
+    if (!topic) {
+        spdlog::error("[{}] undefined topic: {}", name(), topic.error());
+        return BT::NodeStatus::FAILURE;
+    }
+    topic_ = *topic;
+
+    end_time_ = node_->now() + rclcpp::Duration::from_seconds(*settle_s);
+
+    // Made here rather than in the constructor because the topic comes from a
+    // port. The publish happens on the next tick, which gives DDS a tick to
+    // finish discovery.
+    fire_torpedo_pub_ =
+        node_->create_publisher<std_msgs::msg::UInt8>(topic_, 10);
+
     return BT::NodeStatus::RUNNING;
 }
 
 BT::NodeStatus FireTorpedo::onRunning() {
-    if (end_time_) {
-        return node_->now() >= *end_time_ ? BT::NodeStatus::SUCCESS
-                                          : BT::NodeStatus::RUNNING;
+    if (!torpedo_launched_) {
+        std_msgs::msg::UInt8 msg;
+        msg.data = side_;
+
+        fire_torpedo_pub_->publish(msg);
+        torpedo_launched_ = true;
+
+        spdlog::info("[{}] launched on side {} (topic {})", name(),
+                     static_cast<int>(side_), topic_);
     }
-    if (!pending_) {
-        if (client_->service_is_ready()) {
-            pending_ = client_->async_send_request(
-                std::make_shared<Srv::Request>(),
-                [](rclcpp::Client<Srv>::SharedFuture) {});
-        } else if (node_->now() >= give_up_at_) {
-            spdlog::error("[{}] no service {}", name(),
-                          client_->get_service_name());
-            return BT::NodeStatus::FAILURE;
-        }
-        return BT::NodeStatus::RUNNING;
-    }
-    if (pending_->future.wait_for(std::chrono::seconds(0)) !=
-        std::future_status::ready) {
-        return BT::NodeStatus::RUNNING;
-    }
-    const auto response = pending_->future.get();
-    if (!response->success) {
-        spdlog::error("[{}] {}", name(), response->message);
-        return BT::NodeStatus::FAILURE;
-    }
-    spdlog::info("[{}] fired", name());
-    end_time_ = node_->now() + rclcpp::Duration::from_seconds(settle_s_);
-    return BT::NodeStatus::RUNNING;
+    return node_->now() >= end_time_ ? BT::NodeStatus::SUCCESS
+                                     : BT::NodeStatus::RUNNING;
 }
 
 void FireTorpedo::onHalted() {
-    pending_.reset();
-    client_.reset();
+    spdlog::warn("[{}] halted", name());
+    // A launch already published cannot be taken back, so there is nothing to
+    // undo. The publisher is dropped and made again on the next start.
 }
 
 }  // namespace vortex_bt_nodes::actuators

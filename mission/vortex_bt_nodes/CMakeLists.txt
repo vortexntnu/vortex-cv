@@ -13,7 +13,6 @@ find_package(vortex_utils REQUIRED)
 find_package(vortex_utils_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(std_srvs REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -40,7 +39,6 @@ ament_target_dependencies(vortex_bt_nodes PUBLIC
   vortex_utils_ros
   geometry_msgs
   std_msgs
-  std_srvs
   tf2
   tf2_ros
   tf2_geometry_msgs
@@ -69,7 +67,6 @@ ament_export_dependencies(
   vortex_utils
   vortex_utils_ros
   geometry_msgs
-  std_srvs
   tf2
   tf2_ros
   tf2_geometry_msgs

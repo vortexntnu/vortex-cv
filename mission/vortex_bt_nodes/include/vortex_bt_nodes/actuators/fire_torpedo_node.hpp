@@ -2,18 +2,18 @@
 #define VORTEX_BT_NODES__ACTUATORS__FIRE_TORPEDO_NODE_HPP_
 
 #include <behaviortree_cpp/action_node.h>
-#include <optional>
 #include <rclcpp/rclcpp.hpp>
-#include <std_srvs/srv/trigger.hpp>
+#include <std_msgs/msg/u_int8.hpp>
 #include <string>
 
 namespace vortex_bt_nodes::actuators {
 
 /**
- * @brief Calls the `service` trigger, then RUNNING for `settle_s` and SUCCESS.
+ * @brief Publishes the launch once on `topic` (0 left, 1 right), then RUNNING
+ * for `settle_s` and SUCCESS.
  *
- * FAILURE if the service is not there after `timeout_s`, or says no. Halting
- * does not undo a shot that already went out.
+ * FAILURE on an unknown side or a negative settle_s. Halting does not undo a
+ * launch that already went out.
  */
 class FireTorpedo : public BT::StatefulActionNode {
    public:
@@ -24,18 +24,18 @@ class FireTorpedo : public BT::StatefulActionNode {
     static BT::PortsList providedPorts();
 
    private:
-    using Srv = std_srvs::srv::Trigger;
-
     BT::NodeStatus onStart() override;
     BT::NodeStatus onRunning() override;
     void onHalted() override;
 
+    uint8_t side_{0};  // 0 left, 1 right
+    std::string topic_;
+    bool torpedo_launched_{false};
+
     rclcpp::Node::SharedPtr node_;
-    rclcpp::Client<Srv>::SharedPtr client_;
-    std::optional<rclcpp::Client<Srv>::SharedFutureAndRequestId> pending_;
-    double settle_s_{0.0};
-    rclcpp::Time give_up_at_;
-    std::optional<rclcpp::Time> end_time_;
+    rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr fire_torpedo_pub_;
+
+    rclcpp::Time end_time_;
 };
 
 }  // namespace vortex_bt_nodes::actuators

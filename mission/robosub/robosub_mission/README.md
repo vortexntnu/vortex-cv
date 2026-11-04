@@ -89,6 +89,33 @@ The nodes are in the `vortex_bt_nodes` README, the frames in the `landmark_serve
 README. The priors in the simulator come from the course itself, so step 1 below is only
 for a real pool.
 
+## Targets
+
+There are no target frames to set up in `landmark_server`. A target is a frame and an
+offset in your tree:
+
+| Step | What you do |
+|---|---|
+| Find | `GoToFrame` on `prior_<task>` or `<class>`, with an offset that puts the object in view |
+| Measure | `Measure class_name="<class>"` sets `<class>/measured` |
+| Target | `GoToFrame` on `<class>/measured`, with the offset for where the task needs the vehicle |
+| Aim | Add `tool_frame` to put the tube or dropper on the target instead of the vehicle's middle |
+
+```xml
+<Measure class_name="<class>" duration_s="5" accept_fallback="false"/>
+<GoToFrame name="stand off" frame="<class>/measured" offset="2;0;0;180"/>
+<GoToFrame name="aim" frame="<class>/measured" offset="1;0;0;180" tool_frame="torpedo_tube"/>
+```
+
+You only need something outside the tree when:
+- There is a new object: add the class in `config/robosub/classes.yaml`. The objects on
+  the RoboSub course are there already.
+- There is a new pool: the priors are in `config/course/<course>/premap.yaml`. In the
+  simulator they come from the course.
+- The task needs more than one object: write your own measurement, see "A measurement
+  for your task" in the `landmark_server` README. It can add frames like
+  `<name>/measured/left`, and you drive to them with `GoToFrame` the same way.
+
 ## From test day to a running task
 
 | Step | What you do | Where |
