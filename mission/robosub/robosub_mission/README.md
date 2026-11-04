@@ -30,19 +30,64 @@ Set up the workspace, see the `vortex-cv` README. Then run the example:
 src/vortex-cv/perception_setup/scripts/tmux_robosub_sim.sh --spawn torpedo --tree Main
 ```
 
-The vehicle goes to the torpedo board, measures it and stands off from it. Then:
+The vehicle goes to the torpedo board, measures it and stands off from it.
 
-1. Write `trees/<task>.xml` with a tree per task, one file per person so you do not
-   get in each other's way, and `include` it in `course.xml`. The tree that is your
-   task is called by `Main`. A `Test<Task>` tree runs yours alone.
-2. No rebuild is needed for a tree with `--symlink-install`, except for a new file.
-3. Start with `--profile none`, then move on to `--profile realistic`. The odometry
-   in the simulator is perfect for now, get the task working first.
-4. The nodes are in the `vortex_bt_nodes` README, the frames and `Measure` in the
-   `landmark_server` README.
+## From a clean branch to your task
 
-The priors in the simulator come from the course itself, so step 1 below is only for
-a real pool.
+**1. Your own tree.** Add `trees/<task>.xml`, one file per person, with your task and a
+tree that runs it alone:
+
+```xml
+<?xml version="1.0"?>
+<root BTCPP_format="4">
+  <BehaviorTree ID="MyTask">
+    <Sequence>
+      <GoToFrame name="find" frame="prior_<task>" offset="x;y;z;yaw_deg" position_tolerance="0.5" orientation_tolerance_deg="15"/>
+      <Wait seconds="2"/>
+      <Measure class_name="<class>" duration_s="5" accept_fallback="false"/>
+      <GoToFrame name="act" frame="<class>/measured" offset="x;y;z;yaw_deg"/>
+    </Sequence>
+  </BehaviorTree>
+
+  <BehaviorTree ID="TestMyTask">
+    <Sequence>
+      <Wait seconds="5"/>
+      <SubTree ID="MyTask"/>
+    </Sequence>
+  </BehaviorTree>
+</root>
+```
+
+Add `<include path="<task>.xml"/>` to `course.xml`. Classes are in
+`config/robosub/classes.yaml` in `landmark_server`.
+
+**2. Run it.** A new file needs one build, after that a tree only needs a new run:
+
+```bash
+colcon build --symlink-install --packages-select robosub_mission
+src/vortex-cv/perception_setup/scripts/tmux_robosub_sim.sh --spawn <task> --tree TestMyTask
+```
+
+Run it again from the `mission` window. Start with `--profile none`, then use
+`--profile realistic`. The odometry in the simulator is perfect for now, so get the
+task working first.
+
+**3. Check the frame before you drive on it.** Look at it in Foxglove, or:
+
+```bash
+ros2 run tf2_ros tf2_echo nautilus/odom nautilus/<class>/measured
+```
+
+**4. A measurement of your own, if the task needs one.** `Measure` on a class gives one
+object. See "A measurement for your task" in the `landmark_server` README. It adds a
+name you can use as `class_name`, and frames like `<name>/measured/<child>` to go to.
+
+**5. Into the course.** Call your tree from `Main` in `course.xml`, and open a pull
+request against `rework/landmark-members`.
+
+The nodes are in the `vortex_bt_nodes` README, the frames in the `landmark_server`
+README. The priors in the simulator come from the course itself, so step 1 below is only
+for a real pool.
 
 ## From test day to a running task
 

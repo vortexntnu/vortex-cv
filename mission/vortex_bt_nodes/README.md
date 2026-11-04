@@ -245,7 +245,7 @@ tmux_robosub_sim.sh --tree Main
 # Start at your task, with noisy detections
 tmux_robosub_sim.sh --spawn torpedo --profile realistic
 
-# No GPU: no window, everything else the same
+# No GPU: no window and no RoboSub course, so no landmarks to measure
 tmux_robosub_sim.sh --no-gpu
 ```
 
@@ -256,7 +256,7 @@ tmux_robosub_sim.sh --no-gpu
 | `--profile <name>` | `none` | Detection errors, see below |
 | `--blank` | | No prior map, as at a new pool. Starts the map GUI |
 | `--no-start` | | Leave the killswitch on and the mode manual |
-| `--no-gpu` | | No rendering |
+| `--no-gpu` | | No rendering and no RoboSub course, so no landmarks |
 | `--no-keyboard-joy` | | No keyboard joystick. It is on by default: its keys drive the vehicle and also toggle the killswitch and the mode |
 | `--no-foxglove` | | Do not start the Foxglove bridge |
 | `--no-debug` | | No landmark markers or NIS |

@@ -10,16 +10,22 @@ TODO: Write a simple description / introduction to the repository
 
 # Setup
 
-The script clones the simulator and its repos, and builds Stonefish. It takes a
-while the first time.
+From the `src` folder of your workspace, with what you have committed:
 
 ```bash
 sudo apt install -y tmux ros-humble-gtsam ros-humble-behaviortree-cpp ros-humble-foxglove-bridge
-mkdir -p ~/ros2_ws/src && cd ~/ros2_ws/src
-git clone https://github.com/vortexntnu/vortex-vkf.git
-git clone https://github.com/vortexntnu/vortex-stonefish-sim.git
-vortex-stonefish-sim/scripts/update_stonefish_sim.sh --branch rework/landmark-members
-cd ~/ros2_ws && source /opt/ros/humble/setup.bash
+[ -d vortex-vkf ] || git clone https://github.com/vortexntnu/vortex-vkf.git
+[ -d vortex-stonefish-sim ] || git clone https://github.com/vortexntnu/vortex-stonefish-sim.git
+git -C vortex-stonefish-sim switch main && git -C vortex-stonefish-sim pull
+vortex-stonefish-sim/scripts/update_stonefish_sim.sh --branch rework/landmark-members --ws "$(dirname "$PWD")"
+```
+
+The script puts the repos on the right branches and builds Stonefish, it takes a while
+the first time. Then from the workspace:
+
+```bash
+rm -rf build install log
+source /opt/ros/humble/setup.bash
 colcon build --symlink-install --packages-up-to stonefish_sim stonefish_sim_interface \
   landmark_server vortex_bt_nodes robosub_mission robosub_dummy_publisher perception_setup \
   auv_setup waypoint_manager dp_adapt_backs_controller_quat reference_filter_dp_quat \
