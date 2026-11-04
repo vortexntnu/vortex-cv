@@ -17,7 +17,7 @@ while the first time.
 sudo apt install -y tmux ros-humble-gtsam ros-humble-behaviortree-cpp ros-humble-foxglove-bridge
 mkdir -p ~/ros2_ws/src && cd ~/ros2_ws/src
 git clone https://github.com/vortexntnu/vortex-vkf.git
-git clone -b rework/landmark-members https://github.com/vortexntnu/vortex-stonefish-sim.git
+git clone https://github.com/vortexntnu/vortex-stonefish-sim.git
 vortex-stonefish-sim/scripts/update_stonefish_sim.sh --branch rework/landmark-members
 cd ~/ros2_ws && source /opt/ros/humble/setup.bash
 colcon build --symlink-install --packages-up-to stonefish_sim stonefish_sim_interface \
