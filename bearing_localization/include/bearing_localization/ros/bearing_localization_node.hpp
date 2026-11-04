@@ -71,10 +71,16 @@ class BearingLocalizationNode : public rclcpp::Node {
     void publish_result(const LocalizationResult& result,
                         int32_t target_id = 0);
 
+    /// @brief Remove localizers for targets not seen within
+    /// max_measurement_age_sec.
+    void prune_stale_localizers(double now_sec);
+
     BearingLocalizationConfig cfg_;  // Algorithm config (from YAML profile).
     NodeConfig node_cfg_;            // ROS config (from parameter server).
     std::unordered_map<int32_t, std::unique_ptr<BearingLocalizer>>
         target_localizers_;  // Per-target localizers.
+    std::unordered_map<int32_t, double>
+        target_last_seen_sec_;  // Last observation time per target (s).
 
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;

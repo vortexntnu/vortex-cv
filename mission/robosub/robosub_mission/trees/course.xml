@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!--
+  The course. One file per task next to this one, included here. Run one tree with
+  main_tree:=<tree>, see the README.
+-->
+<root BTCPP_format="4" main_tree_to_execute="Main">
+  <include path="example.xml"/>
+
+  <BehaviorTree ID="Main">
+    <Sequence>
+      <Wait seconds="5.0"/>
+      <SubTree ID="Example"/>
+    </Sequence>
+  </BehaviorTree>
+</root>

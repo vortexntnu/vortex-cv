@@ -1,0 +1,27 @@
+pipeline_line_fitting_node:
+  ros__parameters:
+    image_sub_topic: "/pipeline/down_camera/segmentation_mask"
+    image_visualization_pub_topic: "/line_fitting/visualization"
+    pose_array_pub_topic: "/line/pose_array"
+    publish_visualization: true
+
+    morph_close_size: 30
+    dist_thresh: 0.2
+
+    #randsac__parameters:
+    n: 2                    # Seed points per iteration (2 is correct for a line)
+    k: 200                  # Iterations: log(1-0.999)/log(1-0.25) ≈ 24 at 50% outliers
+    t: 9.0                  # Inlier threshold (sqrt(9)=3px in 200px space, tight for skeleton)
+    fracOfPoints: 0.001     # Fraction of points to be considered as inliers
+    removeT: 400.0          # Strip radius after line 1 (sqrt(400)=20px, ~half pipe width at 0.5m alt)
+    finalScorethresh: 35.0  # Minimum inlier count to accept a line
+    min_skeleton_component_size: 60  # Drop skeleton components smaller than this (px) — removes noise blobs
+    min_inlier_ratio: 0.75          # Minimum score/pts_in for second+ RANSAC lines; kills phantom diagonals (ratio ~0.33-0.65) while keeping real pipe arms (ratio >0.85)
+    minTurnAngle: 0.26      # 15 degrees: reject 2nd line if within 15deg of 1st (prevents same-pipe refitting)
+    size: 200               # Size of the sample points
+
+    # Deduplication: drop a second RANSAC line if its midpoint is within
+    # dedup_dist_thresh pixels AND its angle is within dedup_angle_thresh radians
+    # of an already-accepted line (same pipe fitted twice).
+    dedup_dist_thresh: 100.0  # pixels (image is 200px)
+    dedup_angle_thresh: 0.26  # radians (~15 degrees, matches minTurnAngle)

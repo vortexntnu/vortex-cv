@@ -1,0 +1,34 @@
+camera_direction_waypoint:  # Zero offset — YOLO direction landmark is already an absolute projected position.
+  position:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  mode: xy_forward_dir
+  convergence_threshold: 0.5
+  keep_altitude: true
+  desired_altitude: 0.75
+  require_altitude_convergence: false
+
+above_dock_waypoint:  # Offset applied to polled landmark to navigate above the docking station.
+  position:
+    x: 0.0
+    y: 0.0
+    z: -1.0  # 0.75m above the docking station landmark (NED: negative z = up)
+  orientation:
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+  mode: position_and_yaw
+  convergence_threshold: 0.25
+
+power_puck_waypoint:  # Offset applied to re-polled landmark to converge on the power puck connector.
+  position:
+    x: 0.06
+    y: -0.005
+    z: -0.23  # offset toward the power puck connector
+  orientation:
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+  mode: position_and_yaw
+  convergence_threshold: 0.1

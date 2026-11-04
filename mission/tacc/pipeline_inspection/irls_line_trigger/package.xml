@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>irls_line_trigger</name>
+  <version>0.0.0</version>
+  <description>
+    Bridges the IRLS line fitter to the pipeline inspection FSM: calls a
+    std_srvs/Trigger service once a line segment is published, signalling the
+    FSM to transition into pipeline following.
+  </description>
+  <maintainer email="todo@todo.com">todo</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>std_srvs</depend>
+  <depend>vortex_msgs</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

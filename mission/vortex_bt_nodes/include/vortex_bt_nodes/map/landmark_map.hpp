@@ -1,0 +1,226 @@
+#ifndef VORTEX_BT_NODES__MAP__LANDMARK_MAP_HPP_
+#define VORTEX_BT_NODES__MAP__LANDMARK_MAP_HPP_
+
+#include <behaviortree_cpp/tree_node.h>
+#include <tf2/exceptions.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+
+#include <geometry_msgs/msg/pose.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <vortex_msgs/msg/landmark_track_array.hpp>
+
+#include "vortex_bt_nodes/common/types.hpp"
+
+namespace vortex_bt_nodes::map {
+
+struct LandmarkView {
+    int id{0};
+    std::uint16_t type{0};
+    std::uint16_t subtype{0};
+    Pose pose;  // map frame
+    /// Position part is relative to the vehicle.
+    std::array<double, 36> cov{};
+    std::uint32_t n_obs{0};  // 0 = prior map only
+    bool has_orientation{false};
+};
+
+/**
+ * @brief Latest map from landmark_server/landmarks plus TF, shared by the
+ * landmark nodes of a tree. Nodes only read it.
+ */
+class LandmarkMap {
+   public:
+    explicit LandmarkMap(
+        const rclcpp::Node::SharedPtr& node,
+        const std::string& topic = "landmark_server/landmarks")
+        : tf_buffer_(std::make_shared<tf2_ros::Buffer>(node->get_clock())),
+          tf_listener_(
+              std::make_shared<tf2_ros::TransformListener>(*tf_buffer_, node)) {
+        std::string ns = node->get_namespace();
+        ns.erase(0, ns.find_first_not_of('/'));
+        prefix_ = ns.empty() ? "" : ns + "/";
+        base_frame_ = prefix_ + "base_link";
+        odom_frame_ = prefix_ + "odom";
+        sub_ = node->create_subscription<vortex_msgs::msg::LandmarkTrackArray>(
+            topic, rclcpp::QoS(1).reliable().transient_local(),
+            [this](vortex_msgs::msg::LandmarkTrackArray::ConstSharedPtr msg) {
+                map_ = msg;
+            });
+    }
+
+    std::optional<LandmarkView> by_id(int id) const {
+        if (map_) {
+            for (const auto& t : map_->landmark_tracks) {
+                if (t.landmark.id == id) {
+                    return view(t);
+                }
+            }
+        }
+        return std::nullopt;
+    }
+
+    /// The most observed landmark of the class. subtype -1 = any.
+    std::optional<LandmarkView> best_of_class(std::uint16_t type,
+                                              int subtype) const {
+        std::optional<LandmarkView> best;
+        if (!map_) {
+            return best;
+        }
+        for (const auto& t : map_->landmark_tracks) {
+            if (!matches(t, type, subtype)) {
+                continue;
+            }
+            const LandmarkView v = view(t);
+            if (!best || v.n_obs > best->n_obs) {
+                best = v;
+            }
+        }
+        return best;
+    }
+
+    /// Seconds from the newest detection of what the node's ports name to the
+    /// map's own time. Both are the server's, so no clock to line up.
+    std::optional<double> seen_ago(const BT::TreeNode& node) const {
+        if (!map_) {
+            return std::nullopt;
+        }
+        const auto id = node.getInput<int>("id");
+        const auto type = landmark_type_from_string(
+            node.getInput<std::string>("type").value_or(""));
+        const auto subtype = landmark_subtype_from_string(
+            node.getInput<std::string>("subtype").value_or("ANY"));
+        if (!id && (!type || !subtype)) {
+            return std::nullopt;
+        }
+        std::optional<double> ago;
+        const rclcpp::Time now(map_->header.stamp);
+        for (const auto& t : map_->landmark_tracks) {
+            if (id ? t.landmark.id == *id : matches(t, *type, *subtype)) {
+                const double a =
+                    (now - rclcpp::Time(t.last_measurement)).seconds();
+                ago = ago ? std::min(*ago, a) : a;
+            }
+        }
+        return ago;
+    }
+
+    /// Empty before the first map.
+    std::string frame_id() const {
+        return map_ ? map_->header.frame_id : std::string();
+    }
+
+    std::optional<Pose> lookup(const std::string& target,
+                               const std::string& frame) const {
+        try {
+            const auto tf =
+                tf_buffer_->lookupTransform(target, frame, tf2::TimePointZero);
+            Pose p;
+            p.position.x = tf.transform.translation.x;
+            p.position.y = tf.transform.translation.y;
+            p.position.z = tf.transform.translation.z;
+            p.orientation = tf.transform.rotation;
+            return p;
+        } catch (const tf2::TransformException&) {
+            return std::nullopt;
+        }
+    }
+
+    std::optional<Pose> vehicle_pose() const {
+        if (!map_) {
+            return std::nullopt;
+        }
+        return lookup(map_->header.frame_id, base_frame_);
+    }
+
+    std::optional<Pose> vehicle_in_odom() const {
+        return lookup(odom_frame_, base_frame_);
+    }
+
+    /** @brief A map-frame pose in odom. */
+    std::optional<Pose> map_to_odom(const Pose& in_map) const {
+        const auto map_in_odom =
+            map_ ? lookup(odom_frame_, map_->header.frame_id) : std::nullopt;
+        if (!map_in_odom) {
+            return std::nullopt;
+        }
+        return compose(*map_in_odom, in_map);
+    }
+
+    /// Adds the namespace prefix unless the name already has one.
+    std::string frame_name(const std::string& name) const {
+        return prefix_.empty() || name.rfind(prefix_, 0) == 0 ? name
+                                                               : prefix_ + name;
+    }
+    const std::string& odom_frame() const { return odom_frame_; }
+
+    static Pose compose(const Pose& a, const Pose& b) {
+        tf2::Transform ta;
+        tf2::Transform tb;
+        tf2::fromMsg(a, ta);
+        tf2::fromMsg(b, tb);
+        Pose out;
+        tf2::toMsg(ta * tb, out);
+        return out;
+    }
+
+    static BT::PortsList ports() {
+        return {BT::InputPort<int>("id", "Landmark id (wins over type)"),
+                BT::InputPort<std::string>("type", "", "LandmarkType name"),
+                BT::InputPort<std::string>("subtype", "ANY",
+                                           "LandmarkSubtype name or ANY")};
+    }
+
+    std::optional<LandmarkView> resolve(const BT::TreeNode& node) const {
+        if (const auto id = node.getInput<int>("id")) {
+            return by_id(*id);
+        }
+        const auto type_name = node.getInput<std::string>("type");
+        const auto subtype_name = node.getInput<std::string>("subtype");
+        if (!type_name || !subtype_name) {
+            return std::nullopt;
+        }
+        const auto type = landmark_type_from_string(*type_name);
+        const auto subtype = landmark_subtype_from_string(*subtype_name);
+        if (!type || !subtype) {
+            return std::nullopt;
+        }
+        return best_of_class(*type, *subtype);
+    }
+
+   private:
+    static LandmarkView view(const LandmarkTrack& t) {
+        LandmarkView v;
+        v.id = t.landmark.id;
+        v.type = t.landmark.type.value;
+        v.subtype = t.landmark.subtype.value;
+        v.pose = t.landmark.pose.pose;
+        std::copy(t.landmark.pose.covariance.begin(),
+                  t.landmark.pose.covariance.end(), v.cov.begin());
+        v.n_obs = static_cast<std::uint32_t>(std::max(0, t.observations));
+        v.has_orientation = t.has_orientation;
+        return v;
+    }
+
+    std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+    rclcpp::Subscription<vortex_msgs::msg::LandmarkTrackArray>::SharedPtr sub_;
+    vortex_msgs::msg::LandmarkTrackArray::ConstSharedPtr map_;
+    std::string prefix_;
+    std::string base_frame_;
+    std::string odom_frame_;
+};
+
+}  // namespace vortex_bt_nodes::map
+
+#endif  // VORTEX_BT_NODES__MAP__LANDMARK_MAP_HPP_

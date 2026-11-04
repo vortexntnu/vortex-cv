@@ -1,0 +1,173 @@
+#ifndef VALVE_DETECTION_ROS__VALVE_POSE_ROS_HPP_
+#define VALVE_DETECTION_ROS__VALVE_POSE_ROS_HPP_
+
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
+#include <utility>
+
+#include <cv_bridge/cv_bridge.h>
+#include <geometry_msgs/msg/pose_array.hpp>
+#include <opencv2/core.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
+#include <sensor_msgs/msg/image.hpp>
+#include <vision_msgs/msg/detection2_d_array.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
+
+#include <pcl_conversions/pcl_conversions.h>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+
+#include <message_filters/subscriber.h>
+#include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/synchronizer.h>
+
+#include "valve_detection/detection_utils.hpp"
+#include "valve_detection/pcl_extraction.hpp"
+#include "valve_detection/pose_estimator.hpp"
+#include "valve_detection/types.hpp"
+
+#include <memory>
+#include <set>
+#include <string>
+#include <vector>
+#include "vortex_msgs/msg/landmark_array.hpp"
+#include "vortex_msgs/msg/landmark_subtype.hpp"
+#include "vortex_msgs/msg/landmark_type.hpp"
+
+namespace valve_detection {
+
+class ValvePoseNode : public rclcpp::Node {
+   public:
+    explicit ValvePoseNode(const rclcpp::NodeOptions& options);
+
+   private:
+    // Node setup — called from constructor.
+    void declare_params();
+    void init_subscriptions();
+    void try_activate_detector();
+    void lookup_extrinsic();
+
+    // Camera info callbacks (one-shot).
+    void color_camera_info_cb(
+        const sensor_msgs::msg::CameraInfo::SharedPtr msg);
+    void depth_camera_info_cb(
+        const sensor_msgs::msg::CameraInfo::SharedPtr msg);
+
+    // Main synchronized callback: depth + detections.
+    void sync_cb(const sensor_msgs::msg::Image::ConstSharedPtr& depth,
+                 const vision_msgs::msg::Detection2DArray::ConstSharedPtr& det);
+
+    // sync_cb helpers
+    struct SplitDetections {
+        std::vector<std::pair<float, BoundingBox>> valves;   // class_id "1"
+        std::vector<std::pair<float, BoundingBox>> handles;  // class_id "0"
+    };
+    SplitDetections split_scored_boxes(
+        const vision_msgs::msg::Detection2DArray& det) const;
+    void publish_empty_results(const std_msgs::msg::Header& header) const;
+    cv::Mat build_depth_colormap(
+        const sensor_msgs::msg::Image::ConstSharedPtr& depth) const;
+    // Always publishes the depth colormap with all NMS-filtered detections
+    // drawn: valves in green, handles in orange. Z is sampled from the depth
+    // image at each box's center (color->depth scale via fx ratio), with a
+    // 1 m fallback when depth is invalid. No pose-fit dependency.
+    void publish_box_colormap(
+        const sensor_msgs::msg::Image::ConstSharedPtr& depth,
+        const cv::Mat& depth_img,
+        const std::vector<BoundingBox>& valve_boxes,
+        const std::vector<BoundingBox>& handle_boxes) const;
+    void publish_debug(const sensor_msgs::msg::Image::ConstSharedPtr& depth,
+                       const pcl::PointCloud<pcl::PointXYZ>& ann_cloud,
+                       const pcl::PointCloud<pcl::PointXYZ>& pln_cloud) const;
+    // Caches the most recent color image so annotated_image can be drawn on
+    // top of it when detections arrive (not time-synchronized).
+    void color_image_cb(const sensor_msgs::msg::Image::ConstSharedPtr msg);
+    // Draws raw OBBs on the cached color image and, for each detection whose
+    // class is in `annotated_image_theta_classes_`, overlays the folded
+    // [0, 90°] theta (same normalization used for the pose handle angle).
+    void publish_annotated_image(
+        const std_msgs::msg::Header& header,
+        const std::vector<std::pair<float, BoundingBox>>& scored_valves,
+        const std::vector<std::pair<float, BoundingBox>>& scored_handles);
+    // Folds a raw OBB (size_x, size_y, theta) into the canonical [0, π/2]
+    // openness angle used by the pose pipeline and the annotated overlay.
+    float fold_obb_theta(float size_x, float size_y, float theta) const;
+
+    using SyncPolicy = message_filters::sync_policies::ApproximateTime<
+        sensor_msgs::msg::Image,
+        vision_msgs::msg::Detection2DArray>;
+
+    // params
+    bool debug_visualize_;
+    float iou_duplicate_threshold_;
+    float score_threshold_{0.6f};
+    std::string output_frame_id_;
+    bool use_hardcoded_extrinsic_{false};
+
+    // estimator config params (stored for deferred detector init)
+    int yolo_w_, yolo_h_;
+    float annulus_ratio_, ransac_thresh_, handle_offset_;
+    int ransac_iters_;
+    bool undistort_detections_{false};
+    bool detections_letterboxed_{false};
+
+    // Yaw normalization: raw OBB angle is folded into [0, π/2], with
+    // `yaw_closed_reference_rad_` mapping to 0. `yaw_invert_` swaps which
+    // rotation direction is treated as positive before folding.
+    float yaw_closed_reference_rad_{0.0f};
+    bool yaw_invert_{false};
+
+    // Annotated-image (color image + raw OBBs + folded theta text). Optional.
+    bool enable_annotated_image_{false};
+    std::set<std::string> annotated_image_theta_classes_;
+
+    // camera data (owned by node, passed to estimator and depth functions)
+    ImageProperties color_props_{};
+    ImageProperties depth_props_{};
+    DepthColorExtrinsic depth_color_extrinsic_{};
+    bool color_props_ready_{false};
+    bool depth_props_ready_{false};
+    bool extrinsic_ready_{false};
+
+    // TF2 lookup for depth-to-color extrinsic
+    std::string depth_frame_id_;
+    std::string color_frame_id_;
+    std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+    rclcpp::TimerBase::SharedPtr extrinsic_timer_;
+
+    // estimator
+    std::unique_ptr<PoseEstimator> detector_;
+
+    // subs
+    rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr
+        color_cam_info_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr
+        depth_cam_info_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr color_image_sub_;
+    message_filters::Subscriber<sensor_msgs::msg::Image> depth_sub_;
+    message_filters::Subscriber<vision_msgs::msg::Detection2DArray> det_sub_;
+    std::shared_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
+    sensor_msgs::msg::Image::ConstSharedPtr latest_color_image_;
+
+    // pubs
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr annotated_image_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pose_pub_;
+    rclcpp::Publisher<vortex_msgs::msg::LandmarkArray>::SharedPtr landmark_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr depth_colormap_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr annulus_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr plane_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr
+        depth_cloud_pub_;
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr
+        handle_marker_pub_;
+
+    float depth_colormap_vmin_;
+    float depth_colormap_vmax_;
+};
+
+}  // namespace valve_detection
+
+#endif  // VALVE_DETECTION_ROS__VALVE_POSE_ROS_HPP_

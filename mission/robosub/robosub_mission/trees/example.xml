@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<root BTCPP_format="4">
+  <!-- Find, hold still and measure, go to a place given from what was measured. -->
+  <BehaviorTree ID="Example">
+    <Sequence>
+      <GoToFrame name="find" frame="torpedo_board" offset="3;0;0;180" position_tolerance="0.5" orientation_tolerance_deg="15"/>
+      <Wait seconds="2"/>
+      <Measure class_name="torpedo_board" duration_s="5" accept_fallback="false"/>
+      <GoToFrame name="stand off" frame="torpedo_board/measured" offset="2;0;0;180"/>
+    </Sequence>
+  </BehaviorTree>
+</root>
