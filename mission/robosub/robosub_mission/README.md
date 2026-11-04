@@ -15,7 +15,7 @@ Launch: `ros2 launch perception_setup robosub_mission.launch.py drone:=<drone> m
 
 | Layer | Who | Holds |
 |---|---|---|
-| Course | The numbers at the top of your tree, `config/course/<course>/premap.yaml` and `config/<competition>/classes.yaml` in `landmark_server` | Roles, offsets, priors, classes |
+| Course | The numbers at the top of your tree, `config/robosub/courses/<course>/premap.yaml` and `config/robosub/classes.yaml` in `landmark_server` | Roles, offsets, priors, classes |
 | Task | Your tree here | Find, measure, act, leave |
 | Stack | `landmark_server`, `vortex_bt_nodes`, control | Matching, graph, measuring, moving. Knows no course |
 
@@ -112,7 +112,7 @@ offset in your tree:
 You only need something outside the tree when:
 - There is a new object: add the class in `config/robosub/classes.yaml`. The objects on
   the RoboSub course are there already.
-- There is a new pool: the priors are in `config/course/<course>/premap.yaml`. In the
+- There is a new pool: the priors are in `config/robosub/courses/<course>/premap.yaml`. In the
   simulator they come from the course.
 - The task needs more than one object: write your own measurement, see "A measurement
   for your task" in the `landmark_server` README. It can add frames like
@@ -135,9 +135,9 @@ the handbook and `objects/robosub_landmarks.scn` in `vortex-stonefish-sim`.
 
 | Step | What you do | Where |
 |---|---|---|
-| 1. Priors | Drive the course as an ROV, measure each task from the GUI, drag what looks wrong, send it to the vehicle | `competition_map_gui`, saved to `config/course/<course>/premap.yaml`. See "Making the prior map" in the `landmark_server` README |
+| 1. Priors | Drive the course as an ROV, measure each task from the GUI, drag what looks wrong, send it to the vehicle | `competition_map_gui`, saved to `config/robosub/courses/<course>/premap.yaml`. See "Making the prior map" in the `landmark_server` README |
 | 2. Find | Go to `prior_<task>` with an offset that puts the object in view. A loose tolerance is enough here | `GoToFrame` in your tree |
-| 3. Measure | Hold still and add `Measure` for the class. Look at the frame and at the numbers in the log | `Measure` in your tree. A new class goes in `config/<competition>/classes.yaml`, a new kind of measurement in `landmark_server` |
+| 3. Measure | Hold still and add `Measure` for the class. Look at the frame and at the numbers in the log | `Measure` in your tree. A new class goes in `config/robosub/classes.yaml`, a new kind of measurement in `landmark_server` |
 | 4. Target | `GoToFrame` on `<class>/measured`, with the offset that places the vehicle where the task needs it | Your tree |
 | 5. Test | Run one task on its own, then all of `Main` | `main_tree:=Test<Task>`, `main_tree:=Main` |
 
