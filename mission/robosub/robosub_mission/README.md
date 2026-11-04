@@ -131,6 +131,19 @@ You only need something outside the tree when:
 Use a class on its own where you can. The sizes and positions on the course are in
 the handbook and `objects/robosub_landmarks.scn` in `vortex-stonefish-sim`.
 
+## Where to start on your task
+
+- Gate: Measure one panel first. Then think about what gives a steadier direction than
+  one small panel, and which way through counts.
+- Slalom: One look from one spot says little. Think about how to see all the rows, what
+  tells one row from the next, and where the gaps are from the shape of a row. Drive gap
+  to gap, and do not turn near the pipes.
+- Torpedo: Measure the opening from a distance, move closer, measure again, aim with
+  `tool_frame` and fire from close up. Check the tube against the opening in TF first.
+- Bins: Get above the rig, measure the bin with the down camera, put `marker_dropper`
+  over it and drop. Stay high enough to clear the rig.
+- Octagon: Measure the octagon, go there, and decide what the task needs at the top.
+
 ## From test day to a running task
 
 | Step | What you do | Where |

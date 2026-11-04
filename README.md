@@ -18,6 +18,9 @@ it again. Commit what you have first, it stops on uncommitted changes.
 bash <(curl -fsSL https://raw.githubusercontent.com/vortexntnu/vortex-cv/rework/landmark-members/scripts/setup_robosub_sim.sh)
 ```
 
+On this branch already, the same script is `scripts/setup_robosub_sim.sh`. Run it from
+inside your workspace.
+
 With more than one workspace, it asks you to put the one you want at the end:
 `bash <(curl ...) ~/code/ros2_ws`. If your laptop runs out of memory while building, add
 `--jobs 2` at the end.
