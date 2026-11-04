@@ -37,7 +37,7 @@ find_workspace() {
 }
 
 GIVEN=""
-if [[ -n "${1:-}" && "$1" != -* ]]; then
+if [[ $# -gt 0 && "$1" != -* ]]; then
     GIVEN="$1"
     shift
 fi
