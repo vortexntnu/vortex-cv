@@ -1,6 +1,7 @@
 #!/bin/bash
 # Everything the RoboSub simulator needs, from nothing or from a workspace you already have.
 # Finds the workspace itself, or give it: setup_robosub_sim.sh ~/code/ros2_ws
+# --jobs <n> builds less at a time, for a laptop that runs out of memory.
 # Safe to run again.
 
 set -eo pipefail
@@ -35,8 +36,17 @@ find_workspace() {
     fi
 }
 
-WS="$(find_workspace "${1:-}")"
-shift || true
+GIVEN=""
+if [[ -n "${1:-}" && "$1" != -* ]]; then
+    GIVEN="$1"
+    shift
+fi
+WS="$(find_workspace "$GIVEN")"
+JOBS=()
+ARGS=("$@")
+for ((i = 0; i < ${#ARGS[@]}; i++)); do
+    [[ "${ARGS[$i]}" == "--jobs" ]] && JOBS=(--parallel-workers "${ARGS[$((i + 1))]}")
+done
 mkdir -p "$WS/src"
 echo "==> Workspace: $WS"
 
@@ -63,7 +73,7 @@ cd "$WS"
 rm -rf build install log
 set +u
 source /opt/ros/humble/setup.bash
-colcon build --symlink-install --packages-up-to stonefish_sim stonefish_sim_interface \
+colcon build --symlink-install "${JOBS[@]}" --packages-up-to stonefish_sim stonefish_sim_interface \
     landmark_server vortex_bt_nodes robosub_mission robosub_dummy_publisher perception_setup \
     auv_setup waypoint_manager dp_adapt_backs_controller_quat reference_filter_dp_quat \
     thrust_allocator_auv operation_mode_manager joystick_interface_auv keyboard_joy

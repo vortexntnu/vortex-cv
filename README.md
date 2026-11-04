@@ -20,7 +20,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/vortexntnu/vortex-cv/rework/
 
 With more than one workspace, it asks you to put the one you want at the end:
 `bash <(curl ...) ~/code/ros2_ws`. If your laptop runs out of memory while building, add
-`--jobs 2` after the workspace.
+`--jobs 2` at the end.
 
 Then start the simulator, see `mission/robosub/robosub_mission`. On the vehicle:
 
