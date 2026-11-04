@@ -68,6 +68,8 @@ colcon build --symlink-install --packages-select robosub_mission
 src/vortex-cv/perception_setup/scripts/tmux_robosub_sim.sh --spawn <task> --tree TestMyTask
 ```
 
+There is no spawn point for the gate, it is near the start, so leave out `--spawn`.
+
 Run it again from the `mission` window. Start with `--profile none`, then use
 `--profile realistic`. The odometry in the simulator is perfect for now, so get the
 task working first.
@@ -115,6 +117,19 @@ You only need something outside the tree when:
 - The task needs more than one object: write your own measurement, see "A measurement
   for your task" in the `landmark_server` README. It can add frames like
   `<name>/measured/left`, and you drive to them with `GoToFrame` the same way.
+
+## Measure on each task
+
+| Task | Classes | What `Measure` on a class gives you |
+|---|---|---|
+| Gate | `gate_search_rescue`, `gate_survey_repair` | One panel. The yaw of one small panel is noisy, and you may want it from more than that |
+| Slalom | `slalom_pipe_red`, `slalom_pipe_white` | One pipe. Rows, gaps and the direction of the slalom are a measurement of your own |
+| Torpedo | `torpedo_board`, `torpedo_opening_*` | The board or one opening. Measure the opening again from close up before you fire |
+| Bins | `bin_search_rescue`, `bin_survey_repair`, `bin_structure` | The rig or one bin. The bins are seen by the down camera, so measure them from above |
+| Octagon | `octagon`, `table` | One object |
+
+Use a class on its own where you can. The sizes and positions on the course are in
+the handbook and `objects/robosub_landmarks.scn` in `vortex-stonefish-sim`.
 
 ## From test day to a running task
 

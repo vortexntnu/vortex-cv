@@ -135,7 +135,7 @@ blocks), nav = derives from `NavAction`, condition = `ConditionNode`.
 | Node | Area | Kind | Ports | Does |
 |---|---|---|---|---|
 | Wait | mission | stateful | `seconds` | Waits, on the simulator clock if there is one |
-| GoToFrame | map | nav | `frame`, `offset`, `tool_frame`, `mode`, `resend_m`, `dead_reckoning_threshold`, `max_step_m`, `face_travel`, `sideways_first`, `right_angles`, `settle_s`, `stuck_s` | Goes to a TF frame plus an offset in that frame, and follows the frame while it moves. With `tool_frame` set, that frame is put on the target instead of `base_link`. FAILURE if a frame is not in TF at the start. Within 0.2 m and 6° of the target and no closer for `settle_s` (10): SUCCESS. No closer for `stuck_s` (30) anywhere else: FAILURE. Legs longer than 1.5 m are driven facing the way they go; `face_travel="false"` keeps the heading, to back out from an object before turning. `sideways_first="true"` lines up along the target's Y before going along its X |
+| GoToFrame | map | nav | `frame`, `offset`, `tool_frame`, `mode`, `resend_m`, `resend_deg`, `dead_reckoning_threshold`, `max_step_m`, `face_travel`, `sideways_first`, `right_angles`, `settle_s`, `stuck_s` | Goes to a TF frame plus an offset in that frame, and follows the frame while it moves. With `tool_frame` set, that frame is put on the target instead of `base_link`. FAILURE if a frame is not in TF at the start. Within 0.2 m and 6° of the target and no closer for `settle_s` (10): SUCCESS. No closer for `stuck_s` (30) anywhere else: FAILURE. Legs longer than 1.5 m are driven facing the way they go; `face_travel="false"` keeps the heading, to back out from an object before turning. `sideways_first="true"` lines up along the target's Y before going along its X |
 | Measure | map | stateful | `class_name`, `out_frame`, `duration_s`, `max_range_m`, `fallback_from`, `accept_fallback` | Calls the `landmark_server` measure action and sets `<class_name>/measured`. Hold still while it runs |
 | LookAtFrame | map | nav | `frame` | Turns on the spot to face a TF frame. FAILURE if it is not in TF |
 | Turn | map | nav | `yaw_deg` or `relative_deg` | Turns to a heading in the map frame, or by an angle from the current heading |
@@ -168,21 +168,18 @@ README. The nodes below are not finished on this branch yet.
 
 | Person | Task | Nodes |
 |---|---|---|
-| Amélie | Gate | Log, SetDepth, Surface, MoveRelative, SetGripper |
+| Amélie | Gate | Log, SetDepth |
 | André | Slalom | Search |
-| Johannes | Torpedo | FireTorpedo |
-| Karol | Bins | LoadMissionConfig, WaitForStart, DropMarker |
+| Johannes | Torpedo | FireTorpedo, MoveRelative |
+| Karol | Bins | WaitForStart, DropMarker |
 | Ashish | Octagon | |
 
 | Node | Area | Kind | Ports | Does |
 |---|---|---|---|---|
 | Log | mission | sync | `message`, `level` | Logs with spdlog (info, warn or error) and returns SUCCESS |
-| SetDepth | motion | nav | `z` | Goes to depth `z`, keeps x, y and heading |
-| Surface | motion | nav | `z` (0.2) | As SetDepth, with a shallow default |
+| SetDepth | motion | nav | `z` (0.2) | Goes to depth `z`, keeps x, y and heading. The default is just under the surface |
 | MoveRelative | motion | nav | `offset`, `frame` (BODY or WORLD), `mode` | Moves by an offset from where the vehicle is when the node starts |
-| SetGripper | actuators | stateful | `roll`, `pinch`, `mode`, `action` | Sends a gripper goal. FAILURE if it is rejected, cancels when halted |
 | Search | motion | nav | `pattern` (ROTATE_STEPS or SCAN_ARC), `step_deg`, `arc_deg`, `pause_s` | Turns on the spot, pausing at each heading. FAILURE when the sweep is done, so the tree stops it when the target is found |
-| LoadMissionConfig | mission | sync | `path` | Writes every key in the yaml to the blackboard. Nested keys become `a.b`. FAILURE if the file can't be read |
 | WaitForStart | mission | stateful | `service` | RUNNING until the killswitch is off and the vehicle is in autonomous mode |
 | FireTorpedo | actuators | stateful | `service` (`fire_torpedo`), `settle_s` | Calls the `std_srvs/Trigger` service, then waits `settle_s`. FAILURE if the service is not there or says no. The one here still publishes on a topic |
 | DropMarker | actuators | stateful | `service` (`drop_marker`), `settle_s` | The same, on the `drop_marker` service |
@@ -195,8 +192,6 @@ Hints:
 - In the simulator `fire_torpedo` and `drop_marker` are `std_srvs/Trigger` services
   with no limit on the number of shots. Try them by hand:
   `ros2 service call /nautilus/fire_torpedo std_srvs/srv/Trigger`
-- BehaviorTree.CPP checks port types. Writing the values as text lets every
-  port read them with its own type.
 - The operation mode is only published when it changes, so ask for it with
   the `get_operation_mode` service.
 
@@ -252,7 +247,7 @@ tmux_robosub_sim.sh --no-gpu
 | Option | Default | |
 |---|---|---|
 | `--tree <name>` | | Tree to run when everything is up |
-| `--spawn <name>` | | Start at a spawn point: `slalom`, `torpedo`, `bin`, `octagon` |
+| `--spawn <name>` | | Start at a spawn point: `slalom`, `torpedo`, `bin`, `octagon`. Without it, at the start of the course, which is the place for the gate |
 | `--profile <name>` | `none` | Detection errors, see below |
 | `--blank` | | No prior map, as at a new pool. Starts the map GUI |
 | `--no-start` | | Leave the killswitch on and the mode manual |
@@ -314,6 +309,11 @@ ros2 launch perception_setup robosub_mission.launch.py main_tree:=Main
 Trees are read when the mission starts, so a change
 to an XML or yaml file needs no rebuild. `Can't find a tree with name`
 means the tree is not in `course.xml` or its file is not included there.
+
+### If the vehicle does not move
+
+Sometimes the vehicle does not react after the simulator has started. `GoToFrame` then
+fails as stuck, about as far from the target as where it started. Run the script again.
 
 ### Between runs
 
