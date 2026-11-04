@@ -10,30 +10,17 @@ TODO: Write a simple description / introduction to the repository
 
 # Setup
 
-From the `src` folder of your workspace, with what you have committed:
+Copy this into a terminal. It finds your workspace, installs what is missing, puts the
+repos on the right branches and builds. It takes a while the first time, and you can run
+it again. Commit what you have first, it stops on uncommitted changes.
 
 ```bash
-sudo apt install -y tmux ros-humble-gtsam ros-humble-behaviortree-cpp ros-humble-foxglove-bridge
-[ -d vortex-vkf ] || git clone https://github.com/vortexntnu/vortex-vkf.git
-[ -d vortex-stonefish-sim ] || git clone https://github.com/vortexntnu/vortex-stonefish-sim.git
-git -C vortex-stonefish-sim switch main && git -C vortex-stonefish-sim pull
-vortex-stonefish-sim/scripts/update_stonefish_sim.sh --branch rework/landmark-members --ws "$(dirname "$PWD")"
+bash <(curl -fsSL https://raw.githubusercontent.com/vortexntnu/vortex-cv/rework/landmark-members/scripts/setup_robosub_sim.sh)
 ```
 
-The script puts the repos on the right branches and builds Stonefish, it takes a while
-the first time. Then from the workspace:
-
-```bash
-rm -rf build install log
-source /opt/ros/humble/setup.bash
-colcon build --symlink-install --packages-up-to stonefish_sim stonefish_sim_interface \
-  landmark_server vortex_bt_nodes robosub_mission robosub_dummy_publisher perception_setup \
-  auv_setup waypoint_manager dp_adapt_backs_controller_quat reference_filter_dp_quat \
-  thrust_allocator_auv operation_mode_manager joystick_interface_auv keyboard_joy
-```
-
-Build only these, the rest are not needed for the simulator. If your laptop runs
-short on memory, add `--parallel-workers 2`.
+With more than one workspace, it asks you to put the one you want at the end:
+`bash <(curl ...) ~/code/ros2_ws`. If your laptop runs out of memory while building, add
+`--jobs 2` after the workspace.
 
 Then start the simulator, see `mission/robosub/robosub_mission`. On the vehicle:
 
