@@ -8,7 +8,10 @@ Log::Log(const std::string& name, const BT::NodeConfig& config)
     : BT::SyncActionNode(name, config) {}
 
 BT::PortsList Log::providedPorts() {
-    return {BT::InputPort<std::string>("message", "Message to log"),
+    return {BT::InputPort<std::string>(
+                "message",
+                "Message to log. Blackboard references are only resolved when "
+                "the whole message is a blackboard value."),
             BT::InputPort<std::string>("level", "info",
                                        "Log level: info, warn or error")};
 }
