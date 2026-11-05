@@ -181,12 +181,13 @@ README. The nodes below are not finished on this branch yet.
 | MoveRelative | motion | nav | `offset`, `frame` (BODY or WORLD), `mode` | Moves by an offset from where the vehicle is when the node starts |
 | Search | motion | nav | `pattern` (ROTATE_STEPS or SCAN_ARC), `step_deg`, `arc_deg`, `pause_s` | Turns on the spot, pausing at each heading. FAILURE when the sweep is done, so the tree stops it when the target is found |
 | WaitForStart | mission | stateful | `service` | RUNNING until the killswitch is off and the vehicle is in autonomous mode |
-| FireTorpedo | actuators | stateful | `service` (`fire_torpedo`), `settle_s` | Calls the `std_srvs/Trigger` service, then waits `settle_s`. FAILURE if the service is not there or says no. The one here still publishes on a topic |
-| DropMarker | actuators | stateful | `service` (`drop_marker`), `settle_s` | The same, on the `drop_marker` service |
+| FireTorpedo | actuators | stateful | `service` (`fire_torpedo`) | Calls the `std_srvs/Trigger` service. FAILURE if the service is not there or says no. The one here still publishes on a topic |
+| DropMarker | actuators | stateful | `service` (`drop_marker`) | The same, on the `drop_marker` service |
 
 Hints:
 - Look at the `WaypointMode` message. There is a mode for depth only.
 - The `WaypointManager` action has a `frame` field for relative goals.
+- Firing moves the vehicle, so put a `Wait` after `FireTorpedo` before the tree goes on.
 - Search until something is in view with `LandmarkSeen` in a `ReactiveFallback`,
   and give it a `Timeout`.
 - In the simulator `fire_torpedo` and `drop_marker` are `std_srvs/Trigger` services
@@ -287,9 +288,12 @@ The map only takes detections within 10 m of the vehicle, so even with
 
 ```bash
 ros2 topic echo --once /nautilus/landmark_server/landmarks   # the map
-ros2 run tf2_ros tf2_echo nautilus/odom nautilus/prior_gate  # a target frame
+ros2 run tf2_ros tf2_echo nautilus/odom nautilus/prior_gate  # a prior
 ros2 run tf2_ros tf2_echo nautilus/odom nautilus/base_link   # the vehicle
 ```
+
+`tf2_echo` needs the full names, with the drone in front. In a tree you write the frame
+without it: `frame="prior_gate"`.
 
 To look at it, connect Foxglove to `ws://localhost:8765` and open the layout
 in

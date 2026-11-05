@@ -144,6 +144,26 @@ the handbook and `objects/robosub_landmarks.scn` in `vortex-stonefish-sim`.
   over it and drop. Stay high enough to clear the rig.
 - Octagon: Measure the octagon, go there, and decide what the task needs at the top.
 
+## Firing and dropping in the simulator
+
+`fire_torpedo` and `drop_marker` are `std_srvs/Trigger` services with no limit on the
+number of shots. Try them by hand:
+
+```bash
+ros2 service call /nautilus/fire_torpedo std_srvs/srv/Trigger
+ros2 service call /nautilus/drop_marker std_srvs/srv/Trigger
+```
+
+A torpedo leaves from the `torpedo_tube` frame along its +X, and a marker falls from
+`marker_dropper`. Put the frame on the target with `tool_frame` in `GoToFrame`:
+
+```xml
+<GoToFrame frame="<class>/measured" offset="1;0;0;180" tool_frame="torpedo_tube"/>
+```
+
+The frames are in `auv_setup/description/nautilus.urdf.xacro`. The call answers
+`success=False` if the frame is not in TF. In a tree, the nodes call these services.
+
 ## From test day to a running task
 
 | Step | What you do | Where |
