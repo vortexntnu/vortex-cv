@@ -6,6 +6,7 @@
 <root BTCPP_format="4" main_tree_to_execute="Main">
   <!-- <include path="gate.xml"/> -->
 
+
   <BehaviorTree ID="Main">
     <Sequence>
       <AlwaysSuccess name="replace with Setup and the task subtrees"/>
