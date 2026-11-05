@@ -9,6 +9,7 @@
 #include <string>
 #include <thread>
 #include <vortex_bt_nodes/register_nodes.hpp>
+#include <behaviortree_cpp/actions/script_condition.h>
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
