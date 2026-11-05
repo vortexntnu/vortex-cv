@@ -154,8 +154,8 @@ ros2 service call /nautilus/fire_torpedo std_srvs/srv/Trigger
 ros2 service call /nautilus/drop_marker std_srvs/srv/Trigger
 ```
 
-A torpedo leaves from the `torpedo_tube` frame along its +X, and a marker falls from
-`marker_dropper`. Put the frame on the target with `tool_frame` in `GoToFrame`:
+A torpedo leaves from the `torpedo_tube` frame along its +X, for now at the gripper on
+Nautilus, and a marker falls from `marker_dropper`. Put the frame on the target with `tool_frame` in `GoToFrame`:
 
 ```xml
 <GoToFrame frame="<class>/measured" offset="1;0;0;180" tool_frame="torpedo_tube"/>
