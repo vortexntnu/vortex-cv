@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<root BTCPP_format="4">
+    <BehaviorTree ID="Octagon_Main">
+        <Sequence>
+           <GoToFrame name="find" frame="octagon" offset="3;0;0;180" position_tolerance="0.5" orientation_tolerance_deg="15"/>
+            <Wait seconds="2"/>
+            <Measure class_name="octagon" duration_s="5" accept_fallback="false"/>
+            <GoToFrame name="stand off" frame="octagon/measured" offset="0;0;0;180"/>
+        </Sequence>
+    </BehaviorTree>
+</root>

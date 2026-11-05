@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<root BTCPP_format="4">
+    <BehaviorTree ID="Octagon_Deliver_Item">
+        <Sequence>
+            <GoToFrame name="find" frame="table" offset="3;0;0;180" position_tolerance="0.5" orientation_tolerance_deg="15"/>
+            <Wait seconds="2"/>
+            <Measure class_name="table" duration_s="5" accept_fallback="false"/>
+            <GoToFrame name="stand off" frame="table/measured" offset="0;0;0;180"/>
+        </Sequence>
+        <Sequence>
+           <GoToFrame name="above table" frame="table/measured" offset="0;0;-1.5;0" position_tolerance="0.5" orientation_tolerance_deg="15"/>
+            <Measure class_name="table_item_pill" duration_s="5" accept_fallback="false"/>
+            <GoToFrame name="over item" frame="table_item_pill/measured" offset="0;0;-0.5;0" tool_frame="grip_point"/>            
+        </Sequence>
+    </BehaviorTree>
+</root>
