@@ -1,0 +1,27 @@
+<?xml version="1.0"?> 
+<root BTCPP_format="4" main_tree_to_execute="TestSearch">
+    <BehaviorTree ID="TestSearch">
+        <Timeout msec="180000">
+            <!-- Relative headings: +30, +60, ... +360 degrees. -->
+            <Search name="TestFullRotation"
+                    pattern="ROTATE_STEPS"
+                    step_deg="30"
+                    pause_s="2"
+                    position_tolerance="0.2"
+                    orientation_tolerance_deg="5"/>
+        </Timeout>
+    </BehaviorTree>
+
+    <BehaviorTree ID="TestSearchArc">
+        <Timeout msec="120000">
+            <!-- Relative headings: -30, -60, -30, 0, +30, +60 degrees. -->
+            <Search name="TestArcScan"
+                    pattern="SCAN_ARC"
+                    step_deg="30"
+                    arc_deg="120"
+                    pause_s="2"
+                    position_tolerance="0.2"
+                    orientation_tolerance_deg="5"/>
+        </Timeout>
+    </BehaviorTree>
+</root>
