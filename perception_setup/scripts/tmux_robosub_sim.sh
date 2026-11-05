@@ -105,6 +105,9 @@ START_CMD+=" && until timeout 15 ros2 topic echo --once /$DRONE/pose >/dev/null 
 START_CMD+=" && ros2 service call /$DRONE/set_killswitch vortex_msgs/srv/SetKillswitch '{killswitch_on: false}'"
 START_CMD+=" && ros2 service call /$DRONE/set_operation_mode vortex_msgs/srv/SetOperationMode '{requested_operation_mode: {operation_mode: 1}}'"
 
+# A tree starts as soon as the vehicle is armed and what it talks to is up
+READY_CMD="until ros2 service list | grep -q /$DRONE/landmark_server/reset && ros2 action list | grep -q /$DRONE/waypoint_manager; do sleep 1; done; tmux wait-for -S robosub_sim_ready"
+
 MISSION_CMD="ros2 launch perception_setup robosub_mission.launch.py drone:=$DRONE main_tree:=${TREE:-Main}"
 
 S="source install/setup.bash && export ROS_DOMAIN_ID=$DOMAIN_ID"
@@ -139,11 +142,10 @@ PANE_SERVER=$(tmux list-panes -t "$SESSION:map" -F '#{pane_id}')
 tmux send-keys -t "$PANE_SERVER" "$S && sleep 20 && $SERVER_CMD" Enter
 
 PANE_START=$(tmux split-window -v -t "$PANE_SERVER" -P -F '#{pane_id}')
-if [[ "$START" == "true" ]]; then
-    tmux send-keys -t "$PANE_START" "$S && $START_CMD" Enter
-else
-    tmux send-keys -t "$PANE_START" "$S" Enter
-fi
+START_LINE="$S"
+[[ "$START" == "true" ]] && START_LINE+=" && $START_CMD"
+[[ -n "$TREE" ]] && START_LINE+=" && $READY_CMD"
+tmux send-keys -t "$PANE_START" "$START_LINE" Enter
 
 PANE_FOX=$(tmux split-window -v -t "$PANE_SERVER" -P -F '#{pane_id}')
 if [[ "$FOXGLOVE" == "true" ]]; then
@@ -160,7 +162,7 @@ tmux new-window -t "$SESSION" -n "mission"
 
 PANE_MISSION=$(tmux list-panes -t "$SESSION:mission" -F '#{pane_id}')
 if [[ -n "$TREE" ]]; then
-    tmux send-keys -t "$PANE_MISSION" "$S && sleep 45 && $MISSION_CMD" Enter
+    tmux send-keys -t "$PANE_MISSION" "$S && tmux wait-for robosub_sim_ready && $MISSION_CMD" Enter
 else
     tmux send-keys -t "$PANE_MISSION" "$S" Enter
     tmux send-keys -t "$PANE_MISSION" "$MISSION_CMD"
