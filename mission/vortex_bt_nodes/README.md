@@ -164,7 +164,8 @@ Hints:
 
 Everyone makes the tree for their task, and the measurement if `Measure` on one
 class is not enough, see "A measurement for your task" in the `landmark_server`
-README. The nodes below are not finished on this branch yet.
+README. Log, SetDepth, Surface, MoveRelative and WaitForStart are in;
+the rest are not finished on this branch yet.
 
 | Person | Task | Nodes |
 |---|---|---|
@@ -177,7 +178,8 @@ README. The nodes below are not finished on this branch yet.
 | Node | Area | Kind | Ports | Does |
 |---|---|---|---|---|
 | Log | mission | sync | `message`, `level` | Logs with spdlog (info, warn or error) and returns SUCCESS |
-| SetDepth | motion | nav | `z` (0.2) | Goes to depth `z`, keeps x, y and heading. The default is just under the surface |
+| SetDepth | motion | nav | `z` | Goes to depth `z`, keeps x, y and heading |
+| Surface | motion | nav | `z` (0.2) | SetDepth with a default just under the surface |
 | MoveRelative | motion | nav | `offset`, `frame` (BODY or WORLD), `mode` | Moves by an offset from where the vehicle is when the node starts |
 | Search | motion | nav | `pattern` (ROTATE_STEPS or SCAN_ARC), `step_deg`, `arc_deg`, `pause_s` | Turns on the spot, pausing at each heading. FAILURE when the sweep is done, so the tree stops it when the target is found |
 | WaitForStart | mission | stateful | `service` | RUNNING until the killswitch is off and the vehicle is in autonomous mode |
