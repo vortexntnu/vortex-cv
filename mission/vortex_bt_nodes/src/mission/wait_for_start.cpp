@@ -56,7 +56,7 @@ BT::NodeStatus WaitForStart::onRunning() {
             auto request = std::make_shared<Service::Request>();
             future_.emplace(client_->async_send_request(request));
 
-            spdlog::info("[{}] Service request sent", name());
+            spdlog::debug("[{}] Service request sent", name());
         } else {
             spdlog::warn("[{}] Service is not available", name());
         }
