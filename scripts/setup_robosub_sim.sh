@@ -66,11 +66,13 @@ cd "$WS/src"
 git -C vortex-stonefish-sim switch main
 git -C vortex-stonefish-sim pull --ff-only
 
+# A build from another branch breaks the next one, so this goes before anything is built.
+rm -rf "$WS/build" "$WS/install" "$WS/log"
+
 # Puts the repos on the right branches and builds Stonefish. Stops if you have uncommitted changes.
 vortex-stonefish-sim/scripts/update_stonefish_sim.sh --branch "$BRANCH" --ws "$WS" "$@"
 
 cd "$WS"
-rm -rf build install log
 set +u
 source /opt/ros/humble/setup.bash
 colcon build --symlink-install "${JOBS[@]}" --packages-up-to stonefish_sim stonefish_sim_interface \
