@@ -1,0 +1,24 @@
+board_detection_node:
+  ros__parameters:
+
+    topic:
+      board_1_sub_topic: "/yolo/board_1"
+      board_2_sub_topic: "/yolo/board_2"
+      circle_sub_topic: "/yolo/circles"
+      depth_image_sub_topic: "/camera/depth/image"
+      drone_pose_sub_topic: "/drone/pose"
+
+      board_pose_pub_topic: "/board/pose"
+      small_search_rescue_pub_topic: "/board/small_search_rescue"
+      large_search_rescue_pub_topic: "/board/large_search_rescue"
+      small_survey_repair_pub_topic: "/board/small_survey_repair"
+      large_survey_repair_pub_topic: "/board/large_survey_repair"
+
+    camera:
+      horizontal_fov: #? #Radians
+      vertical_fov: #? #Radians
+
+    ransac:
+      distance_threshold: #?
+      num_iterations: #?
+      min_inliers: #?

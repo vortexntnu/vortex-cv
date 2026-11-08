@@ -1,0 +1,60 @@
+#pragma once
+
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/image.hpp>
+
+#include <geometry_msgs/msg/point.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+
+namespace vortex::board_detection {
+
+class BoardDetectionNode : public rclcpp::Node {
+    public:
+        explicit BoardDetectionNode(const rclcpp::NodeOptions& options);
+
+        ~BoardDetectionNode() override = default;
+    
+    private:
+        // Input subscriptions
+        rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr board_1_sub_;
+        rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr board_2_sub_;
+        rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr depth_camera_sub_;
+        rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr drone_pose_sub_;
+
+
+        // Result publishers
+        rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr board_pose_pub_;
+        rclcpp::Publisher<geometry_msgs::msg::Point>::SharedPtr small_search_rescue_pub_;   
+        rclcpp::Publisher<geometry_msgs::msg::Point>::SharedPtr large_search_rescue_pub_;
+        rclcpp::Publisher<geometry_msgs::msg::Point>::SharedPtr small_survey_repair_pub_;
+        rclcpp::Publisher<geometry_msgs::msg::Point>::SharedPtr large_survey_repair_pub_;
+
+        // Debug subscriptions
+        rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr colour_camera_sub_;
+
+        // Debug publishers
+        rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr contour_pub_;
+
+        // Parameters
+        // Camera
+        double horizontal_fov_;
+        double vertical_fov_;
+
+        // RANSAC
+        double distance_threshold_;
+        int num_iterations_;
+        int min_inliers_;
+
+        void declare_parameters();
+
+        void setup_publishers_and_subscribers();
+
+        void board_callback(
+            const sensor_msgs::msg::Image::ConstSharedPtr& board_mask,
+            const sensor_msgs::msg::Image::ConstSharedPtr& depth_image,
+            const geometry_msgs::msg::PoseStamped::ConstSharedPtr& drone_pose,
+            int board_type);
+
+};
+
+}
