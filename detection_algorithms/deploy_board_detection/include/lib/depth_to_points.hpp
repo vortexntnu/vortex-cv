@@ -13,4 +13,4 @@ std::vector<geometry_msgs::msg::Point32> depthToPoints(
     double vertical_fov
 );
 
-}
+} // namespace vortex::board_detection

@@ -1,5 +1,6 @@
 #include "ros/board_pose_node.hpp"
 #include "lib/depth_to_points.hpp"
+#include "lib/ransac_plane_fitting.hpp"
 
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/msg/image.hpp>
@@ -10,7 +11,6 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <vector>
-
 
 namespace vortex::board_detection {
 
@@ -188,12 +188,5 @@ void BoardDetectionNode::board_callback(
     board_pose_pub_->publish(world_board_pose);
 //Step 7: Start circle_callback???
 }
-
-struct Plane {
-    double a;
-    double b;
-    double c;
-    double d;
-};
 
 }
