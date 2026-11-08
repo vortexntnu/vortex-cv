@@ -164,7 +164,7 @@ Hints:
 
 Everyone makes the tree for their task, and the measurement if `Measure` on one
 class is not enough, see "A measurement for your task" in the `landmark_server`
-README. Log, SetDepth, Surface, MoveRelative and WaitForStart are in;
+README. Log, SetDepth, Surface, MoveRelative, WaitForStart and Search are in;
 the rest are not finished on this branch yet.
 
 | Person | Task | Nodes |

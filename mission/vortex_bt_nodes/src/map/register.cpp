@@ -8,6 +8,7 @@
 #include "vortex_bt_nodes/map/look_at_frame.hpp"
 #include "vortex_bt_nodes/map/measure.hpp"
 #include "vortex_bt_nodes/map/turn.hpp"
+#include "vortex_bt_nodes/motion/search.hpp"
 
 namespace vortex_bt_nodes::map {
 
@@ -22,6 +23,7 @@ void register_nodes(BT::BehaviorTreeFactory& factory,
     factory.registerNodeType<GoToFrame>("GoToFrame", node, map);
     factory.registerNodeType<LandmarkSeen>("LandmarkSeen", map);
     factory.registerNodeType<Measure>("Measure", node);
+    factory.registerNodeType<motion::Search>("Search", node, map);
 }
 
 }  // namespace vortex_bt_nodes::map
