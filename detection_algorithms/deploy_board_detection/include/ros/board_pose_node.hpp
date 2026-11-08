@@ -14,8 +14,10 @@ class BoardDetectionNode : public rclcpp::Node {
     
         private:
             // Input subscriptions
-            rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr mask_sub_;
+            rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr board_1_sub_;
+            rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr board_2_sub_;
             rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr depth_camera_sub_;
+            rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr drone_pose_sub_;
 
 
             // Result publishers
@@ -31,10 +33,27 @@ class BoardDetectionNode : public rclcpp::Node {
             // Debug publishers
             rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr contour_pub_;
 
+            // Parameters
+            // Camera
+            double horizontal_fov_;
+            double vertical_fov_;
+
+            // RANSAC
+            double distance_threshold_;
+            int num_iterations_;
+            int min_inliers_;
+
             void declare_parameters();
 
             void setup_publishers_and_subscribers();
 
-            void image_callback(); // Define input values, send into other functions
+            void board_callback(
+                sensor_msgs::msg::Image::ConstSharedPtr& board_mask,
+                sensor_msgs::msg::Image::ConstSharedPtr& depth_image,
+                geometry_msgs::msg::PoseStamped::ConstSharedPtr& drone_pose
+            );
+
+            void circle_callback(); // Define input values, send into other functions
+
 
 };
