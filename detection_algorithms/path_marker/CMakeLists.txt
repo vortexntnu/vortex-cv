@@ -14,4 +14,8 @@ target_link_libraries(path_marker_2d_node ${OpenCV_LIBS})
 
 install(TARGETS path_marker_2d_node DESTINATION lib/${PROJECT_NAME})
 
+install(DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
 ament_package()
