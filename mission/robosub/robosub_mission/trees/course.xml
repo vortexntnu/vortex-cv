@@ -5,6 +5,8 @@
 -->
 <root BTCPP_format="4" main_tree_to_execute="Main">
   <include path="example.xml"/>
+  <include path="octagon/octagon_main.xml"/>
+  <include path="octagon/octagon_utility/octagon_surface.xml"/>
 
   <BehaviorTree ID="Main">
     <Sequence>

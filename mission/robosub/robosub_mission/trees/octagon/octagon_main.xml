@@ -1,11 +1,18 @@
 <?xml version="1.0"?>
-<root BTCPP_format="4">
+
     <BehaviorTree ID="Octagon_Main">
         <Sequence>
-           <GoToFrame name="find" frame="octagon" offset="3;0;0;180" position_tolerance="0.5" orientation_tolerance_deg="15"/>
+            <Wait seconds="3"/>
+
+            <GoToFrame name="to octagon" frame="prior_octagon" offset="-3;0;0.9;0" position_tolerance="0.5" orientation_tolerance_deg="15"/>
             <Wait seconds="2"/>
-            <Measure class_name="octagon" duration_s="5" accept_fallback="false"/>
-            <GoToFrame name="stand off" frame="octagon/measured" offset="0;0;0;180"/>
+            <Measure name="measure table far" class_name="table" duration_s="5" accept_fallback="false"/>
+
+            <GoToFrame name="closer" frame="prior_octagon" offset="-2;0;0.9;0" position_tolerance="0.3" orientation_tolerance_deg="15"/>
+            <Wait seconds="2"/>
+            <Measure name="measure table close" class_name="table" duration_s="5" accept_fallback="false"/>
+
+            <GoToFrame name="over table" frame="table/measured" offset="0;0;-0.5;0" position_tolerance="0.2" orientation_tolerance_deg="15" face_travel="false" hold_s="2"/>
         </Sequence>
     </BehaviorTree>
 </root>
